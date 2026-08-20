@@ -188,15 +188,15 @@
 
             <!-- Scrollable Track with Enlarged Visual Area for Large Images & Arc Connections -->
             <div id="timelineContainer" onscroll="renderSvgConnections()" onwheel="handleTimelineWheel(event)" class="overflow-x-auto pt-36 pb-20 px-12 flex items-center relative min-h-[460px] custom-scrollbar scroll-smooth">
-                <!-- SVG Overlay for Mind-map Connection Lines -->
+                <!-- SVG Overlay for Mind-map Connection Lines (图层放在节点下方) -->
                 <svg id="timelineSvgOverlay" class="absolute top-0 left-0 pointer-events-none z-0">
                     <g id="svgConnectionsGroup"></g>
                 </svg>
 
-                <!-- Timeline axis line (Positioned dynamically behind dot center) -->
+                <!-- Timeline axis line -->
                 <div id="timelineMainAxis" class="absolute left-0 right-0 h-1 bg-slate-300 rounded-full z-0 transition-all"></div>
                 
-                <!-- Timeline nodes dynamically rendered here -->
+                <!-- Timeline nodes dynamically rendered here (z-10确保在轴线上方) -->
                 <div id="timelineNodesTrack" class="flex items-end w-full relative z-10 min-w-full"></div>
             </div>
         </div>
@@ -309,9 +309,9 @@
         </div>
     </div>
 
-    <!-- Confirm Delete Modal -->
-    <div id="confirmModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center">
+    <!-- Confirm Delete Modal (更高层级 z-60 确保在最上方弹出二次确认) -->
+    <div id="confirmModal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-md z-[70] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center transform scale-100 transition-transform">
             <div class="w-12 h-12 rounded-full bg-rose-100 text-rose-500 flex items-center justify-center text-xl mx-auto mb-3">
                 <i class="fa-solid fa-triangle-exclamation"></i>
             </div>
@@ -378,18 +378,9 @@
         let currentUser = null;
         let isInitialLoadDone = false;
 
-        // Default seed data for first time app run
-        const initialSeedEvents = [
-            { id: 1, title: "毕业典礼", date: "2021-06-20", type: "major", tags: ["里程碑"], images: ["https://picsum.photos/600/400?random=1", "https://picsum.photos/600/400?random=2"], description: "在校园的大礼堂参加了毕业典礼，和好友们合影留念。" },
-            { id: 2, title: "加入第一份工作", date: "2021-07-10", type: "minor", tags: ["工作"], images: ["https://picsum.photos/600/400?random=3"], description: "怀着激动的心情来到了新公司，开启了全新的职场生活。" },
-            { id: 3, title: "海滨城市露营", date: "2022-09-15", type: "minor", tags: ["旅行"], images: ["https://picsum.photos/600/400?random=4", "https://picsum.photos/600/400?random=5"], description: "和朋友们在海滩边搭起帐篷，夜晚听着浪花声看满天繁星。" },
-            { id: 4, title: "雨后天晴时光", date: "2023-04-12", type: "major", tags: ["生活"], images: ["https://picsum.photos/600/400?random=6"], description: "连续下了几天的雨终于停了，阳光透过树叶洒落，一切都显得无比美好。" }
-        ];
-
-        const initialSeedConnections = [
-            { id: 101, sourceId: 1, targetId: 2, dir: 'forward' },
-            { id: 102, sourceId: 3, targetId: 4, dir: 'both' }
-        ];
+        // 【已清空预设场景】初始为空数据
+        const initialSeedEvents = [];
+        const initialSeedConnections = [];
 
         function loadLocalData() {
             try {
@@ -505,10 +496,6 @@
                 // Listen for Events
                 onSnapshot(eventsCol, async (snapshot) => {
                     if (syncTimeout) clearTimeout(syncTimeout);
-                    if (snapshot.empty && !isInitialLoadDone) {
-                        await seedCloudDatabase();
-                        return;
-                    }
                     isInitialLoadDone = true;
                     window.events = snapshot.docs.map(doc => ({ id: isNaN(doc.id) ? doc.id : Number(doc.id), ...doc.data() }));
                     saveLocalData();
@@ -545,25 +532,6 @@
                 if (syncTimeout) clearTimeout(syncTimeout);
                 initializeLocalFallback('已就绪 (本地)');
             }
-        }
-
-        async function seedCloudDatabase() {
-            if (!currentUser || !db) return;
-            updateSyncStatus('syncing', '正在初始化云端数据...');
-            try {
-                for (const ev of initialSeedEvents) {
-                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', String(ev.id)), ev);
-                }
-                for (const cn of initialSeedConnections) {
-                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'connections', String(cn.id)), cn);
-                }
-                for (const tg of window.availableTags) {
-                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tags', tg), { name: tg });
-                }
-            } catch (e) {
-                console.warn("Cloud seed error:", e);
-            }
-            isInitialLoadDone = true;
         }
 
         window.saveEventToCloud = async function(eventData) {
@@ -813,6 +781,7 @@
             window.showToast(`已移除 tag: ${tagName}`, "info");
         };
 
+        // 【二次确认直接在本页面弹出】
         window.deleteEvent = function(id) {
             window.pendingDeleteId = id;
             document.getElementById('confirmModal')?.classList.remove('hidden');
@@ -829,7 +798,7 @@
                 window.closeConfirmModal();
                 window.closeEditModal();
                 await window.deleteEventFromCloud(targetId);
-                window.showToast("事件及关联已成功从云端删除", "info");
+                window.showToast("事件及关联已成功删除", "info");
             }
         };
 
@@ -1525,7 +1494,7 @@
 
             await window.saveEventToCloud(eventData);
             window.closeEditModal();
-            window.showToast(isEdit ? "事件修改已保存至云端" : "新建事件成功并同步至云端", "success");
+            window.showToast(isEdit ? "事件修改已保存" : "新建事件成功", "success");
         };
 
         window.showToast = function(text, type = "info") {
