@@ -1,0 +1,1548 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>雨后天晴</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        .transition-all-custom {
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.4);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(107, 114, 128, 0.7);
+        }
+        
+        /* Timeline line and dots smooth transition */
+        .timeline-dot {
+            transition: transform 0.2s ease, width 0.2s ease, height 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        /* Hover micro popup tooltip with enhanced visual space */
+        .timeline-hover-tooltip {
+            pointer-events: none;
+            opacity: 0;
+            transform: translateY(10px) scale(0.92);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+        .timeline-node-container:hover .timeline-hover-tooltip {
+            pointer-events: auto;
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+
+        /* SVG Mind-map Connection Lines - STRICTLY HIDDEN BY DEFAULT */
+        .svg-conn-line {
+            opacity: 0 !important;
+            visibility: hidden !important;
+            transition: opacity 0.25s ease;
+            pointer-events: none;
+        }
+        
+        .svg-conn-line path {
+            stroke: #6366f1;
+            stroke-width: 2.5px;
+            stroke-dasharray: 6 4;
+            transition: stroke 0.2s ease, stroke-width 0.2s ease;
+        }
+
+        .svg-conn-line polygon {
+            fill: #4f46e5;
+            transition: fill 0.2s ease, transform 0.2s ease;
+        }
+        
+        /* Active class triggered ONLY on hover of timeline dot or card */
+        .svg-conn-line.active-line {
+            opacity: 1 !important;
+            visibility: visible !important;
+            filter: drop-shadow(0 2px 4px rgba(79, 70, 229, 0.35));
+        }
+
+        .svg-conn-line.active-line path {
+            stroke: #4f46e5 !important;
+            stroke-width: 3px !important;
+        }
+
+        .timeline-node-container:hover .timeline-dot {
+            transform: scale(1.3);
+            box-shadow: 0 0 0 6px rgba(99, 102, 241, 0.25);
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen font-sans flex flex-col antialiased">
+
+    <!-- Header / Navbar -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xl shadow-sm">
+                    <i class="fa-solid fa-cloud-sun text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-xl text-slate-900 tracking-wide">雨后天晴</h1>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 sm:gap-3">
+                <!-- Sync Status Indicator -->
+                <div id="syncStatus" class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs bg-slate-100 text-slate-500 font-medium">
+                    <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse" id="syncDot"></span>
+                    <span id="syncText">正在同步...</span>
+                </div>
+
+                <!-- Tag Manager Button -->
+                <button onclick="openTagModal()" class="px-3 py-2 rounded-lg text-xs font-medium border border-slate-300 hover:bg-slate-50 text-slate-700 flex items-center gap-1.5 transition-all">
+                    <i class="fa-solid fa-tags text-slate-500"></i>
+                    <span>tag库</span>
+                </button>
+
+                <!-- Share Collaboration Button -->
+                <button onclick="openShareModal()" class="px-3 py-2 rounded-lg text-xs font-medium border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 flex items-center gap-1.5 transition-all shadow-sm">
+                    <i class="fa-solid fa-share-nodes text-indigo-600"></i>
+                    <span>分享协同</span>
+                </button>
+
+                <!-- Lock / Unlock Security Toggle Button -->
+                <button id="lockToggleBtn" onclick="toggleLockState()" class="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all shadow-sm border">
+                    <!-- Dynamic Content in JS -->
+                </button>
+
+                <!-- Create Event Button -->
+                <button id="addEventBtn" onclick="handleNewEventClick()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-2 shadow-sm transition-all">
+                    <i class="fa-solid fa-plus"></i>
+                    <span class="hidden sm:inline">新建事件</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-grow max-w-6xl w-full mx-auto px-4 sm:px-6 py-8">
+        <!-- Toast Notification Alert Box -->
+        <div id="toastBox" class="hidden fixed top-20 right-4 z-50 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl border border-slate-700 flex items-center gap-3 transition-all duration-300 transform translate-y-0 opacity-100">
+            <i id="toastIcon" class="fa-solid fa-circle-info text-indigo-400 text-lg"></i>
+            <span id="toastText" class="text-sm font-medium">提示信息</span>
+        </div>
+
+        <!-- Controls Bar: View Switcher, Zoom & Search -->
+        <div class="flex flex-wrap items-center justify-between gap-4 mb-6 bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-sm">
+            <div class="flex items-center gap-2 bg-slate-100 p-1 rounded-lg">
+                <button id="viewTimelineBtn" onclick="switchView('timeline')" class="px-3.5 py-1.5 rounded-md text-xs font-semibold flex items-center gap-2 transition-all bg-white text-indigo-600 shadow-sm">
+                    <i class="fa-solid fa-timeline"></i>
+                    <span>时间线视角</span>
+                </button>
+                <button id="viewGridBtn" onclick="switchView('grid')" class="px-3.5 py-1.5 rounded-md text-xs font-semibold flex items-center gap-2 transition-all text-slate-600 hover:text-slate-900">
+                    <i class="fa-solid fa-border-all"></i>
+                    <span>卡片视图</span>
+                </button>
+            </div>
+
+            <!-- Timeline Zoom Slider (Dynamic density control) -->
+            <div id="zoomControlContainer" class="flex items-center gap-2 border-x border-slate-200 px-4 py-1">
+                <span class="text-xs text-slate-500 font-medium flex items-center gap-1">
+                    <i class="fa-solid fa-magnifying-glass text-slate-400"></i>
+                    <span>时间线密度:</span>
+                </span>
+                <button onclick="changeZoom(-1)" title="缩小密度，容纳更多事件" class="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center text-xs transition-colors font-bold">-</button>
+                <input type="range" id="zoomSlider" min="1" max="5" value="3" oninput="setZoom(this.value)" class="w-20 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                <button onclick="changeZoom(1)" title="放大密度，拉开节点" class="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center text-xs transition-colors font-bold">+</button>
+            </div>
+
+            <!-- Search Box -->
+            <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs w-full sm:w-auto">
+                <i class="fa-solid fa-magnifying-glass text-slate-400"></i>
+                <input type="text" id="searchInput" oninput="handleSearch()" placeholder="搜索事件或tag..." class="bg-transparent outline-none text-slate-700 placeholder-slate-400 w-full sm:w-48">
+            </div>
+        </div>
+
+        <!-- Horizontal Timeline Axis Container -->
+        <div id="timelineWrapper" class="relative group my-8 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm overflow-hidden">
+            <div class="text-xs text-slate-400 mb-2 flex items-center justify-between">
+                <span><i class="fa-solid fa-circle-info text-indigo-500 mr-1"></i>悬停节点或卡片显示思维导图虚线 (箭头指示指向与演进关系)</span>
+                <span id="densityLabel" class="font-mono text-indigo-600 font-semibold">密度: 标准</span>
+            </div>
+
+            <!-- Left / Right scroll navigation buttons -->
+            <button onclick="scrollTimeline(-300)" class="hidden md:flex absolute left-2 top-1/2 -translate-y-1/2 z-20 bg-white/95 hover:bg-white shadow-lg rounded-full w-9 h-9 border border-slate-200 items-center justify-center text-slate-700 hover:text-indigo-600 transition-all">
+                <i class="fa-solid fa-chevron-left text-xs"></i>
+            </button>
+            <button onclick="scrollTimeline(300)" class="hidden md:flex absolute right-2 top-1/2 -translate-y-1/2 z-20 bg-white/95 hover:bg-white shadow-lg rounded-full w-9 h-9 border border-slate-200 items-center justify-center text-slate-700 hover:text-indigo-600 transition-all">
+                <i class="fa-solid fa-chevron-right text-xs"></i>
+            </button>
+
+            <!-- Scrollable Track with Enlarged Visual Area for Large Images & Arc Connections -->
+            <div id="timelineContainer" onscroll="renderSvgConnections()" onwheel="handleTimelineWheel(event)" class="overflow-x-auto pt-36 pb-20 px-12 flex items-center relative min-h-[460px] custom-scrollbar scroll-smooth">
+                <!-- SVG Overlay for Mind-map Connection Lines -->
+                <svg id="timelineSvgOverlay" class="absolute top-0 left-0 pointer-events-none z-0">
+                    <g id="svgConnectionsGroup"></g>
+                </svg>
+
+                <!-- Timeline axis line (Positioned dynamically behind dot center) -->
+                <div id="timelineMainAxis" class="absolute left-0 right-0 h-1 bg-slate-300 rounded-full z-0 transition-all"></div>
+                
+                <!-- Timeline nodes dynamically rendered here -->
+                <div id="timelineNodesTrack" class="flex items-end w-full relative z-10 min-w-full"></div>
+            </div>
+        </div>
+
+        <!-- Event Cards Grid View (Hidden by default, toggled via switch) -->
+        <div id="eventGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 hidden">
+            <!-- Event cards generated via JavaScript -->
+        </div>
+
+        <!-- Empty State View -->
+        <div id="emptyState" class="hidden flex-col items-center justify-center py-20 text-center">
+            <div class="w-16 h-16 bg-slate-200 text-slate-400 rounded-full flex items-center justify-center text-2xl mb-4">
+                <i class="fa-solid fa-folder-open"></i>
+            </div>
+            <h3 class="text-base font-semibold text-slate-700">暂无事件</h3>
+            <p class="text-slate-500 text-xs mt-1 max-w-md">点击右上角的“新建事件”开始记录。</p>
+        </div>
+    </main>
+
+    <!-- Tag Manager Modal -->
+    <div id="tagModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
+                <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                    <i class="fa-solid fa-tags text-indigo-600"></i>
+                    <span>tag库</span>
+                </h3>
+                <button onclick="closeTagModal()" class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="flex gap-2 mb-4">
+                <input type="text" id="newTagInput" placeholder="输入新tag名称" class="flex-grow px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
+                <button onclick="addNewTagFromModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-xs font-medium">新建tag</button>
+            </div>
+            <div id="tagModalList" class="flex flex-wrap gap-2 max-h-60 overflow-y-auto p-1">
+                <!-- Tag list -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Share Collaboration Modal -->
+    <div id="shareModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
+                <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                    <i class="fa-solid fa-users text-indigo-600"></i>
+                    <span>多端实时协同分享</span>
+                </h3>
+                <button onclick="closeShareModal()" class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <div class="bg-indigo-50/60 border border-indigo-100 rounded-xl p-3.5 mb-4 text-xs text-slate-600 space-y-2">
+                <div class="font-bold text-indigo-900 flex items-center gap-1.5">
+                    <i class="fa-solid fa-circle-info text-indigo-600"></i>
+                    <span>协同使用说明</span>
+                </div>
+                <ul class="list-disc list-inside space-y-1.5 text-slate-600 leading-relaxed">
+                    <li><span class="font-semibold text-slate-800">多端同步：</span>复制下方专属链接分享给好友或在其他设备打开，即可自动加入同一空间。</li>
+                    <li><span class="font-semibold text-slate-800">实时协作：</span>任何人在空间内新增、修改或删除事件及连线，所有在线终端均会实时同步改变。</li>
+                    <li><span class="font-semibold text-slate-800">自定义空间：</span>可以在上方输入新的空间 ID，点击“切换/创建空间”即可快速建立独立私密的全新记录空间。</li>
+                </ul>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-xs font-bold text-slate-700 mb-1">当前空间 ID (Room)</label>
+                <div class="flex gap-2">
+                    <input type="text" id="shareRoomInput" placeholder="公共空间 (default)" class="flex-grow px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
+                    <button onclick="switchRoomFromInput()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg text-xs font-medium shrink-0">切换/创建空间</button>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 mb-4">
+                <label class="block text-[11px] font-semibold text-slate-500 mb-1">协同分享专用链接</label>
+                <div class="flex items-center gap-2">
+                    <input type="text" id="shareUrlInput" readonly class="flex-grow bg-white px-2.5 py-1.5 border border-slate-200 rounded-md text-xs font-mono text-slate-700 select-all outline-none">
+                    <button onclick="copyShareLink()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-xs font-medium shrink-0 flex items-center gap-1">
+                        <i class="fa-solid fa-copy"></i>
+                        <span>复制链接</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex justify-end">
+                <button onclick="closeShareModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-medium text-slate-700">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Unlock Password Modal -->
+    <div id="pwdModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
+                <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                    <i class="fa-solid fa-lock text-amber-500"></i>
+                    <span>解锁编辑权限</span>
+                </h3>
+                <button onclick="closePwdModal()" class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <p class="text-xs text-slate-500 mb-3">请输入管理密码解锁修改与编辑权限：</p>
+            <input type="password" id="unlockPwdInput" placeholder="输入解锁密码" onkeydown="if(event.key==='Enter') submitUnlockPassword()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 mb-4">
+            <div class="flex justify-end gap-2">
+                <button onclick="closePwdModal()" class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button>
+                <button onclick="submitUnlockPassword()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">解锁</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Delete Modal -->
+    <div id="confirmModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center">
+            <div class="w-12 h-12 rounded-full bg-rose-100 text-rose-500 flex items-center justify-center text-xl mx-auto mb-3">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h3 class="font-bold text-slate-800 text-base mb-1">确认删除事件？</h3>
+            <p class="text-xs text-slate-500 mb-5">删除后将无法恢复，关联的思维导图连线也将同步注销。</p>
+            <div class="flex justify-center gap-3">
+                <button onclick="closeConfirmModal()" class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button>
+                <button onclick="confirmDeleteEvent()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-medium shadow-sm">确认删除</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Extract room ID from URL query parameters (e.g., ?room=family-space)
+        const urlParams = new URLSearchParams(window.location.search);
+        window.currentRoomId = urlParams.get('room') || 'default';
+
+        // Base appId extended with room ID to ensure separated real-time sync rooms
+        const baseAppId = typeof __app_id !== 'undefined' ? __app_id : 'yuhoutianqing-app';
+        const appId = `${baseAppId}-${window.currentRoomId}`;
+
+        const firebaseConfig = typeof __firebase_config !== 'undefined' && __firebase_config ? JSON.parse(__firebase_config) : null;
+
+        let app = null;
+        let auth = null;
+        let db = null;
+
+        if (firebaseConfig) {
+            try {
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+            } catch (err) {
+                console.warn("Firebase initialization error:", err);
+            }
+        }
+
+        // State variables
+        window.events = [];
+        window.connections = [];
+        window.availableTags = ["里程碑", "工作", "旅行", "生活"];
+        
+        // Lock state restored from localStorage so refreshing retains edit mode unlock
+        window.isLocked = localStorage.getItem('yuhoutianqing_isLocked') === 'false' ? false : true;
+        const LOCK_PASSWORD = "tingyu1938";
+        window.currentView = 'timeline';
+        window.zoomLevel = 3;
+        window.activeHoverIntervals = {};
+        window.editingImageFiles = [];
+        window.pendingDeleteId = null;
+        let currentUser = null;
+        let isInitialLoadDone = false;
+
+        // Default seed data for first time app run
+        const initialSeedEvents = [
+            { id: 1, title: "毕业典礼", date: "2021-06-20", type: "major", tags: ["里程碑"], images: ["https://picsum.photos/600/400?random=1", "https://picsum.photos/600/400?random=2"], description: "在校园的大礼堂参加了毕业典礼，和好友们合影留念。" },
+            { id: 2, title: "加入第一份工作", date: "2021-07-10", type: "minor", tags: ["工作"], images: ["https://picsum.photos/600/400?random=3"], description: "怀着激动的心情来到了新公司，开启了全新的职场生活。" },
+            { id: 3, title: "海滨城市露营", date: "2022-09-15", type: "minor", tags: ["旅行"], images: ["https://picsum.photos/600/400?random=4", "https://picsum.photos/600/400?random=5"], description: "和朋友们在海滩边搭起帐篷，夜晚听着浪花声看满天繁星。" },
+            { id: 4, title: "雨后天晴时光", date: "2023-04-12", type: "major", tags: ["生活"], images: ["https://picsum.photos/600/400?random=6"], description: "连续下了几天的雨终于停了，阳光透过树叶洒落，一切都显得无比美好。" }
+        ];
+
+        const initialSeedConnections = [
+            { id: 101, sourceId: 1, targetId: 2, dir: 'forward' },
+            { id: 102, sourceId: 3, targetId: 4, dir: 'both' }
+        ];
+
+        function loadLocalData() {
+            try {
+                const localEv = localStorage.getItem('yuhoutianqing_events');
+                const localConn = localStorage.getItem('yuhoutianqing_connections');
+                const localTags = localStorage.getItem('yuhoutianqing_tags');
+
+                if (localEv) {
+                    window.events = JSON.parse(localEv);
+                } else {
+                    window.events = [...initialSeedEvents];
+                }
+
+                if (localConn) {
+                    window.connections = JSON.parse(localConn);
+                } else {
+                    window.connections = [...initialSeedConnections];
+                }
+
+                if (localTags) {
+                    window.availableTags = JSON.parse(localTags);
+                }
+
+                saveLocalData();
+            } catch (e) {
+                console.warn("localStorage 读取异常，已恢复为默认数据:", e);
+                window.events = [...initialSeedEvents];
+                window.connections = [...initialSeedConnections];
+            }
+        }
+
+        function saveLocalData() {
+            try {
+                localStorage.setItem('yuhoutianqing_events', JSON.stringify(window.events));
+                localStorage.setItem('yuhoutianqing_connections', JSON.stringify(window.connections));
+                localStorage.setItem('yuhoutianqing_tags', JSON.stringify(window.availableTags));
+            } catch (e) {
+                console.warn("localStorage 保存失败:", e);
+            }
+        }
+
+        function initializeLocalFallback(reason = '已就绪 (本地)') {
+            if (isInitialLoadDone) return;
+            isInitialLoadDone = true;
+            loadLocalData();
+            window.renderEvents();
+            updateSyncStatus('offline', reason);
+        }
+
+        async function initAppAndCloudSync() {
+            window.updateLockButtonUI();
+
+            const syncTimeout = setTimeout(() => {
+                if (!isInitialLoadDone) {
+                    console.warn("云端同步超时，已自动切换为本地就绪模式。");
+                    initializeLocalFallback('已就绪 (本地)');
+                }
+            }, 2500);
+
+            if (!firebaseConfig || !auth || !db) {
+                clearTimeout(syncTimeout);
+                initializeLocalFallback('已就绪 (本地)');
+                return;
+            }
+
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    const userCred = await signInWithCustomToken(auth, __initial_auth_token);
+                    currentUser = userCred.user;
+                } else {
+                    const userCred = await signInAnonymously(auth);
+                    currentUser = userCred.user;
+                }
+            } catch (err) {
+                console.warn("Auth initialization fallback:", err);
+                clearTimeout(syncTimeout);
+                initializeLocalFallback('已就绪 (本地)');
+                return;
+            }
+
+            if (currentUser) {
+                setupRealtimeListeners(syncTimeout);
+            } else {
+                clearTimeout(syncTimeout);
+                initializeLocalFallback('已就绪 (本地)');
+            }
+        }
+
+        function updateSyncStatus(type, text) {
+            const dot = document.getElementById('syncDot');
+            const textEl = document.getElementById('syncText');
+            if (!dot || !textEl) return;
+            textEl.innerText = text;
+            if (type === 'synced') {
+                dot.className = "w-2 h-2 rounded-full bg-emerald-500";
+            } else if (type === 'syncing') {
+                dot.className = "w-2 h-2 rounded-full bg-amber-400 animate-pulse";
+            } else if (type === 'offline') {
+                dot.className = "w-2 h-2 rounded-full bg-indigo-500";
+            } else {
+                dot.className = "w-2 h-2 rounded-full bg-rose-500";
+            }
+        }
+
+        function setupRealtimeListeners(syncTimeout) {
+            if (!currentUser || !db) return;
+
+            try {
+                const eventsCol = collection(db, 'artifacts', appId, 'public', 'data', 'events');
+                const connCol = collection(db, 'artifacts', appId, 'public', 'data', 'connections');
+                const tagsCol = collection(db, 'artifacts', appId, 'public', 'data', 'tags');
+
+                // Listen for Events
+                onSnapshot(eventsCol, async (snapshot) => {
+                    if (syncTimeout) clearTimeout(syncTimeout);
+                    if (snapshot.empty && !isInitialLoadDone) {
+                        await seedCloudDatabase();
+                        return;
+                    }
+                    isInitialLoadDone = true;
+                    window.events = snapshot.docs.map(doc => ({ id: isNaN(doc.id) ? doc.id : Number(doc.id), ...doc.data() }));
+                    saveLocalData();
+                    window.renderEvents();
+                    updateSyncStatus('synced', '已同步云端');
+                }, (error) => {
+                    console.error("Events snapshot error:", error);
+                    if (syncTimeout) clearTimeout(syncTimeout);
+                    initializeLocalFallback('已就绪 (本地)');
+                });
+
+                // Listen for Connections
+                onSnapshot(connCol, (snapshot) => {
+                    window.connections = snapshot.docs.map(doc => ({ id: isNaN(doc.id) ? doc.id : Number(doc.id), ...doc.data() }));
+                    saveLocalData();
+                    window.renderSvgConnections();
+                }, (error) => {
+                    console.error("Connections snapshot error:", error);
+                });
+
+                // Listen for Tags
+                onSnapshot(tagsCol, (snapshot) => {
+                    if (!snapshot.empty) {
+                        const loadedTags = snapshot.docs.map(doc => doc.data().name);
+                        if (loadedTags.length > 0) window.availableTags = loadedTags;
+                    }
+                    saveLocalData();
+                    window.renderTagModalList();
+                }, (error) => {
+                    console.error("Tags snapshot error:", error);
+                });
+            } catch (err) {
+                console.error("Error setting up listeners:", err);
+                if (syncTimeout) clearTimeout(syncTimeout);
+                initializeLocalFallback('已就绪 (本地)');
+            }
+        }
+
+        async function seedCloudDatabase() {
+            if (!currentUser || !db) return;
+            updateSyncStatus('syncing', '正在初始化云端数据...');
+            try {
+                for (const ev of initialSeedEvents) {
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', String(ev.id)), ev);
+                }
+                for (const cn of initialSeedConnections) {
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'connections', String(cn.id)), cn);
+                }
+                for (const tg of window.availableTags) {
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tags', tg), { name: tg });
+                }
+            } catch (e) {
+                console.warn("Cloud seed error:", e);
+            }
+            isInitialLoadDone = true;
+        }
+
+        window.saveEventToCloud = async function(eventData) {
+            const index = window.events.findIndex(e => String(e.id) === String(eventData.id));
+            if (index >= 0) {
+                window.events[index] = eventData;
+            } else {
+                window.events.push(eventData);
+            }
+            saveLocalData();
+            window.renderEvents();
+
+            if (!currentUser || !db) return;
+            try {
+                updateSyncStatus('syncing', '保存中...');
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', String(eventData.id)), eventData);
+                updateSyncStatus('synced', '已同步云端');
+            } catch (e) {
+                console.warn("Cloud save failed, retained in local state:", e);
+                updateSyncStatus('offline', '已就绪 (本地)');
+            }
+        };
+
+        window.deleteEventFromCloud = async function(eventId) {
+            window.events = window.events.filter(e => String(e.id) !== String(eventId));
+            window.connections = window.connections.filter(c => String(c.sourceId) !== String(eventId) && String(c.targetId) !== String(eventId));
+            saveLocalData();
+            window.renderEvents();
+
+            if (!currentUser || !db) return;
+            try {
+                updateSyncStatus('syncing', '删除中...');
+                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', String(eventId)));
+                const toDeleteConns = window.connections.filter(c => String(c.sourceId) === String(eventId) || String(c.targetId) === String(eventId));
+                for (const c of toDeleteConns) {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'connections', String(c.id)));
+                }
+                updateSyncStatus('synced', '已同步云端');
+            } catch (e) {
+                console.warn("Cloud delete failed, retained in local state:", e);
+                updateSyncStatus('offline', '已就绪 (本地)');
+            }
+        };
+
+        window.saveConnectionToCloud = async function(connData) {
+            const index = window.connections.findIndex(c => String(c.id) === String(connData.id));
+            if (index >= 0) {
+                window.connections[index] = connData;
+            } else {
+                window.connections.push(connData);
+            }
+            saveLocalData();
+            window.renderSvgConnections();
+
+            if (!currentUser || !db) return;
+            try {
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'connections', String(connData.id)), connData);
+            } catch (e) {
+                console.warn("Cloud connection save failed:", e);
+            }
+        };
+
+        window.deleteConnectionFromCloud = async function(connId) {
+            window.connections = window.connections.filter(c => String(c.id) !== String(connId));
+            saveLocalData();
+            window.renderSvgConnections();
+
+            if (!currentUser || !db) return;
+            try {
+                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'connections', String(connId)));
+            } catch (e) {
+                console.warn("Cloud connection delete failed:", e);
+            }
+        };
+
+        window.saveTagToCloud = async function(tagName) {
+            if (!window.availableTags.includes(tagName)) {
+                window.availableTags.push(tagName);
+            }
+            saveLocalData();
+            window.renderTagModalList();
+
+            if (!currentUser || !db) return;
+            try {
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tags', tagName), { name: tagName });
+            } catch (e) {
+                console.warn("Cloud tag save failed:", e);
+            }
+        };
+
+        window.deleteTagFromCloud = async function(tagName) {
+            window.availableTags = window.availableTags.filter(t => t !== tagName);
+            saveLocalData();
+            window.renderTagModalList();
+
+            if (!currentUser || !db) return;
+            try {
+                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tags', tagName));
+            } catch (e) {
+                console.warn("Cloud tag delete failed:", e);
+            }
+        };
+
+        window.updateLockButtonUI = function() {
+            const lockBtn = document.getElementById('lockToggleBtn');
+            if (!lockBtn) return;
+            if (window.isLocked) {
+                lockBtn.className = "flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all shadow-sm border bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100";
+                lockBtn.innerHTML = `<i class="fa-solid fa-lock text-amber-600"></i><span>浏览模式 (点击解锁)</span>`;
+            } else {
+                lockBtn.className = "flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all shadow-sm border bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100";
+                lockBtn.innerHTML = `<i class="fa-solid fa-lock-open text-emerald-600"></i><span>编辑模式 (已解锁)</span>`;
+            }
+        };
+
+        window.toggleLockState = function() {
+            if (window.isLocked) {
+                window.openPwdModal();
+            } else {
+                window.isLocked = true;
+                localStorage.setItem('yuhoutianqing_isLocked', 'true');
+                window.updateLockButtonUI();
+                window.showToast("已恢复为浏览模式", "info");
+            }
+        };
+
+        window.openPwdModal = function() {
+            const pwdInput = document.getElementById('unlockPwdInput');
+            if (pwdInput) pwdInput.value = '';
+            document.getElementById('pwdModal')?.classList.remove('hidden');
+            setTimeout(() => pwdInput?.focus(), 100);
+        };
+
+        window.closePwdModal = function() {
+            document.getElementById('pwdModal')?.classList.add('hidden');
+        };
+
+        window.submitUnlockPassword = function() {
+            const pwdInput = document.getElementById('unlockPwdInput');
+            const pwd = pwdInput ? pwdInput.value : '';
+            if (pwd === LOCK_PASSWORD) {
+                window.isLocked = false;
+                localStorage.setItem('yuhoutianqing_isLocked', 'false');
+                window.updateLockButtonUI();
+                window.closePwdModal();
+                window.showToast("解锁成功，已切换至编辑模式", "success");
+            } else {
+                window.showToast("密码错误，无法解锁", "error");
+            }
+        };
+
+        window.openShareModal = function() {
+            const roomInput = document.getElementById('shareRoomInput');
+            const urlInput = document.getElementById('shareUrlInput');
+            if (roomInput) roomInput.value = window.currentRoomId === 'default' ? '' : window.currentRoomId;
+
+            const shareUrl = window.location.origin + window.location.pathname + (window.currentRoomId !== 'default' ? `?room=${encodeURIComponent(window.currentRoomId)}` : '');
+            if (urlInput) urlInput.value = shareUrl;
+
+            document.getElementById('shareModal')?.classList.remove('hidden');
+        };
+
+        window.closeShareModal = function() {
+            document.getElementById('shareModal')?.classList.add('hidden');
+        };
+
+        window.copyShareLink = function() {
+            const urlInput = document.getElementById('shareUrlInput');
+            if (!urlInput) return;
+            urlInput.select();
+            try {
+                document.execCommand('copy');
+                window.showToast("协同链接已复制到剪贴板！发送给好友即可同步协作", "success");
+            } catch (err) {
+                window.showToast("复制失败，请手动复制文本框内容", "error");
+            }
+        };
+
+        window.switchRoomFromInput = function() {
+            const roomInput = document.getElementById('shareRoomInput');
+            const newRoom = roomInput ? roomInput.value.trim() : '';
+            const targetRoom = newRoom || 'default';
+            
+            const newUrl = window.location.origin + window.location.pathname + (targetRoom !== 'default' ? `?room=${encodeURIComponent(targetRoom)}` : '');
+            window.location.href = newUrl;
+        };
+
+        window.handleNewEventClick = function() {
+            if (window.isLocked) {
+                window.showToast("当前处于浏览模式，请先解锁密码", "error");
+                window.openPwdModal();
+            } else {
+                window.openEditModal();
+            }
+        };
+
+        window.handleEventClick = function(eventId) {
+            if (window.isLocked) {
+                window.openReadOnlyFullscreen(eventId);
+            } else {
+                window.openEditModal(eventId);
+            }
+        };
+
+        window.openTagModal = function() {
+            window.renderTagModalList();
+            document.getElementById('tagModal')?.classList.remove('hidden');
+        };
+
+        window.closeTagModal = function() {
+            document.getElementById('tagModal')?.classList.add('hidden');
+        };
+
+        window.renderTagModalList = function() {
+            const container = document.getElementById('tagModalList');
+            if (!container) return;
+            container.innerHTML = window.availableTags.map(t => `
+                <div class="flex items-center gap-1.5 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg text-xs text-slate-700 font-medium">
+                    <span># ${t}</span>
+                    <button onclick="deleteTag('${t}')" title="删除 tag" class="text-slate-400 hover:text-rose-500 ml-1">
+                        <i class="fa-solid fa-xmark text-xs"></i>
+                    </button>
+                </div>
+            `).join('');
+        };
+
+        window.addNewTagFromModal = async function() {
+            const input = document.getElementById('newTagInput');
+            const newTag = input ? input.value.trim() : '';
+            if (!newTag) {
+                window.showToast("请输入 tag 名称", "error");
+                return;
+            }
+            if (window.availableTags.includes(newTag)) {
+                window.showToast("该 tag 已存在", "error");
+                return;
+            }
+            window.availableTags.push(newTag);
+            if (input) input.value = '';
+            await window.saveTagToCloud(newTag);
+            window.showToast(`已添加 tag: ${newTag}`, "success");
+        };
+
+        window.deleteTag = async function(tagName) {
+            window.availableTags = window.availableTags.filter(t => t !== tagName);
+            await window.deleteTagFromCloud(tagName);
+            window.showToast(`已移除 tag: ${tagName}`, "info");
+        };
+
+        window.deleteEvent = function(id) {
+            window.pendingDeleteId = id;
+            document.getElementById('confirmModal')?.classList.remove('hidden');
+        };
+
+        window.closeConfirmModal = function() {
+            window.pendingDeleteId = null;
+            document.getElementById('confirmModal')?.classList.add('hidden');
+        };
+
+        window.confirmDeleteEvent = async function() {
+            if (window.pendingDeleteId !== null) {
+                const targetId = window.pendingDeleteId;
+                window.closeConfirmModal();
+                window.closeEditModal();
+                await window.deleteEventFromCloud(targetId);
+                window.showToast("事件及关联已成功从云端删除", "info");
+            }
+        };
+
+        window.renderEvents = function() {
+            const filtered = window.getFilteredEvents();
+            const emptyState = document.getElementById('emptyState');
+            if (filtered.length === 0) {
+                emptyState?.classList.remove('hidden');
+                emptyState?.classList.add('flex');
+            } else {
+                emptyState?.classList.add('hidden');
+                emptyState?.classList.remove('flex');
+            }
+
+            if (window.currentView === 'timeline') {
+                window.renderTimelineView(filtered);
+            } else {
+                window.renderGridView(filtered);
+            }
+        };
+
+        window.getFilteredEvents = function() {
+            const query = (document.getElementById('searchInput')?.value || '').trim().toLowerCase();
+            if (!query) return window.events;
+            return window.events.filter(e => 
+                e.title.toLowerCase().includes(query) ||
+                (e.description && e.description.toLowerCase().includes(query)) ||
+                (e.tags && e.tags.some(t => t.toLowerCase().includes(query)))
+            );
+        };
+
+        window.handleSearch = function() {
+            window.renderEvents();
+        };
+
+        window.switchView = function(view) {
+            window.currentView = view;
+            const timelineWrapper = document.getElementById('timelineWrapper');
+            const eventGrid = document.getElementById('eventGrid');
+            const timelineBtn = document.getElementById('viewTimelineBtn');
+            const gridBtn = document.getElementById('viewGridBtn');
+            const zoomContainer = document.getElementById('zoomControlContainer');
+
+            if (view === 'timeline') {
+                timelineWrapper?.classList.remove('hidden');
+                eventGrid?.classList.add('hidden');
+                zoomContainer?.classList.remove('hidden');
+
+                if (timelineBtn) timelineBtn.className = "px-3.5 py-1.5 rounded-md text-xs font-semibold flex items-center gap-2 transition-all bg-white text-indigo-600 shadow-sm";
+                if (gridBtn) gridBtn.className = "px-3.5 py-1.5 rounded-md text-xs font-semibold flex items-center gap-2 transition-all text-slate-600 hover:text-slate-900";
+            } else {
+                timelineWrapper?.classList.add('hidden');
+                eventGrid?.classList.remove('hidden');
+                zoomContainer?.classList.add('hidden');
+
+                if (gridBtn) gridBtn.className = "px-3.5 py-1.5 rounded-md text-xs font-semibold flex items-center gap-2 transition-all bg-white text-indigo-600 shadow-sm";
+                if (timelineBtn) timelineBtn.className = "px-3.5 py-1.5 rounded-md text-xs font-semibold flex items-center gap-2 transition-all text-slate-600 hover:text-slate-900";
+            }
+            window.renderEvents();
+        };
+
+        window.scrollTimeline = function(amount) {
+            const container = document.getElementById('timelineContainer');
+            if (container) {
+                container.scrollBy({ left: amount, behavior: 'smooth' });
+            }
+        };
+
+        window.getZoomScale = function() {
+            const scales = { 1: 0.55, 2: 0.78, 3: 1.0, 4: 1.3, 5: 1.65 };
+            return scales[window.zoomLevel] || 1.0;
+        };
+
+        window.setZoom = function(val) {
+            window.zoomLevel = parseInt(val);
+            const zoomSlider = document.getElementById('zoomSlider');
+            if (zoomSlider) zoomSlider.value = window.zoomLevel;
+            const labels = { 1: "超紧凑", 2: "紧凑", 3: "标准", 4: "宽松", 5: "展开" };
+            const densityLabel = document.getElementById('densityLabel');
+            if (densityLabel) densityLabel.innerText = `密度: ${labels[window.zoomLevel]}`;
+            window.renderEvents();
+        };
+
+        window.changeZoom = function(delta) {
+            const newZoom = Math.min(5, Math.max(1, window.zoomLevel + delta));
+            window.setZoom(newZoom);
+        };
+
+        window.handleTimelineWheel = function(e) {
+            if (e.ctrlKey || e.altKey) {
+                e.preventDefault();
+                window.changeZoom(e.deltaY < 0 ? 1 : -1);
+            } else {
+                const container = document.getElementById('timelineContainer');
+                if (container) container.scrollLeft += e.deltaY;
+            }
+        };
+
+        window.renderTimelineView = function(eventList = window.events) {
+            const track = document.getElementById('timelineNodesTrack');
+            if (!track) return;
+            track.innerHTML = '';
+
+            if (eventList.length === 0) {
+                window.renderSvgConnections();
+                return;
+            }
+
+            const scale = window.getZoomScale();
+            const gapPx = Math.round(150 * scale);
+            const dotMajorSize = Math.round(20 * scale);
+            const dotMinorSize = Math.round(12 * scale);
+            const fontSizeTitle = Math.max(10, Math.round(13 * scale));
+            
+            const previewWidth = Math.round(160 * Math.min(1.2, Math.max(0.7, scale)));
+            const previewImgHeight = Math.round(100 * Math.min(1.2, Math.max(0.7, scale)));
+
+            const sorted = [...eventList].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            sorted.forEach((event) => {
+                const isMajor = event.type === 'major';
+                const dotSize = isMajor ? dotMajorSize : dotMinorSize;
+                const nodeContainer = document.createElement('div');
+                nodeContainer.className = "timeline-node-container relative flex flex-col items-center justify-end shrink-0 cursor-pointer group pb-6";
+                nodeContainer.style.width = `${gapPx}px`;
+
+                const hasImages = event.images && event.images.length > 0;
+                const firstImg = hasImages ? event.images[0] : '';
+
+                nodeContainer.innerHTML = `
+                    ${hasImages ? `
+                        <div class="timeline-hover-tooltip absolute bottom-full mb-3 z-30 bg-slate-900 rounded-xl border border-slate-700 overflow-hidden pointer-events-none" style="width: ${previewWidth}px; height: ${previewImgHeight}px;">
+                            <img id="hover-img-${event.id}" src="${firstImg}" class="w-full h-full object-cover transition-opacity duration-300">
+                        </div>
+                    ` : ''}
+
+                    <div onclick="handleEventClick(${event.id})" class="text-center mb-4 max-w-[130px] select-none">
+                        <span class="block font-medium ${isMajor ? 'text-indigo-900 font-bold' : 'text-slate-700'} line-clamp-1" style="font-size: ${fontSizeTitle}px;">
+                            ${event.title}
+                        </span>
+                        <span class="block text-[10px] text-slate-400 font-mono mt-0.5">
+                            ${event.date}
+                        </span>
+                    </div>
+
+                    <div id="timeline-dot-${event.id}" onclick="handleEventClick(${event.id})" class="timeline-dot rounded-full bg-white border-2 ${isMajor ? 'border-indigo-600 bg-indigo-600 shadow-md ring-4 ring-indigo-100' : 'border-slate-400 hover:border-indigo-500 hover:bg-indigo-500'} flex items-center justify-center z-10 shrink-0" style="width: ${dotSize}px; height: ${dotSize}px;">
+                    </div>
+                `;
+
+                nodeContainer.addEventListener('mouseenter', () => {
+                    window.highlightConnectionsForEvent(event.id, true);
+                    if (event.images && event.images.length > 1) {
+                        let imgIdx = 0;
+                        const imgEl = document.getElementById(`hover-img-${event.id}`);
+                        window.activeHoverIntervals[event.id] = setInterval(() => {
+                            imgIdx = (imgIdx + 1) % event.images.length;
+                            if (imgEl) imgEl.src = event.images[imgIdx];
+                        }, 1500);
+                    }
+                });
+
+                nodeContainer.addEventListener('mouseleave', () => {
+                    window.highlightConnectionsForEvent(event.id, false);
+                    if (window.activeHoverIntervals[event.id]) {
+                        clearInterval(window.activeHoverIntervals[event.id]);
+                        delete window.activeHoverIntervals[event.id];
+                    }
+                });
+
+                track.appendChild(nodeContainer);
+            });
+
+            requestAnimationFrame(() => {
+                const firstDot = document.querySelector('.timeline-dot');
+                const axisLine = document.getElementById('timelineMainAxis');
+                const container = document.getElementById('timelineContainer');
+                if (firstDot && axisLine && container) {
+                    const dotRect = firstDot.getBoundingClientRect();
+                    const containerRect = container.getBoundingClientRect();
+                    const dotCenterY = (dotRect.top + dotRect.height / 2) - containerRect.top + container.scrollTop;
+                    axisLine.style.top = `${dotCenterY}px`;
+                    axisLine.style.transform = 'translateY(-50%)';
+                }
+                window.renderSvgConnections();
+            });
+        };
+
+        window.renderSvgConnections = function() {
+            const group = document.getElementById('svgConnectionsGroup');
+            const container = document.getElementById('timelineContainer');
+            const svgOverlay = document.getElementById('timelineSvgOverlay');
+            if (!group || !container || !svgOverlay) return;
+
+            group.innerHTML = '';
+
+            const scrollW = container.scrollWidth;
+            const scrollH = container.scrollHeight;
+            svgOverlay.style.width = `${scrollW}px`;
+            svgOverlay.style.height = `${scrollH}px`;
+
+            const containerRect = container.getBoundingClientRect();
+
+            function getQuadPointAndAngle(t, p0x, p0y, p1x, p1y, p2x, p2y) {
+                const mt = 1 - t;
+                const px = mt * mt * p0x + 2 * mt * t * p1x + t * t * p2x;
+                const py = mt * mt * p0y + 2 * mt * t * p1y + t * t * p2y;
+                const dx = 2 * mt * (p1x - p0x) + 2 * t * (p2x - p1x);
+                const dy = 2 * mt * (p1y - p0y) + 2 * t * (p2y - p1y);
+                const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+                return { x: px, y: py, angle };
+            }
+
+            window.connections.forEach(conn => {
+                const sourceDot = document.getElementById(`timeline-dot-${conn.sourceId}`);
+                const targetDot = document.getElementById(`timeline-dot-${conn.targetId}`);
+
+                if (!sourceDot || !targetDot) return;
+
+                const sourceRect = sourceDot.getBoundingClientRect();
+                const targetRect = targetDot.getBoundingClientRect();
+
+                const x1 = (sourceRect.left + sourceRect.width / 2) - containerRect.left + container.scrollLeft;
+                const y1 = (sourceRect.top + sourceRect.height / 2) - containerRect.top + container.scrollTop;
+                const x2 = (targetRect.left + targetRect.width / 2) - containerRect.left + container.scrollLeft;
+                const y2 = (targetRect.top + targetRect.height / 2) - containerRect.top + container.scrollTop;
+
+                const distance = Math.abs(x2 - x1);
+                const arcHeight = Math.min(140, Math.max(45, distance * 0.25));
+                const midX = (x1 + x2) / 2;
+                const midY = Math.min(y1, y2) - arcHeight;
+
+                const pathD = `M ${x1} ${y1} Q ${midX} ${midY} ${x2} ${y2}`;
+
+                const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                g.setAttribute("class", `svg-conn-line conn-from-${conn.sourceId} conn-to-${conn.targetId}`);
+                g.setAttribute("data-source", conn.sourceId);
+                g.setAttribute("data-target", conn.targetId);
+
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                path.setAttribute("d", pathD);
+                path.setAttribute("fill", "none");
+                g.appendChild(path);
+
+                if (conn.dir === 'both') {
+                    const pt1 = getQuadPointAndAngle(0.38, x1, y1, midX, midY, x2, y2);
+                    const poly1 = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+                    poly1.setAttribute("points", "-6,-4.5 6,0 -6,4.5");
+                    poly1.setAttribute("transform", `translate(${pt1.x}, ${pt1.y}) rotate(${pt1.angle + 180})`);
+                    g.appendChild(poly1);
+
+                    const pt2 = getQuadPointAndAngle(0.62, x1, y1, midX, midY, x2, y2);
+                    const poly2 = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+                    poly2.setAttribute("points", "-6,-4.5 6,0 -6,4.5");
+                    poly2.setAttribute("transform", `translate(${pt2.x}, ${pt2.y}) rotate(${pt2.angle})`);
+                    g.appendChild(poly2);
+                } else {
+                    const pt = getQuadPointAndAngle(0.5, x1, y1, midX, midY, x2, y2);
+                    const angle = conn.dir === 'backward' ? pt.angle + 180 : pt.angle;
+                    
+                    const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+                    poly.setAttribute("points", "-6,-4.5 6,0 -6,4.5");
+                    poly.setAttribute("transform", `translate(${pt.x}, ${pt.y}) rotate(${angle})`);
+                    g.appendChild(poly);
+                }
+
+                group.appendChild(g);
+            });
+        };
+
+        window.highlightConnectionsForEvent = function(eventId, highlight) {
+            const lines = document.querySelectorAll('#svgConnectionsGroup .svg-conn-line');
+            lines.forEach(line => {
+                const sId = isNaN(line.getAttribute('data-source')) ? line.getAttribute('data-source') : parseInt(line.getAttribute('data-source'));
+                const tId = isNaN(line.getAttribute('data-target')) ? line.getAttribute('data-target') : parseInt(line.getAttribute('data-target'));
+
+                if (sId === eventId || tId === eventId) {
+                    if (highlight) {
+                        line.classList.add('active-line');
+                    } else {
+                        line.classList.remove('active-line');
+                    }
+                }
+            });
+        };
+
+        window.renderGridView = function(eventList = window.events) {
+            const grid = document.getElementById('eventGrid');
+            if (!grid) return;
+            grid.innerHTML = '';
+
+            eventList.forEach(event => {
+                const card = document.createElement('div');
+                card.className = "bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden cursor-pointer flex flex-col";
+                
+                card.addEventListener('mouseenter', () => window.highlightConnectionsForEvent(event.id, true));
+                card.addEventListener('mouseleave', () => window.highlightConnectionsForEvent(event.id, false));
+                card.onclick = () => window.handleEventClick(event.id);
+
+                const hasImg = event.images && event.images.length > 0;
+                card.innerHTML = `
+                    ${hasImg ? `
+                        <div class="h-44 bg-slate-900 overflow-hidden relative">
+                            <img src="${event.images[0]}" class="w-full h-full object-cover hover:scale-105 transition-transform duration-500">
+                            ${event.images.length > 1 ? `<span class="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-md"><i class="fa-solid fa-images mr-1"></i>${event.images.length}</span>` : ''}
+                        </div>
+                    ` : ''}
+                    <div class="p-5 flex-grow flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between gap-2 mb-2">
+                                <span class="text-xs font-mono font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">${event.date}</span>
+                                <span class="text-xs text-slate-400 font-medium">${event.type === 'major' ? '重大里程碑' : '普通事件'}</span>
+                            </div>
+                            <h3 class="font-bold text-slate-800 text-base mb-2 line-clamp-1">${event.title}</h3>
+                            <p class="text-xs text-slate-600 line-clamp-2 leading-relaxed mb-4">${event.description || '暂无描述'}</p>
+                        </div>
+                        ${event.tags && event.tags.length > 0 ? `
+                            <div class="flex flex-wrap gap-1.5 pt-3 border-t border-slate-100">
+                                ${event.tags.map(t => `<span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium"># ${t}</span>`).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        };
+
+        window.openReadOnlyFullscreen = function(eventId) {
+            const event = window.events.find(e => e.id === eventId);
+            if (!event) return;
+
+            let viewer = document.getElementById('fullscreenViewer');
+            if (!viewer) {
+                viewer = document.createElement('div');
+                viewer.id = 'fullscreenViewer';
+                viewer.className = "fixed inset-0 bg-slate-950/90 text-white z-50 overflow-y-auto backdrop-blur-md p-4 sm:p-8 flex flex-col items-center";
+                document.body.appendChild(viewer);
+            }
+
+            const relatedConns = window.connections.filter(c => c.sourceId === eventId || c.targetId === eventId);
+            let connHtml = '';
+            if (relatedConns.length > 0) {
+                connHtml = `
+                    <div class="border-t border-slate-800 pt-6 mb-6">
+                        <h4 class="text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                            <i class="fa-solid fa-diagram-project"></i>
+                            <span>思维导图关联节点</span>
+                        </h4>
+                        <div class="space-y-2">
+                            ${relatedConns.map(c => {
+                                const isSource = c.sourceId === eventId;
+                                const otherId = isSource ? c.targetId : c.sourceId;
+                                const otherEvent = window.events.find(e => e.id === otherId);
+
+                                let arrowIcon = '➔';
+                                let relLabel = '指向目标';
+                                if (c.dir === 'both') {
+                                    arrowIcon = '↔';
+                                    relLabel = '双向关联';
+                                } else if (!isSource) {
+                                    arrowIcon = '⬅';
+                                    relLabel = '被其指向';
+                                }
+
+                                return `
+                                    <div class="flex items-center justify-between bg-slate-800/60 border border-slate-700/80 px-3 py-2 rounded-xl text-xs" onmouseenter="highlightConnectionsForEvent('${eventId}', true)" onmouseleave="highlightConnectionsForEvent('${eventId}', false)">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-indigo-400 font-bold text-sm">${arrowIcon}</span>
+                                            <span class="font-medium text-slate-200">${otherEvent ? otherEvent.title : '未知事件'}</span>
+                                        </div>
+                                        <span class="text-[10px] text-slate-400 font-mono">${relLabel}</span>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            viewer.innerHTML = `
+                <div class="max-w-3xl w-full my-auto bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl relative">
+                    <button onclick="closeReadOnlyFullscreen()" class="absolute top-6 right-6 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full flex items-center justify-center transition-colors">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="text-xs font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full font-semibold">${event.date}</span>
+                        ${event.type === 'major' ? '<span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full">重大里程碑</span>' : ''}
+                    </div>
+
+                    <h1 class="text-2xl sm:text-3xl font-bold text-white mb-4 tracking-wide">${event.title}</h1>
+
+                    ${event.tags && event.tags.length > 0 ? `
+                        <div class="flex flex-wrap gap-2 mb-6">
+                            ${event.tags.map(t => `<span class="text-xs bg-slate-800 text-slate-300 border border-slate-700 px-2.5 py-1 rounded-md"># ${t}</span>`).join('')}
+                        </div>
+                    ` : ''}
+
+                    ${event.images && event.images.length > 0 ? `
+                        <div class="space-y-4 mb-6">
+                            ${event.images.map(img => `
+                                <div class="rounded-2xl overflow-hidden bg-black/40 border border-slate-800">
+                                    <img src="${img}" class="w-full h-auto object-contain max-h-[70vh] mx-auto">
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+
+                    ${connHtml}
+
+                    <div class="border-t border-slate-800 pt-6">
+                        <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">事件经过与描述</h4>
+                        <p class="text-sm sm:text-base text-slate-200 leading-relaxed whitespace-pre-wrap">${event.description || '无详细描述'}</p>
+                    </div>
+                </div>
+            `;
+            viewer.classList.remove('hidden');
+        };
+
+        window.closeReadOnlyFullscreen = function() {
+            const viewer = document.getElementById('fullscreenViewer');
+            if (viewer) viewer.classList.add('hidden');
+        };
+
+        window.openEditModal = function(eventId = null) {
+            let modal = document.getElementById('editModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'editModal';
+                modal.className = "fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto";
+                document.body.appendChild(modal);
+            }
+
+            const isEdit = eventId !== null;
+            const event = isEdit ? window.events.find(e => e.id === eventId) : {
+                id: Date.now(),
+                title: '',
+                date: new Date().toISOString().split('T')[0],
+                type: 'minor',
+                tags: [],
+                images: [],
+                description: ''
+            };
+
+            window.editingImageFiles = event.images ? [...event.images] : [];
+
+            modal.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 my-8 max-h-[90vh] overflow-y-auto custom-scrollbar">
+                    <div class="flex items-center justify-between pb-4 border-b border-slate-200 mb-5">
+                        <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                            <i class="fa-solid fa-pen-to-square text-indigo-600"></i>
+                            <span>${isEdit ? '编辑事件' : '新建事件'}</span>
+                        </h3>
+                        <button onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full flex items-center justify-center">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+
+                    <form onsubmit="saveEvent(event, '${event.id}', ${isEdit})" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">事件名称 *</label>
+                            <input type="text" id="editTitle" value="${event.title}" required placeholder="输入事件标题" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">发生日期 *</label>
+                                <input type="date" id="editDate" value="${event.date}" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">节点类型</label>
+                                <select id="editType" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                                    <option value="minor" ${event.type === 'minor' ? 'selected' : ''}>普通事件</option>
+                                    <option value="major" ${event.type === 'major' ? 'selected' : ''}>重大里程碑</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">选择 tag (多选)</label>
+                            <div class="flex flex-wrap gap-1.5 p-2 border border-slate-200 rounded-lg bg-slate-50 max-h-28 overflow-y-auto" id="editTagsList">
+                                ${window.availableTags.map(t => {
+                                    const checked = event.tags && event.tags.includes(t);
+                                    return `
+                                        <label class="cursor-pointer text-xs flex items-center gap-1.5 px-2 py-1 rounded border transition-colors ${checked ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-semibold' : 'bg-white border-slate-200 text-slate-600'}">
+                                            <input type="checkbox" value="${t}" ${checked ? 'checked' : ''} class="hidden" onchange="toggleTagSelection(this)">
+                                            <span># ${t}</span>
+                                        </label>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+
+                        <div class="border border-indigo-100 bg-indigo-50/40 rounded-xl p-3 space-y-2">
+                            <label class="block text-xs font-bold text-indigo-900 flex items-center justify-between">
+                                <span class="flex items-center gap-1.5">
+                                    <i class="fa-solid fa-diagram-project text-indigo-600"></i>
+                                    <span>思维导图关联 (有向虚线)</span>
+                                </span>
+                                <span class="text-[10px] text-indigo-500 font-normal">指向与衍生/先后关联</span>
+                            </label>
+                            
+                            <div id="eventConnList" class="space-y-1.5"></div>
+
+                            <div class="flex flex-wrap items-center gap-1.5 pt-2 border-t border-indigo-100">
+                                <select id="newConnTarget" class="flex-grow min-w-[130px] px-2 py-1 border border-slate-300 rounded text-xs bg-white outline-none">
+                                    <option value="">选择目标事件...</option>
+                                </select>
+                                <select id="newConnDir" class="w-28 px-2 py-1 border border-slate-300 rounded text-xs bg-white outline-none">
+                                    <option value="forward">指向 ➔ (主集 ➔ 子集)</option>
+                                    <option value="backward">被指向 ➔ (子集 ⬅ 主集)</option>
+                                    <option value="both">双向 ↔</option>
+                                </select>
+                                <button type="button" onclick="addConnectionFromModal('${event.id}')" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-medium shrink-0">
+                                    添加
+                                </button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">添加本地图片</label>
+                            <div class="border-2 border-dashed border-slate-300 rounded-xl p-4 text-center hover:bg-slate-50 transition-colors cursor-pointer" onclick="document.getElementById('editFileInput').click()">
+                                <i class="fa-solid fa-cloud-arrow-up text-2xl text-indigo-500 mb-1 block"></i>
+                                <span class="text-xs text-slate-600 font-medium">点击选择本地照片上传</span>
+                                <input type="file" id="editFileInput" multiple accept="image/*" class="hidden" onchange="handleLocalImageUpload(event)">
+                            </div>
+                            <div id="imageMicroPreviews" class="flex flex-wrap gap-2 mt-3"></div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">详细经过与描述</label>
+                            <textarea id="editDescription" rows="3" placeholder="记录关于这件事的详细经过..." class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 resize-none">${event.description || ''}</textarea>
+                        </div>
+
+                        <div class="flex items-center justify-between pt-3 border-t border-slate-200 gap-3">
+                            ${isEdit ? `
+                                <button type="button" onclick="deleteEvent('${event.id}')" class="px-4 py-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg text-xs font-medium transition-colors">
+                                    删除事件
+                                </button>
+                            ` : '<div></div>'}
+                            <div class="flex items-center gap-2">
+                                <button type="button" onclick="closeEditModal()" class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button>
+                                <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">保存事件</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            `;
+
+            window.renderMicroPreviews();
+            window.renderModalConnections(event.id);
+            modal.classList.remove('hidden');
+        };
+
+        window.closeEditModal = function() {
+            const modal = document.getElementById('editModal');
+            if (modal) modal.classList.add('hidden');
+        };
+
+        window.toggleTagSelection = function(checkbox) {
+            const parent = checkbox.closest('label');
+            if (!parent) return;
+            if (checkbox.checked) {
+                parent.className = "cursor-pointer text-xs flex items-center gap-1.5 px-2 py-1 rounded border transition-colors bg-indigo-50 border-indigo-300 text-indigo-700 font-semibold";
+            } else {
+                parent.className = "cursor-pointer text-xs flex items-center gap-1.5 px-2 py-1 rounded border transition-colors bg-white border-slate-200 text-slate-600";
+            }
+        };
+
+        window.renderModalConnections = function(eventId) {
+            const listContainer = document.getElementById('eventConnList');
+            const targetSelect = document.getElementById('newConnTarget');
+            if (!listContainer || !targetSelect) return;
+
+            targetSelect.innerHTML = `<option value="">选择目标事件...</option>`;
+            window.events.filter(e => String(e.id) !== String(eventId)).forEach(e => {
+                targetSelect.innerHTML += `<option value="${e.id}">${e.title} (${e.date})</option>`;
+            });
+
+            const currentConns = window.connections.filter(c => String(c.sourceId) === String(eventId) || String(c.targetId) === String(eventId));
+            if (currentConns.length === 0) {
+                listContainer.innerHTML = `<p class="text-[11px] text-slate-400 italic">暂无思维导图连线</p>`;
+                return;
+            }
+
+            listContainer.innerHTML = currentConns.map(c => {
+                const isSource = String(c.sourceId) === String(eventId);
+                const otherId = isSource ? c.targetId : c.sourceId;
+                const otherEvent = window.events.find(e => String(e.id) === String(otherId));
+
+                let dirLabel = c.dir === 'both' ? '↔ 双向关联' : (isSource ? '➔ 指向目标 (主集➔子集)' : '⬅ 被指向 (子集⬅主集)');
+
+                return `
+                    <div class="flex items-center justify-between bg-white px-2.5 py-1.5 rounded border border-slate-200 text-xs">
+                        <span class="text-slate-700 font-medium">
+                            ${dirLabel}: <strong class="text-indigo-900">${otherEvent ? otherEvent.title : '未知事件'}</strong>
+                        </span>
+                        <button type="button" onclick="removeConnection('${c.id}', '${eventId}')" class="text-slate-400 hover:text-rose-500 ml-2">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        };
+
+        window.addConnectionFromModal = async function(eventId) {
+            const targetSelect = document.getElementById('newConnTarget');
+            const targetIdRaw = targetSelect?.value;
+            const targetId = isNaN(targetIdRaw) ? targetIdRaw : Number(targetIdRaw);
+            const dir = document.getElementById('newConnDir')?.value || 'forward';
+
+            if (!targetIdRaw) {
+                window.showToast("请先选择关联的目标事件", "error");
+                return;
+            }
+
+            const parsedEventId = isNaN(eventId) ? eventId : Number(eventId);
+            const exists = window.connections.some(c => 
+                (String(c.sourceId) === String(parsedEventId) && String(c.targetId) === String(targetId)) || 
+                (String(c.sourceId) === String(targetId) && String(c.targetId) === String(parsedEventId))
+            );
+            if (exists) {
+                window.showToast("节点间已存在关联", "info");
+                return;
+            }
+
+            const newConn = { id: Date.now(), sourceId: parsedEventId, targetId: targetId, dir: dir };
+            await window.saveConnectionToCloud(newConn);
+            window.renderModalConnections(eventId);
+            window.showToast("成功添加思维导图关联", "success");
+        };
+
+        window.removeConnection = async function(connId, currentEventId) {
+            await window.deleteConnectionFromCloud(connId);
+            window.renderModalConnections(currentEventId);
+            window.showToast("已移除思维导图连线", "info");
+        };
+
+        window.handleLocalImageUpload = function(e) {
+            const files = Array.from(e.target.files);
+            files.forEach(f => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    window.editingImageFiles.push(event.target.result);
+                    window.renderMicroPreviews();
+                };
+                reader.readAsDataURL(f);
+            });
+        };
+
+        window.renderMicroPreviews = function() {
+            const container = document.getElementById('imageMicroPreviews');
+            if (!container) return;
+            container.innerHTML = window.editingImageFiles.map((img, idx) => `
+                <div class="relative w-16 h-16 rounded-lg overflow-hidden border border-slate-200 group">
+                    <img src="${img}" class="w-full h-full object-cover">
+                    <button type="button" onclick="removeMicroPreview(${idx})" class="absolute top-1 right-1 bg-black/60 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] hover:bg-rose-600 transition-colors">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            `).join('');
+        };
+
+        window.removeMicroPreview = function(index) {
+            window.editingImageFiles.splice(index, 1);
+            window.renderMicroPreviews();
+        };
+
+        window.saveEvent = async function(e, idRaw, isEdit) {
+            e.preventDefault();
+            const id = isNaN(idRaw) ? idRaw : Number(idRaw);
+            const title = document.getElementById('editTitle')?.value.trim();
+            const date = document.getElementById('editDate')?.value;
+            const type = document.getElementById('editType')?.value;
+            const description = document.getElementById('editDescription')?.value.trim();
+
+            const selectedTags = Array.from(document.querySelectorAll('#editTagsList input[type="checkbox"]:checked'))
+                .map(cb => cb.value);
+
+            if (!title || !date) {
+                window.showToast("请填写必填项", "error");
+                return;
+            }
+
+            const eventData = {
+                id: id,
+                title: title,
+                date: date,
+                type: type,
+                description: description,
+                tags: selectedTags,
+                images: [...window.editingImageFiles]
+            };
+
+            await window.saveEventToCloud(eventData);
+            window.closeEditModal();
+            window.showToast(isEdit ? "事件修改已保存至云端" : "新建事件成功并同步至云端", "success");
+        };
+
+        window.showToast = function(text, type = "info") {
+            const toastBox = document.getElementById('toastBox');
+            const toastText = document.getElementById('toastText');
+            const toastIcon = document.getElementById('toastIcon');
+
+            if (!toastBox || !toastText || !toastIcon) return;
+
+            toastText.innerText = text;
+            if (type === "success") {
+                toastIcon.className = "fa-solid fa-circle-check text-emerald-400 text-lg";
+            } else if (type === "error") {
+                toastIcon.className = "fa-solid fa-circle-exclamation text-rose-400 text-lg";
+            } else {
+                toastIcon.className = "fa-solid fa-circle-info text-indigo-400 text-lg";
+            }
+
+            toastBox.classList.remove('hidden');
+            setTimeout(() => {
+                toastBox.classList.add('hidden');
+            }, 3000);
+        };
+
+        window.onresize = () => window.renderSvgConnections();
+        window.onload = () => initAppAndCloudSync();
+    </script>
+</body>
+</html>
