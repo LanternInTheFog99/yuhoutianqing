@@ -28,12 +28,10 @@
             background: rgba(107, 114, 128, 0.7);
         }
         
-        /* Timeline line and dots smooth transition */
         .timeline-dot {
             transition: transform 0.2s ease, width 0.2s ease, height 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
         }
         
-        /* Hover micro popup tooltip with enhanced visual space */
         .timeline-hover-tooltip {
             pointer-events: none;
             opacity: 0;
@@ -47,7 +45,6 @@
             transform: translateY(0) scale(1);
         }
 
-        /* SVG Mind-map Connection Lines - STRICTLY HIDDEN BY DEFAULT */
         .svg-conn-line {
             opacity: 0 !important;
             visibility: hidden !important;
@@ -67,7 +64,6 @@
             transition: fill 0.2s ease, transform 0.2s ease;
         }
         
-        /* Active class triggered ONLY on hover of timeline dot or card */
         .svg-conn-line.active-line {
             opacity: 1 !important;
             visibility: visible !important;
@@ -112,15 +108,8 @@
                     <span>tag库</span>
                 </button>
 
-                <!-- Share Collaboration Button -->
-                <button onclick="openShareModal()" class="px-3 py-2 rounded-lg text-xs font-medium border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 flex items-center gap-1.5 transition-all shadow-sm">
-                    <i class="fa-solid fa-share-nodes text-indigo-600"></i>
-                    <span>分享协同</span>
-                </button>
-
                 <!-- Lock / Unlock Security Toggle Button -->
                 <button id="lockToggleBtn" onclick="toggleLockState()" class="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all shadow-sm border">
-                    <!-- Dynamic Content in JS -->
                 </button>
 
                 <!-- Create Event Button -->
@@ -134,13 +123,11 @@
 
     <!-- Main Content Container -->
     <main class="flex-grow max-w-6xl w-full mx-auto px-4 sm:px-6 py-8">
-        <!-- Toast Notification Alert Box -->
         <div id="toastBox" class="hidden fixed top-20 right-4 z-50 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl border border-slate-700 flex items-center gap-3 transition-all duration-300 transform translate-y-0 opacity-100">
             <i id="toastIcon" class="fa-solid fa-circle-info text-indigo-400 text-lg"></i>
             <span id="toastText" class="text-sm font-medium">提示信息</span>
         </div>
 
-        <!-- Controls Bar: View Switcher, Zoom & Search -->
         <div class="flex flex-wrap items-center justify-between gap-4 mb-6 bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-sm">
             <div class="flex items-center gap-2 bg-slate-100 p-1 rounded-lg">
                 <button id="viewTimelineBtn" onclick="switchView('timeline')" class="px-3.5 py-1.5 rounded-md text-xs font-semibold flex items-center gap-2 transition-all bg-white text-indigo-600 shadow-sm">
@@ -153,7 +140,6 @@
                 </button>
             </div>
 
-            <!-- Timeline Zoom Slider (Dynamic density control) -->
             <div id="zoomControlContainer" class="flex items-center gap-2 border-x border-slate-200 px-4 py-1">
                 <span class="text-xs text-slate-500 font-medium flex items-center gap-1">
                     <i class="fa-solid fa-magnifying-glass text-slate-400"></i>
@@ -164,21 +150,18 @@
                 <button onclick="changeZoom(1)" title="放大密度，拉开节点" class="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center text-xs transition-colors font-bold">+</button>
             </div>
 
-            <!-- Search Box -->
             <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs w-full sm:w-auto">
                 <i class="fa-solid fa-magnifying-glass text-slate-400"></i>
                 <input type="text" id="searchInput" oninput="handleSearch()" placeholder="搜索事件或tag..." class="bg-transparent outline-none text-slate-700 placeholder-slate-400 w-full sm:w-48">
             </div>
         </div>
 
-        <!-- Horizontal Timeline Axis Container -->
         <div id="timelineWrapper" class="relative group my-8 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm overflow-hidden">
             <div class="text-xs text-slate-400 mb-2 flex items-center justify-between">
                 <span><i class="fa-solid fa-circle-info text-indigo-500 mr-1"></i>悬停节点或卡片显示思维导图虚线 (箭头指示指向与演进关系)</span>
                 <span id="densityLabel" class="font-mono text-indigo-600 font-semibold">密度: 标准</span>
             </div>
 
-            <!-- Left / Right scroll navigation buttons -->
             <button onclick="scrollTimeline(-300)" class="hidden md:flex absolute left-2 top-1/2 -translate-y-1/2 z-20 bg-white/95 hover:bg-white shadow-lg rounded-full w-9 h-9 border border-slate-200 items-center justify-center text-slate-700 hover:text-indigo-600 transition-all">
                 <i class="fa-solid fa-chevron-left text-xs"></i>
             </button>
@@ -186,27 +169,18 @@
                 <i class="fa-solid fa-chevron-right text-xs"></i>
             </button>
 
-            <!-- Scrollable Track with Enlarged Visual Area for Large Images & Arc Connections -->
             <div id="timelineContainer" onscroll="renderSvgConnections()" onwheel="handleTimelineWheel(event)" class="overflow-x-auto pt-36 pb-20 px-12 flex items-center relative min-h-[460px] custom-scrollbar scroll-smooth">
-                <!-- SVG Overlay for Mind-map Connection Lines -->
                 <svg id="timelineSvgOverlay" class="absolute top-0 left-0 pointer-events-none z-0">
                     <g id="svgConnectionsGroup"></g>
                 </svg>
 
-                <!-- Timeline axis line (Positioned dynamically behind dot center) -->
                 <div id="timelineMainAxis" class="absolute left-0 right-0 h-1 bg-slate-300 rounded-full z-0 transition-all"></div>
-                
-                <!-- Timeline nodes dynamically rendered here -->
                 <div id="timelineNodesTrack" class="flex items-end w-full relative z-10 min-w-full"></div>
             </div>
         </div>
 
-        <!-- Event Cards Grid View (Hidden by default, toggled via switch) -->
-        <div id="eventGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 hidden">
-            <!-- Event cards generated via JavaScript -->
-        </div>
+        <div id="eventGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 hidden"></div>
 
-        <!-- Empty State View -->
         <div id="emptyState" class="hidden flex-col items-center justify-center py-20 text-center">
             <div class="w-16 h-16 bg-slate-200 text-slate-400 rounded-full flex items-center justify-center text-2xl mb-4">
                 <i class="fa-solid fa-folder-open"></i>
@@ -232,67 +206,7 @@
                 <input type="text" id="newTagInput" placeholder="输入新tag名称" class="flex-grow px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
                 <button onclick="addNewTagFromModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-xs font-medium">新建tag</button>
             </div>
-            <div id="tagModalList" class="flex flex-wrap gap-2 max-h-60 overflow-y-auto p-1">
-                <!-- Tag list -->
-            </div>
-        </div>
-    </div>
-
-    <!-- Share Collaboration Modal -->
-    <div id="shareModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
-            <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
-                <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
-                    <i class="fa-solid fa-users text-indigo-600"></i>
-                    <span>多端实时协同分享</span>
-                </h3>
-                <button onclick="closeShareModal()" class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full flex items-center justify-center">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-            
-            <!-- Warning banner when cloud sync is offline (e.g. GitHub Pages without Firebase config) -->
-            <div id="cloudSyncWarning" class="hidden bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-3 mb-4 text-xs">
-                <div class="font-bold flex items-center gap-1 mb-1 text-amber-700">
-                    <i class="fa-solid fa-triangle-exclamation"></i>
-                    <span>当前为本地单机模式（未绑定云端数据库）</span>
-                </div>
-                <span>GitHub Pages 默认不包含云端数据库，修改仅保存在您当前设备。如需跨设备/跨好友协同，请查阅《部署与上线指南》配置免费的 Firebase 密钥。</span>
-            </div>
-
-            <div class="bg-indigo-50/60 border border-indigo-100 rounded-xl p-3.5 mb-4 text-xs text-slate-600 space-y-2">
-                <div class="font-bold text-indigo-900 flex items-center gap-1.5">
-                    <i class="fa-solid fa-circle-info text-indigo-600"></i>
-                    <span>进入同一个协同空间的方法</span>
-                </div>
-                <ol class="list-decimal list-inside space-y-1.5 text-slate-600 leading-relaxed">
-                    <li><span class="font-semibold text-slate-800">方法一：</span>在其他设备上打开网址，在下方框内输入相同的“空间 ID”并点击【切换/创建空间】。</li>
-                    <li><span class="font-semibold text-slate-800">方法二：</span>直接将下方【协同分享专用链接】发送给好友点击打开。</li>
-                </ol>
-            </div>
-
-            <div class="mb-4">
-                <label class="block text-xs font-bold text-slate-700 mb-1">切换/进入空间 ID (或粘贴完整链接)</label>
-                <div class="flex gap-2">
-                    <input type="text" id="shareRoomInput" placeholder="输入空间 ID (如 family-space)" class="flex-grow px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
-                    <button onclick="switchRoomFromInput()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg text-xs font-medium shrink-0">切换/创建空间</button>
-                </div>
-            </div>
-
-            <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 mb-4">
-                <label class="block text-[11px] font-semibold text-slate-500 mb-1">协同分享专用链接</label>
-                <div class="flex items-center gap-2">
-                    <input type="text" id="shareUrlInput" readonly class="flex-grow bg-white px-2.5 py-1.5 border border-slate-200 rounded-md text-xs font-mono text-slate-700 select-all outline-none">
-                    <button onclick="copyShareLink()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-xs font-medium shrink-0 flex items-center gap-1">
-                        <i class="fa-solid fa-copy"></i>
-                        <span>复制链接</span>
-                    </button>
-                </div>
-            </div>
-
-            <div class="flex justify-end">
-                <button onclick="closeShareModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-medium text-slate-700">关闭</button>
-            </div>
+            <div id="tagModalList" class="flex flex-wrap gap-2 max-h-60 overflow-y-auto p-1"></div>
         </div>
     </div>
 
@@ -327,57 +241,39 @@
             <p class="text-xs text-slate-500 mb-5">删除后将无法恢复，关联的思维导图连线也将同步注销。</p>
             <div class="flex justify-center gap-3">
                 <button onclick="closeConfirmModal()" class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button>
-                <button onclick="confirmDeleteEvent()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-medium shadow-sm">确认删除</button>
+                <button id="confirmDeleteBtn" onclick="confirmDeleteEvent()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-medium shadow-sm">确定删除</button>
             </div>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // 绑定你提供的 Firebase 配置
         const firebaseConfig = {
-  apiKey: "AIzaSyC_E_OiW5o7ekAA04y_xNcBQ1_BZEtOBOM",
-  authDomain: "yuhoutianqing-3d170.firebaseapp.com",
-  projectId: "yuhoutianqing-3d170",
-  storageBucket: "yuhoutianqing-3d170.firebasestorage.app",
-  messagingSenderId: "162241948953",
-  appId: "1:162241948953:web:7d004f19089f4a17a1e988",
-  measurementId: "G-QGEYCHBDDG"
-};
-        // Extract room ID from URL query parameters (e.g., ?room=family-space)
-        const urlParams = new URLSearchParams(window.location.search);
-        window.currentRoomId = urlParams.get('room') || 'default';
+            apiKey: "AIzaSyC_E_OiW5o7ekAA04y_xNcBQ1_BZEtOBOM",
+            authDomain: "yuhoutianqing-3d170.firebaseapp.com",
+            projectId: "yuhoutianqing-3d170",
+            storageBucket: "yuhoutianqing-3d170.firebasestorage.app",
+            messagingSenderId: "162241948953",
+            appId: "1:162241948953:web:7d004f19089f4a17a1e988",
+            measurementId: "G-QGEYCHBDDG"
+        };
 
-        // Base appId extended with room ID to ensure separated real-time sync rooms
-        const baseAppId = typeof __app_id !== 'undefined' ? __app_id : 'yuhoutianqing-app';
-        const appId = `${baseAppId}-${window.currentRoomId}`;
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
 
-        // Obtain Firebase config from injected env or custom config pasted by user
-        let rawFirebaseConfig = typeof __firebase_config !== 'undefined' && __firebase_config ? __firebase_config : window.CUSTOM_FIREBASE_CONFIG;
-        const firebaseConfig = rawFirebaseConfig ? JSON.parse(rawFirebaseConfig) : null;
-
-        let app = null;
-        let auth = null;
-        let db = null;
-
-        if (firebaseConfig) {
-            try {
-                app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
-            } catch (err) {
-                console.warn("Firebase initialization error:", err);
-            }
-        }
+        const appId = 'yuhoutianqing-app';
 
         // State variables
         window.events = [];
         window.connections = [];
         window.availableTags = ["里程碑", "工作", "旅行", "生活"];
         
-        // Lock state restored from localStorage so refreshing retains edit mode unlock
+        // 读取编辑解锁状态
         window.isLocked = localStorage.getItem('yuhoutianqing_isLocked') === 'false' ? false : true;
         const LOCK_PASSWORD = "tingyu1938";
         window.currentView = 'timeline';
@@ -387,9 +283,7 @@
         window.pendingDeleteId = null;
         let currentUser = null;
         let isInitialLoadDone = false;
-        window.isCloudSyncActive = false;
 
-        // Default seed data for first time app run
         const initialSeedEvents = [
             { id: 1, title: "毕业典礼", date: "2021-06-20", type: "major", tags: ["里程碑"], images: ["https://picsum.photos/600/400?random=1", "https://picsum.photos/600/400?random=2"], description: "在校园的大礼堂参加了毕业典礼，和好友们合影留念。" },
             { id: 2, title: "加入第一份工作", date: "2021-07-10", type: "minor", tags: ["工作"], images: ["https://picsum.photos/600/400?random=3"], description: "怀着激动的心情来到了新公司，开启了全新的职场生活。" },
@@ -408,25 +302,17 @@
                 const localConn = localStorage.getItem('yuhoutianqing_connections');
                 const localTags = localStorage.getItem('yuhoutianqing_tags');
 
-                if (localEv) {
-                    window.events = JSON.parse(localEv);
-                } else {
-                    window.events = [...initialSeedEvents];
-                }
+                if (localEv) window.events = JSON.parse(localEv);
+                else window.events = [...initialSeedEvents];
 
-                if (localConn) {
-                    window.connections = JSON.parse(localConn);
-                } else {
-                    window.connections = [...initialSeedConnections];
-                }
+                if (localConn) window.connections = JSON.parse(localConn);
+                else window.connections = [...initialSeedConnections];
 
-                if (localTags) {
-                    window.availableTags = JSON.parse(localTags);
-                }
+                if (localTags) window.availableTags = JSON.parse(localTags);
 
                 saveLocalData();
             } catch (e) {
-                console.warn("localStorage 读取异常，已恢复为默认数据:", e);
+                console.warn("localStorage 读取异常:", e);
                 window.events = [...initialSeedEvents];
                 window.connections = [...initialSeedConnections];
             }
@@ -445,7 +331,6 @@
         function initializeLocalFallback(reason = '已就绪 (单机模式)') {
             if (isInitialLoadDone) return;
             isInitialLoadDone = true;
-            window.isCloudSyncActive = false;
             loadLocalData();
             window.renderEvents();
             updateSyncStatus('offline', reason);
@@ -456,35 +341,21 @@
 
             const syncTimeout = setTimeout(() => {
                 if (!isInitialLoadDone) {
-                    console.warn("云端同步超时，已自动切换为本地就绪模式。");
                     initializeLocalFallback('已就绪 (单机模式)');
                 }
-            }, 2500);
-
-            if (!firebaseConfig || !auth || !db) {
-                clearTimeout(syncTimeout);
-                initializeLocalFallback('已就绪 (单机模式)');
-                return;
-            }
+            }, 3000);
 
             try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    const userCred = await signInWithCustomToken(auth, __initial_auth_token);
-                    currentUser = userCred.user;
+                const userCred = await signInAnonymously(auth);
+                currentUser = userCred.user;
+                if (currentUser) {
+                    setupRealtimeListeners(syncTimeout);
                 } else {
-                    const userCred = await signInAnonymously(auth);
-                    currentUser = userCred.user;
+                    clearTimeout(syncTimeout);
+                    initializeLocalFallback('已就绪 (单机模式)');
                 }
             } catch (err) {
-                console.warn("Auth initialization fallback:", err);
-                clearTimeout(syncTimeout);
-                initializeLocalFallback('已就绪 (单机模式)');
-                return;
-            }
-
-            if (currentUser) {
-                setupRealtimeListeners(syncTimeout);
-            } else {
+                console.warn("云端登录异常:", err);
                 clearTimeout(syncTimeout);
                 initializeLocalFallback('已就绪 (单机模式)');
             }
@@ -507,14 +378,13 @@
         }
 
         function setupRealtimeListeners(syncTimeout) {
-            if (!currentUser || !db) return;
+            if (!currentUser) return;
 
             try {
-                const eventsCol = collection(db, 'artifacts', appId, 'public', 'data', 'events');
-                const connCol = collection(db, 'artifacts', appId, 'public', 'data', 'connections');
-                const tagsCol = collection(db, 'artifacts', appId, 'public', 'data', 'tags');
+                const eventsCol = collection(db, 'public_data', appId, 'events');
+                const connCol = collection(db, 'public_data', appId, 'connections');
+                const tagsCol = collection(db, 'public_data', appId, 'tags');
 
-                // Listen for Events
                 onSnapshot(eventsCol, async (snapshot) => {
                     if (syncTimeout) clearTimeout(syncTimeout);
                     if (snapshot.empty && !isInitialLoadDone) {
@@ -522,27 +392,22 @@
                         return;
                     }
                     isInitialLoadDone = true;
-                    window.isCloudSyncActive = true;
                     window.events = snapshot.docs.map(doc => ({ id: isNaN(doc.id) ? doc.id : Number(doc.id), ...doc.data() }));
                     saveLocalData();
                     window.renderEvents();
                     updateSyncStatus('synced', '已同步云端');
                 }, (error) => {
-                    console.error("Events snapshot error:", error);
+                    console.error("Events error:", error);
                     if (syncTimeout) clearTimeout(syncTimeout);
                     initializeLocalFallback('已就绪 (单机模式)');
                 });
 
-                // Listen for Connections
                 onSnapshot(connCol, (snapshot) => {
                     window.connections = snapshot.docs.map(doc => ({ id: isNaN(doc.id) ? doc.id : Number(doc.id), ...doc.data() }));
                     saveLocalData();
                     window.renderSvgConnections();
-                }, (error) => {
-                    console.error("Connections snapshot error:", error);
                 });
 
-                // Listen for Tags
                 onSnapshot(tagsCol, (snapshot) => {
                     if (!snapshot.empty) {
                         const loadedTags = snapshot.docs.map(doc => doc.data().name);
@@ -550,53 +415,44 @@
                     }
                     saveLocalData();
                     window.renderTagModalList();
-                }, (error) => {
-                    console.error("Tags snapshot error:", error);
                 });
             } catch (err) {
-                console.error("Error setting up listeners:", err);
+                console.error("Listener error:", err);
                 if (syncTimeout) clearTimeout(syncTimeout);
                 initializeLocalFallback('已就绪 (单机模式)');
             }
         }
 
         async function seedCloudDatabase() {
-            if (!currentUser || !db) return;
-            updateSyncStatus('syncing', '正在初始化云端数据...');
-            try {
-                for (const ev of initialSeedEvents) {
-                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', String(ev.id)), ev);
-                }
-                for (const cn of initialSeedConnections) {
-                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'connections', String(cn.id)), cn);
-                }
-                for (const tg of window.availableTags) {
-                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tags', tg), { name: tg });
-                }
-            } catch (e) {
-                console.warn("Cloud seed error:", e);
+            if (!currentUser) return;
+            updateSyncStatus('syncing', '正在初始化数据...');
+            
+            for (const ev of initialSeedEvents) {
+                await setDoc(doc(db, 'public_data', appId, 'events', String(ev.id)), ev);
+            }
+            for (const cn of initialSeedConnections) {
+                await setDoc(doc(db, 'public_data', appId, 'connections', String(cn.id)), cn);
+            }
+            for (const tg of window.availableTags) {
+                await setDoc(doc(db, 'public_data', appId, 'tags', tg), { name: tg });
             }
             isInitialLoadDone = true;
-            window.isCloudSyncActive = true;
         }
 
         window.saveEventToCloud = async function(eventData) {
             const index = window.events.findIndex(e => String(e.id) === String(eventData.id));
-            if (index >= 0) {
-                window.events[index] = eventData;
-            } else {
-                window.events.push(eventData);
-            }
+            if (index >= 0) window.events[index] = eventData;
+            else window.events.push(eventData);
             saveLocalData();
             window.renderEvents();
 
-            if (!currentUser || !db) return;
+            if (!currentUser) return;
             try {
                 updateSyncStatus('syncing', '保存中...');
-                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', String(eventData.id)), eventData);
+                await setDoc(doc(db, 'public_data', appId, 'events', String(eventData.id)), eventData);
                 updateSyncStatus('synced', '已同步云端');
             } catch (e) {
-                console.warn("Cloud save failed, retained in local state:", e);
+                console.warn("保存失败:", e);
                 updateSyncStatus('offline', '已就绪 (单机模式)');
             }
         };
@@ -607,36 +463,33 @@
             saveLocalData();
             window.renderEvents();
 
-            if (!currentUser || !db) return;
+            if (!currentUser) return;
             try {
                 updateSyncStatus('syncing', '删除中...');
-                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', String(eventId)));
+                await deleteDoc(doc(db, 'public_data', appId, 'events', String(eventId)));
                 const toDeleteConns = window.connections.filter(c => String(c.sourceId) === String(eventId) || String(c.targetId) === String(eventId));
                 for (const c of toDeleteConns) {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'connections', String(c.id)));
+                    await deleteDoc(doc(db, 'public_data', appId, 'connections', String(c.id)));
                 }
                 updateSyncStatus('synced', '已同步云端');
             } catch (e) {
-                console.warn("Cloud delete failed, retained in local state:", e);
+                console.warn("删除失败:", e);
                 updateSyncStatus('offline', '已就绪 (单机模式)');
             }
         };
 
         window.saveConnectionToCloud = async function(connData) {
             const index = window.connections.findIndex(c => String(c.id) === String(connData.id));
-            if (index >= 0) {
-                window.connections[index] = connData;
-            } else {
-                window.connections.push(connData);
-            }
+            if (index >= 0) window.connections[index] = connData;
+            else window.connections.push(connData);
             saveLocalData();
             window.renderSvgConnections();
 
-            if (!currentUser || !db) return;
+            if (!currentUser) return;
             try {
-                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'connections', String(connData.id)), connData);
+                await setDoc(doc(db, 'public_data', appId, 'connections', String(connData.id)), connData);
             } catch (e) {
-                console.warn("Cloud connection save failed:", e);
+                console.warn("连线保存失败:", e);
             }
         };
 
@@ -645,26 +498,24 @@
             saveLocalData();
             window.renderSvgConnections();
 
-            if (!currentUser || !db) return;
+            if (!currentUser) return;
             try {
-                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'connections', String(connId)));
+                await deleteDoc(doc(db, 'public_data', appId, 'connections', String(connId)));
             } catch (e) {
-                console.warn("Cloud connection delete failed:", e);
+                console.warn("连线删除失败:", e);
             }
         };
 
         window.saveTagToCloud = async function(tagName) {
-            if (!window.availableTags.includes(tagName)) {
-                window.availableTags.push(tagName);
-            }
+            if (!window.availableTags.includes(tagName)) window.availableTags.push(tagName);
             saveLocalData();
             window.renderTagModalList();
 
-            if (!currentUser || !db) return;
+            if (!currentUser) return;
             try {
-                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tags', tagName), { name: tagName });
+                await setDoc(doc(db, 'public_data', appId, 'tags', tagName), { name: tagName });
             } catch (e) {
-                console.warn("Cloud tag save failed:", e);
+                console.warn("Tag保存失败:", e);
             }
         };
 
@@ -673,11 +524,11 @@
             saveLocalData();
             window.renderTagModalList();
 
-            if (!currentUser || !db) return;
+            if (!currentUser) return;
             try {
-                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tags', tagName));
+                await deleteDoc(doc(db, 'public_data', appId, 'tags', tagName));
             } catch (e) {
-                console.warn("Cloud tag delete failed:", e);
+                console.warn("Tag删除失败:", e);
             }
         };
 
@@ -727,61 +578,6 @@
             } else {
                 window.showToast("密码错误，无法解锁", "error");
             }
-        };
-
-        window.openShareModal = function() {
-            const roomInput = document.getElementById('shareRoomInput');
-            const urlInput = document.getElementById('shareUrlInput');
-            const cloudWarning = document.getElementById('cloudSyncWarning');
-
-            if (!window.isCloudSyncActive) {
-                cloudWarning?.classList.remove('hidden');
-            } else {
-                cloudWarning?.classList.add('hidden');
-            }
-
-            if (roomInput) roomInput.value = window.currentRoomId === 'default' ? '' : window.currentRoomId;
-
-            const shareUrl = window.location.origin + window.location.pathname + (window.currentRoomId !== 'default' ? `?room=${encodeURIComponent(window.currentRoomId)}` : '');
-            if (urlInput) urlInput.value = shareUrl;
-
-            document.getElementById('shareModal')?.classList.remove('hidden');
-        };
-
-        window.closeShareModal = function() {
-            document.getElementById('shareModal')?.classList.add('hidden');
-        };
-
-        window.copyShareLink = function() {
-            const urlInput = document.getElementById('shareUrlInput');
-            if (!urlInput) return;
-            urlInput.select();
-            try {
-                document.execCommand('copy');
-                window.showToast("协同链接已复制！发送给好友即可在相同空间浏览/编辑", "success");
-            } catch (err) {
-                window.showToast("复制失败，请手动复制文本框内容", "error");
-            }
-        };
-
-        window.switchRoomFromInput = function() {
-            const roomInput = document.getElementById('shareRoomInput');
-            let rawValue = roomInput ? roomInput.value.trim() : '';
-
-            if (rawValue.includes('?room=')) {
-                try {
-                    const parsedUrl = new URL(rawValue);
-                    const roomParam = parsedUrl.searchParams.get('room');
-                    if (roomParam) rawValue = roomParam;
-                } catch (e) {
-                    const match = rawValue.match(/[?&]room=([^&]+)/);
-                    if (match) rawValue = decodeURIComponent(match[1]);
-                }
-            }
-
-            const targetRoom = rawValue || 'default';
-            const newUrl = window.location.origin + window.location.pathname + (targetRoom !== 'default' ? `?room=${encodeURIComponent(targetRoom)}` : '');
-            window.location.href = newUrl;
         };
 
         window.handleNewEventClick = function() {
@@ -862,7 +658,7 @@
                 window.closeConfirmModal();
                 window.closeEditModal();
                 await window.deleteEventFromCloud(targetId);
-                window.showToast("事件及关联已成功销毁", "info");
+                window.showToast("事件及关联已成功删除", "info");
             }
         };
 
@@ -1558,7 +1354,7 @@
 
             await window.saveEventToCloud(eventData);
             window.closeEditModal();
-            window.showToast(isEdit ? "事件修改已保存" : "新建事件成功", "success");
+            window.showToast(isEdit ? "事件修改已保存至云端" : "新建事件成功并同步至云端", "success");
         };
 
         window.showToast = function(text, type = "info") {
