@@ -276,7 +276,7 @@
                 <i class="fa-solid fa-folder-open"></i>
             </div>
             <h3 class="text-base font-semibold text-slate-700">暂无事件</h3>
-            <p class="text-slate-500 text-xs mt-1 max-w-md">点击右上角的“新建事件”开始记录。</p>
+            <p class="text-slate-500 text-xs mt-1 max-w-md">点击右上角的"新建事件"开始记录。</p>
         </div>
     </main>
 
@@ -923,40 +923,45 @@
             }, true);
         }
 
-        // 边缘自动滚动功能
+        // 边缘自动滚动 - 使用 requestAnimationFrame 实现丝滑滚动
         function initScrollEdges() {
             const leftEdge = document.getElementById('scrollEdgeLeft');
             const rightEdge = document.getElementById('scrollEdgeRight');
             const container = document.getElementById('timelineContainer');
             if (!leftEdge || !rightEdge || !container) return;
 
-            let leftInterval = null;
-            let rightInterval = null;
+            let isScrollingLeft = false;
+            let isScrollingRight = false;
+            let animationId = null;
+
+            function smoothScroll() {
+                if (!isScrollingLeft && !isScrollingRight) {
+                    animationId = null;
+                    return;
+                }
+                if (isScrollingLeft) {
+                    container.scrollLeft -= 2.2;   // 速度控制：数值越大滚动越快
+                }
+                if (isScrollingRight) {
+                    container.scrollLeft += 2.2;
+                }
+                animationId = requestAnimationFrame(smoothScroll);
+            }
 
             leftEdge.addEventListener('mouseenter', () => {
-                if (leftInterval) clearInterval(leftInterval);
-                leftInterval = setInterval(() => {
-                    container.scrollLeft -= 24;
-                }, 16);
+                isScrollingLeft = true;
+                if (!animationId) smoothScroll();
             });
             leftEdge.addEventListener('mouseleave', () => {
-                if (leftInterval) {
-                    clearInterval(leftInterval);
-                    leftInterval = null;
-                }
+                isScrollingLeft = false;
             });
 
             rightEdge.addEventListener('mouseenter', () => {
-                if (rightInterval) clearInterval(rightInterval);
-                rightInterval = setInterval(() => {
-                    container.scrollLeft += 24;
-                }, 16);
+                isScrollingRight = true;
+                if (!animationId) smoothScroll();
             });
             rightEdge.addEventListener('mouseleave', () => {
-                if (rightInterval) {
-                    clearInterval(rightInterval);
-                    rightInterval = null;
-                }
+                isScrollingRight = false;
             });
         }
 
@@ -1337,7 +1342,6 @@
             document.getElementById('confirmSaveModal')?.classList.add('hidden');
         };
 
-        // 修改保存逻辑：先显示保存等待界面，完成后再关闭
         window.confirmSaveEvent = async function() {
             if (window.pendingSaveData) {
                 const eventData = window.pendingSaveData;
@@ -1345,14 +1349,12 @@
                 delete eventData._isEdit;
 
                 window.closeConfirmSaveModal();
-                // 显示保存等待界面
                 const savingModal = document.getElementById('savingModal');
                 const progressBar = document.getElementById('savingProgressBar');
                 if (savingModal) savingModal.classList.remove('hidden');
                 if (progressBar) progressBar.style.width = '30%';
 
                 try {
-                    // 模拟进度
                     if (progressBar) setTimeout(() => progressBar.style.width = '60%', 400);
                     
                     const desiredConnections = eventData.connections || [];
@@ -1363,7 +1365,7 @@
                     await window.syncEditingConnections(eventData.id, desiredConnections);
                     
                     if (progressBar) progressBar.style.width = '100%';
-                    await new Promise(r => setTimeout(r, 300)); // 让进度条走完
+                    await new Promise(r => setTimeout(r, 300));
                     
                     if (savingModal) savingModal.classList.add('hidden');
                     window.closeEditModal();
@@ -2336,7 +2338,6 @@
             window.editingConnectionsDirty = false;
             window.editingConnectionDraftEventId = event.id;
 
-            // 宽度从 max-w-2xl 改为 max-w-xl
             modal.innerHTML = `
                 <div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full p-4 sm:p-5 my-3 sm:my-5 max-h-[92vh] overflow-y-auto custom-scrollbar">
                     <div class="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-200 mb-4 sm:mb-5">
