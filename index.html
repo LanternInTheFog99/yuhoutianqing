@@ -101,6 +101,11 @@
                     <span id="syncText">正在同步...</span>
                 </div>
 
+                <!-- 意味不明的小图标：用于随时调整管理员密钥 -->
+                <button onclick="openAdminKeyModal()" class="w-9 h-9 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-600 flex items-center justify-center transition-all shadow-sm">
+                    <i class="fa-solid fa-fingerprint text-xs"></i>
+                </button>
+
                 <button onclick="openTagModal()" class="px-3 py-2 rounded-lg text-xs font-medium border border-slate-300 hover:bg-slate-50 text-slate-700 flex items-center gap-1.5 transition-all">
                     <i class="fa-solid fa-tags text-slate-500"></i>
                     <span>tag库</span>
@@ -192,6 +197,30 @@
         </div>
     </main>
 
+    <!-- Admin Key Settings Modal (管理员密钥弹窗) -->
+    <div id="adminKeyModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
+                <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                    <i class="fa-solid fa-key text-indigo-600"></i>
+                    <span></span>
+                </h3>
+                <button onclick="closeAdminKeyModal()" class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <p class="text-xs text-slate-500 mb-3"></p>
+            <div class="space-y-3 mb-4">
+                <input type="password" id="adminOldPwd" placeholder="请输入" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
+                <input type="password" id="adminNewPwd" placeholder="请更改" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div class="flex justify-end gap-2">
+                <button onclick="closeAdminKeyModal()" class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button>
+                <button onclick="submitNewAdminPassword()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">确认修改</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Tag Manager Modal -->
     <div id="tagModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
@@ -231,8 +260,8 @@
                     <span>协同使用说明</span>
                 </div>
                 <ul class="list-disc list-inside space-y-1.5 text-slate-600 leading-relaxed">
-                    <li><span class="font-semibold text-slate-800">多端同步：</span>复制专属链接发送给好友即可加入。</li>
-                    <li><span class="font-semibold text-slate-800">实时协作：</span>任何人在空间内操作均会实时同步。</li>
+                    <li><span class="font-semibold text-slate-800">多端同步：</span>复制专属链接发送给好友即可加入。[cite: 1]</li>
+                    <li><span class="font-semibold text-slate-800">实时协作：</span>任何人在空间内操作均会实时同步。[cite: 1]</li>
                 </ul>
             </div>
 
@@ -297,33 +326,71 @@
         </div>
     </div>
 
+    <!-- Confirm Save Modal -->
+    <div id="confirmSaveModal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-md z-[70] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center transform scale-100 transition-transform">
+            <div class="w-12 h-12 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xl mx-auto mb-3">
+                <i class="fa-solid fa-circle-question"></i>
+            </div>
+            <h3 class="font-bold text-slate-800 text-base mb-1">确认保存事件？</h3>
+            <p class="text-xs text-slate-500 mb-5">请检查信息是否无误，确认后将进行保存并同步。</p>
+            <div class="flex justify-center gap-3">
+                <button onclick="closeConfirmSaveModal()" class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button>
+                <button onclick="confirmSaveEvent()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">确认保存</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Image Crop Modal -->
-    <div id="cropModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[80] hidden flex items-center justify-center p-4">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl max-w-lg w-full p-6 text-white flex flex-col items-center">
-            <div class="flex items-center justify-between w-full pb-3 border-b border-slate-800 mb-4">
+    <div id="cropModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[80] hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl max-w-3xl w-full p-6 text-white flex flex-col items-center">
+            <div class="flex items-center justify-between w-full pb-3 border-b border-slate-800 mb-3">
                 <h3 class="font-bold text-base flex items-center gap-2">
                     <i class="fa-solid fa-crop text-indigo-400"></i>
-                    <span>截选图片显示区域</span>
+                    <span>图片区域截选</span>
                 </h3>
                 <button onclick="closeCropModal()" class="text-slate-400 hover:text-white w-8 h-8 rounded-full flex items-center justify-center">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
-            <p class="text-xs text-slate-400 mb-3 text-left w-full">请拖动或调整下方选框，截选您希望在预览中展示的关键部分：</p>
             
-            <div id="cropContainer" class="relative max-h-[50vh] overflow-auto border border-slate-700 rounded-xl bg-black flex justify-center items-center my-2 select-none cursor-crosshair">
-                <img id="cropTargetImg" class="max-w-full block pointer-events-none">
-                <div id="cropBox" class="absolute border-2 border-indigo-400 bg-indigo-500/20 shadow-[0_0_0_9999px_rgba(0,0,0,0.6)] cursor-move">
-                    <div class="absolute -top-1.5 -left-1.5 w-3 h-3 bg-white border border-indigo-600"></div>
-                    <div class="absolute -top-1.5 -right-1.5 w-3 h-3 bg-white border border-indigo-600"></div>
-                    <div class="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-white border border-indigo-600"></div>
-                    <div class="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-white border border-indigo-600"></div>
+            <!-- 模式切换标签 -->
+            <div class="flex items-center gap-2 mb-3 bg-slate-800 p-1 rounded-lg w-full justify-center">
+                <button type="button" id="cropTabOuter" onclick="switchCropMode('outer')" class="px-4 py-1.5 rounded-md text-xs font-semibold bg-indigo-600 text-white transition-all">
+                    1. 封面图截选
+                </button>
+                <button type="button" id="cropTabInner" onclick="switchCropMode('inner')" class="px-4 py-1.5 rounded-md text-xs font-semibold text-slate-400 hover:text-white transition-all">
+                    2. 详情缩略图截选 (竖屏)
+                </button>
+            </div>
+
+            <p class="text-xs text-slate-400 mb-2 text-center" id="cropModeTip">框大小固定，不可调整；您可以<strong>缩放图片</strong>或<strong>拖动图片内部</strong>来对齐选框：</p>
+            
+            <!-- 图片与固定大小框容器 -->
+            <div id="cropContainer" class="relative max-h-[42vh] w-full overflow-hidden border border-slate-700 rounded-xl bg-black flex justify-center items-center my-1 select-none cursor-grab active:cursor-grabbing p-6">
+                <div class="relative inline-block" id="cropWrapper">
+                    <img id="cropTargetImg" class="block pointer-events-none transition-transform duration-75" style="transform: scale(1); transform-origin: top left;">
+                    
+                    <!-- 固定的裁剪框层（居中覆盖在容器正中央） -->
+                    <div id="cropBoxFixed" class="absolute border-2 border-indigo-400 bg-indigo-500/10 shadow-[0_0_0_9999px_rgba(0,0,0,0.65)] pointer-events-none flex items-center justify-center" style="top: 50%; left: 50%; transform: translate(-50%, -50%);">
+                        <span id="cropBoxLabel" class="absolute top-2 left-2 bg-indigo-600 text-white text-[10px] px-2 py-0.5 rounded font-mono shadow">尺寸</span>
+                    </div>
                 </div>
             </div>
 
-            <div class="flex justify-end gap-3 w-full mt-4 pt-3 border-t border-slate-800">
-                <button onclick="closeCropModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium">取消</button>
-                <button onclick="confirmCropImage()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">完成截选</button>
+            <!-- 图片缩放条 -->
+            <div class="flex items-center gap-3 w-full bg-slate-800/60 px-4 py-2.5 rounded-xl border border-slate-800 mt-3">
+                <span class="text-xs text-slate-400 font-medium"><i class="fa-solid fa-magnifying-glass mr-1"></i>图片缩放:</span>
+                <input type="range" id="imageScaleSlider" min="0.2" max="3" step="0.05" value="1" oninput="handleImageScaleChange(this.value)" class="flex-grow h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+                <span id="imageScaleText" class="text-xs font-mono text-indigo-400 w-12 text-right">100%</span>
+            </div>
+
+            <div class="flex justify-between items-center w-full mt-4 pt-3 border-t border-slate-800">
+                <span class="text-[11px] text-slate-400">提示：切换标签可分别截选两套图</span>
+                <div class="flex gap-3">
+                    <button onclick="closeCropModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium">取消</button>
+                    <button onclick="confirmCropImage()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">完成截选并保存</button>
+                </div>
             </div>
         </div>
     </div>
@@ -377,25 +444,33 @@
         window.availableTags = [];
         
         window.isLocked = localStorage.getItem('yuhoutianqing_isLocked') === 'false' ? false : true;
-        const LOCK_PASSWORD = "tingyu1938";
+        
+        if (!localStorage.getItem('yuhoutianqing_lockPassword')) {
+            localStorage.setItem('yuhoutianqing_lockPassword', 'kX9#mP2$vL8!zQ5^');
+        }
+        
         window.currentView = 'timeline';
         window.zoomLevel = 3;
         window.activeHoverIntervals = {};
         window.editingImageFiles = [];
+        window.editingVideos = [];
+        window.editingLinks = [];
         window.pendingDeleteId = null;
+        window.pendingSaveData = null;
 
-        // Crop State
+        const CROP_SIZES = {
+            outer: { w: 200, h: 125, label: '封面尺寸 (宽屏)' },
+            inner: { w: 180, h: 260, label: '详情图尺寸 (偏竖屏)' }
+        };
+
         let cropState = {
             index: -1,
+            mode: 'outer',
             naturalWidth: 0,
             naturalHeight: 0,
-            x: 0,
-            y: 0,
-            w: 100,
-            h: 100,
-            isDragging: false,
-            startX: 0,
-            startY: 0
+            scale: 1,
+            imgOffsetX: 0,
+            imgOffsetY: 0
         };
 
         let currentUser = null;
@@ -654,7 +729,8 @@
         window.submitUnlockPassword = function() {
             const pwdInput = document.getElementById('unlockPwdInput');
             const pwd = pwdInput ? pwdInput.value : '';
-            if (pwd === LOCK_PASSWORD) {
+            const currentLockPwd = localStorage.getItem('yuhoutianqing_lockPassword') || 'kX9#mP2$vL8!zQ5^';
+            if (pwd === currentLockPwd) {
                 window.isLocked = false;
                 localStorage.setItem('yuhoutianqing_isLocked', 'false');
                 window.updateLockButtonUI();
@@ -663,6 +739,36 @@
             } else {
                 window.showToast("密码错误，无法解锁", "error");
             }
+        };
+
+        // 管理员密钥设置相关逻辑
+        window.openAdminKeyModal = function() {
+            document.getElementById('adminOldPwd').value = '';
+            document.getElementById('adminNewPwd').value = '';
+            document.getElementById('adminKeyModal')?.classList.remove('hidden');
+        };
+
+        window.closeAdminKeyModal = function() {
+            document.getElementById('adminKeyModal')?.classList.add('hidden');
+        };
+
+        window.submitNewAdminPassword = function() {
+            const oldPwd = document.getElementById('adminOldPwd')?.value || '';
+            const newPwd = document.getElementById('adminNewPwd')?.value || '';
+            const currentLockPwd = localStorage.getItem('yuhoutianqing_lockPassword') || 'kX9#mP2$vL8!zQ5^';
+
+            if (oldPwd !== currentLockPwd) {
+                window.showToast("当前密码输入错误", "error");
+                return;
+            }
+            if (!newPwd.trim()) {
+                window.showToast("新密码不能为空", "error");
+                return;
+            }
+
+            localStorage.setItem('yuhoutianqing_lockPassword', newPwd.trim());
+            window.closeAdminKeyModal();
+            window.showToast("密码修改成功！", "success");
         };
 
         window.openShareModal = function() {
@@ -803,6 +909,26 @@
             }
         };
 
+        window.closeConfirmSaveModal = function() {
+            window.pendingSaveData = null;
+            document.getElementById('confirmSaveModal')?.classList.add('hidden');
+        };
+
+        window.confirmSaveEvent = async function() {
+            if (window.pendingSaveData) {
+                const eventData = window.pendingSaveData;
+                const isEdit = window.pendingSaveData._isEdit;
+                delete eventData._isEdit;
+
+                window.closeConfirmSaveModal();
+                window.closeEditModal();
+
+                await window.saveEventToCloud(eventData);
+                window.showToast(isEdit ? "事件修改已保存" : "新建事件成功", "success");
+                window.pendingSaveData = null;
+            }
+        };
+
         window.renderEvents = function() {
             const filtered = window.getFilteredEvents();
             const emptyState = document.getElementById('emptyState');
@@ -924,9 +1050,8 @@
                 nodeContainer.style.width = `${gapPx}px`;
 
                 const hasImages = event.images && event.images.length > 0;
-                // 支持解析预览图对象或直接字符串
                 const firstImgObj = hasImages ? event.images[0] : null;
-                const firstImgSrc = typeof firstImgObj === 'string' ? firstImgObj : (firstImgObj?.cropped || firstImgObj?.original);
+                const firstImgSrc = typeof firstImgObj === 'string' ? firstImgObj : (firstImgObj?.outer || firstImgObj?.original);
 
                 nodeContainer.innerHTML = `
                     ${hasImages ? `
@@ -956,7 +1081,7 @@
                         window.activeHoverIntervals[event.id] = setInterval(() => {
                             imgIdx = (imgIdx + 1) % event.images.length;
                             const curImgObj = event.images[imgIdx];
-                            const curSrc = typeof curImgObj === 'string' ? curImgObj : (curImgObj?.cropped || curImgObj?.original);
+                            const curSrc = typeof curImgObj === 'string' ? curImgObj : (curImgObj?.outer || curImgObj?.original);
                             if (imgEl) imgEl.src = curSrc;
                         }, 1500);
                     }
@@ -1101,7 +1226,7 @@
 
                 const hasImg = event.images && event.images.length > 0;
                 const firstImgObj = hasImg ? event.images[0] : null;
-                const firstImgSrc = typeof firstImgObj === 'string' ? firstImgObj : (firstImgObj?.cropped || firstImgObj?.original);
+                const firstImgSrc = typeof firstImgObj === 'string' ? firstImgObj : (firstImgObj?.outer || firstImgObj?.original);
 
                 card.innerHTML = `
                     ${hasImg ? `
@@ -1182,24 +1307,70 @@
                 `;
             }
 
-            // 多图网格化：根据图片数量动态自适应排版，一屏展示 2-3 张甚至更多
             let imagesHtml = '';
             if (event.images && event.images.length > 0) {
+                const count = event.images.length;
+                let gridColsClass = "grid-cols-2 sm:grid-cols-3 md:grid-cols-6";
+                let imgCardHeightClass = "aspect-[3/4]";
+                if (count === 1) {
+                    gridColsClass = "grid-cols-1 max-w-xs mx-auto";
+                    imgCardHeightClass = "aspect-[4/3]";
+                } else if (count === 2) {
+                    gridColsClass = "grid-cols-2 max-w-md mx-auto";
+                } else if (count <= 4) {
+                    gridColsClass = "grid-cols-2 sm:grid-cols-4";
+                }
+
                 imagesHtml = `
                     <div class="mb-6">
-                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                        <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">事件配图 (点击查看大图)</h4>
+                        <div class="grid ${gridColsClass} gap-3">
                             ${event.images.map((imgObj, idx) => {
-                                const thumbSrc = typeof imgObj === 'string' ? imgObj : (imgObj.cropped || imgObj.original);
+                                const thumbSrc = typeof imgObj === 'string' ? imgObj : (imgObj.inner || imgObj.original);
                                 const fullSrc = typeof imgObj === 'string' ? imgObj : imgObj.original;
                                 return `
-                                    <div onclick="openLightbox('${fullSrc}')" class="group relative aspect-square bg-slate-950 rounded-xl overflow-hidden border border-slate-800 cursor-pointer shadow-md hover:border-indigo-500 transition-all">
+                                    <div onclick="openLightbox('${fullSrc}')" class="group relative ${imgCardHeightClass} bg-slate-950 rounded-xl overflow-hidden border border-slate-800 cursor-pointer shadow-md hover:border-indigo-500 transition-all">
                                         <img src="${thumbSrc}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
-                                        <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                            <i class="fa-solid fa-magnifying-glass-plus text-white text-base drop-shadow"></i>
+                                        <div class="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                            <i class="fa-solid fa-magnifying-glass-plus text-white text-sm drop-shadow"></i>
                                         </div>
                                     </div>
                                 `;
                             }).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            let videosHtml = '';
+            if (event.videos && event.videos.length > 0) {
+                videosHtml = `
+                    <div class="mb-6">
+                        <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-video mr-1"></i>事件视频</h4>
+                        <div class="space-y-3">
+                            ${event.videos.map(v => `
+                                <div class="bg-black rounded-xl overflow-hidden border border-slate-800">
+                                    <video src="${v}" controls class="w-full max-h-80 object-contain"></video>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            let linksHtml = '';
+            if (event.links && event.links.length > 0) {
+                linksHtml = `
+                    <div class="mb-6">
+                        <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-link mr-1"></i>跳转网址</h4>
+                        <div class="flex flex-wrap gap-2">
+                            ${event.links.map(l => `
+                                <a href="${l.url}" target="_blank" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-indigo-300 hover:text-indigo-200 px-3 py-2 rounded-xl text-xs transition-colors">
+                                    <i class="fa-solid fa-globe"></i>
+                                    <span class="font-medium">${l.title || l.url}</span>
+                                    <i class="fa-solid fa-arrow-up-right-from-square text-[10px] text-slate-400"></i>
+                                </a>
+                            `).join('')}
                         </div>
                     </div>
                 `;
@@ -1225,7 +1396,8 @@
                     ` : ''}
 
                     ${imagesHtml}
-
+                    ${videosHtml}
+                    ${linksHtml}
                     ${connHtml}
 
                     <div class="border-t border-slate-800 pt-6">
@@ -1272,16 +1444,24 @@
                 type: 'minor',
                 tags: [],
                 images: [],
+                videos: [],
+                links: [],
                 description: ''
             };
 
-            // 统一兼容旧版纯字符串图片或新版对象图片
             window.editingImageFiles = (event.images ? event.images : []).map(img => {
                 if (typeof img === 'string') {
-                    return { original: img, cropped: img };
+                    return { original: img, outer: img, inner: img };
                 }
-                return { original: img.original, cropped: img.cropped || img.original };
+                return { 
+                    original: img.original, 
+                    outer: img.outer || img.original, 
+                    inner: img.inner || img.original 
+                };
             });
+
+            window.editingVideos = event.videos ? [...event.videos] : [];
+            window.editingLinks = event.links ? [...event.links] : [];
 
             modal.innerHTML = `
                 <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 my-8 max-h-[90vh] overflow-y-auto custom-scrollbar">
@@ -1295,7 +1475,7 @@
                         </button>
                     </div>
 
-                    <form onsubmit="saveEvent(event, '${event.id}', ${isEdit})" class="space-y-4">
+                    <form onsubmit="handlePreSaveEvent(event, '${event.id}', ${isEdit})" class="space-y-4">
                         <div>
                             <label class="block text-xs font-bold text-slate-700 mb-1">事件名称 *</label>
                             <input type="text" id="editTitle" value="${event.title}" required placeholder="输入事件标题" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
@@ -1357,8 +1537,8 @@
 
                         <div>
                             <div class="flex items-center justify-between mb-1">
-                                <label class="block text-xs font-bold text-slate-700">添加与截选图片</label>
-                                <span class="text-[10px] text-slate-400">支持截选长图关键区域</span>
+                                <label class="block text-xs font-bold text-slate-700">添加图片并截选</label>
+                                <span class="text-[10px] text-slate-400">支持横屏(封面)与竖屏(详情)</span>
                             </div>
                             <div class="border-2 border-dashed border-slate-300 rounded-xl p-4 text-center hover:bg-slate-50 transition-colors cursor-pointer" onclick="document.getElementById('editFileInput').click()">
                                 <i class="fa-solid fa-cloud-arrow-up text-2xl text-indigo-500 mb-1 block"></i>
@@ -1366,6 +1546,41 @@
                                 <input type="file" id="editFileInput" multiple accept="image/*" class="hidden" onchange="handleLocalImageUpload(event)">
                             </div>
                             <div id="imageMicroPreviews" class="flex flex-wrap gap-2 mt-3"></div>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="block text-xs font-bold text-slate-700">添加视频</label>
+                                <span class="text-[10px] text-slate-400">支持本地上传或直链</span>
+                            </div>
+                            <div class="flex gap-2 mb-2">
+                                <input type="file" id="editVideoFileInput" accept="video/*" class="hidden" onchange="handleLocalVideoUpload(event)">
+                                <button type="button" onclick="document.getElementById('editVideoFileInput').click()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 rounded-lg text-xs font-medium flex items-center gap-1.5">
+                                    <i class="fa-solid fa-file-video text-indigo-600"></i>
+                                    <span>上传本地视频</span>
+                                </button>
+                            </div>
+                            <div class="flex gap-2">
+                                <input type="text" id="newVideoUrlInput" placeholder="输入视频网络地址 (URL)" class="flex-grow px-3 py-1.5 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
+                                <button type="button" onclick="addVideoUrl()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shrink-0">添加网址视频</button>
+                            </div>
+                            <div id="videoPreviews" class="space-y-2 mt-3"></div>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="block text-xs font-bold text-slate-700">跳转网址 (网页链接)</label>
+                                <span class="text-[10px] text-slate-400">支持添加外部跳转链接</span>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
+                                <input type="text" id="newLinkTitleInput" placeholder="链接显示名称 (如：官方文档)" class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
+                                <input type="text" id="newLinkUrlInput" placeholder="网址链接 (https://...)" class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <button type="button" onclick="addLinkItem()" class="w-full py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5">
+                                <i class="fa-solid fa-link text-indigo-600"></i>
+                                <span>添加跳转网址</span>
+                            </button>
+                            <div id="linkPreviews" class="space-y-2 mt-3"></div>
                         </div>
 
                         <div>
@@ -1389,6 +1604,8 @@
             `;
 
             window.renderMicroPreviews();
+            window.renderVideoPreviews();
+            window.renderLinkPreviews();
             window.renderModalConnections(event.id);
             modal.classList.remove('hidden');
         };
@@ -1482,7 +1699,7 @@
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     const base64 = event.target.result;
-                    window.editingImageFiles.push({ original: base64, cropped: base64 });
+                    window.editingImageFiles.push({ original: base64, outer: base64, inner: base64 });
                     window.renderMicroPreviews();
                 };
                 reader.readAsDataURL(f);
@@ -1493,15 +1710,15 @@
             const container = document.getElementById('imageMicroPreviews');
             if (!container) return;
             container.innerHTML = window.editingImageFiles.map((imgObj, idx) => {
-                const previewSrc = imgObj.cropped || imgObj.original;
+                const outerSrc = imgObj.outer || imgObj.original;
                 return `
-                    <div class="relative w-16 h-16 rounded-lg overflow-hidden border border-slate-200 group bg-slate-900">
-                        <img src="${previewSrc}" class="w-full h-full object-cover">
-                        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
-                            <button type="button" onclick="openCropModal(${idx})" title="截选图片区域" class="bg-indigo-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] hover:bg-indigo-700">
+                    <div class="relative w-20 h-16 rounded-lg overflow-hidden border border-slate-200 group bg-slate-900 flex">
+                        <img src="${outerSrc}" class="w-full h-full object-cover">
+                        <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
+                            <button type="button" onclick="openCropModal(${idx})" title="裁剪图片" class="bg-indigo-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] hover:bg-indigo-700">
                                 <i class="fa-solid fa-crop"></i>
                             </button>
-                            <button type="button" onclick="removeMicroPreview(${idx})" title="删除图片" class="bg-rose-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] hover:bg-rose-700">
+                            <button type="button" onclick="removeMicroPreview(${idx})" title="删除图片" class="bg-rose-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] hover:bg-rose-700">
                                 <i class="fa-solid fa-xmark"></i>
                             </button>
                         </div>
@@ -1515,16 +1732,101 @@
             window.renderMicroPreviews();
         };
 
-        // Crop Tool Functions
+        window.handleLocalVideoUpload = function(e) {
+            const files = Array.from(e.target.files);
+            files.forEach(f => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    window.editingVideos.push(event.target.result);
+                    window.renderVideoPreviews();
+                };
+                reader.readAsDataURL(f);
+            });
+        };
+
+        window.addVideoUrl = function() {
+            const input = document.getElementById('newVideoUrlInput');
+            const url = input ? input.value.trim() : '';
+            if (!url) {
+                window.showToast("请输入有效的视频网址", "error");
+                return;
+            }
+            window.editingVideos.push(url);
+            if (input) input.value = '';
+            window.renderVideoPreviews();
+            window.showToast("视频添加成功", "success");
+        };
+
+        window.renderVideoPreviews = function() {
+            const container = document.getElementById('videoPreviews');
+            if (!container) return;
+            if (window.editingVideos.length === 0) {
+                container.innerHTML = "";
+                return;
+            }
+            container.innerHTML = window.editingVideos.map((v, idx) => `
+                <div class="flex items-center justify-between bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg text-xs">
+                    <span class="text-slate-700 font-mono truncate max-w-[280px]"><i class="fa-solid fa-video mr-1 text-indigo-500"></i>${v}</span>
+                    <button type="button" onclick="removeVideoItem(${idx})" class="text-slate-400 hover:text-rose-500">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            `).join('');
+        };
+
+        window.removeVideoItem = function(idx) {
+            window.editingVideos.splice(idx, 1);
+            window.renderVideoPreviews();
+        };
+
+        window.addLinkItem = function() {
+            const titleInput = document.getElementById('newLinkTitleInput');
+            const urlInput = document.getElementById('newLinkUrlInput');
+            const title = titleInput ? titleInput.value.trim() : '';
+            const url = urlInput ? urlInput.value.trim() : '';
+
+            if (!url) {
+                window.showToast("请输入跳转网址", "error");
+                return;
+            }
+            window.editingLinks.push({ title: title || url, url: url });
+            if (titleInput) titleInput.value = '';
+            if (urlInput) urlInput.value = '';
+            window.renderLinkPreviews();
+            window.showToast("网址添加成功", "success");
+        };
+
+        window.renderLinkPreviews = function() {
+            const container = document.getElementById('linkPreviews');
+            if (!container) return;
+            if (window.editingLinks.length === 0) {
+                container.innerHTML = "";
+                return;
+            }
+            container.innerHTML = window.editingLinks.map((l, idx) => `
+                <div class="flex items-center justify-between bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg text-xs">
+                    <span class="text-indigo-600 font-medium truncate max-w-[280px]"><i class="fa-solid fa-globe mr-1"></i>${l.title} (${l.url})</span>
+                    <button type="button" onclick="removeLinkItem(${idx})" class="text-slate-400 hover:text-rose-500">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            `).join('');
+        };
+
+        window.removeLinkItem = function(idx) {
+            window.editingLinks.splice(idx, 1);
+            window.renderLinkPreviews();
+        };
+
         window.openCropModal = function(index) {
             cropState.index = index;
+            cropState.mode = 'outer';
             const imgObj = window.editingImageFiles[index];
             if (!imgObj) return;
 
             const modal = document.getElementById('cropModal');
             const targetImg = document.getElementById('cropTargetImg');
-            const cropBox = document.getElementById('cropBox');
-            if (!modal || !targetImg || !cropBox) return;
+            if (!modal || !targetImg) return;
 
             targetImg.src = imgObj.original;
             modal.classList.remove('hidden');
@@ -1533,57 +1835,96 @@
                 cropState.naturalWidth = targetImg.naturalWidth;
                 cropState.naturalHeight = targetImg.naturalHeight;
 
-                const displayW = targetImg.clientWidth;
-                const displayH = targetImg.clientHeight;
+                cropState.scale = 1;
+                cropState.imgOffsetX = 0;
+                cropState.imgOffsetY = 0;
 
-                // 默认截选框居中，大小为显示区域的 80%
-                cropState.w = displayW * 0.8;
-                cropState.h = displayH * 0.8;
-                cropState.x = (displayW - cropState.w) / 2;
-                cropState.y = (displayH - cropState.h) / 2;
-
-                updateCropBoxUI();
+                updateCropUIState();
             };
 
-            // 绑定拖拽事件
-            cropBox.onmousedown = (e) => {
-                e.preventDefault();
-                cropState.isDragging = true;
-                cropState.startX = e.clientX - cropState.x;
-                cropState.startY = e.clientY - cropState.y;
+            setupCropContainerDragEvents();
+        };
+
+        window.switchCropMode = function(mode) {
+            cropState.mode = mode;
+            updateCropUIState();
+        };
+
+        function updateCropUIState() {
+            const tabOuter = document.getElementById('cropTabOuter');
+            const tabInner = document.getElementById('cropTabInner');
+            const cropBoxFixed = document.getElementById('cropBoxFixed');
+            const cropBoxLabel = document.getElementById('cropBoxLabel');
+            const slider = document.getElementById('imageScaleSlider');
+            const sliderText = document.getElementById('imageScaleText');
+
+            if (cropState.mode === 'outer') {
+                tabOuter.className = "px-4 py-1.5 rounded-md text-xs font-semibold bg-indigo-600 text-white transition-all";
+                tabInner.className = "px-4 py-1.5 rounded-md text-xs font-semibold text-slate-400 hover:text-white transition-all";
+                cropBoxLabel.innerText = CROP_SIZES.outer.label;
+            } else {
+                tabOuter.className = "px-4 py-1.5 rounded-md text-xs font-semibold text-slate-400 hover:text-white transition-all";
+                tabInner.className = "px-4 py-1.5 rounded-md text-xs font-semibold bg-indigo-600 text-white transition-all";
+                cropBoxLabel.innerText = CROP_SIZES.inner.label;
+            }
+
+            const currentDim = CROP_SIZES[cropState.mode];
+            cropBoxFixed.style.width = `${currentDim.w}px`;
+            cropBoxFixed.style.height = `${currentDim.h}px`;
+
+            slider.value = cropState.scale;
+            sliderText.innerText = `${Math.round(cropState.scale * 100)}%`;
+
+            applyImageTransform();
+        }
+
+        window.handleImageScaleChange = function(val) {
+            cropState.scale = parseFloat(val);
+            document.getElementById('imageScaleText').innerText = `${Math.round(cropState.scale * 100)}%`;
+            applyImageTransform();
+        };
+
+        function applyImageTransform() {
+            const targetImg = document.getElementById('cropTargetImg');
+            if (!targetImg) return;
+            const renderW = cropState.naturalWidth * cropState.scale;
+            const renderH = cropState.naturalHeight * cropState.scale;
+
+            targetImg.style.width = `${renderW}px`;
+            targetImg.style.height = `${renderH}px`;
+            targetImg.style.transform = `translate(${cropState.imgOffsetX}px, ${cropState.imgOffsetY}px)`;
+        }
+
+        function setupCropContainerDragEvents() {
+            const container = document.getElementById('cropContainer');
+            if (!container) return;
+
+            let isDragging = false;
+            let startX = 0;
+            let startY = 0;
+            let origOffsetX = 0;
+            let origOffsetY = 0;
+
+            container.onmousedown = (e) => {
+                isDragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                origOffsetX = cropState.imgOffsetX;
+                origOffsetY = cropState.imgOffsetY;
             };
 
             window.onmousemove = (e) => {
-                if (!cropState.isDragging) return;
-                const targetImg = document.getElementById('cropTargetImg');
-                if (!targetImg) return;
-
-                const displayW = targetImg.clientWidth;
-                const displayH = targetImg.clientHeight;
-
-                let nx = e.clientX - cropState.startX;
-                let ny = e.clientY - cropState.startY;
-
-                nx = Math.max(0, Math.min(displayW - cropState.w, nx));
-                ny = Math.max(0, Math.min(displayH - cropState.h, ny));
-
-                cropState.x = nx;
-                cropState.y = ny;
-                updateCropBoxUI();
+                if (!isDragging) return;
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                cropState.imgOffsetX = origOffsetX + dx;
+                cropState.imgOffsetY = origOffsetY + dy;
+                applyImageTransform();
             };
 
             window.onmouseup = () => {
-                cropState.isDragging = false;
+                isDragging = false;
             };
-        };
-
-        function updateCropBoxUI() {
-            const cropBox = document.getElementById('cropBox');
-            if (!cropBox) return;
-            cropBox.style.left = `${cropState.x}px`;
-            cropBox.style.top = `${cropState.y}px`;
-            cropBox.style.width = `${cropState.w}px`;
-            cropBox.style.height = `${cropState.h}px`;
         }
 
         window.closeCropModal = function() {
@@ -1592,38 +1933,48 @@
 
         window.confirmCropImage = function() {
             const targetImg = document.getElementById('cropTargetImg');
-            if (!targetImg || cropState.index < 0) return;
+            const cropBoxFixed = document.getElementById('cropBoxFixed');
+            if (!targetImg || !cropBoxFixed || cropState.index < 0) return;
 
-            const displayW = targetImg.clientWidth;
-            const displayH = targetImg.clientHeight;
+            const currentDim = CROP_SIZES[cropState.mode];
+            
+            const boxRect = cropBoxFixed.getBoundingClientRect();
+            const imgRect = targetImg.getBoundingClientRect();
 
-            const scaleX = cropState.naturalWidth / displayW;
-            const scaleY = cropState.naturalHeight / displayH;
-
-            const sx = cropState.x * scaleX;
-            const sy = cropState.y * scaleY;
-            const sw = cropState.w * scaleX;
-            const sh = cropState.h * scaleY;
+            const relX = (boxRect.left - imgRect.left) / cropState.scale;
+            const relY = (boxRect.top - imgRect.top) / cropState.scale;
+            const relW = currentDim.w / cropState.scale;
+            const relH = currentDim.h / cropState.scale;
 
             const canvas = document.createElement('canvas');
-            canvas.width = sw;
-            canvas.height = sh;
+            canvas.width = currentDim.w;
+            canvas.height = currentDim.h;
             const ctx = canvas.getContext('2d');
 
             const imgObj = new Image();
             imgObj.src = targetImg.src;
             imgObj.onload = () => {
-                ctx.drawImage(imgObj, sx, sy, sw, sh, 0, 0, sw, sh);
+                ctx.drawImage(
+                    imgObj, 
+                    relX, relY, relW, relH, 
+                    0, 0, currentDim.w, currentDim.h
+                );
                 const croppedBase64 = canvas.toDataURL('image/jpeg', 0.9);
 
-                window.editingImageFiles[cropState.index].cropped = croppedBase64;
-                window.renderMicroPreviews();
-                window.closeCropModal();
-                window.showToast("图片区域截选成功", "success");
+                if (cropState.mode === 'outer') {
+                    window.editingImageFiles[cropState.index].outer = croppedBase64;
+                    window.showToast("封面图截选成功！请继续截选偏竖屏的详情图", "success");
+                    window.switchCropMode('inner');
+                } else {
+                    window.editingImageFiles[cropState.index].inner = croppedBase64;
+                    window.showToast("竖屏详情图截选完成", "success");
+                    window.renderMicroPreviews();
+                    window.closeCropModal();
+                }
             };
         };
 
-        window.saveEvent = async function(e, idRaw, isEdit) {
+        window.handlePreSaveEvent = function(e, idRaw, isEdit) {
             e.preventDefault();
             const id = isNaN(idRaw) ? idRaw : Number(idRaw);
             const title = document.getElementById('editTitle')?.value.trim();
@@ -1639,19 +1990,20 @@
                 return;
             }
 
-            const eventData = {
+            window.pendingSaveData = {
                 id: id,
                 title: title,
                 date: date,
                 type: type,
                 description: description,
                 tags: selectedTags,
-                images: [...window.editingImageFiles]
+                images: [...window.editingImageFiles],
+                videos: [...window.editingVideos],
+                links: [...window.editingLinks],
+                _isEdit: isEdit
             };
 
-            await window.saveEventToCloud(eventData);
-            window.closeEditModal();
-            window.showToast(isEdit ? "事件修改已保存" : "新建事件成功", "success");
+            document.getElementById('confirmSaveModal')?.classList.remove('hidden');
         };
 
         window.showToast = function(text, type = "info") {
@@ -1681,3 +2033,4 @@
     </script>
 </body>
 </html>
+```[cite: 1]
