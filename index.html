@@ -125,7 +125,7 @@
 
     <!-- Main Content Container -->
     <main class="flex-grow max-w-6xl w-full mx-auto px-4 sm:px-6 py-8">
-        <!-- 提升 toastBox 的 z-index 到 9999，确保在所有弹窗（如 editModal 的 z-50）之上弹出 -->
+        <!-- Toast Box -->
         <div id="toastBox" class="hidden fixed top-20 right-4 z-[9999] bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl border border-slate-700 flex items-center gap-3 transition-all duration-300 transform translate-y-0 opacity-100">
             <i id="toastIcon" class="fa-solid fa-circle-info text-indigo-400 text-lg"></i>
             <span id="toastText" class="text-sm font-medium">提示信息</span>
@@ -297,6 +297,45 @@
         </div>
     </div>
 
+    <!-- Image Crop Modal -->
+    <div id="cropModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[80] hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl max-w-lg w-full p-6 text-white flex flex-col items-center">
+            <div class="flex items-center justify-between w-full pb-3 border-b border-slate-800 mb-4">
+                <h3 class="font-bold text-base flex items-center gap-2">
+                    <i class="fa-solid fa-crop text-indigo-400"></i>
+                    <span>截选图片显示区域</span>
+                </h3>
+                <button onclick="closeCropModal()" class="text-slate-400 hover:text-white w-8 h-8 rounded-full flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <p class="text-xs text-slate-400 mb-3 text-left w-full">请拖动或调整下方选框，截选您希望在预览中展示的关键部分：</p>
+            
+            <div id="cropContainer" class="relative max-h-[50vh] overflow-auto border border-slate-700 rounded-xl bg-black flex justify-center items-center my-2 select-none cursor-crosshair">
+                <img id="cropTargetImg" class="max-w-full block pointer-events-none">
+                <div id="cropBox" class="absolute border-2 border-indigo-400 bg-indigo-500/20 shadow-[0_0_0_9999px_rgba(0,0,0,0.6)] cursor-move">
+                    <div class="absolute -top-1.5 -left-1.5 w-3 h-3 bg-white border border-indigo-600"></div>
+                    <div class="absolute -top-1.5 -right-1.5 w-3 h-3 bg-white border border-indigo-600"></div>
+                    <div class="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-white border border-indigo-600"></div>
+                    <div class="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-white border border-indigo-600"></div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 w-full mt-4 pt-3 border-t border-slate-800">
+                <button onclick="closeCropModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium">取消</button>
+                <button onclick="confirmCropImage()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">完成截选</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Lightbox Modal for Fullscreen View -->
+    <div id="lightboxModal" class="fixed inset-0 bg-slate-950/95 z-[90] hidden flex items-center justify-center p-4" onclick="closeLightbox()">
+        <button class="absolute top-6 right-6 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full flex items-center justify-center transition-colors z-10">
+            <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+        <img id="lightboxImg" class="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl" onclick="event.stopPropagation()">
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -344,6 +383,21 @@
         window.activeHoverIntervals = {};
         window.editingImageFiles = [];
         window.pendingDeleteId = null;
+
+        // Crop State
+        let cropState = {
+            index: -1,
+            naturalWidth: 0,
+            naturalHeight: 0,
+            x: 0,
+            y: 0,
+            w: 100,
+            h: 100,
+            isDragging: false,
+            startX: 0,
+            startY: 0
+        };
+
         let currentUser = null;
         let isInitialLoadDone = false;
 
@@ -870,12 +924,14 @@
                 nodeContainer.style.width = `${gapPx}px`;
 
                 const hasImages = event.images && event.images.length > 0;
-                const firstImg = hasImages ? event.images[0] : '';
+                // 支持解析预览图对象或直接字符串
+                const firstImgObj = hasImages ? event.images[0] : null;
+                const firstImgSrc = typeof firstImgObj === 'string' ? firstImgObj : (firstImgObj?.cropped || firstImgObj?.original);
 
                 nodeContainer.innerHTML = `
                     ${hasImages ? `
                         <div class="timeline-hover-tooltip absolute bottom-full mb-3 z-30 bg-slate-900 rounded-xl border border-slate-700 overflow-hidden pointer-events-none" style="width: ${previewWidth}px; height: ${previewImgHeight}px;">
-                            <img id="hover-img-${event.id}" src="${firstImg}" class="w-full h-full object-cover transition-opacity duration-300">
+                            <img id="hover-img-${event.id}" src="${firstImgSrc}" class="w-full h-full object-cover transition-opacity duration-300">
                         </div>
                     ` : ''}
 
@@ -899,7 +955,9 @@
                         const imgEl = document.getElementById(`hover-img-${event.id}`);
                         window.activeHoverIntervals[event.id] = setInterval(() => {
                             imgIdx = (imgIdx + 1) % event.images.length;
-                            if (imgEl) imgEl.src = event.images[imgIdx];
+                            const curImgObj = event.images[imgIdx];
+                            const curSrc = typeof curImgObj === 'string' ? curImgObj : (curImgObj?.cropped || curImgObj?.original);
+                            if (imgEl) imgEl.src = curSrc;
                         }, 1500);
                     }
                 });
@@ -1042,10 +1100,13 @@
                 card.onclick = () => window.handleEventClick(event.id);
 
                 const hasImg = event.images && event.images.length > 0;
+                const firstImgObj = hasImg ? event.images[0] : null;
+                const firstImgSrc = typeof firstImgObj === 'string' ? firstImgObj : (firstImgObj?.cropped || firstImgObj?.original);
+
                 card.innerHTML = `
                     ${hasImg ? `
                         <div class="h-44 bg-slate-900 overflow-hidden relative">
-                            <img src="${event.images[0]}" class="w-full h-full object-cover hover:scale-105 transition-transform duration-500">
+                            <img src="${firstImgSrc}" class="w-full h-full object-cover hover:scale-105 transition-transform duration-500">
                             ${event.images.length > 1 ? `<span class="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-md"><i class="fa-solid fa-images mr-1"></i>${event.images.length}</span>` : ''}
                         </div>
                     ` : ''}
@@ -1121,6 +1182,29 @@
                 `;
             }
 
+            // 多图网格化：根据图片数量动态自适应排版，一屏展示 2-3 张甚至更多
+            let imagesHtml = '';
+            if (event.images && event.images.length > 0) {
+                imagesHtml = `
+                    <div class="mb-6">
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                            ${event.images.map((imgObj, idx) => {
+                                const thumbSrc = typeof imgObj === 'string' ? imgObj : (imgObj.cropped || imgObj.original);
+                                const fullSrc = typeof imgObj === 'string' ? imgObj : imgObj.original;
+                                return `
+                                    <div onclick="openLightbox('${fullSrc}')" class="group relative aspect-square bg-slate-950 rounded-xl overflow-hidden border border-slate-800 cursor-pointer shadow-md hover:border-indigo-500 transition-all">
+                                        <img src="${thumbSrc}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                                        <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                            <i class="fa-solid fa-magnifying-glass-plus text-white text-base drop-shadow"></i>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
             viewer.innerHTML = `
                 <div class="max-w-3xl w-full my-auto bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl relative">
                     <button onclick="closeReadOnlyFullscreen()" class="absolute top-6 right-6 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full flex items-center justify-center transition-colors">
@@ -1140,15 +1224,7 @@
                         </div>
                     ` : ''}
 
-                    ${event.images && event.images.length > 0 ? `
-                        <div class="space-y-4 mb-6">
-                            ${event.images.map(img => `
-                                <div class="rounded-2xl overflow-hidden bg-black/40 border border-slate-800">
-                                    <img src="${img}" class="w-full h-auto object-contain max-h-[70vh] mx-auto">
-                                </div>
-                            `).join('')}
-                        </div>
-                    ` : ''}
+                    ${imagesHtml}
 
                     ${connHtml}
 
@@ -1164,6 +1240,19 @@
         window.closeReadOnlyFullscreen = function() {
             const viewer = document.getElementById('fullscreenViewer');
             if (viewer) viewer.classList.add('hidden');
+        };
+
+        window.openLightbox = function(imgSrc) {
+            const lightbox = document.getElementById('lightboxModal');
+            const lightboxImg = document.getElementById('lightboxImg');
+            if (lightbox && lightboxImg) {
+                lightboxImg.src = imgSrc;
+                lightbox.classList.remove('hidden');
+            }
+        };
+
+        window.closeLightbox = function() {
+            document.getElementById('lightboxModal')?.classList.add('hidden');
         };
 
         window.openEditModal = function(eventId = null) {
@@ -1186,7 +1275,13 @@
                 description: ''
             };
 
-            window.editingImageFiles = event.images ? [...event.images] : [];
+            // 统一兼容旧版纯字符串图片或新版对象图片
+            window.editingImageFiles = (event.images ? event.images : []).map(img => {
+                if (typeof img === 'string') {
+                    return { original: img, cropped: img };
+                }
+                return { original: img.original, cropped: img.cropped || img.original };
+            });
 
             modal.innerHTML = `
                 <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 my-8 max-h-[90vh] overflow-y-auto custom-scrollbar">
@@ -1261,7 +1356,10 @@
                         </div>
 
                         <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-1">添加本地图片</label>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="block text-xs font-bold text-slate-700">添加与截选图片</label>
+                                <span class="text-[10px] text-slate-400">支持截选长图关键区域</span>
+                            </div>
                             <div class="border-2 border-dashed border-slate-300 rounded-xl p-4 text-center hover:bg-slate-50 transition-colors cursor-pointer" onclick="document.getElementById('editFileInput').click()">
                                 <i class="fa-solid fa-cloud-arrow-up text-2xl text-indigo-500 mb-1 block"></i>
                                 <span class="text-xs text-slate-600 font-medium">点击选择本地照片上传</span>
@@ -1383,7 +1481,8 @@
             files.forEach(f => {
                 const reader = new FileReader();
                 reader.onload = (event) => {
-                    window.editingImageFiles.push(event.target.result);
+                    const base64 = event.target.result;
+                    window.editingImageFiles.push({ original: base64, cropped: base64 });
                     window.renderMicroPreviews();
                 };
                 reader.readAsDataURL(f);
@@ -1393,19 +1492,135 @@
         window.renderMicroPreviews = function() {
             const container = document.getElementById('imageMicroPreviews');
             if (!container) return;
-            container.innerHTML = window.editingImageFiles.map((img, idx) => `
-                <div class="relative w-16 h-16 rounded-lg overflow-hidden border border-slate-200 group">
-                    <img src="${img}" class="w-full h-full object-cover">
-                    <button type="button" onclick="removeMicroPreview(${idx})" class="absolute top-1 right-1 bg-black/60 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] hover:bg-rose-600 transition-colors">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
-                </div>
-            `).join('');
+            container.innerHTML = window.editingImageFiles.map((imgObj, idx) => {
+                const previewSrc = imgObj.cropped || imgObj.original;
+                return `
+                    <div class="relative w-16 h-16 rounded-lg overflow-hidden border border-slate-200 group bg-slate-900">
+                        <img src="${previewSrc}" class="w-full h-full object-cover">
+                        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                            <button type="button" onclick="openCropModal(${idx})" title="截选图片区域" class="bg-indigo-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] hover:bg-indigo-700">
+                                <i class="fa-solid fa-crop"></i>
+                            </button>
+                            <button type="button" onclick="removeMicroPreview(${idx})" title="删除图片" class="bg-rose-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] hover:bg-rose-700">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         };
 
         window.removeMicroPreview = function(index) {
             window.editingImageFiles.splice(index, 1);
             window.renderMicroPreviews();
+        };
+
+        // Crop Tool Functions
+        window.openCropModal = function(index) {
+            cropState.index = index;
+            const imgObj = window.editingImageFiles[index];
+            if (!imgObj) return;
+
+            const modal = document.getElementById('cropModal');
+            const targetImg = document.getElementById('cropTargetImg');
+            const cropBox = document.getElementById('cropBox');
+            if (!modal || !targetImg || !cropBox) return;
+
+            targetImg.src = imgObj.original;
+            modal.classList.remove('hidden');
+
+            targetImg.onload = () => {
+                cropState.naturalWidth = targetImg.naturalWidth;
+                cropState.naturalHeight = targetImg.naturalHeight;
+
+                const displayW = targetImg.clientWidth;
+                const displayH = targetImg.clientHeight;
+
+                // 默认截选框居中，大小为显示区域的 80%
+                cropState.w = displayW * 0.8;
+                cropState.h = displayH * 0.8;
+                cropState.x = (displayW - cropState.w) / 2;
+                cropState.y = (displayH - cropState.h) / 2;
+
+                updateCropBoxUI();
+            };
+
+            // 绑定拖拽事件
+            cropBox.onmousedown = (e) => {
+                e.preventDefault();
+                cropState.isDragging = true;
+                cropState.startX = e.clientX - cropState.x;
+                cropState.startY = e.clientY - cropState.y;
+            };
+
+            window.onmousemove = (e) => {
+                if (!cropState.isDragging) return;
+                const targetImg = document.getElementById('cropTargetImg');
+                if (!targetImg) return;
+
+                const displayW = targetImg.clientWidth;
+                const displayH = targetImg.clientHeight;
+
+                let nx = e.clientX - cropState.startX;
+                let ny = e.clientY - cropState.startY;
+
+                nx = Math.max(0, Math.min(displayW - cropState.w, nx));
+                ny = Math.max(0, Math.min(displayH - cropState.h, ny));
+
+                cropState.x = nx;
+                cropState.y = ny;
+                updateCropBoxUI();
+            };
+
+            window.onmouseup = () => {
+                cropState.isDragging = false;
+            };
+        };
+
+        function updateCropBoxUI() {
+            const cropBox = document.getElementById('cropBox');
+            if (!cropBox) return;
+            cropBox.style.left = `${cropState.x}px`;
+            cropBox.style.top = `${cropState.y}px`;
+            cropBox.style.width = `${cropState.w}px`;
+            cropBox.style.height = `${cropState.h}px`;
+        }
+
+        window.closeCropModal = function() {
+            document.getElementById('cropModal')?.classList.add('hidden');
+        };
+
+        window.confirmCropImage = function() {
+            const targetImg = document.getElementById('cropTargetImg');
+            if (!targetImg || cropState.index < 0) return;
+
+            const displayW = targetImg.clientWidth;
+            const displayH = targetImg.clientHeight;
+
+            const scaleX = cropState.naturalWidth / displayW;
+            const scaleY = cropState.naturalHeight / displayH;
+
+            const sx = cropState.x * scaleX;
+            const sy = cropState.y * scaleY;
+            const sw = cropState.w * scaleX;
+            const sh = cropState.h * scaleY;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = sw;
+            canvas.height = sh;
+            const ctx = canvas.getContext('2d');
+
+            const imgObj = new Image();
+            imgObj.src = targetImg.src;
+            imgObj.onload = () => {
+                ctx.drawImage(imgObj, sx, sy, sw, sh, 0, 0, sw, sh);
+                const croppedBase64 = canvas.toDataURL('image/jpeg', 0.9);
+
+                window.editingImageFiles[cropState.index].cropped = croppedBase64;
+                window.renderMicroPreviews();
+                window.closeCropModal();
+                window.showToast("图片区域截选成功", "success");
+            };
         };
 
         window.saveEvent = async function(e, idRaw, isEdit) {
