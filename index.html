@@ -109,10 +109,6 @@
                     <span id="syncText">正在同步...</span>
                 </div>
 
-                <button onclick="openAdminKeyModal()" class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-600 flex items-center justify-center transition-all shadow-sm" title="密钥调整">
-                    <i class="fa-solid fa-fingerprint text-xs"></i>
-                </button>
-
                 <button onclick="openTagModal()" class="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-medium border border-slate-300 hover:bg-slate-50 text-slate-700 flex items-center gap-1 transition-all">
                     <i class="fa-solid fa-tags text-slate-500"></i>
                     <span class="hidden md:inline">tag库</span>
@@ -189,7 +185,7 @@
                     <g id="svgConnectionsGroup"></g>
                 </svg>
                 <div id="timelineMainAxis" class="absolute left-0 right-0 h-1 bg-slate-300 rounded-full z-0 transition-all"></div>
-                <div id="timelineNodesTrack" class="flex items-end w-full relative z-10 min-w-full"></div>
+                <div id="timelineNodesTrack" class="flex items-center w-full relative z-10 min-w-full"></div>
             </div>
         </div>
 
@@ -203,30 +199,6 @@
             <p class="text-slate-500 text-xs mt-1 max-w-md">点击右上角的“新建事件”开始记录。</p>
         </div>
     </main>
-
-    <!-- Admin Key Settings Modal (管理员密钥弹窗) -->
-    <div id="adminKeyModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6">
-            <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
-                <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
-                    <i class="fa-solid fa-key text-indigo-600"></i>
-                    <span>更改管理员密钥</span>
-                </h3>
-                <button onclick="closeAdminKeyModal()" class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full flex items-center justify-center">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-            <p class="text-xs text-slate-500 mb-3">请输入旧密码与新密码：</p>
-            <div class="space-y-3 mb-4">
-                <input type="password" id="adminOldPwd" placeholder="请输入当前密码" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
-                <input type="password" id="adminNewPwd" placeholder="请输入新密码" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
-            </div>
-            <div class="flex justify-end gap-2">
-                <button onclick="closeAdminKeyModal()" class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button>
-                <button onclick="submitNewAdminPassword()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">确认修改</button>
-            </div>
-        </div>
-    </div>
 
     <!-- Tag Manager Modal -->
     <div id="tagModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
@@ -469,7 +441,7 @@
         window.isLocked = localStorage.getItem('yuhoutianqing_isLocked') === 'false' ? false : true;
         
         if (!localStorage.getItem('yuhoutianqing_lockPassword')) {
-            localStorage.setItem('yuhoutianqing_lockPassword', 'kX9#mP2$vL8!zQ5^');
+            localStorage.setItem('yuhoutianqing_lockPassword', 'tingyu1938');
         }
         
         window.currentView = 'timeline';
@@ -756,7 +728,7 @@
         window.submitUnlockPassword = function() {
             const pwdInput = document.getElementById('unlockPwdInput');
             const pwd = pwdInput ? pwdInput.value : '';
-            const currentLockPwd = localStorage.getItem('yuhoutianqing_lockPassword') || 'kX9#mP2$vL8!zQ5^';
+            const currentLockPwd = localStorage.getItem('yuhoutianqing_lockPassword') || 'tingyu1938';
             if (pwd === currentLockPwd) {
                 window.isLocked = false;
                 localStorage.setItem('yuhoutianqing_isLocked', 'false');
@@ -766,35 +738,6 @@
             } else {
                 window.showToast("密码错误，无法解锁", "error");
             }
-        };
-
-        window.openAdminKeyModal = function() {
-            document.getElementById('adminOldPwd').value = '';
-            document.getElementById('adminNewPwd').value = '';
-            document.getElementById('adminKeyModal')?.classList.remove('hidden');
-        };
-
-        window.closeAdminKeyModal = function() {
-            document.getElementById('adminKeyModal')?.classList.add('hidden');
-        };
-
-        window.submitNewAdminPassword = function() {
-            const oldPwd = document.getElementById('adminOldPwd')?.value || '';
-            const newPwd = document.getElementById('adminNewPwd')?.value || '';
-            const currentLockPwd = localStorage.getItem('yuhoutianqing_lockPassword') || 'kX9#mP2$vL8!zQ5^';
-
-            if (oldPwd !== currentLockPwd) {
-                window.showToast("当前密码输入错误", "error");
-                return;
-            }
-            if (!newPwd.trim()) {
-                window.showToast("新密码不能为空", "error");
-                return;
-            }
-
-            localStorage.setItem('yuhoutianqing_lockPassword', newPwd.trim());
-            window.closeAdminKeyModal();
-            window.showToast("密码修改成功！", "success");
         };
 
         window.openShareModal = function() {
@@ -1072,7 +1015,7 @@
                 const isMajor = event.type === 'major';
                 const dotSize = isMajor ? dotMajorSize : dotMinorSize;
                 const nodeContainer = document.createElement('div');
-                nodeContainer.className = "timeline-node-container relative flex flex-col items-center justify-end shrink-0 cursor-pointer group pb-6";
+                nodeContainer.className = "timeline-node-container relative flex flex-col items-center justify-center shrink-0 cursor-pointer group py-6";
                 nodeContainer.style.width = `${gapPx}px`;
 
                 const hasImages = event.images && event.images.length > 0;
@@ -1086,7 +1029,7 @@
                         </div>
                     ` : ''}
 
-                    <div onclick="handleEventClick(${event.id})" class="text-center mb-4 max-w-[130px] select-none">
+                    <div onclick="handleEventClick(${event.id})" class="text-center mb-3 max-w-[130px] select-none">
                         <span class="block font-medium ${isMajor ? 'text-indigo-900 font-bold' : 'text-slate-700'} line-clamp-1" style="font-size: ${fontSizeTitle}px;">
                             ${event.title}
                         </span>
