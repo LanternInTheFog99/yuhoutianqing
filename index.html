@@ -360,7 +360,7 @@
                     1. 封面图截选
                 </button>
                 <button type="button" id="cropTabInner" onclick="switchCropMode('inner')" class="px-4 py-1.5 rounded-md text-xs font-semibold text-slate-400 hover:text-white transition-all">
-                    2. 详情缩略图截选 (竖屏)
+                    2. 详情缩略图截选
                 </button>
             </div>
 
@@ -378,10 +378,10 @@
                 </div>
             </div>
 
-            <!-- 图片缩放条 -->
+            <!-- 图片缩放条（已将步长调精细至 0.01 / 1% 基准） -->
             <div class="flex items-center gap-3 w-full bg-slate-800/60 px-4 py-2.5 rounded-xl border border-slate-800 mt-3">
                 <span class="text-xs text-slate-400 font-medium"><i class="fa-solid fa-magnifying-glass mr-1"></i>图片缩放:</span>
-                <input type="range" id="imageScaleSlider" min="0.2" max="3" step="0.05" value="1" oninput="handleImageScaleChange(this.value)" class="flex-grow h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+                <input type="range" id="imageScaleSlider" min="0.2" max="3" step="0.01" value="1" oninput="handleImageScaleChange(this.value)" class="flex-grow h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
                 <span id="imageScaleText" class="text-xs font-mono text-indigo-400 w-12 text-right">100%</span>
             </div>
 
@@ -460,7 +460,7 @@
 
         const CROP_SIZES = {
             outer: { w: 200, h: 125, label: '封面尺寸 (宽屏)' },
-            inner: { w: 180, h: 260, label: '详情图尺寸 (偏竖屏)' }
+            inner: { w: 180, h: 260, label: '详情图尺寸' }
         };
 
         let cropState = {
@@ -1309,27 +1309,16 @@
 
             let imagesHtml = '';
             if (event.images && event.images.length > 0) {
-                const count = event.images.length;
-                let gridColsClass = "grid-cols-2 sm:grid-cols-3 md:grid-cols-6";
-                let imgCardHeightClass = "aspect-[3/4]";
-                if (count === 1) {
-                    gridColsClass = "grid-cols-1 max-w-xs mx-auto";
-                    imgCardHeightClass = "aspect-[4/3]";
-                } else if (count === 2) {
-                    gridColsClass = "grid-cols-2 max-w-md mx-auto";
-                } else if (count <= 4) {
-                    gridColsClass = "grid-cols-2 sm:grid-cols-4";
-                }
-
+                // 恢复原有的固定 6 张图大小展示网格
                 imagesHtml = `
                     <div class="mb-6">
                         <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">事件配图 (点击查看大图)</h4>
-                        <div class="grid ${gridColsClass} gap-3">
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
                             ${event.images.map((imgObj, idx) => {
                                 const thumbSrc = typeof imgObj === 'string' ? imgObj : (imgObj.inner || imgObj.original);
                                 const fullSrc = typeof imgObj === 'string' ? imgObj : imgObj.original;
                                 return `
-                                    <div onclick="openLightbox('${fullSrc}')" class="group relative ${imgCardHeightClass} bg-slate-950 rounded-xl overflow-hidden border border-slate-800 cursor-pointer shadow-md hover:border-indigo-500 transition-all">
+                                    <div onclick="openLightbox('${fullSrc}')" class="group relative aspect-[3/4] bg-slate-950 rounded-xl overflow-hidden border border-slate-800 cursor-pointer shadow-md hover:border-indigo-500 transition-all">
                                         <img src="${thumbSrc}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
                                         <div class="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                             <i class="fa-solid fa-magnifying-glass-plus text-white text-sm drop-shadow"></i>
@@ -1538,7 +1527,7 @@
                         <div>
                             <div class="flex items-center justify-between mb-1">
                                 <label class="block text-xs font-bold text-slate-700">添加图片并截选</label>
-                                <span class="text-[10px] text-slate-400">支持横屏(封面)与竖屏(详情)</span>
+                                <span class="text-[10px] text-slate-400">支持横屏(封面)与详情缩略图</span>
                             </div>
                             <div class="border-2 border-dashed border-slate-300 rounded-xl p-4 text-center hover:bg-slate-50 transition-colors cursor-pointer" onclick="document.getElementById('editFileInput').click()">
                                 <i class="fa-solid fa-cloud-arrow-up text-2xl text-indigo-500 mb-1 block"></i>
@@ -1963,11 +1952,11 @@
 
                 if (cropState.mode === 'outer') {
                     window.editingImageFiles[cropState.index].outer = croppedBase64;
-                    window.showToast("封面图截选成功！请继续截选偏竖屏的详情图", "success");
+                    window.showToast("封面图截选成功！请继续截选详情缩略图", "success");
                     window.switchCropMode('inner');
                 } else {
                     window.editingImageFiles[cropState.index].inner = croppedBase64;
-                    window.showToast("竖屏详情图截选完成", "success");
+                    window.showToast("详情缩略图截选完成", "success");
                     window.renderMicroPreviews();
                     window.closeCropModal();
                 }
