@@ -177,7 +177,10 @@
 
         <div id="timelineWrapper" class="relative group my-6 sm:my-8 bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm overflow-hidden">
             <div class="text-[11px] sm:text-xs text-slate-400 mb-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1">
-                <span><i class="fa-solid fa-circle-info text-indigo-500 mr-1"></i>单击节点查看详情页，双击节点查看连线，支持鼠标悬停看连线</span>
+                <div class="flex items-center gap-3">
+                    <span><i class="fa-solid fa-circle-info text-indigo-500 mr-1"></i>点击节点可查看连线，再次点击查看详情。</span>
+                    <button onclick="clearNodeSelection()" class="text-indigo-600 hover:text-indigo-800 underline font-medium">取消选中</button>
+                </div>
                 <span id="densityLabel" class="font-mono text-indigo-600 font-semibold">密度: 标准</span>
             </div>
 
@@ -453,7 +456,7 @@
         window.pendingDeleteId = null;
         window.pendingSaveData = null;
 
-        // 当前高亮/选中的节点 ID（双击切换连线）
+        // 当前选中的节点 ID
         window.selectedNodeId = null;
 
         window.currentLightboxImages = [];
@@ -787,45 +790,44 @@
         };
 
         /**
-         * 修改后的交互逻辑：
-         * 1. 单击：直接点开详情页（对应查看或编辑）
-         * 2. 双击：查看/切换连线显示状态
+         * 节点点击交互：
+         * 1. 首次点击：选中该节点，高亮其对应的连线。
+         * 2. 已经是选中状态下再次点击：直接进入详细界面。
          */
         window.handleNodeClick = function(eventId, event) {
             if (event) event.stopPropagation();
-            window.handleEventClick(eventId);
-        };
-
-        window.handleNodeDblClick = function(eventId, event) {
-            if (event) event.stopPropagation();
 
             if (window.selectedNodeId === eventId) {
-                // 再次双击取消高亮
-                window.highlightConnectionsForEvent(eventId, false);
-                window.selectedNodeId = null;
-                const containerEl = document.getElementById(`node-container-${eventId}`);
-                if (containerEl) containerEl.classList.remove('active-node');
+                // 第二次点击：进入详情或编辑
+                window.handleEventClick(eventId);
             } else {
+                // 第一次点击：切换选中状态并高亮连线
                 if (window.selectedNodeId !== null) {
                     window.highlightConnectionsForEvent(window.selectedNodeId, false);
-                    const prevEl = document.getElementById(`node-container-${window.selectedNodeId}`);
-                    if (prevEl) prevEl.classList.remove('active-node');
                 }
                 window.selectedNodeId = eventId;
+
+                document.querySelectorAll('.timeline-node-container').forEach(el => el.classList.remove('active-node'));
                 const containerEl = document.getElementById(`node-container-${eventId}`);
                 if (containerEl) containerEl.classList.add('active-node');
+
                 window.highlightConnectionsForEvent(eventId, true);
             }
         };
 
-        // 点击空白处取消双击带来的连线高亮状态
+        // 清除当前选中的节点状态
+        window.clearNodeSelection = function() {
+            if (window.selectedNodeId !== null) {
+                window.highlightConnectionsForEvent(window.selectedNodeId, false);
+                window.selectedNodeId = null;
+                document.querySelectorAll('.timeline-node-container').forEach(el => el.classList.remove('active-node'));
+            }
+        };
+
+        // 点击页面空白处（不在节点容器、连线、以及弹窗内的区域）时，自动取消选中状态
         document.addEventListener('click', (e) => {
-            if (!e.closest('.timeline-node-container') && !e.closest('.svg-conn-line')) {
-                if (window.selectedNodeId !== null) {
-                    window.highlightConnectionsForEvent(window.selectedNodeId, false);
-                    window.selectedNodeId = null;
-                    document.querySelectorAll('.timeline-node-container').forEach(el => el.classList.remove('active-node'));
-                }
+            if (!e.target.closest('.timeline-node-container') && !e.target.closest('.svg-conn-line') && !e.target.closest('#fullscreenViewer') && !e.target.closest('#editModal')) {
+                window.clearNodeSelection();
             }
         });
 
@@ -1053,7 +1055,7 @@
                 const dotSize = isMajor ? dotMajorSize : dotMinorSize;
                 const nodeContainer = document.createElement('div');
                 nodeContainer.id = `node-container-${event.id}`;
-                nodeContainer.className = "timeline-node-container relative flex flex-col items-center justify-center shrink-0 cursor-pointer group py-6";
+                nodeContainer.className = `timeline-node-container relative flex flex-col items-center justify-center shrink-0 cursor-pointer group py-6 ${window.selectedNodeId === event.id ? 'active-node' : ''}`;
                 nodeContainer.style.width = `${gapPx}px`;
 
                 const hasImages = event.images && event.images.length > 0;
@@ -1067,7 +1069,7 @@
                         </div>
                     ` : ''}
 
-                    <div onclick="handleNodeClick(${event.id}, event)" ondblclick="handleNodeDblClick(${event.id}, event)" class="text-center mb-3 max-w-[130px] select-none">
+                    <div onclick="handleNodeClick(${event.id}, event)" class="text-center mb-3 max-w-[130px] select-none">
                         <span class="block font-medium ${isMajor ? 'text-indigo-900 font-bold' : 'text-slate-700'} line-clamp-1" style="font-size: ${fontSizeTitle}px;">
                             ${event.title}
                         </span>
@@ -1076,11 +1078,11 @@
                         </span>
                     </div>
 
-                    <div id="timeline-dot-${event.id}" onclick="handleNodeClick(${event.id}, event)" ondblclick="handleNodeDblClick(${event.id}, event)" class="timeline-dot rounded-full bg-white border-2 ${isMajor ? 'border-indigo-600 bg-indigo-600 shadow-md ring-4 ring-indigo-100' : 'border-slate-400 hover:border-indigo-500 hover:bg-indigo-500'} flex items-center justify-center z-10 shrink-0" style="width: ${dotSize}px; height: ${dotSize}px;">
+                    <div id="timeline-dot-${event.id}" onclick="handleNodeClick(${event.id}, event)" class="timeline-dot rounded-full bg-white border-2 ${isMajor ? 'border-indigo-600 bg-indigo-600 shadow-md ring-4 ring-indigo-100' : 'border-slate-400 hover:border-indigo-500 hover:bg-indigo-500'} flex items-center justify-center z-10 shrink-0" style="width: ${dotSize}px; height: ${dotSize}px;">
                     </div>
                 `;
 
-                // PC 端保留 hover 效果
+                // PC 端 hover 效果
                 nodeContainer.addEventListener('mouseenter', () => {
                     window.highlightConnectionsForEvent(event.id, true);
                     if (event.images && event.images.length > 1) {
@@ -1120,6 +1122,10 @@
                     axisLine.style.transform = 'translateY(-50%)';
                 }
                 window.renderSvgConnections();
+                // 如果之前有选中的节点，重新刷出它的高亮连线
+                if (window.selectedNodeId !== null) {
+                    window.highlightConnectionsForEvent(window.selectedNodeId, true);
+                }
             });
         };
 
