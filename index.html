@@ -236,7 +236,6 @@
             <div class="bg-indigo-50 p-4 rounded-xl mb-4 flex items-center justify-between">
                 <div>
                     <div id="currentSongTitle" class="text-xs font-bold text-indigo-900">当前未播放音乐</div>
-                    <div id="currentSongStatus" class="text-[10px] text-indigo-600 mt-0.5">随机播放模式</div>
                 </div>
                 <div class="flex items-center gap-2">
                     <button onclick="toggleBgmPlay()" id="bgmPlayPauseBtn" class="w-9 h-9 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full flex items-center justify-center shadow">
@@ -248,13 +247,14 @@
                 </div>
             </div>
 
-            <div id="musicUploadContainer" class="mb-4">
-                <label class="block text-xs font-bold text-slate-700 mb-1">本地上传添加歌曲</label>
-                <div class="flex gap-2">
-                    <input type="file" id="bgmFileInput" accept="audio/*" class="hidden" onchange="handleBgmUpload(event)">
-                    <button onclick="document.getElementById('bgmFileInput').click()" class="w-full py-2 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 flex items-center justify-center gap-1.5">
-                        <i class="fa-solid fa-upload text-indigo-600"></i> 选择本地音频文件
-                    </button>
+            <div id="musicLinkContainer" class="mb-4">
+                <label class="block text-xs font-bold text-slate-700 mb-1">添加音频链接</label>
+                <div class="space-y-2">
+                    <input type="text" id="bgmNameInput" placeholder="歌曲名称（可选）" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
+                    <div class="flex gap-2">
+                        <input type="url" id="bgmUrlInput" placeholder="粘贴音频链接（https://...）" class="flex-grow px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500" onkeydown="if(event.key==='Enter') addBgmByUrl()">
+                        <button onclick="addBgmByUrl()" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shrink-0">添加</button>
+                    </div>
                 </div>
             </div>
 
@@ -607,7 +607,10 @@
                 if (localEv) window.events = JSON.parse(localEv);
                 if (localConn) window.connections = JSON.parse(localConn);
                 if (localTags) window.availableTags = JSON.parse(localTags);
-                if (localBgm) window.bgmPlaylist = JSON.parse(localBgm);
+                if (localBgm) {
+                    const parsedBgm = JSON.parse(localBgm);
+                    window.bgmPlaylist = Array.isArray(parsedBgm) ? parsedBgm.filter(song => /^https?:\/\//i.test(song?.url || '')) : [];
+                }
             } catch (e) {
                 console.warn("localStorage 读取异常:", e);
             }
@@ -842,15 +845,15 @@
 
         window.renderBgmPlaylist = function() {
             const container = document.getElementById('bgmPlaylistContainer');
-            const uploadBox = document.getElementById('musicUploadContainer');
+            const linkBox = document.getElementById('musicLinkContainer');
             if (!container) return;
 
-            if (uploadBox) {
-                uploadBox.style.display = window.isLocked ? 'none' : 'block';
+            if (linkBox) {
+                linkBox.style.display = window.isLocked ? 'none' : 'block';
             }
 
             if (window.bgmPlaylist.length === 0) {
-                container.innerHTML = `<p class="text-xs text-slate-400 italic py-2">暂无背景音乐，请在编辑模式下上传本地音频</p>`;
+                container.innerHTML = `<p class="text-xs text-slate-400 italic py-2">暂无背景音乐，请在编辑模式下添加音频链接</p>`;
                 return;
             }
 
@@ -872,31 +875,43 @@
             `).join('');
         };
 
-        window.handleBgmUpload = async function(e) {
+        window.addBgmByUrl = async function() {
             if (window.isLocked) return;
-            const files = Array.from(e.target.files);
-            for (const f of files) {
-                const reader = new FileReader();
-                reader.onload = async (ev) => {
-                    const newSong = {
-                        id: 'song_' + Date.now() + Math.random().toString(36).substr(2, 5),
-                        name: f.name.replace(/\.[^/.]+$/, ""),
-                        url: ev.target.result
-                    };
-                    window.bgmPlaylist.push(newSong);
-                    saveLocalData();
-                    window.renderBgmPlaylist();
-                    
-                    if (currentUser && db) {
-                        try {
-                            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'bgm', newSong.id), newSong);
-                        } catch (err) {}
-                    }
-                    window.showToast(`已添加歌曲: ${newSong.name}`, "success");
-                };
-                reader.readAsDataURL(f);
+            const urlInput = document.getElementById('bgmUrlInput');
+            const nameInput = document.getElementById('bgmNameInput');
+            const url = urlInput ? urlInput.value.trim() : '';
+            const customName = nameInput ? nameInput.value.trim() : '';
+            if (!url) { window.showToast('请输入音频链接', 'error'); return; }
+            try {
+                const parsed = new URL(url);
+                if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('invalid protocol');
+            } catch (e) {
+                window.showToast('请输入有效的 http/https 音频链接', 'error'); return;
             }
-            e.target.value = '';
+            const filePart = url.split('/').pop().split('?')[0];
+            let fallbackName = '云端音乐';
+            try { fallbackName = decodeURIComponent(filePart) || fallbackName; } catch (e) {}
+            const newSong = {
+                id: 'song_' + Date.now() + Math.random().toString(36).substr(2, 5),
+                name: customName || fallbackName,
+                url: url
+            };
+            window.bgmPlaylist.push(newSong);
+            saveLocalData();
+            window.renderBgmPlaylist();
+            if (currentUser && db) {
+                try {
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'bgm', newSong.id), newSong);
+                    updateSyncStatus('synced', '已同步云端');
+                } catch (err) {
+                    updateSyncStatus('offline', '已就绪');
+                    window.showToast('已添加，但音乐信息云端同步失败', 'error');
+                    return;
+                }
+            }
+            if (urlInput) urlInput.value = '';
+            if (nameInput) nameInput.value = '';
+            window.showToast(`已添加歌曲: ${newSong.name}`, 'success');
         };
 
         window.deleteBgmSong = async function(songId) {
