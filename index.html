@@ -32,6 +32,25 @@
             transition: transform 0.2s ease, width 0.2s ease, height 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
         }
         
+        .merged-dots-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .merged-dot-left, .merged-dot-right {
+            border-radius: 50%;
+            background-color: #ffffff;
+            border: 2px solid #4f46e5;
+            position: relative;
+            z-index: 2;
+        }
+        .merged-dot-right {
+            margin-left: -6px;
+            opacity: 0.85;
+            z-index: 1;
+        }
+        
         .timeline-hover-tooltip {
             pointer-events: none;
             opacity: 0;
@@ -83,13 +102,19 @@
             stroke-width: 3px !important;
         }
 
-        .timeline-node-container:hover .timeline-dot {
-            transform: scale(1.3);
-            box-shadow: 0 0 0 6px rgba(99, 102, 241, 0.25);
+        .timeline-node-container:hover .timeline-dot,
+        .timeline-node-container:hover .merged-dots-container {
+            transform: scale(1.15);
+        }
+
+        .stack-card {
+            transition: all 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+            cursor: pointer;
+            position: absolute;
         }
     </style>
 </head>
-<body class="bg-slate-100 text-slate-800 min-h-screen font-sans flex flex-col antialiased">
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
 
     <!-- Header / Navbar -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
@@ -109,6 +134,11 @@
                     <span id="syncText">正在同步...</span>
                 </div>
 
+                <button onclick="openMusicModal()" class="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-medium border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 flex items-center gap-1 transition-all shadow-sm">
+                    <i class="fa-solid fa-music text-indigo-600"></i>
+                    <span class="hidden md:inline">背景音乐</span>
+                </button>
+
                 <button onclick="openTagModal()" class="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-medium border border-slate-300 hover:bg-slate-50 text-slate-700 flex items-center gap-1 transition-all">
                     <i class="fa-solid fa-tags text-slate-500"></i>
                     <span class="hidden md:inline">tag库</span>
@@ -120,7 +150,6 @@
                 </button>
 
                 <button id="lockToggleBtn" onclick="toggleLockState()" class="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs font-medium transition-all shadow-sm border">
-                    <!-- Dynamic Content in JS -->
                 </button>
 
                 <button id="addEventBtn" onclick="handleNewEventClick()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 shadow-sm transition-all shrink-0">
@@ -133,22 +162,15 @@
 
     <!-- Main Content Container -->
     <main class="flex-grow max-w-6xl w-full mx-auto px-3 sm:px-6 py-6 sm:py-8">
-        <!-- Toast Box -->
         <div id="toastBox" class="hidden fixed top-20 right-4 z-[9999] bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl border border-slate-700 flex items-center gap-3 transition-all duration-300 transform translate-y-0 opacity-100">
             <i id="toastIcon" class="fa-solid fa-circle-info text-indigo-400 text-lg"></i>
             <span id="toastText" class="text-sm font-medium">提示信息</span>
         </div>
 
         <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-6 bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-sm">
-            <div class="flex items-center justify-center gap-2 bg-slate-100 p-1 rounded-lg">
-                <button id="viewTimelineBtn" onclick="switchView('timeline')" class="flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-all bg-white text-indigo-600 shadow-sm">
-                    <i class="fa-solid fa-timeline"></i>
-                    <span>时间线</span>
-                </button>
-                <button id="viewGridBtn" onclick="switchView('grid')" class="flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-all text-slate-600 hover:text-slate-900">
-                    <i class="fa-solid fa-border-all"></i>
-                    <span>卡片</span>
-                </button>
+            <div class="flex items-center gap-2 text-xs font-semibold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100">
+                <i class="fa-solid fa-timeline"></i>
+                <span>时间线视图</span>
             </div>
 
             <div id="zoomControlContainer" class="flex items-center justify-center gap-2 border-y sm:border-y-0 sm:border-x border-slate-200 py-2 sm:py-0 sm:px-4">
@@ -189,16 +211,59 @@
             </div>
         </div>
 
-        <div id="eventGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 hidden"></div>
-
         <div id="emptyState" class="hidden flex-col items-center justify-center py-20 text-center">
             <div class="w-16 h-16 bg-slate-200 text-slate-400 rounded-full flex items-center justify-center text-2xl mb-4">
                 <i class="fa-solid fa-folder-open"></i>
             </div>
             <h3 class="text-base font-semibold text-slate-700">暂无事件</h3>
-            <p class="text-slate-500 text-xs mt-1 max-w-md">点击右上角的“新建事件”开始记录。</p>
+            <p class="text-slate-500 text-xs mt-1 max-w-md">点击右上角的“新建事件”开始记录[cite: 1]。</p>
         </div>
     </main>
+
+    <!-- Music Player Modal -->
+    <div id="musicModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
+                <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                    <i class="fa-solid fa-music text-indigo-600"></i>
+                    <span>背景音乐播放器</span>
+                </h3>
+                <button onclick="closeMusicModal()" class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <div class="bg-indigo-50 p-4 rounded-xl mb-4 flex items-center justify-between">
+                <div>
+                    <div id="currentSongTitle" class="text-xs font-bold text-indigo-900">当前未播放音乐</div>
+                    <div id="currentSongStatus" class="text-[10px] text-indigo-600 mt-0.5">随机播放模式</div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="toggleBgmPlay()" id="bgmPlayPauseBtn" class="w-9 h-9 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full flex items-center justify-center shadow">
+                        <i class="fa-solid fa-play text-xs"></i>
+                    </button>
+                    <button onclick="playRandomBgm()" class="w-9 h-9 bg-white hover:bg-slate-100 border border-indigo-200 text-indigo-600 rounded-full flex items-center justify-center shadow-sm" title="跳过这首歌">
+                        <i class="fa-solid fa-forward text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div id="musicUploadContainer" class="mb-4">
+                <label class="block text-xs font-bold text-slate-700 mb-1">本地上传添加歌曲</label>
+                <div class="flex gap-2">
+                    <input type="file" id="bgmFileInput" accept="audio/*" class="hidden" onchange="handleBgmUpload(event)">
+                    <button onclick="document.getElementById('bgmFileInput').click()" class="w-full py-2 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-upload text-indigo-600"></i> 选择本地音频文件
+                    </button>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-2">歌单列表</label>
+                <div id="bgmPlaylistContainer" class="space-y-2 max-h-48 overflow-y-auto p-1"></div>
+            </div>
+        </div>
+    </div>
 
     <!-- Tag Manager Modal -->
     <div id="tagModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
@@ -333,7 +398,6 @@
                 </button>
             </div>
             
-            <!-- 模式切换标签 -->
             <div class="flex items-center gap-2 mb-3 bg-slate-800 p-1 rounded-lg w-full justify-center">
                 <button type="button" id="cropTabOuter" onclick="switchCropMode('outer')" class="flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 rounded-md text-xs font-semibold bg-indigo-600 text-white transition-all text-center">
                     1. 封面图截选
@@ -343,21 +407,17 @@
                 </button>
             </div>
 
-            <p class="text-[11px] sm:text-xs text-slate-400 mb-2 text-center" id="cropModeTip">框大小固定，不可调整；您可以<strong>缩放图片</strong>或<strong>拖动图片内部</strong>来对齐选框：</p>
+            <p class="text-[11px] sm:text-xs text-slate-400 mb-2 text-center" id="cropModeTip">框大小固定，不可调整；您可以缩放图片或拖动图片内部来对齐选框：</p>
             
-            <!-- 图片与固定大小框容器 -->
             <div id="cropContainer" class="relative max-h-[40vh] w-full overflow-hidden border border-slate-700 rounded-xl bg-black flex justify-center items-center my-1 select-none cursor-grab active:cursor-grabbing p-6">
                 <div class="relative inline-block" id="cropWrapper">
                     <img id="cropTargetImg" class="block pointer-events-none transition-transform duration-75" style="transform: scale(1); transform-origin: top left;">
-                    
-                    <!-- 固定的裁剪框层（居中覆盖在容器正中央） -->
                     <div id="cropBoxFixed" class="absolute border-2 border-indigo-400 bg-indigo-500/10 shadow-[0_0_0_9999px_rgba(0,0,0,0.65)] pointer-events-none flex items-center justify-center" style="top: 50%; left: 50%; transform: translate(-50%, -50%);">
                         <span id="cropBoxLabel" class="absolute top-2 left-2 bg-indigo-600 text-white text-[10px] px-2 py-0.5 rounded font-mono shadow">尺寸</span>
                     </div>
                 </div>
             </div>
 
-            <!-- 图片缩放条 -->
             <div class="flex items-center gap-3 w-full bg-slate-800/60 px-4 py-2.5 rounded-xl border border-slate-800 mt-3">
                 <span class="text-xs text-slate-400 font-medium shrink-0"><i class="fa-solid fa-magnifying-glass mr-1"></i>缩放:</span>
                 <input type="range" id="imageScaleSlider" min="0.2" max="3" step="0.01" value="1" oninput="handleImageScaleChange(this.value)" class="flex-grow h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
@@ -374,29 +434,56 @@
         </div>
     </div>
 
-    <!-- Image Lightbox Modal for Fullscreen View (支持切图) -->
+    <!-- Video Frame Selector Modal -->
+    <div id="videoCropModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[85] hidden flex items-center justify-center p-2 sm:p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl max-w-xl w-full p-4 sm:p-6 text-white flex flex-col items-center">
+            <div class="flex items-center justify-between w-full pb-3 border-b border-slate-800 mb-3">
+                <h3 class="font-bold text-base flex items-center gap-2">
+                    <i class="fa-solid fa-film text-indigo-400"></i>
+                    <span>截选视频预览封面图</span>
+                </h3>
+                <button onclick="closeVideoCropModal()" class="text-slate-400 hover:text-white w-8 h-8 rounded-full flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <p class="text-xs text-slate-400 mb-3">请播放或拖动进度条至目标画面，然后点击下方按钮截取当前帧作为封面：</p>
+            
+            <div class="relative w-full bg-black rounded-xl overflow-hidden mb-4 border border-slate-700 flex justify-center">
+                <video id="videoCropPlayer" controls crossorigin="anonymous" class="max-h-60 w-object-contain"></video>
+            </div>
+
+            <div class="flex justify-between items-center w-full pt-3 border-t border-slate-800">
+                <span class="text-[11px] text-slate-400">当前画面将作为视频封面</span>
+                <div class="flex gap-2">
+                    <button onclick="closeVideoCropModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium">取消</button>
+                    <button onclick="confirmVideoFrameCapture()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">截取当前帧做封面</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Lightbox Modal for Fullscreen View -->
     <div id="lightboxModal" class="fixed inset-0 bg-slate-950/95 z-[90] hidden flex items-center justify-center p-4" onclick="closeLightbox()">
-        <!-- 关闭按钮 -->
         <button class="absolute top-4 right-4 sm:top-6 sm:right-6 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full flex items-center justify-center transition-colors z-20">
             <i class="fa-solid fa-xmark text-lg"></i>
         </button>
 
-        <!-- 上一张按钮 -->
         <button id="lightboxPrevBtn" onclick="event.stopPropagation(); changeLightboxImage(-1)" class="absolute left-2 sm:left-6 top-1/2 -translate-y-1/2 text-slate-300 hover:text-white bg-slate-800/80 hover:bg-indigo-600 w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all z-20 shadow-lg">
             <i class="fa-solid fa-chevron-left text-base sm:text-lg"></i>
         </button>
 
-        <!-- 下一张按钮 -->
         <button id="lightboxNextBtn" onclick="event.stopPropagation(); changeLightboxImage(1)" class="absolute right-2 sm:right-6 top-1/2 -translate-y-1/2 text-slate-300 hover:text-white bg-slate-800/80 hover:bg-indigo-600 w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all z-20 shadow-lg">
             <i class="fa-solid fa-chevron-right text-base sm:text-lg"></i>
         </button>
 
-        <!-- 大图与计数器 -->
         <div class="relative flex flex-col items-center justify-center max-w-full max-h-[90vh]" onclick="event.stopPropagation()">
             <img id="lightboxImg" class="max-w-full max-h-[82vh] object-contain rounded-lg shadow-2xl transition-all">
             <div id="lightboxCounter" class="absolute -bottom-8 text-xs text-slate-400 font-mono tracking-widest bg-slate-900/80 px-3 py-1 rounded-full border border-slate-800"></div>
         </div>
     </div>
+
+    <!-- Global Background Audio Element -->
+    <audio id="globalBgmAudio" style="display: none;"></audio>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -437,6 +524,10 @@
         window.events = [];
         window.connections = [];
         window.availableTags = [];
+        window.bgmPlaylist = []; // 修复歌曲删除后重新出现bug：使用独立playlist数组
+        window.currentBgmIndex = -1;
+        window.isBgmPlaying = false;
+        window.lastVideoPlayingState = false;
         
         window.isLocked = localStorage.getItem('yuhoutianqing_isLocked') === 'false' ? false : true;
         
@@ -444,7 +535,6 @@
             localStorage.setItem('yuhoutianqing_lockPassword', 'tingyu1938');
         }
         
-        window.currentView = 'timeline';
         window.zoomLevel = 3;
         window.activeHoverIntervals = {};
         window.editingImageFiles = [];
@@ -453,12 +543,13 @@
         window.pendingDeleteId = null;
         window.pendingSaveData = null;
 
-        // 灯箱大图切图状态
         window.currentLightboxImages = [];
         window.currentLightboxIndex = 0;
 
+        let activeVideoCropIndex = -1;
+
         const CROP_SIZES = {
-            outer: { w: 200, h: 125, label: '封面尺寸 (宽屏)' },
+            outer: { w: 200, h: 125, label: '封面尺寸' },
             inner: { w: 180, h: 260, label: '详情图尺寸' }
         };
 
@@ -475,7 +566,6 @@
         let currentUser = null;
         let isInitialLoadDone = false;
 
-        // 优化后的图片自动压缩函数（控制尺寸与质量，彻底避免超出 Firestore 1MB / LocalStorage 限制）
         function compressImage(file, maxWidth = 800, maxHeight = 800, quality = 0.7) {
             return new Promise((resolve) => {
                 const reader = new FileReader();
@@ -512,10 +602,12 @@
                 const localEv = localStorage.getItem('yuhoutianqing_events');
                 const localConn = localStorage.getItem('yuhoutianqing_connections');
                 const localTags = localStorage.getItem('yuhoutianqing_tags');
+                const localBgm = localStorage.getItem('yuhoutianqing_bgm');
 
                 if (localEv) window.events = JSON.parse(localEv);
                 if (localConn) window.connections = JSON.parse(localConn);
                 if (localTags) window.availableTags = JSON.parse(localTags);
+                if (localBgm) window.bgmPlaylist = JSON.parse(localBgm);
             } catch (e) {
                 console.warn("localStorage 读取异常:", e);
             }
@@ -526,12 +618,13 @@
                 localStorage.setItem('yuhoutianqing_events', JSON.stringify(window.events));
                 localStorage.setItem('yuhoutianqing_connections', JSON.stringify(window.connections));
                 localStorage.setItem('yuhoutianqing_tags', JSON.stringify(window.availableTags));
+                localStorage.setItem('yuhoutianqing_bgm', JSON.stringify(window.bgmPlaylist));
             } catch (e) {
-                console.warn("localStorage 保存失败，可能因为图片体积过大:", e);
+                console.warn("localStorage 保存失败:", e);
             }
         }
 
-        function initializeLocalFallback(reason = '已就绪 (本地)') {
+        function initializeLocalFallback(reason = '已就绪') {
             if (isInitialLoadDone) return;
             isInitialLoadDone = true;
             loadLocalData();
@@ -541,16 +634,17 @@
 
         async function initAppAndCloudSync() {
             window.updateLockButtonUI();
+            initBgmAudioPlayer();
 
             const syncTimeout = setTimeout(() => {
                 if (!isInitialLoadDone) {
-                    initializeLocalFallback('已就绪 (本地)');
+                    initializeLocalFallback('已就绪');
                 }
             }, 2500);
 
             if (!firebaseConfig || !auth || !db) {
                 clearTimeout(syncTimeout);
-                initializeLocalFallback('已就绪 (本地)');
+                initializeLocalFallback('已就绪');
                 return;
             }
 
@@ -564,7 +658,7 @@
                 }
             } catch (err) {
                 clearTimeout(syncTimeout);
-                initializeLocalFallback('已就绪 (本地)');
+                initializeLocalFallback('已就绪');
                 return;
             }
 
@@ -572,7 +666,7 @@
                 setupRealtimeListeners(syncTimeout);
             } else {
                 clearTimeout(syncTimeout);
-                initializeLocalFallback('已就绪 (本地)');
+                initializeLocalFallback('已就绪');
             }
         }
 
@@ -599,6 +693,7 @@
                 const eventsCol = collection(db, 'artifacts', appId, 'public', 'data', 'events');
                 const connCol = collection(db, 'artifacts', appId, 'public', 'data', 'connections');
                 const tagsCol = collection(db, 'artifacts', appId, 'public', 'data', 'tags');
+                const bgmCol = collection(db, 'artifacts', appId, 'public', 'data', 'bgm');
 
                 onSnapshot(eventsCol, async (snapshot) => {
                     if (syncTimeout) clearTimeout(syncTimeout);
@@ -607,9 +702,9 @@
                     saveLocalData();
                     window.renderEvents();
                     updateSyncStatus('synced', '已同步云端');
-                }, (error) => {
+                }, () => {
                     if (syncTimeout) clearTimeout(syncTimeout);
-                    initializeLocalFallback('已就绪 (本地)');
+                    initializeLocalFallback('已就绪');
                 });
 
                 onSnapshot(connCol, (snapshot) => {
@@ -626,9 +721,18 @@
                     saveLocalData();
                     window.renderTagModalList();
                 });
+
+                onSnapshot(bgmCol, (snapshot) => {
+                    if (!snapshot.empty) {
+                        const loadedBgm = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        if (loadedBgm.length >= 0) window.bgmPlaylist = loadedBgm;
+                    }
+                    saveLocalData();
+                    window.renderBgmPlaylist();
+                });
             } catch (err) {
                 if (syncTimeout) clearTimeout(syncTimeout);
-                initializeLocalFallback('已就绪 (本地)');
+                initializeLocalFallback('已就绪');
             }
         }
 
@@ -648,9 +752,8 @@
                 await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', String(eventData.id)), eventData);
                 updateSyncStatus('synced', '已同步云端');
             } catch (e) {
-                console.warn("云端同步失败（可能图片体积过大超过限制），已降级至本地存储:", e);
-                updateSyncStatus('offline', '已就绪 (本地 - 请减小图片');
-                window.showToast("保存成功，但部分云端同步受阻（图片可能过大）", "error");
+                updateSyncStatus('offline', '已就绪');
+                window.showToast("保存成功，但云端同步受阻", "error");
             }
         };
 
@@ -664,41 +767,10 @@
             try {
                 updateSyncStatus('syncing', '删除中...');
                 await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', String(eventId)));
-                const toDeleteConns = window.connections.filter(c => String(c.sourceId) === String(eventId) || String(c.targetId) === String(eventId));
-                for (const c of toDeleteConns) {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'connections', String(c.id)));
-                }
                 updateSyncStatus('synced', '已同步云端');
             } catch (e) {
-                updateSyncStatus('offline', '已就绪 (本地)');
+                updateSyncStatus('offline', '已就绪');
             }
-        };
-
-        window.saveConnectionToCloud = async function(connData) {
-            const index = window.connections.findIndex(c => String(c.id) === String(connData.id));
-            if (index >= 0) {
-                window.connections[index] = connData;
-            } else {
-                window.connections.push(connData);
-            }
-            saveLocalData();
-            window.renderSvgConnections();
-
-            if (!currentUser || !db) return;
-            try {
-                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'connections', String(connData.id)), connData);
-            } catch (e) {}
-        };
-
-        window.deleteConnectionFromCloud = async function(connId) {
-            window.connections = window.connections.filter(c => String(c.id) !== String(connId));
-            saveLocalData();
-            window.renderSvgConnections();
-
-            if (!currentUser || !db) return;
-            try {
-                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'connections', String(connId)));
-            } catch (e) {}
         };
 
         window.saveTagToCloud = async function(tagName) {
@@ -725,15 +797,213 @@
             } catch (e) {}
         };
 
+        // 背景音乐及视频互斥逻辑
+        function initBgmAudioPlayer() {
+            const audio = document.getElementById('globalBgmAudio');
+            if (!audio) return;
+
+            audio.onended = () => {
+                playRandomBgm();
+            };
+
+            // 全局监听所有视频播放状态，实现有声视频播放时自动暂停，停止后恢复播放
+            document.addEventListener('play', (e) => {
+                if (e.target && e.target.tagName === 'VIDEO') {
+                    if (!e.target.muted) {
+                        if (window.isBgmPlaying) {
+                            window.lastVideoPlayingState = true;
+                            pauseBgm(false);
+                        }
+                    }
+                }
+            }, true);
+
+            document.addEventListener('pause', (e) => {
+                if (e.target && e.target.tagName === 'VIDEO') {
+                    if (!e.target.muted && window.lastVideoPlayingState) {
+                        const anyOtherPlaying = Array.from(document.querySelectorAll('video')).some(v => !v.paused && !v.muted);
+                        if (!anyOtherPlaying) {
+                            window.lastVideoPlayingState = false;
+                            resumeBgm();
+                        }
+                    }
+                }
+            }, true);
+        }
+
+        window.openMusicModal = function() {
+            window.renderBgmPlaylist();
+            document.getElementById('musicModal')?.classList.remove('hidden');
+        };
+
+        window.closeMusicModal = function() {
+            document.getElementById('musicModal')?.classList.add('hidden');
+        };
+
+        window.renderBgmPlaylist = function() {
+            const container = document.getElementById('bgmPlaylistContainer');
+            const uploadBox = document.getElementById('musicUploadContainer');
+            if (!container) return;
+
+            if (uploadBox) {
+                uploadBox.style.display = window.isLocked ? 'none' : 'block';
+            }
+
+            if (window.bgmPlaylist.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400 italic py-2">暂无背景音乐，请在编辑模式下上传本地音频</p>`;
+                return;
+            }
+
+            container.innerHTML = window.bgmPlaylist.map((song, idx) => `
+                <div class="flex items-center justify-between bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs text-slate-700">
+                    <div class="flex items-center gap-2 truncate max-w-[220px]">
+                        <i class="fa-solid fa-music text-indigo-500"></i>
+                        <span class="truncate font-medium">${song.name}</span>
+                    </div>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <button onclick="playSpecificBgm(${idx})" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded text-[10px] font-medium">播放</button>
+                        ${!window.isLocked ? `
+                            <button onclick="deleteBgmSong('${song.id}')" class="text-slate-400 hover:text-rose-500 p-1" title="删除">
+                                <i class="fa-solid fa-xmark text-xs"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `).join('');
+        };
+
+        window.handleBgmUpload = async function(e) {
+            if (window.isLocked) return;
+            const files = Array.from(e.target.files);
+            for (const f of files) {
+                const reader = new FileReader();
+                reader.onload = async (ev) => {
+                    const newSong = {
+                        id: 'song_' + Date.now() + Math.random().toString(36).substr(2, 5),
+                        name: f.name.replace(/\.[^/.]+$/, ""),
+                        url: ev.target.result
+                    };
+                    window.bgmPlaylist.push(newSong);
+                    saveLocalData();
+                    window.renderBgmPlaylist();
+                    
+                    if (currentUser && db) {
+                        try {
+                            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'bgm', newSong.id), newSong);
+                        } catch (err) {}
+                    }
+                    window.showToast(`已添加歌曲: ${newSong.name}`, "success");
+                };
+                reader.readAsDataURL(f);
+            }
+            e.target.value = '';
+        };
+
+        window.deleteBgmSong = async function(songId) {
+            if (window.isLocked) return;
+            const targetSong = window.bgmPlaylist.find(s => s.id === songId);
+            window.bgmPlaylist = window.bgmPlaylist.filter(s => s.id !== songId);
+            
+            if (window.currentBgmIndex >= window.bgmPlaylist.length) {
+                window.currentBgmIndex = window.bgmPlaylist.length - 1;
+            }
+            if (window.bgmPlaylist.length === 0) {
+                pauseBgm(true);
+            }
+            
+            saveLocalData();
+            window.renderBgmPlaylist();
+
+            if (currentUser && db) {
+                try {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'bgm', songId));
+                } catch (err) {}
+            }
+            window.showToast(targetSong ? `已删除歌曲: ${targetSong.name}` : "已删除歌曲", "info");
+        };
+
+        window.toggleBgmPlay = function() {
+            if (window.bgmPlaylist.length === 0) {
+                window.showToast("歌单为空，请先添加音乐", "error");
+                return;
+            }
+            if (window.isBgmPlaying) {
+                pauseBgm(true);
+            } else {
+                if (window.currentBgmIndex < 0 || window.currentBgmIndex >= window.bgmPlaylist.length) {
+                    playRandomBgm();
+                } else {
+                    resumeBgm();
+                }
+            }
+        };
+
+        window.playRandomBgm = function() {
+            if (window.bgmPlaylist.length === 0) return;
+            let nextIndex;
+            if (window.bgmPlaylist.length === 1) {
+                nextIndex = 0;
+            } else {
+                do {
+                    nextIndex = Math.floor(Math.random() * window.bgmPlaylist.length);
+                } while (nextIndex === window.currentBgmIndex);
+            }
+            playSpecificBgm(nextIndex);
+        };
+
+        window.playSpecificBgm = function(index) {
+            if (index < 0 || index >= window.bgmPlaylist.length) return;
+            window.currentBgmIndex = index;
+            const song = window.bgmPlaylist[index];
+            const audio = document.getElementById('globalBgmAudio');
+            if (!audio) return;
+
+            audio.src = song.url;
+            audio.play().then(() => {
+                window.isBgmPlaying = true;
+                updateBgmUIState(song.name);
+                window.showToast(`正在播放：${song.name}`, "info");
+            }).catch(e => {
+                window.showToast("音频播放失败", "error");
+            });
+        };
+
+        function pauseBgm(userInitiated = false) {
+            const audio = document.getElementById('globalBgmAudio');
+            if (audio) audio.pause();
+            window.isBgmPlaying = false;
+            updateBgmUIState(window.currentBgmIndex >= 0 ? window.bgmPlaylist[window.currentBgmIndex]?.name : '当前未播放音乐');
+        }
+
+        function resumeBgm() {
+            const audio = document.getElementById('globalBgmAudio');
+            if (!audio || window.bgmPlaylist.length === 0) return;
+            audio.play().then(() => {
+                window.isBgmPlaying = true;
+                updateBgmUIState(window.bgmPlaylist[window.currentBgmIndex]?.name);
+            }).catch(e => {});
+        }
+
+        function updateBgmUIState(songName) {
+            const titleEl = document.getElementById('currentSongTitle');
+            const statusEl = document.getElementById('currentSongStatus');
+            const btn = document.getElementById('bgmPlayPauseBtn');
+            if (titleEl) titleEl.innerText = songName || '当前未播放音乐';
+            if (statusEl) statusEl.innerText = window.isBgmPlaying ? '正在随机播放' : '已暂停';
+            if (btn) {
+                btn.innerHTML = window.isBgmPlaying ? '<i class="fa-solid fa-pause text-xs"></i>' : '<i class="fa-solid fa-play text-xs"></i>';
+            }
+        }
+
         window.updateLockButtonUI = function() {
             const lockBtn = document.getElementById('lockToggleBtn');
             if (!lockBtn) return;
             if (window.isLocked) {
                 lockBtn.className = "flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs font-medium transition-all shadow-sm border bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100";
-                lockBtn.innerHTML = `<i class="fa-solid fa-lock text-amber-600"></i><span class="hidden sm:inline">浏览模式 (点击解锁)</span><span class="sm:hidden">浏览</span>`;
+                lockBtn.innerHTML = `<i class="fa-solid fa-lock text-amber-600"></i><span class="hidden sm:inline">浏览模式</span><span class="sm:hidden">浏览</span>`;
             } else {
                 lockBtn.className = "flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs font-medium transition-all shadow-sm border bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100";
-                lockBtn.innerHTML = `<i class="fa-solid fa-lock-open text-emerald-600"></i><span class="hidden sm:inline">编辑模式 (已解锁)</span><span class="sm:hidden">编辑</span>`;
+                lockBtn.innerHTML = `<i class="fa-solid fa-lock-open text-emerald-600"></i><span class="hidden sm:inline">编辑模式</span><span class="sm:hidden">编辑</span>`;
             }
         };
 
@@ -770,7 +1040,7 @@
                 window.closePwdModal();
                 window.showToast("解锁成功，已切换至编辑模式", "success");
             } else {
-                window.showToast("密码错误，无法解锁", "error");
+                window.showToast("密码错误", "error");
             }
         };
 
@@ -795,7 +1065,7 @@
             urlInput.select();
             try {
                 document.execCommand('copy');
-                window.showToast("协同链接已复制到剪贴板！", "success");
+                window.showToast("协同链接已复制", "success");
             } catch (err) {
                 window.showToast("复制失败", "error");
             }
@@ -818,9 +1088,9 @@
             }
         };
 
-        window.handleEventClick = function(eventId) {
+        window.handleEventClick = function(eventId, fromStackDate = null) {
             if (window.isLocked) {
-                window.openReadOnlyFullscreen(eventId);
+                window.openReadOnlyFullscreen(eventId, fromStackDate);
             } else {
                 window.openEditModal(eventId);
             }
@@ -829,11 +1099,7 @@
         window.openTagModal = function() {
             const inputContainer = document.getElementById('tagInputContainer');
             if (inputContainer) {
-                if (window.isLocked) {
-                    inputContainer.style.display = 'none';
-                } else {
-                    inputContainer.style.display = 'flex';
-                }
+                inputContainer.style.display = window.isLocked ? 'none' : 'flex';
             }
             window.renderTagModalList();
             document.getElementById('tagModal')?.classList.remove('hidden');
@@ -848,7 +1114,7 @@
             if (!container) return;
             
             if (window.availableTags.length === 0) {
-                container.innerHTML = `<p class="text-xs text-slate-400 italic py-2">暂无 tag，请在编辑模式下新建</p>`;
+                container.innerHTML = `<p class="text-xs text-slate-400 italic py-2">暂无 tag</p>`;
                 return;
             }
 
@@ -865,10 +1131,7 @@
         };
 
         window.addNewTagFromModal = async function() {
-            if (window.isLocked) {
-                window.showToast("浏览模式无法修改或添加 tag", "error");
-                return;
-            }
+            if (window.isLocked) return;
             const input = document.getElementById('newTagInput');
             const newTag = input ? input.value.trim() : '';
             if (!newTag) {
@@ -908,7 +1171,7 @@
                 window.closeConfirmModal();
                 window.closeEditModal();
                 await window.deleteEventFromCloud(targetId);
-                window.showToast("事件及关联已成功删除", "info");
+                window.showToast("删除成功", "info");
             }
         };
 
@@ -927,7 +1190,7 @@
                 window.closeEditModal();
 
                 await window.saveEventToCloud(eventData);
-                window.showToast(isEdit ? "事件修改已保存" : "新建事件成功", "success");
+                window.showToast(isEdit ? "保存成功" : "新建事件成功", "success");
                 window.pendingSaveData = null;
             }
         };
@@ -943,11 +1206,7 @@
                 emptyState?.classList.remove('flex');
             }
 
-            if (window.currentView === 'timeline') {
-                window.renderTimelineView(filtered);
-            } else {
-                window.renderGridView(filtered);
-            }
+            window.renderTimelineView(filtered);
         };
 
         window.getFilteredEvents = function() {
@@ -961,32 +1220,6 @@
         };
 
         window.handleSearch = function() {
-            window.renderEvents();
-        };
-
-        window.switchView = function(view) {
-            window.currentView = view;
-            const timelineWrapper = document.getElementById('timelineWrapper');
-            const eventGrid = document.getElementById('eventGrid');
-            const timelineBtn = document.getElementById('viewTimelineBtn');
-            const gridBtn = document.getElementById('viewGridBtn');
-            const zoomContainer = document.getElementById('zoomControlContainer');
-
-            if (view === 'timeline') {
-                timelineWrapper?.classList.remove('hidden');
-                eventGrid?.classList.add('hidden');
-                zoomContainer?.classList.remove('hidden');
-
-                if (timelineBtn) timelineBtn.className = "flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-all bg-white text-indigo-600 shadow-sm";
-                if (gridBtn) gridBtn.className = "flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-all text-slate-600 hover:text-slate-900";
-            } else {
-                timelineWrapper?.classList.add('hidden');
-                eventGrid?.classList.remove('hidden');
-                zoomContainer?.classList.add('hidden');
-
-                if (gridBtn) gridBtn.className = "flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-all bg-white text-indigo-600 shadow-sm";
-                if (timelineBtn) timelineBtn.className = "flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-all text-slate-600 hover:text-slate-900";
-            }
             window.renderEvents();
         };
 
@@ -1035,6 +1268,17 @@
                 return;
             }
 
+            const groupedMap = new Map();
+            eventList.forEach(event => {
+                const dateKey = event.date;
+                if (!groupedMap.has(dateKey)) {
+                    groupedMap.set(dateKey, []);
+                }
+                groupedMap.get(dateKey).push(event);
+            });
+
+            const groupEntries = Array.from(groupedMap.entries()).sort((a, b) => new Date(a[0].split('至')[0]) - new Date(b[0].split('至')[0]));
+
             const scale = window.getZoomScale();
             const gapPx = Math.round(150 * scale);
             const dotMajorSize = Math.round(20 * scale);
@@ -1043,77 +1287,252 @@
             const previewWidth = Math.round(160 * Math.min(1.2, Math.max(0.7, scale)));
             const previewImgHeight = Math.round(100 * Math.min(1.2, Math.max(0.7, scale)));
 
-            const sorted = [...eventList].sort((a, b) => new Date(a.date) - new Date(b.date));
+            groupEntries.forEach(([dateStr, items]) => {
+                const isMerged = items.length > 1;
+                const firstEvent = items[0];
+                const hasMajor = items.some(e => e.type === 'major');
+                
+                let displayTitle = firstEvent.title;
+                if (isMerged) {
+                    const prefix = firstEvent.title.slice(0, 4);
+                    displayTitle = `${prefix}等${items.length}件事`;
+                }
 
-            sorted.forEach((event) => {
-                const isMajor = event.type === 'major';
-                const dotSize = isMajor ? dotMajorSize : dotMinorSize;
+                let firstImgSrc = null;
+                if (firstEvent.images && firstEvent.images.length > 0) {
+                    const firstImgObj = firstEvent.images[0];
+                    firstImgSrc = typeof firstImgObj === 'string' ? firstImgObj : (firstImgObj?.outer || firstImgObj?.original);
+                } else if (firstEvent.videos && firstEvent.videos.length > 0) {
+                    const firstVid = firstEvent.videos[0];
+                    firstImgSrc = typeof firstVid === 'object' ? firstVid.cover : null;
+                }
+
+                const identifier = isMerged ? `merged-${dateStr.replace(/[^a-zA-Z0-9]/g, '_')}` : firstEvent.id;
+
                 const nodeContainer = document.createElement('div');
                 nodeContainer.className = "timeline-node-container relative flex flex-col items-center justify-center shrink-0 cursor-pointer group py-6";
                 nodeContainer.style.width = `${gapPx}px`;
 
-                const hasImages = event.images && event.images.length > 0;
-                const firstImgObj = hasImages ? event.images[0] : null;
-                const firstImgSrc = typeof firstImgObj === 'string' ? firstImgObj : (firstImgObj?.outer || firstImgObj?.original);
-
                 nodeContainer.innerHTML = `
-                    ${hasImages ? `
+                    ${firstImgSrc ? `
                         <div class="timeline-hover-tooltip absolute bottom-full mb-3 z-30 bg-slate-900 rounded-xl border border-slate-700 overflow-hidden pointer-events-none" style="width: ${previewWidth}px; height: ${previewImgHeight}px;">
-                            <img id="hover-img-${event.id}" src="${firstImgSrc}" class="w-full h-full object-cover transition-opacity duration-300">
+                            <img src="${firstImgSrc}" class="w-full h-full object-cover transition-opacity duration-300">
                         </div>
                     ` : ''}
 
-                    <div onclick="handleEventClick(${event.id})" class="text-center mb-3 max-w-[130px] select-none">
-                        <span class="block font-medium ${isMajor ? 'text-indigo-900 font-bold' : 'text-slate-700'} line-clamp-1" style="font-size: ${fontSizeTitle}px;">
-                            ${event.title}
+                    <div onclick="handleGroupClick('${dateStr.replace(/'/g, "\\'")}')" class="text-center mb-3 max-w-[130px] select-none">
+                        <span class="block font-medium ${hasMajor ? 'text-indigo-900 font-bold' : 'text-slate-700'} line-clamp-1" style="font-size: ${fontSizeTitle}px;">
+                            ${displayTitle}
                         </span>
                         <span class="block text-[10px] text-slate-400 font-mono mt-0.5">
-                            ${event.date}
+                            ${dateStr}
                         </span>
                     </div>
 
-                    <div id="timeline-dot-${event.id}" onclick="handleEventClick(${event.id})" class="timeline-dot rounded-full bg-white border-2 ${isMajor ? 'border-indigo-600 bg-indigo-600 shadow-md ring-4 ring-indigo-100' : 'border-slate-400 hover:border-indigo-500 hover:bg-indigo-500'} flex items-center justify-center z-10 shrink-0" style="width: ${dotSize}px; height: ${dotSize}px;">
+                    <div id="timeline-dot-${identifier}" onclick="handleGroupClick('${dateStr.replace(/'/g, "\\'")}')" class="flex items-center justify-center z-10 shrink-0">
+                        ${isMerged ? `
+                            <div class="merged-dots-container">
+                                <div class="merged-dot-left" style="width: ${dotMinorSize}px; height: ${dotMinorSize}px;"></div>
+                                <div class="merged-dot-right" style="width: ${dotMinorSize}px; height: ${dotMinorSize}px;"></div>
+                            </div>
+                        ` : `
+                            <div class="timeline-dot rounded-full bg-white border-2 ${hasMajor ? 'border-indigo-600 bg-indigo-600 shadow-md ring-4 ring-indigo-100' : 'border-slate-400 hover:border-indigo-500 hover:bg-indigo-500'}" style="width: ${(hasMajor ? dotMajorSize : dotMinorSize)}px; height: ${(hasMajor ? dotMajorSize : dotMinorSize)}px;"></div>
+                        `}
                     </div>
                 `;
 
                 nodeContainer.addEventListener('mouseenter', () => {
-                    window.highlightConnectionsForEvent(event.id, true);
-                    if (event.images && event.images.length > 1) {
-                        let imgIdx = 0;
-                        const imgEl = document.getElementById(`hover-img-${event.id}`);
-                        window.activeHoverIntervals[event.id] = setInterval(() => {
-                            imgIdx = (imgIdx + 1) % event.images.length;
-                            const curImgObj = event.images[imgIdx];
-                            const curSrc = typeof curImgObj === 'string' ? curImgObj : (curImgObj?.outer || curImgObj?.original);
-                            if (imgEl) imgEl.src = curSrc;
-                        }, 1500);
-                    }
+                    items.forEach(e => window.highlightConnectionsForEvent(e.id, true));
                 });
 
                 nodeContainer.addEventListener('mouseleave', () => {
-                    window.highlightConnectionsForEvent(event.id, false);
-                    if (window.activeHoverIntervals[event.id]) {
-                        clearInterval(window.activeHoverIntervals[event.id]);
-                        delete window.activeHoverIntervals[event.id];
-                    }
+                    items.forEach(e => window.highlightConnectionsForEvent(e.id, false));
                 });
 
                 track.appendChild(nodeContainer);
             });
 
             requestAnimationFrame(() => {
-                const firstDot = document.querySelector('.timeline-dot');
+                const firstNode = document.querySelector('.timeline-node-container');
                 const axisLine = document.getElementById('timelineMainAxis');
                 const container = document.getElementById('timelineContainer');
-                if (firstDot && axisLine && container) {
-                    const dotRect = firstDot.getBoundingClientRect();
-                    const containerRect = container.getBoundingClientRect();
-                    const dotCenterY = (dotRect.top + dotRect.height / 2) - containerRect.top + container.scrollTop;
-                    axisLine.style.top = `${dotCenterY}px`;
-                    axisLine.style.transform = 'translateY(-50%)';
+                if (firstNode && axisLine && container) {
+                    const firstDateStr = groupEntries.length > 0 ? groupEntries[0][0] : '';
+                    const dotEl = firstNode.querySelector('#timeline-dot-' + (groupEntries.length > 0 && groupEntries[0][1].length > 1 ? `merged-${firstDateStr.replace(/[^a-zA-Z0-9]/g, '_')}` : groupEntries[0][1][0].id));
+                    if (dotEl) {
+                        const dotRect = dotEl.getBoundingClientRect();
+                        const containerRect = container.getBoundingClientRect();
+                        const dotCenterY = (dotRect.top + dotRect.height / 2) - containerRect.top + container.scrollTop;
+                        axisLine.style.top = `${dotCenterY}px`;
+                        axisLine.style.transform = 'translateY(-50%)';
+                    }
                 }
                 window.renderSvgConnections();
             });
+        };
+
+        window.handleGroupClick = function(dateStr) {
+            const items = window.events.filter(e => e.date === dateStr);
+            if (items.length === 1) {
+                window.handleEventClick(items[0].id);
+            } else {
+                window.openStackManagerModal(items);
+            }
+        };
+
+        window.openStackManagerModal = function(items) {
+            let modal = document.getElementById('stackManagerModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'stackManagerModal';
+                modal.className = "fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[95] hidden flex items-center justify-center p-4";
+                document.body.appendChild(modal);
+            }
+
+            modal.innerHTML = `
+                <div class="relative w-full max-w-lg h-[80vh] flex flex-col items-center justify-between p-4">
+                    <div class="flex items-center justify-between w-full text-white mb-2 px-2 z-20">
+                        <div>
+                            <h3 class="font-bold text-base flex items-center gap-2">
+                                <i class="fa-solid fa-layer-group text-indigo-400"></i>
+                                <span>同期事件集合 (${items.length} 个)</span>
+                            </h3>
+                            <p class="text-[11px] text-slate-400">左右滑动或滚动鼠标切换，点击中心卡片查看详情</p>
+                        </div>
+                        <button onclick="closeStackManagerModal()" class="text-slate-400 hover:text-white bg-slate-800/80 w-9 h-9 rounded-full flex items-center justify-center">
+                            <i class="fa-solid fa-xmark text-base"></i>
+                        </button>
+                    </div>
+
+                    <div id="stackCardsWrapper" class="relative w-full flex-grow flex items-center justify-center overflow-hidden my-auto" style="height: 400px;">
+                        ${items.map((event, idx) => {
+                            let firstImgSrc = null;
+                            if (event.images && event.images.length > 0) {
+                                const firstImgObj = event.images[0];
+                                firstImgSrc = typeof firstImgObj === 'string' ? firstImgObj : (firstImgObj?.outer || firstImgObj?.original);
+                            } else if (event.videos && event.videos.length > 0) {
+                                const v = event.videos[0];
+                                firstImgSrc = typeof v === 'object' ? v.cover : null;
+                            }
+                            
+                            return `
+                                <div class="stack-card bg-white rounded-2xl overflow-hidden shadow-2xl border border-slate-300 flex flex-col select-none"
+                                     data-index="${idx}"
+                                     data-event-id="${event.id}"
+                                     style="width: 220px; height: 360px;"
+                                     onclick="handleStackCardClick(event, ${event.id}, '${event.date.replace(/'/g, "\\'")}')">
+                                     
+                                    ${firstImgSrc ? `
+                                        <div class="h-36 bg-slate-900 overflow-hidden relative pointer-events-none">
+                                            <img src="${firstImgSrc}" class="w-full h-full object-cover">
+                                        </div>
+                                    ` : `
+                                        <div class="h-36 bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg pointer-events-none">
+                                            <i class="fa-solid fa-calendar-day text-2xl opacity-80"></i>
+                                        </div>
+                                    `}
+                                    <div class="p-4 flex-grow flex flex-col justify-between pointer-events-none">
+                                        <div>
+                                            <span class="text-[10px] font-mono text-indigo-600 font-semibold bg-indigo-50 px-2 py-0.5 rounded-full">${event.date}</span>
+                                            <h4 class="font-bold text-slate-800 text-sm mt-1.5 line-clamp-1">${event.title}</h4>
+                                            <p class="text-[11px] text-slate-500 line-clamp-2 mt-1 leading-relaxed">${event.description || '暂无详细描述'}</p>
+                                        </div>
+                                        <div class="text-[10px] text-indigo-600 font-medium flex items-center gap-1 pt-2 border-t border-slate-100">
+                                            <i class="fa-solid fa-arrow-pointer"></i> 点击进入详情
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+
+            modal.classList.remove('hidden');
+            updateStackCardStyles(0);
+            setupStackWheelInteraction();
+        };
+
+        window.closeStackManagerModal = function() {
+            document.getElementById('stackManagerModal')?.classList.add('hidden');
+        };
+
+        let currentActiveStackIndex = 0;
+
+        function updateStackCardStyles(activeIndex) {
+            currentActiveStackIndex = activeIndex;
+            const wrapper = document.getElementById('stackCardsWrapper');
+            if (!wrapper) return;
+            const cards = Array.from(wrapper.querySelectorAll('.stack-card'));
+            
+            cards.forEach((card, idx) => {
+                const offset = idx - activeIndex;
+                const translateX = offset * 130; 
+                const scale = idx === activeIndex ? 1 : 0.78;
+                const opacity = idx === activeIndex ? 1 : 0.55;
+                const zIndex = idx === activeIndex ? 30 : (20 - Math.abs(offset));
+
+                card.style.zIndex = zIndex;
+                card.style.transform = `translateX(${translateX}px) scale(${scale})`;
+                card.style.opacity = opacity;
+                card.style.pointerEvents = Math.abs(offset) <= 1 ? 'auto' : 'none';
+            });
+        }
+
+        function setupStackWheelInteraction() {
+            const wrapper = document.getElementById('stackCardsWrapper');
+            if (!wrapper) return;
+
+            let touchStartX = 0;
+
+            wrapper.onwheel = (e) => {
+                e.preventDefault();
+                const cards = wrapper.querySelectorAll('.stack-card');
+                if (e.deltaY > 0 || e.deltaX > 0) {
+                    if (currentActiveStackIndex < cards.length - 1) {
+                        currentActiveStackIndex++;
+                    }
+                } else {
+                    if (currentActiveStackIndex > 0) {
+                        currentActiveStackIndex--;
+                    }
+                }
+                updateStackCardStyles(currentActiveStackIndex);
+            };
+
+            wrapper.ontouchstart = (e) => {
+                if (e.touches.length === 1) {
+                    touchStartX = e.touches[0].clientX;
+                }
+            };
+
+            wrapper.ontouchend = (e) => {
+                if (e.changedTouches.length === 1) {
+                    const touchEndX = e.changedTouches[0].clientX;
+                    const diff = touchStartX - touchEndX;
+                    const cards = wrapper.querySelectorAll('.stack-card');
+                    if (Math.abs(diff) > 30) {
+                        if (diff > 0 && currentActiveStackIndex < cards.length - 1) {
+                            currentActiveStackIndex++;
+                        } else if (diff < 0 && currentActiveStackIndex > 0) {
+                            currentActiveStackIndex--;
+                        }
+                        updateStackCardStyles(currentActiveStackIndex);
+                    }
+                }
+            };
+        }
+
+        window.handleStackCardClick = function(e, eventId, dateStr) {
+            const card = e.currentTarget;
+            const cardIndex = parseInt(card.getAttribute('data-index'));
+            
+            if (cardIndex === currentActiveStackIndex) {
+                window.closeStackManagerModal();
+                window.handleEventClick(eventId, dateStr);
+            } else {
+                updateStackCardStyles(cardIndex);
+            }
         };
 
         window.renderSvgConnections = function() {
@@ -1142,8 +1561,10 @@
             }
 
             window.connections.forEach(conn => {
-                const sourceDot = document.getElementById(`timeline-dot-${conn.sourceId}`);
-                const targetDot = document.getElementById(`timeline-dot-${conn.targetId}`);
+                const sEvent = window.events.find(e => e.id == conn.sourceId);
+                const tEvent = window.events.find(e => e.id == conn.targetId);
+                const sourceDot = document.getElementById(`timeline-dot-${conn.sourceId}`) || document.getElementById(`timeline-dot-merged-${sEvent?.date.replace(/[^a-zA-Z0-9]/g, '_')}`);
+                const targetDot = document.getElementById(`timeline-dot-${conn.targetId}`) || document.getElementById(`timeline-dot-merged-${tEvent?.date.replace(/[^a-zA-Z0-9]/g, '_')}`);
 
                 if (!sourceDot || !targetDot) return;
 
@@ -1215,51 +1636,7 @@
             });
         };
 
-        window.renderGridView = function(eventList = window.events) {
-            const grid = document.getElementById('eventGrid');
-            if (!grid) return;
-            grid.innerHTML = '';
-
-            eventList.forEach(event => {
-                const card = document.createElement('div');
-                card.className = "bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden cursor-pointer flex flex-col";
-                
-                card.addEventListener('mouseenter', () => window.highlightConnectionsForEvent(event.id, true));
-                card.addEventListener('mouseleave', () => window.highlightConnectionsForEvent(event.id, false));
-                card.onclick = () => window.handleEventClick(event.id);
-
-                const hasImg = event.images && event.images.length > 0;
-                const firstImgObj = hasImg ? event.images[0] : null;
-                const firstImgSrc = typeof firstImgObj === 'string' ? firstImgObj : (firstImgObj?.outer || firstImgObj?.original);
-
-                card.innerHTML = `
-                    ${hasImg ? `
-                        <div class="h-44 bg-slate-900 overflow-hidden relative">
-                            <img src="${firstImgSrc}" class="w-full h-full object-cover hover:scale-105 transition-transform duration-500">
-                            ${event.images.length > 1 ? `<span class="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-md"><i class="fa-solid fa-images mr-1"></i>${event.images.length}</span>` : ''}
-                        </div>
-                    ` : ''}
-                    <div class="p-4 sm:p-5 flex-grow flex flex-col justify-between">
-                        <div>
-                            <div class="flex items-center justify-between gap-2 mb-2">
-                                <span class="text-xs font-mono font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">${event.date}</span>
-                                <span class="text-xs text-slate-400 font-medium">${event.type === 'major' ? '重大里程碑' : '普通事件'}</span>
-                            </div>
-                            <h3 class="font-bold text-slate-800 text-base mb-2 line-clamp-1">${event.title}</h3>
-                            <p class="text-xs text-slate-600 line-clamp-2 leading-relaxed mb-4">${event.description || '暂无描述'}</p>
-                        </div>
-                        ${event.tags && event.tags.length > 0 ? `
-                            <div class="flex flex-wrap gap-1.5 pt-3 border-t border-slate-100">
-                                ${event.tags.map(t => `<span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium"># ${t}</span>`).join('')}
-                            </div>
-                        ` : ''}
-                    </div>
-                `;
-                grid.appendChild(card);
-            });
-        };
-
-        window.openReadOnlyFullscreen = function(eventId) {
+        window.openReadOnlyFullscreen = function(eventId, fromStackDate = null) {
             const event = window.events.find(e => e.id === eventId);
             if (!event) return;
 
@@ -1297,11 +1674,11 @@
                                 }
 
                                 return `
-                                    <div class="flex items-center justify-between bg-slate-800/60 border border-slate-700/80 px-3 py-2 rounded-xl text-xs" onmouseenter="highlightConnectionsForEvent('${eventId}', true)" onmouseleave="highlightConnectionsForEvent('${eventId}', false)">
+                                    <div class="flex items-center justify-between bg-slate-800/60 border border-slate-700/80 px-3 py-2 rounded-xl text-xs">
                                         <div class="flex items-center gap-2">
                                             <span class="text-indigo-400 font-bold text-sm">${arrowIcon}</span>
                                             <span class="font-medium text-slate-200">${otherEvent ? otherEvent.title : '未知事件'}</span>
-                                            ${c.label ? `<span class="bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded text-[10px] ml-2">“${c.label}”</span>` : ''}
+                                            ${c.label ? `<span class="bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded text-[10px] ml-2">${c.label}</span>` : ''}
                                         </div>
                                         <span class="text-[10px] text-slate-400 font-mono">${relLabel}</span>
                                     </div>
@@ -1317,7 +1694,7 @@
                 const fullSrcList = event.images.map(imgObj => typeof imgObj === 'string' ? imgObj : imgObj.original);
                 imagesHtml = `
                     <div class="mb-6">
-                        <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">事件配图 (点击查看大图)</h4>
+                        <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">事件配图</h4>
                         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
                             ${event.images.map((imgObj, idx) => {
                                 const thumbSrc = typeof imgObj === 'string' ? imgObj : (imgObj.inner || imgObj.original);
@@ -1325,9 +1702,6 @@
                                 return `
                                     <div onclick="openLightbox(${listStr}, ${idx})" class="group relative aspect-[3/4] bg-slate-950 rounded-xl overflow-hidden border border-slate-800 cursor-pointer shadow-md hover:border-indigo-500 transition-all">
                                         <img src="${thumbSrc}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
-                                        <div class="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                            <i class="fa-solid fa-magnifying-glass-plus text-white text-sm drop-shadow"></i>
-                                        </div>
                                     </div>
                                 `;
                             }).join('')}
@@ -1342,11 +1716,15 @@
                     <div class="mb-6">
                         <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-video mr-1"></i>事件视频</h4>
                         <div class="space-y-3">
-                            ${event.videos.map(v => `
-                                <div class="bg-black rounded-xl overflow-hidden border border-slate-800">
-                                    <video src="${v}" controls class="w-full max-h-80 object-contain"></video>
-                                </div>
-                            `).join('')}
+                            ${event.videos.map(v => {
+                                const vUrl = typeof v === 'object' ? v.url : v;
+                                const vCover = typeof v === 'object' ? v.cover : '';
+                                return `
+                                    <div class="bg-black rounded-xl overflow-hidden border border-slate-800">
+                                        <video src="${vUrl}" ${vCover ? `poster="${vCover}"` : ''} controls autoplay muted loop class="w-full max-h-80 object-contain"></video>
+                                    </div>
+                                `;
+                            }).join('')}
                         </div>
                     </div>
                 `;
@@ -1362,7 +1740,6 @@
                                 <a href="${l.url}" target="_blank" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-indigo-300 hover:text-indigo-200 px-3 py-2 rounded-xl text-xs transition-colors">
                                     <i class="fa-solid fa-globe"></i>
                                     <span class="font-medium">${l.title || l.url}</span>
-                                    <i class="fa-solid fa-arrow-up-right-from-square text-[10px] text-slate-400"></i>
                                 </a>
                             `).join('')}
                         </div>
@@ -1372,7 +1749,7 @@
 
             viewer.innerHTML = `
                 <div class="max-w-3xl w-full my-auto bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-10 shadow-2xl relative">
-                    <button onclick="closeReadOnlyFullscreen()" class="absolute top-4 right-4 sm:top-6 sm:right-6 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full flex items-center justify-center transition-colors">
+                    <button onclick="closeReadOnlyFullscreen('${fromStackDate ? fromStackDate.replace(/'/g, "\\'") : ''}')" class="absolute top-4 right-4 sm:top-6 sm:right-6 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full flex items-center justify-center transition-colors">
                         <i class="fa-solid fa-xmark text-lg"></i>
                     </button>
 
@@ -1382,12 +1759,6 @@
                     </div>
 
                     <h1 class="text-2xl sm:text-3xl font-bold text-white mb-4 tracking-wide">${event.title}</h1>
-
-                    ${event.tags && event.tags.length > 0 ? `
-                        <div class="flex flex-wrap gap-2 mb-6">
-                            ${event.tags.map(t => `<span class="text-xs bg-slate-800 text-slate-300 border border-slate-700 px-2.5 py-1 rounded-md"># ${t}</span>`).join('')}
-                        </div>
-                    ` : ''}
 
                     ${imagesHtml}
                     ${videosHtml}
@@ -1403,9 +1774,16 @@
             viewer.classList.remove('hidden');
         };
 
-        window.closeReadOnlyFullscreen = function() {
+        window.closeReadOnlyFullscreen = function(fromStackDate = '') {
             const viewer = document.getElementById('fullscreenViewer');
             if (viewer) viewer.classList.add('hidden');
+            
+            if (fromStackDate) {
+                const items = window.events.filter(e => e.date === fromStackDate);
+                if (items.length > 1) {
+                    window.openStackManagerModal(items);
+                }
+            }
         };
 
         window.openLightbox = function(imagesOrSrc, index = 0) {
@@ -1416,7 +1794,6 @@
                 window.currentLightboxImages = [imagesOrSrc];
                 window.currentLightboxIndex = 0;
             }
-
             updateLightboxDisplay();
             document.getElementById('lightboxModal')?.classList.remove('hidden');
         };
@@ -1431,7 +1808,6 @@
 
             const total = window.currentLightboxImages.length;
             const currentSrc = window.currentLightboxImages[window.currentLightboxIndex];
-
             lightboxImg.src = currentSrc;
 
             if (counter) {
@@ -1439,20 +1815,14 @@
             }
 
             if (prevBtn && nextBtn) {
-                if (total > 1) {
-                    prevBtn.style.display = 'flex';
-                    nextBtn.style.display = 'flex';
-                } else {
-                    prevBtn.style.display = 'none';
-                    nextBtn.style.display = 'none';
-                }
+                prevBtn.style.display = total > 1 ? 'flex' : 'none';
+                nextBtn.style.display = total > 1 ? 'flex' : 'none';
             }
         }
 
         window.changeLightboxImage = function(direction) {
             const total = window.currentLightboxImages.length;
             if (total <= 1) return;
-
             window.currentLightboxIndex = (window.currentLightboxIndex + direction + total) % total;
             updateLightboxDisplay();
         };
@@ -1460,19 +1830,6 @@
         window.closeLightbox = function() {
             document.getElementById('lightboxModal')?.classList.add('hidden');
         };
-
-        document.addEventListener('keydown', (e) => {
-            const lightbox = document.getElementById('lightboxModal');
-            if (lightbox && !lightbox.classList.contains('hidden')) {
-                if (e.key === 'ArrowLeft') {
-                    window.changeLightboxImage(-1);
-                } else if (e.key === 'ArrowRight') {
-                    window.changeLightboxImage(1);
-                } else if (e.key === 'Escape') {
-                    window.closeLightbox();
-                }
-            }
-        });
 
         window.openEditModal = function(eventId = null) {
             let modal = document.getElementById('editModal');
@@ -1496,18 +1853,24 @@
                 description: ''
             };
 
+            let isRangeDate = event.date && event.date.includes('至');
+            let startDateVal = isRangeDate ? event.date.split('至')[0] : (event.date || new Date().toISOString().split('T')[0]);
+            let endDateVal = isRangeDate ? event.date.split('至')[1] : '';
+
             window.editingImageFiles = (event.images ? event.images : []).map(img => {
                 if (typeof img === 'string') {
                     return { original: img, outer: img, inner: img };
                 }
-                return { 
-                    original: img.original, 
-                    outer: img.outer || img.original, 
-                    inner: img.inner || img.original 
-                };
+                return { original: img.original, outer: img.outer || img.original, inner: img.inner || img.original };
             });
 
-            window.editingVideos = event.videos ? [...event.videos] : [];
+            window.editingVideos = (event.videos ? event.videos : []).map(v => {
+                if (typeof v === 'string') {
+                    return { url: v, cover: '' };
+                }
+                return { url: v.url, cover: v.cover || '' };
+            });
+
             window.editingLinks = event.links ? [...event.links] : [];
 
             modal.innerHTML = `
@@ -1528,24 +1891,44 @@
                             <input type="text" id="editTitle" value="${event.title}" required placeholder="输入事件标题" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
                         </div>
 
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div>
-                                <label class="block text-xs font-bold text-slate-700 mb-1">发生日期 *</label>
-                                <input type="date" id="editDate" value="${event.date}" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                        <div class="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                            <div class="flex items-center justify-between">
+                                <label class="block text-xs font-bold text-slate-700">时间与日期范围 *</label>
+                                <label class="cursor-pointer text-xs text-indigo-600 flex items-center gap-1 font-medium select-none">
+                                    <input type="checkbox" id="isRangeToggle" ${isRangeDate ? 'checked' : ''} onchange="toggleDateRangeMode(this)">
+                                    <span>启用日期范围</span>
+                                </label>
                             </div>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-700 mb-1">节点类型</label>
-                                <select id="editType" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-                                    <option value="minor" ${event.type === 'minor' ? 'selected' : ''}>普通事件</option>
-                                    <option value="major" ${event.type === 'major' ? 'selected' : ''}>重大里程碑</option>
-                                </select>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="singleDateContainer" style="display: ${isRangeDate ? 'none' : 'grid'};">
+                                <div>
+                                    <span class="block text-[10px] text-slate-500 mb-0.5">具体日期</span>
+                                    <input type="date" id="editDate" value="${startDateVal}" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                                </div>
                             </div>
+                            <div class="grid grid-cols-2 gap-2" id="rangeDateContainer" style="display: ${isRangeDate ? 'grid' : 'none'};">
+                                <div>
+                                    <span class="block text-[10px] text-slate-500 mb-0.5">开始日期</span>
+                                    <input type="date" id="editStartDate" value="${startDateVal}" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                                </div>
+                                <div>
+                                    <span class="block text-[10px] text-slate-500 mb-0.5">结束日期</span>
+                                    <input type="date" id="editEndDate" value="${endDateVal}" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">节点类型</label>
+                            <select id="editType" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                                <option value="minor" ${event.type === 'minor' ? 'selected' : ''}>普通事件</option>
+                                <option value="major" ${event.type === 'major' ? 'selected' : ''}>重大里程碑</option>
+                            </select>
                         </div>
 
                         <div>
                             <label class="block text-xs font-bold text-slate-700 mb-1">选择 tag (多选)</label>
                             <div class="flex flex-wrap gap-1.5 p-2 border border-slate-200 rounded-lg bg-slate-50 max-h-28 overflow-y-auto" id="editTagsList">
-                                ${window.availableTags.length === 0 ? '<p class="text-xs text-slate-400 italic">暂无可用 tag，请在顶部 “tag库” 中添加</p>' : window.availableTags.map(t => {
+                                ${window.availableTags.length === 0 ? '<p class="text-xs text-slate-400 italic">暂无可用 tag</p>' : window.availableTags.map(t => {
                                     const checked = event.tags && event.tags.includes(t);
                                     return `
                                         <label class="cursor-pointer text-xs flex items-center gap-1.5 px-2 py-1 rounded border transition-colors ${checked ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-semibold' : 'bg-white border-slate-200 text-slate-600'}">
@@ -1557,82 +1940,48 @@
                             </div>
                         </div>
 
-                        <div class="border border-indigo-100 bg-indigo-50/40 rounded-xl p-3 space-y-2">
-                            <label class="block text-xs font-bold text-indigo-900 flex items-center justify-between">
-                                <span class="flex items-center gap-1.5">
-                                    <i class="fa-solid fa-diagram-project text-indigo-600"></i>
-                                    <span>节点逻辑连接设置</span>
-                                </span>
-                            </label>
+                        <div class="space-y-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                            <label class="block text-xs font-bold text-slate-700"><i class="fa-solid fa-photo-film text-indigo-600 mr-1"></i>媒体与网址附件</label>
                             
-                            <div id="eventConnList" class="space-y-1.5"></div>
+                            <!-- 要求1：提示上传图片或视频最好不超过1mb -->
+                            <div class="text-[11px] text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5">
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+                                <span>提示：上传图片或视频文件最好不超过 1MB，避免页面卡顿或云端同步受阻。</span>
+                            </div>
 
-                            <div class="flex flex-col gap-2 pt-2 border-t border-indigo-100">
-                                <div class="flex gap-2">
-                                    <select id="newConnTarget" class="flex-grow px-2 py-1.5 border border-slate-300 rounded text-xs bg-white outline-none">
-                                        <option value="">选择目标事件...</option>
-                                    </select>
-                                    <select id="newConnDir" class="w-28 px-2 py-1.5 border border-slate-300 rounded text-xs bg-white outline-none">
-                                        <option value="forward">指向 ➔</option>
-                                        <option value="backward">被指向 ➔</option>
-                                        <option value="both">双向 ↔</option>
-                                    </select>
+                            <div>
+                                <div class="border-2 border-dashed border-slate-300 rounded-xl p-3 text-center hover:bg-white transition-colors cursor-pointer" onclick="document.getElementById('editFileInput').click()">
+                                    <i class="fa-solid fa-image text-xl text-indigo-500 mb-1 block"></i>
+                                    <span class="text-xs text-slate-600 font-medium">点击添加图片</span>
+                                    <input type="file" id="editFileInput" multiple accept="image/*" class="hidden" onchange="handleLocalImageUpload(event)">
                                 </div>
+                                <div id="imageMicroPreviews" class="flex flex-wrap gap-2 mt-2"></div>
+                            </div>
+
+                            <div class="space-y-2 pt-2 border-t border-slate-200">
+                                <span class="block text-[11px] font-bold text-slate-600">添加视频 (支持本地上传或直链网址)</span>
                                 <div class="flex gap-2">
-                                    <input type="text" id="newConnLabel" placeholder="连线上方文字描述 (可选)" class="flex-grow px-2 py-1.5 border border-slate-300 rounded text-xs bg-white outline-none">
-                                    <button type="button" onclick="addConnectionFromModal('${event.id}')" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-medium shrink-0">
-                                        添加连接
+                                    <button type="button" onclick="document.getElementById('videoFileInput').click()" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-xs text-slate-700 flex items-center gap-1">
+                                        <i class="fa-solid fa-upload text-indigo-600"></i> 本地上传视频
                                     </button>
+                                    <input type="file" id="videoFileInput" multiple accept="video/*" class="hidden" onchange="handleLocalVideoUpload(event)">
+                                    <div class="flex flex-grow gap-1">
+                                        <input type="url" id="videoLinkInput" placeholder="或输入视频直链网址" class="flex-grow px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:ring-1 focus:ring-indigo-500">
+                                        <button type="button" onclick="addVideoLink()" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium">添加</button>
+                                    </div>
                                 </div>
+                                <div id="videoPreviewsContainer" class="space-y-1.5"></div>
                             </div>
-                        </div>
 
-                        <div>
-                            <div class="flex items-center justify-between mb-1">
-                                <label class="block text-xs font-bold text-slate-700">添加图片并截选</label>
-                                <span class="text-[10px] text-slate-400">支持横屏(封面)与详情缩略图</span>
+                            <div class="space-y-2 pt-2 border-t border-slate-200">
+                                <span class="block text-[11px] font-bold text-slate-600">添加相关网址链接</span>
+                                <div class="flex gap-1.5">
+                                    <input type="text" id="linkTitleInput" placeholder="网址标题 (可选)" class="w-1/3 px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs outline-none">
+                                    <input type="url" id="linkUrlInput" placeholder="https://..." class="flex-grow px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs outline-none">
+                                    <button type="button" onclick="addWebLink()" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium shrink-0">添加网址</button>
+                                </div>
+                                <div id="linkPreviewsContainer" class="space-y-1.5"></div>
                             </div>
-                            <div class="border-2 border-dashed border-slate-300 rounded-xl p-4 text-center hover:bg-slate-50 transition-colors cursor-pointer" onclick="document.getElementById('editFileInput').click()">
-                                <i class="fa-solid fa-cloud-arrow-up text-2xl text-indigo-500 mb-1 block"></i>
-                                <span class="text-xs text-slate-600 font-medium">点击选择本地照片上传</span>
-                                <input type="file" id="editFileInput" multiple accept="image/*" class="hidden" onchange="handleLocalImageUpload(event)">
-                            </div>
-                            <div id="imageMicroPreviews" class="flex flex-wrap gap-2 mt-3"></div>
-                        </div>
-
-                        <div>
-                            <div class="flex items-center justify-between mb-1">
-                                <label class="block text-xs font-bold text-slate-700">添加视频</label>
-                                <span class="text-[10px] text-slate-400">支持本地上传或直链</span>
-                            </div>
-                            <div class="flex gap-2 mb-2">
-                                <input type="file" id="editVideoFileInput" accept="video/*" class="hidden" onchange="handleLocalVideoUpload(event)">
-                                <button type="button" onclick="document.getElementById('editVideoFileInput').click()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 rounded-lg text-xs font-medium flex items-center gap-1.5">
-                                    <i class="fa-solid fa-file-video text-indigo-600"></i>
-                                    <span>上传本地视频</span>
-                                </button>
-                            </div>
-                            <div class="flex gap-2">
-                                <input type="text" id="newVideoUrlInput" placeholder="输入视频网络地址 (URL)" class="flex-grow px-3 py-1.5 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
-                                <button type="button" onclick="addVideoUrl()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shrink-0">添加网址视频</button>
-                            </div>
-                            <div id="videoPreviews" class="space-y-2 mt-3"></div>
-                        </div>
-
-                        <div>
-                            <div class="flex items-center justify-between mb-1">
-                                <label class="block text-xs font-bold text-slate-700">跳转网址 (网页链接)</label>
-                                <span class="text-[10px] text-slate-400">支持添加外部跳转链接</span>
-                            </div>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
-                                <input type="text" id="newLinkTitleInput" placeholder="链接显示名称 (如：官方文档)" class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
-                                <input type="text" id="newLinkUrlInput" placeholder="网址链接 (https://...)" class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
-                            </div>
-                            <button type="button" onclick="addLinkItem()" class="w-full py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5">
-                                <i class="fa-solid fa-link text-indigo-600"></i>
-                                <span>添加跳转网址</span>
-                            </button>
-                            <div id="linkPreviews" class="space-y-2 mt-3"></div>
                         </div>
 
                         <div>
@@ -1654,97 +2003,34 @@
                     </form>
                 </div>
             `;
-
             window.renderMicroPreviews();
             window.renderVideoPreviews();
             window.renderLinkPreviews();
-            window.renderModalConnections(event.id);
             modal.classList.remove('hidden');
         };
 
+        window.toggleDateRangeMode = function(checkbox) {
+            const singleC = document.getElementById('singleDateContainer');
+            const rangeC = document.getElementById('rangeDateContainer');
+            if (checkbox.checked) {
+                singleC.style.display = 'none';
+                rangeC.style.display = 'grid';
+            } else {
+                singleC.style.display = 'grid';
+                rangeC.style.display = 'none';
+            }
+        };
+
         window.closeEditModal = function() {
-            const modal = document.getElementById('editModal');
-            if (modal) modal.classList.add('hidden');
+            document.getElementById('editModal')?.classList.add('hidden');
         };
 
         window.toggleTagSelection = function(checkbox) {
             const parent = checkbox.closest('label');
             if (!parent) return;
-            if (checkbox.checked) {
-                parent.className = "cursor-pointer text-xs flex items-center gap-1.5 px-2 py-1 rounded border transition-colors bg-indigo-50 border-indigo-300 text-indigo-700 font-semibold";
-            } else {
-                parent.className = "cursor-pointer text-xs flex items-center gap-1.5 px-2 py-1 rounded border transition-colors bg-white border-slate-200 text-slate-600";
-            }
-        };
-
-        window.renderModalConnections = function(eventId) {
-            const listContainer = document.getElementById('eventConnList');
-            const targetSelect = document.getElementById('newConnTarget');
-            if (!listContainer || !targetSelect) return;
-
-            targetSelect.innerHTML = `<option value="">选择目标事件...</option>`;
-            window.events.filter(e => String(e.id) !== String(eventId)).forEach(e => {
-                targetSelect.innerHTML += `<option value="${e.id}">${e.title} (${e.date})</option>`;
-            });
-
-            const currentConns = window.connections.filter(c => String(c.sourceId) === String(eventId) || String(c.targetId) === String(eventId));
-            if (currentConns.length === 0) {
-                listContainer.innerHTML = `<p class="text-[11px] text-slate-400 italic">暂无节点逻辑连接</p>`;
-                return;
-            }
-
-            listContainer.innerHTML = currentConns.map(c => {
-                const isSource = String(c.sourceId) === String(eventId);
-                const otherId = isSource ? c.targetId : c.sourceId;
-                const otherEvent = window.events.find(e => String(e.id) === String(otherId));
-                let dirLabel = c.dir === 'both' ? '↔ 双向' : (isSource ? '➔ 指向' : '⬅ 被指');
-                let labelText = c.label ? ` [${c.label}]` : '';
-
-                return `
-                    <div class="flex items-center justify-between bg-white px-2.5 py-1.5 rounded border border-slate-200 text-xs">
-                        <span class="text-slate-700 font-medium truncate max-w-[220px] sm:max-w-[320px]">
-                            ${dirLabel}: <strong class="text-indigo-900">${otherEvent ? otherEvent.title : '未知事件'}</strong><span class="text-indigo-500">${labelText}</span>
-                        </span>
-                        <button type="button" onclick="removeConnection('${c.id}', '${eventId}')" class="text-slate-400 hover:text-rose-500 ml-2 shrink-0">
-                            <i class="fa-solid fa-xmark"></i>
-                        </button>
-                    </div>
-                `;
-            }).join('');
-        };
-
-        window.addConnectionFromModal = async function(eventId) {
-            const targetSelect = document.getElementById('newConnTarget');
-            const targetIdRaw = targetSelect?.value;
-            const targetId = isNaN(targetIdRaw) ? targetIdRaw : Number(targetIdRaw);
-            const dir = document.getElementById('newConnDir')?.value || 'forward';
-            const label = document.getElementById('newConnLabel')?.value.trim() || '';
-
-            if (!targetIdRaw) {
-                window.showToast("请先选择关联的目标事件", "error");
-                return;
-            }
-
-            const parsedEventId = isNaN(eventId) ? eventId : Number(eventId);
-            const exists = window.connections.some(c => 
-                (String(c.sourceId) === String(parsedEventId) && String(c.targetId) === String(targetId)) || 
-                (String(c.sourceId) === String(targetId) && String(c.targetId) === String(parsedEventId))
-            );
-            if (exists) {
-                window.showToast("节点间已存在关联", "info");
-                return;
-            }
-
-            const newConn = { id: Date.now(), sourceId: parsedEventId, targetId: targetId, dir: dir, label: label };
-            await window.saveConnectionToCloud(newConn);
-            window.renderModalConnections(eventId);
-            window.showToast("成功添加节点连接", "success");
-        };
-
-        window.removeConnection = async function(connId, currentEventId) {
-            await window.deleteConnectionFromCloud(connId);
-            window.renderModalConnections(currentEventId);
-            window.showToast("已移除节点连接", "info");
+            parent.className = checkbox.checked ? 
+                "cursor-pointer text-xs flex items-center gap-1.5 px-2 py-1 rounded border transition-colors bg-indigo-50 border-indigo-300 text-indigo-700 font-semibold" : 
+                "cursor-pointer text-xs flex items-center gap-1.5 px-2 py-1 rounded border transition-colors bg-white border-slate-200 text-slate-600";
         };
 
         window.handleLocalImageUpload = async function(e) {
@@ -1754,6 +2040,134 @@
                 window.editingImageFiles.push({ original: base64, outer: base64, inner: base64 });
                 window.renderMicroPreviews();
             }
+        };
+
+        window.handleLocalVideoUpload = async function(e) {
+            const files = Array.from(e.target.files);
+            for (const f of files) {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    window.editingVideos.push({ url: ev.target.result, cover: '' });
+                    window.renderVideoPreviews();
+                };
+                reader.readAsDataURL(f);
+            }
+        };
+
+        window.addVideoLink = function() {
+            const input = document.getElementById('videoLinkInput');
+            const val = input ? input.value.trim() : '';
+            if (!val) {
+                window.showToast("请输入有效的视频链接", "error");
+                return;
+            }
+            window.editingVideos.push({ url: val, cover: '' });
+            input.value = '';
+            window.renderVideoPreviews();
+        };
+
+        window.removeVideo = function(index) {
+            window.editingVideos.splice(index, 1);
+            window.renderVideoPreviews();
+        };
+
+        window.renderVideoPreviews = function() {
+            const container = document.getElementById('videoPreviewsContainer');
+            if (!container) return;
+            if (window.editingVideos.length === 0) {
+                container.innerHTML = '<p class="text-[11px] text-slate-400 italic">暂无添加视频</p>';
+                return;
+            }
+            container.innerHTML = window.editingVideos.map((v, idx) => `
+                <div class="flex items-center justify-between bg-white border border-slate-200 px-2.5 py-1.5 rounded-lg text-xs gap-2">
+                    <div class="flex items-center gap-2 truncate max-w-[220px]">
+                        ${v.cover ? `<img src="${v.cover}" class="w-8 h-6 object-cover rounded border">` : '<div class="w-8 h-6 bg-slate-200 rounded flex items-center justify-center text-[9px] text-slate-500">无图</div>'}
+                        <span class="truncate text-slate-700">${v.url}</span>
+                    </div>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <button type="button" onclick="openVideoCropModal(${idx})" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded text-[10px] font-medium flex items-center gap-1">
+                            <i class="fa-solid fa-crop"></i> 截选封面
+                        </button>
+                        <button type="button" onclick="removeVideo(${idx})" class="text-rose-500 hover:text-rose-700 p-1"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                </div>
+            `).join('');
+        };
+
+        window.openVideoCropModal = function(index) {
+            activeVideoCropIndex = index;
+            const vidObj = window.editingVideos[index];
+            if (!vidObj) return;
+
+            const modal = document.getElementById('videoCropModal');
+            const player = document.getElementById('videoCropPlayer');
+            if (!modal || !player) return;
+
+            player.src = vidObj.url;
+            modal.classList.remove('hidden');
+            player.load();
+        };
+
+        window.closeVideoCropModal = function() {
+            const modal = document.getElementById('videoCropModal');
+            const player = document.getElementById('videoCropPlayer');
+            if (modal) modal.classList.add('hidden');
+            if (player) player.pause();
+            activeVideoCropIndex = -1;
+        };
+
+        window.confirmVideoFrameCapture = function() {
+            if (activeVideoCropIndex < 0) return;
+            const player = document.getElementById('videoCropPlayer');
+            if (!player) return;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = player.videoWidth || 640;
+            canvas.height = player.videoHeight || 360;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(player, 0, 0, canvas.width, canvas.height);
+
+            const frameDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            window.editingVideos[activeVideoCropIndex].cover = frameDataUrl;
+            window.showToast("视频封面截选成功", "success");
+            window.renderVideoPreviews();
+            window.closeVideoCropModal();
+        };
+
+        window.addWebLink = function() {
+            const titleInput = document.getElementById('linkTitleInput');
+            const urlInput = document.getElementById('linkUrlInput');
+            const title = titleInput ? titleInput.value.trim() : '';
+            const url = urlInput ? urlInput.value.trim() : '';
+
+            if (!url) {
+                window.showToast("请输入网址链接", "error");
+                return;
+            }
+            window.editingLinks.push({ title: title || url, url: url });
+            if (titleInput) titleInput.value = '';
+            if (urlInput) urlInput.value = '';
+            window.renderLinkPreviews();
+        };
+
+        window.removeWebLink = function(index) {
+            window.editingLinks.splice(index, 1);
+            window.renderLinkPreviews();
+        };
+
+        window.renderLinkPreviews = function() {
+            const container = document.getElementById('linkPreviewsContainer');
+            if (!container) return;
+            if (window.editingLinks.length === 0) {
+                container.innerHTML = '<p class="text-[11px] text-slate-400 italic">暂无添加网址</p>';
+                return;
+            }
+            container.innerHTML = window.editingLinks.map((l, idx) => `
+                <div class="flex items-center justify-between bg-white border border-slate-200 px-2.5 py-1 rounded-lg text-xs">
+                    <span class="truncate text-slate-700 max-w-[280px]"><i class="fa-solid fa-globe text-indigo-500 mr-1"></i>${l.title}</span>
+                    <button type="button" onclick="removeWebLink(${idx})" class="text-rose-500 hover:text-rose-700"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            `).join('');
         };
 
         window.renderMicroPreviews = function() {
@@ -1782,95 +2196,6 @@
             window.renderMicroPreviews();
         };
 
-        window.handleLocalVideoUpload = function(e) {
-            const files = Array.from(e.target.files);
-            files.forEach(f => {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    window.editingVideos.push(event.target.result);
-                    window.renderVideoPreviews();
-                };
-                reader.readAsDataURL(f);
-            });
-        };
-
-        window.addVideoUrl = function() {
-            const input = document.getElementById('newVideoUrlInput');
-            const url = input ? input.value.trim() : '';
-            if (!url) {
-                window.showToast("请输入有效的视频网址", "error");
-                return;
-            }
-            window.editingVideos.push(url);
-            if (input) input.value = '';
-            window.renderVideoPreviews();
-            window.showToast("视频添加成功", "success");
-        };
-
-        window.renderVideoPreviews = function() {
-            const container = document.getElementById('videoPreviews');
-            if (!container) return;
-            if (window.editingVideos.length === 0) {
-                container.innerHTML = "";
-                return;
-            }
-            container.innerHTML = window.editingVideos.map((v, idx) => `
-                <div class="flex items-center justify-between bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg text-xs">
-                    <span class="text-slate-700 font-mono truncate max-w-[220px] sm:max-w-[280px]"><i class="fa-solid fa-video mr-1 text-indigo-500"></i>${v}</span>
-                    <button type="button" onclick="removeVideoItem(${idx})" class="text-slate-400 hover:text-rose-500 shrink-0">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
-                </div>
-            `).join('');
-        };
-
-        window.removeVideoItem = function(idx) {
-            window.editingVideos.splice(idx, 1);
-            window.renderVideoPreviews();
-        };
-
-        window.addLinkItem = function() {
-            const titleInput = document.getElementById('newLinkTitleInput');
-            const urlInput = document.getElementById('newLinkUrlInput');
-            const title = titleInput ? titleInput.value.trim() : '';
-            let url = urlInput ? urlInput.value.trim() : '';
-
-            if (!url) {
-                window.showToast("请输入跳转网址", "error");
-                return;
-            }
-            if (!/^https?:\/\//i.test(url)) {
-                url = 'https://' + url;
-            }
-            window.editingLinks.push({ title: title || url, url: url });
-            if (titleInput) titleInput.value = '';
-            if (urlInput) urlInput.value = '';
-            window.renderLinkPreviews();
-            window.showToast("网址添加成功", "success");
-        };
-
-        window.renderLinkPreviews = function() {
-            const container = document.getElementById('linkPreviews');
-            if (!container) return;
-            if (window.editingLinks.length === 0) {
-                container.innerHTML = "";
-                return;
-            }
-            container.innerHTML = window.editingLinks.map((l, idx) => `
-                <div class="flex items-center justify-between bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg text-xs">
-                    <span class="text-indigo-600 font-medium truncate max-w-[220px] sm:max-w-[280px]"><i class="fa-solid fa-globe mr-1"></i>${l.title} (${l.url})</span>
-                    <button type="button" onclick="removeLinkItem(${idx})" class="text-slate-400 hover:text-rose-500 shrink-0">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
-                </div>
-            `).join('');
-        };
-
-        window.removeLinkItem = function(idx) {
-            window.editingLinks.splice(idx, 1);
-            window.renderLinkPreviews();
-        };
-
         window.openCropModal = function(index) {
             cropState.index = index;
             cropState.mode = 'outer';
@@ -1887,15 +2212,11 @@
             targetImg.onload = () => {
                 cropState.naturalWidth = targetImg.naturalWidth;
                 cropState.naturalHeight = targetImg.naturalHeight;
-
                 cropState.scale = 1;
                 cropState.imgOffsetX = 0;
                 cropState.imgOffsetY = 0;
-
                 updateCropUIState();
             };
-
-            setupCropContainerDragEvents();
         };
 
         window.switchCropMode = function(mode) {
@@ -1924,10 +2245,8 @@
             const currentDim = CROP_SIZES[cropState.mode];
             cropBoxFixed.style.width = `${currentDim.w}px`;
             cropBoxFixed.style.height = `${currentDim.h}px`;
-
             slider.value = cropState.scale;
             sliderText.innerText = `${Math.round(cropState.scale * 100)}%`;
-
             applyImageTransform();
         }
 
@@ -1940,62 +2259,9 @@
         function applyImageTransform() {
             const targetImg = document.getElementById('cropTargetImg');
             if (!targetImg) return;
-            const renderW = cropState.naturalWidth * cropState.scale;
-            const renderH = cropState.naturalHeight * cropState.scale;
-
-            targetImg.style.width = `${renderW}px`;
-            targetImg.style.height = `${renderH}px`;
+            targetImg.style.width = `${cropState.naturalWidth * cropState.scale}px`;
+            targetImg.style.height = `${cropState.naturalHeight * cropState.scale}px`;
             targetImg.style.transform = `translate(${cropState.imgOffsetX}px, ${cropState.imgOffsetY}px)`;
-        }
-
-        function setupCropContainerDragEvents() {
-            const container = document.getElementById('cropContainer');
-            if (!container) return;
-
-            let isDragging = false;
-            let startX = 0;
-            let startY = 0;
-            let origOffsetX = 0;
-            let origOffsetY = 0;
-
-            container.onmousedown = (e) => {
-                isDragging = true;
-                startX = e.clientX;
-                startY = e.clientY;
-                origOffsetX = cropState.imgOffsetX;
-                origOffsetY = cropState.imgOffsetY;
-            };
-
-            container.ontouchstart = (e) => {
-                if (e.touches.length === 1) {
-                    isDragging = true;
-                    startX = e.touches[0].clientX;
-                    startY = e.touches[0].clientY;
-                    origOffsetX = cropState.imgOffsetX;
-                    origOffsetY = cropState.imgOffsetY;
-                }
-            };
-
-            window.onmousemove = (e) => {
-                if (!isDragging) return;
-                const dx = e.clientX - startX;
-                const dy = e.clientY - startY;
-                cropState.imgOffsetX = origOffsetX + dx;
-                cropState.imgOffsetY = origOffsetY + dy;
-                applyImageTransform();
-            };
-
-            window.ontouchmove = (e) => {
-                if (!isDragging || e.touches.length !== 1) return;
-                const dx = e.touches[0].clientX - startX;
-                const dy = e.touches[0].clientY - startY;
-                cropState.imgOffsetX = origOffsetX + dx;
-                cropState.imgOffsetY = origOffsetY + dy;
-                applyImageTransform();
-            };
-
-            window.onmouseup = () => { isDragging = false; };
-            window.ontouchend = () => { isDragging = false; };
         }
 
         window.closeCropModal = function() {
@@ -2008,7 +2274,6 @@
             if (!targetImg || !cropBoxFixed || cropState.index < 0) return;
 
             const currentDim = CROP_SIZES[cropState.mode];
-            
             const boxRect = cropBoxFixed.getBoundingClientRect();
             const imgRect = targetImg.getBoundingClientRect();
 
@@ -2025,17 +2290,12 @@
             const imgObj = new Image();
             imgObj.src = targetImg.src;
             imgObj.onload = () => {
-                ctx.drawImage(
-                    imgObj, 
-                    relX, relY, relW, relH, 
-                    0, 0, currentDim.w, currentDim.h
-                );
-                // 压缩截图输出质量
+                ctx.drawImage(imgObj, relX, relY, relW, relH, 0, 0, currentDim.w, currentDim.h);
                 const croppedBase64 = canvas.toDataURL('image/jpeg', 0.8);
 
                 if (cropState.mode === 'outer') {
                     window.editingImageFiles[cropState.index].outer = croppedBase64;
-                    window.showToast("封面图截选成功！请继续截选详情缩略图", "success");
+                    window.showToast("封面图截选成功", "success");
                     window.switchCropMode('inner');
                 } else {
                     window.editingImageFiles[cropState.index].inner = croppedBase64;
@@ -2050,37 +2310,29 @@
             e.preventDefault();
             const id = isNaN(idRaw) ? idRaw : Number(idRaw);
             const title = document.getElementById('editTitle')?.value.trim();
-            const date = document.getElementById('editDate')?.value;
+            const isRange = document.getElementById('isRangeToggle')?.checked;
+            
+            let date = '';
+            if (isRange) {
+                const sDate = document.getElementById('editStartDate')?.value;
+                const eDate = document.getElementById('editEndDate')?.value;
+                if (!sDate || !eDate) {
+                    window.showToast("请填写完整的日期范围", "error");
+                    return;
+                }
+                date = `${sDate}至${eDate}`;
+            } else {
+                date = document.getElementById('editDate')?.value;
+            }
+
             const type = document.getElementById('editType')?.value;
             const description = document.getElementById('editDescription')?.value.trim();
 
-            const selectedTags = Array.from(document.querySelectorAll('#editTagsList input[type="checkbox"]:checked'))
-                .map(cb => cb.value);
+            const selectedTags = Array.from(document.querySelectorAll('#editTagsList input[type="checkbox"]:checked')).map(cb => cb.value);
 
             if (!title || !date) {
                 window.showToast("请填写必填项", "error");
                 return;
-            }
-
-            const pendingLinkUrl = document.getElementById('newLinkUrlInput')?.value.trim();
-            const pendingLinkTitle = document.getElementById('newLinkTitleInput')?.value.trim();
-            if (pendingLinkUrl) {
-                let formattedUrl = pendingLinkUrl;
-                if (!/^https?:\/\//i.test(formattedUrl)) {
-                    formattedUrl = 'https://' + formattedUrl;
-                }
-                window.editingLinks.push({ title: pendingLinkTitle || formattedUrl, url: formattedUrl });
-                const titleIn = document.getElementById('newLinkTitleInput');
-                const urlIn = document.getElementById('newLinkUrlInput');
-                if (titleIn) titleIn.value = '';
-                if (urlIn) urlIn.value = '';
-            }
-
-            const pendingVideoUrl = document.getElementById('newVideoUrlInput')?.value.trim();
-            if (pendingVideoUrl) {
-                window.editingVideos.push(pendingVideoUrl);
-                const videoIn = document.getElementById('newVideoUrlInput');
-                if (videoIn) videoIn.value = '';
             }
 
             window.pendingSaveData = {
@@ -2107,18 +2359,10 @@
             if (!toastBox || !toastText || !toastIcon) return;
 
             toastText.innerText = text;
-            if (type === "success") {
-                toastIcon.className = "fa-solid fa-circle-check text-emerald-400 text-lg";
-            } else if (type === "error") {
-                toastIcon.className = "fa-solid fa-circle-exclamation text-rose-400 text-lg";
-            } else {
-                toastIcon.className = "fa-solid fa-circle-info text-indigo-400 text-lg";
-            }
+            toastIcon.className = type === "success" ? "fa-solid fa-circle-check text-emerald-400 text-lg" : (type === "error" ? "fa-solid fa-circle-exclamation text-rose-400 text-lg" : "fa-solid fa-circle-info text-indigo-400 text-lg");
 
             toastBox.classList.remove('hidden');
-            setTimeout(() => {
-                toastBox.classList.add('hidden');
-            }, 3000);
+            setTimeout(() => { toastBox.classList.add('hidden'); }, 3000);
         };
 
         window.onresize = () => window.renderSvgConnections();
