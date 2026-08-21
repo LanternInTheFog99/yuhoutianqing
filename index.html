@@ -57,46 +57,30 @@
             stroke-width: 2.5px;
             stroke-dasharray: 6 4;
             transition: stroke 0.2s ease, stroke-width 0.2s ease;
-            pointer-events: stroke; /* 允许悬停在线上 */
-            cursor: pointer;
         }
 
         .svg-conn-line polygon {
             fill: #4f46e5;
             transition: fill 0.2s ease, transform 0.2s ease;
         }
+
+        .svg-conn-line text {
+            font-size: 11px;
+            fill: #4f46e5;
+            font-weight: 600;
+            text-anchor: middle;
+            transition: opacity 0.2s ease;
+        }
         
         .svg-conn-line.active-line {
             opacity: 1 !important;
             visibility: visible !important;
             filter: drop-shadow(0 2px 4px rgba(79, 70, 229, 0.35));
-            pointer-events: auto !important;
         }
 
         .svg-conn-line.active-line path {
             stroke: #4f46e5 !important;
             stroke-width: 3px !important;
-        }
-
-        /* 连线文字描述气泡 */
-        .conn-label-box {
-            position: absolute;
-            transform: translate(-50%, -100%);
-            background: rgba(15, 23, 42, 0.9);
-            color: #fff;
-            padding: 4px 8px;
-            font-size: 11px;
-            border-radius: 6px;
-            pointer-events: none;
-            white-space: nowrap;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            border: 1px solid rgba(255,255,255,0.1);
-            opacity: 0;
-            transition: opacity 0.2s ease;
-            z-index: 40;
-        }
-        .svg-conn-line:hover .conn-label-box {
-            opacity: 1;
         }
 
         .timeline-node-container:hover .timeline-dot {
@@ -189,7 +173,7 @@
 
         <div id="timelineWrapper" class="relative group my-6 sm:my-8 bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm overflow-hidden">
             <div class="text-[11px] sm:text-xs text-slate-400 mb-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1">
-                <span><i class="fa-solid fa-circle-info text-indigo-500 mr-1"></i>悬停在节点上显示该节点与其他节点的联系，悬停在连线上可查看连接描述</span>
+                <span><i class="fa-solid fa-circle-info text-indigo-500 mr-1"></i>悬停在节点上显示该节点与其他节点的逻辑联系</span>
                 <span id="densityLabel" class="font-mono text-indigo-600 font-semibold">密度: 标准</span>
             </div>
 
@@ -220,7 +204,7 @@
         </div>
     </main>
 
-    <!-- Admin Key Settings Modal -->
+    <!-- Admin Key Settings Modal (管理员密钥弹窗) -->
     <div id="adminKeyModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6">
             <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
@@ -341,7 +325,7 @@
                 <i class="fa-solid fa-triangle-exclamation"></i>
             </div>
             <h3 class="font-bold text-slate-800 text-base mb-1">确认删除事件？</h3>
-            <p class="text-xs text-slate-500 mb-5">删除后将无法恢复，关联的逻辑连线也将同步注销。</p>
+            <p class="text-xs text-slate-500 mb-5">删除后将无法恢复，关联的逻辑连接也将同步注销。</p>
             <div class="flex justify-center gap-3">
                 <button onclick="closeConfirmModal()" class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button>
                 <button onclick="confirmDeleteEvent()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-medium shadow-sm">确认删除</button>
@@ -377,6 +361,7 @@
                 </button>
             </div>
             
+            <!-- 模式切换标签 -->
             <div class="flex items-center gap-2 mb-3 bg-slate-800 p-1 rounded-lg w-full justify-center">
                 <button type="button" id="cropTabOuter" onclick="switchCropMode('outer')" class="flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 rounded-md text-xs font-semibold bg-indigo-600 text-white transition-all text-center">
                     1. 封面图截选
@@ -388,16 +373,19 @@
 
             <p class="text-[11px] sm:text-xs text-slate-400 mb-2 text-center" id="cropModeTip">框大小固定，不可调整；您可以<strong>缩放图片</strong>或<strong>拖动图片内部</strong>来对齐选框：</p>
             
+            <!-- 图片与固定大小框容器 -->
             <div id="cropContainer" class="relative max-h-[40vh] w-full overflow-hidden border border-slate-700 rounded-xl bg-black flex justify-center items-center my-1 select-none cursor-grab active:cursor-grabbing p-6">
                 <div class="relative inline-block" id="cropWrapper">
                     <img id="cropTargetImg" class="block pointer-events-none transition-transform duration-75" style="transform: scale(1); transform-origin: top left;">
                     
+                    <!-- 固定的裁剪框层（居中覆盖在容器正中央） -->
                     <div id="cropBoxFixed" class="absolute border-2 border-indigo-400 bg-indigo-500/10 shadow-[0_0_0_9999px_rgba(0,0,0,0.65)] pointer-events-none flex items-center justify-center" style="top: 50%; left: 50%; transform: translate(-50%, -50%);">
                         <span id="cropBoxLabel" class="absolute top-2 left-2 bg-indigo-600 text-white text-[10px] px-2 py-0.5 rounded font-mono shadow">尺寸</span>
                     </div>
                 </div>
             </div>
 
+            <!-- 图片缩放条 -->
             <div class="flex items-center gap-3 w-full bg-slate-800/60 px-4 py-2.5 rounded-xl border border-slate-800 mt-3">
                 <span class="text-xs text-slate-400 font-medium shrink-0"><i class="fa-solid fa-magnifying-glass mr-1"></i>缩放:</span>
                 <input type="range" id="imageScaleSlider" min="0.2" max="3" step="0.01" value="1" oninput="handleImageScaleChange(this.value)" class="flex-grow h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
@@ -414,20 +402,24 @@
         </div>
     </div>
 
-    <!-- Image Lightbox Modal for Fullscreen View -->
+    <!-- Image Lightbox Modal for Fullscreen View (支持切图) -->
     <div id="lightboxModal" class="fixed inset-0 bg-slate-950/95 z-[90] hidden flex items-center justify-center p-4" onclick="closeLightbox()">
+        <!-- 关闭按钮 -->
         <button class="absolute top-4 right-4 sm:top-6 sm:right-6 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full flex items-center justify-center transition-colors z-20">
             <i class="fa-solid fa-xmark text-lg"></i>
         </button>
 
+        <!-- 上一张按钮 -->
         <button id="lightboxPrevBtn" onclick="event.stopPropagation(); changeLightboxImage(-1)" class="absolute left-2 sm:left-6 top-1/2 -translate-y-1/2 text-slate-300 hover:text-white bg-slate-800/80 hover:bg-indigo-600 w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all z-20 shadow-lg">
             <i class="fa-solid fa-chevron-left text-base sm:text-lg"></i>
         </button>
 
+        <!-- 下一张按钮 -->
         <button id="lightboxNextBtn" onclick="event.stopPropagation(); changeLightboxImage(1)" class="absolute right-2 sm:right-6 top-1/2 -translate-y-1/2 text-slate-300 hover:text-white bg-slate-800/80 hover:bg-indigo-600 w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all z-20 shadow-lg">
             <i class="fa-solid fa-chevron-right text-base sm:text-lg"></i>
         </button>
 
+        <!-- 大图与计数器 -->
         <div class="relative flex flex-col items-center justify-center max-w-full max-h-[90vh]" onclick="event.stopPropagation()">
             <img id="lightboxImg" class="max-w-full max-h-[82vh] object-contain rounded-lg shadow-2xl transition-all">
             <div id="lightboxCounter" class="absolute -bottom-8 text-xs text-slate-400 font-mono tracking-widest bg-slate-900/80 px-3 py-1 rounded-full border border-slate-800"></div>
@@ -489,6 +481,7 @@
         window.pendingDeleteId = null;
         window.pendingSaveData = null;
 
+        // 灯箱大图切图状态
         window.currentLightboxImages = [];
         window.currentLightboxIndex = 0;
 
@@ -1202,41 +1195,29 @@
                 path.setAttribute("fill", "none");
                 g.appendChild(path);
 
-                // 计算中心点 (t = 0.5) 让圆点/箭头完美居于线条中心
-                const centerPt = getQuadPointAndAngle(0.5, x1, y1, midX, midY, x2, y2);
-
+                // 让图标准确位于线的绝对中心 (t = 0.5)
+                const pt = getQuadPointAndAngle(0.5, x1, y1, midX, midY, x2, y2);
+                
                 if (conn.dir === 'both') {
-                    const pt1 = getQuadPointAndAngle(0.38, x1, y1, midX, midY, x2, y2);
                     const poly1 = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
                     poly1.setAttribute("points", "-6,-4.5 6,0 -6,4.5");
-                    poly1.setAttribute("transform", `translate(${pt1.x}, ${pt1.y}) rotate(${pt1.angle + 180})`);
+                    poly1.setAttribute("transform", `translate(${pt.x}, ${pt.y}) rotate(${pt.angle + 180})`);
                     g.appendChild(poly1);
-
-                    const pt2 = getQuadPointAndAngle(0.62, x1, y1, midX, midY, x2, y2);
-                    const poly2 = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-                    poly2.setAttribute("points", "-6,-4.5 6,0 -6,4.5");
-                    poly2.setAttribute("transform", `translate(${pt2.x}, ${pt2.y}) rotate(${pt2.angle})`);
-                    g.appendChild(poly2);
                 } else {
-                    const angle = conn.dir === 'backward' ? centerPt.angle + 180 : centerPt.angle;
-                    
+                    const angle = conn.dir === 'backward' ? pt.angle + 180 : pt.angle;
                     const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
                     poly.setAttribute("points", "-6,-4.5 6,0 -6,4.5");
-                    poly.setAttribute("transform", `translate(${centerPt.x}, ${centerPt.y}) rotate(${angle})`);
+                    poly.setAttribute("transform", `translate(${pt.x}, ${pt.y}) rotate(${angle})`);
                     g.appendChild(poly);
                 }
 
-                // 如果有文字描述，则渲染 HTML 浮动提示框在中心点位置
-                if (conn.label && conn.label.trim()) {
-                    const foreign = document.createElementNS("http://www.w3.org/2000/svg", "foreignObject");
-                    foreign.setAttribute("x", centerPt.x - 100);
-                    foreign.setAttribute("y", centerPt.y - 45);
-                    foreign.setAttribute("width", "200");
-                    foreign.setAttribute("height", "50");
-                    foreign.style.overflow = "visible";
-
-                    foreign.innerHTML = `<div xmlns="http://www.w3.org/1999/xhtml" class="conn-label-box">${conn.label}</div>`;
-                    g.appendChild(foreign);
+                // 如果有文字描述，则显示在虚线上方
+                if (conn.label && conn.label.trim() !== '') {
+                    const textEl = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    textEl.setAttribute("x", pt.x);
+                    textEl.setAttribute("y", pt.y - 12);
+                    textEl.textContent = conn.label;
+                    g.appendChild(textEl);
                 }
 
                 group.appendChild(g);
@@ -1322,7 +1303,7 @@
                     <div class="border-t border-slate-800 pt-6 mb-6">
                         <h4 class="text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
                             <i class="fa-solid fa-diagram-project"></i>
-                            <span>节点关联网络</span>
+                            <span>节点关联联系</span>
                         </h4>
                         <div class="space-y-2">
                             ${relatedConns.map(c => {
@@ -1345,7 +1326,7 @@
                                         <div class="flex items-center gap-2">
                                             <span class="text-indigo-400 font-bold text-sm">${arrowIcon}</span>
                                             <span class="font-medium text-slate-200">${otherEvent ? otherEvent.title : '未知事件'}</span>
-                                            ${c.label ? `<span class="text-[10px] text-indigo-300 bg-indigo-950 px-2 py-0.5 rounded border border-indigo-800">描述: ${c.label}</span>` : ''}
+                                            ${c.label ? `<span class="bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded text-[10px] ml-2">“${c.label}”</span>` : ''}
                                         </div>
                                         <span class="text-[10px] text-slate-400 font-mono">${relLabel}</span>
                                     </div>
@@ -1605,14 +1586,14 @@
                             <label class="block text-xs font-bold text-indigo-900 flex items-center justify-between">
                                 <span class="flex items-center gap-1.5">
                                     <i class="fa-solid fa-diagram-project text-indigo-600"></i>
-                                    <span>节点间关联设置 (可增加文字描述)</span>
+                                    <span>节点逻辑连接设置</span>
                                 </span>
                             </label>
                             
                             <div id="eventConnList" class="space-y-1.5"></div>
 
                             <div class="flex flex-col gap-2 pt-2 border-t border-indigo-100">
-                                <div class="flex items-center gap-2">
+                                <div class="flex gap-2">
                                     <select id="newConnTarget" class="flex-grow px-2 py-1.5 border border-slate-300 rounded text-xs bg-white outline-none">
                                         <option value="">选择目标事件...</option>
                                     </select>
@@ -1622,10 +1603,10 @@
                                         <option value="both">双向 ↔</option>
                                     </select>
                                 </div>
-                                <div class="flex items-center gap-2">
-                                    <input type="text" id="newConnLabel" placeholder="输入这条联系的文字描述（可选）..." class="flex-grow px-2.5 py-1.5 border border-slate-300 rounded text-xs bg-white outline-none">
-                                    <button type="button" onclick="addConnectionFromModal('${event.id}')" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-medium shrink-0">
-                                        添加关联
+                                <div class="flex gap-2">
+                                    <input type="text" id="newConnLabel" placeholder="连线上方文字描述 (可选)" class="flex-grow px-2 py-1.5 border border-slate-300 rounded text-xs bg-white outline-none">
+                                    <button type="button" onclick="addConnectionFromModal('${event.id}')" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-medium shrink-0">
+                                        添加连接
                                     </button>
                                 </div>
                             </div>
@@ -1733,7 +1714,7 @@
 
             const currentConns = window.connections.filter(c => String(c.sourceId) === String(eventId) || String(c.targetId) === String(eventId));
             if (currentConns.length === 0) {
-                listContainer.innerHTML = `<p class="text-[11px] text-slate-400 italic">暂无节点关联</p>`;
+                listContainer.innerHTML = `<p class="text-[11px] text-slate-400 italic">暂无节点逻辑连接</p>`;
                 return;
             }
 
@@ -1741,13 +1722,13 @@
                 const isSource = String(c.sourceId) === String(eventId);
                 const otherId = isSource ? c.targetId : c.sourceId;
                 const otherEvent = window.events.find(e => String(e.id) === String(otherId));
-                let dirLabel = c.dir === 'both' ? '↔ 双向关联' : (isSource ? '➔ 指向目标' : '⬅ 被指向');
+                let dirLabel = c.dir === 'both' ? '↔ 双向' : (isSource ? '➔ 指向' : '⬅ 被指');
+                let labelText = c.label ? ` [${c.label}]` : '';
 
                 return `
                     <div class="flex items-center justify-between bg-white px-2.5 py-1.5 rounded border border-slate-200 text-xs">
-                        <span class="text-slate-700 font-medium truncate max-w-[220px] sm:max-w-[280px]">
-                            ${dirLabel}: <strong class="text-indigo-900">${otherEvent ? otherEvent.title : '未知事件'}</strong>
-                            ${c.label ? `<span class="text-[10px] text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded ml-1">(${c.label})</span>` : ''}
+                        <span class="text-slate-700 font-medium truncate max-w-[220px] sm:max-w-[320px]">
+                            ${dirLabel}: <strong class="text-indigo-900">${otherEvent ? otherEvent.title : '未知事件'}</strong><span class="text-indigo-500">${labelText}</span>
                         </span>
                         <button type="button" onclick="removeConnection('${c.id}', '${eventId}')" class="text-slate-400 hover:text-rose-500 ml-2 shrink-0">
                             <i class="fa-solid fa-xmark"></i>
@@ -1782,14 +1763,13 @@
             const newConn = { id: Date.now(), sourceId: parsedEventId, targetId: targetId, dir: dir, label: label };
             await window.saveConnectionToCloud(newConn);
             window.renderModalConnections(eventId);
-            document.getElementById('newConnLabel').value = '';
-            window.showToast("成功添加节点关联", "success");
+            window.showToast("成功添加节点连接", "success");
         };
 
         window.removeConnection = async function(connId, currentEventId) {
             await window.deleteConnectionFromCloud(connId);
             window.renderModalConnections(currentEventId);
-            window.showToast("已移除连线", "info");
+            window.showToast("已移除节点连接", "info");
         };
 
         window.handleLocalImageUpload = function(e) {
@@ -2012,6 +1992,7 @@
                 origOffsetY = cropState.imgOffsetY;
             };
 
+            // 适配移动端触控拖动
             container.ontouchstart = (e) => {
                 if (e.touches.length === 1) {
                     isDragging = true;
