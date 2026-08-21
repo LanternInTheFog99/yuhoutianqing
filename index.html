@@ -69,6 +69,8 @@
             visibility: hidden !important;
             transition: opacity 0.25s ease;
             pointer-events: none;
+            position: relative;
+            z-index: 20;
         }
         
         .svg-conn-line path {
@@ -173,6 +175,13 @@
                 <span>时间线视图</span>
             </div>
 
+            <div class="flex items-center gap-2 shrink-0">
+                <button onclick="openConnectionManager()" title="管理节点之间的逻辑连线" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 flex items-center gap-1.5 transition-all">
+                    <i class="fa-solid fa-diagram-project"></i>
+                    <span>连线</span>
+                </button>
+            </div>
+
             <div id="zoomControlContainer" class="flex items-center justify-center gap-2 border-y sm:border-y-0 sm:border-x border-slate-200 py-2 sm:py-0 sm:px-4">
                 <span class="text-xs text-slate-500 font-medium hidden md:flex items-center gap-1">
                     <i class="fa-solid fa-magnifying-glass text-slate-400"></i>
@@ -203,7 +212,7 @@
             </button>
 
             <div id="timelineContainer" onscroll="renderSvgConnections()" onwheel="handleTimelineWheel(event)" class="overflow-x-auto pt-32 sm:pt-36 pb-16 sm:pb-20 px-4 sm:px-12 flex items-center relative min-h-[420px] sm:min-h-[460px] custom-scrollbar scroll-smooth">
-                <svg id="timelineSvgOverlay" class="absolute top-0 left-0 pointer-events-none z-0">
+                <svg id="timelineSvgOverlay" class="absolute top-0 left-0 pointer-events-none z-[20] overflow-visible">
                     <g id="svgConnectionsGroup"></g>
                 </svg>
                 <div id="timelineMainAxis" class="absolute left-0 right-0 h-1 bg-slate-300 rounded-full z-0 transition-all"></div>
@@ -540,6 +549,9 @@
         window.editingImageFiles = [];
         window.editingVideos = [];
         window.editingLinks = [];
+        window.editingConnections = [];
+        window.editingConnectionsDirty = false;
+        window.editingConnectionDraftEventId = null;
         window.pendingDeleteId = null;
         window.pendingSaveData = null;
 
@@ -1204,7 +1216,10 @@
                 window.closeConfirmSaveModal();
                 window.closeEditModal();
 
+                const desiredConnections = eventData.connections || [];
+                delete eventData.connections;
                 await window.saveEventToCloud(eventData);
+                await window.syncEditingConnections(eventData.id, desiredConnections);
                 window.showToast(isEdit ? "保存成功" : "新建事件成功", "success");
                 window.pendingSaveData = null;
             }
@@ -1550,6 +1565,205 @@
             }
         };
 
+        // ==================== 节点逻辑连线 ====================
+        window.openConnectionManager = function() {
+            if (window.isLocked) {
+                window.showToast("当前处于浏览模式，请先解锁密码", "error");
+                window.openPwdModal();
+                return;
+            }
+
+            let modal = document.getElementById('connectionManagerModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'connectionManagerModal';
+                modal.className = "fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-3 sm:p-4";
+                document.body.appendChild(modal);
+            }
+
+            const eventOptions = window.events
+                .slice()
+                .sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.title).localeCompare(String(b.title)))
+                .map(e => `<option value="${String(e.id).replace(/"/g, '&quot;')}">${escapeHtml(e.date)} · ${escapeHtml(e.title || '未命名事件')}</option>`)
+                .join('');
+
+            const connectionRows = window.connections.map(conn => {
+                const source = window.events.find(e => String(e.id) === String(conn.sourceId));
+                const target = window.events.find(e => String(e.id) === String(conn.targetId));
+                const dirText = conn.dir === 'both' ? '双向' : (conn.dir === 'backward' ? '被指向' : '指向');
+                const dirIcon = conn.dir === 'both' ? '↔' : (conn.dir === 'backward' ? '←' : '→');
+                return `
+                    <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5">
+                        <span class="text-indigo-600 font-bold text-base w-5 text-center">${dirIcon}</span>
+                        <div class="min-w-0 flex-1">
+                            <div class="text-xs font-semibold text-slate-700 truncate">${escapeHtml(source?.title || String(conn.sourceId))} <span class="text-slate-400 font-normal">→</span> ${escapeHtml(target?.title || String(conn.targetId))}</div>
+                            <div class="text-[10px] text-slate-400 mt-0.5">${dirText}${conn.label ? ` · ${escapeHtml(conn.label)}` : ''}</div>
+                        </div>
+                        <button type="button" onclick="deleteConnection('${String(conn.id).replace(/'/g, "\\'")}')" class="shrink-0 w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center" title="删除连线">
+                            <i class="fa-solid fa-trash-can text-[11px]"></i>
+                        </button>
+                    </div>
+                `;
+            }).join('');
+
+            modal.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[88vh] overflow-y-auto custom-scrollbar">
+                    <div class="sticky top-0 bg-white z-10 flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-slate-200">
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2">
+                                <i class="fa-solid fa-diagram-project text-indigo-600"></i>
+                                <span>节点逻辑连线</span>
+                            </h3>
+                            
+                        </div>
+                        <button onclick="closeConnectionManager()" class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full flex items-center justify-center">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+
+                    <div class="p-4 sm:p-5 space-y-4">
+                        <div class="rounded-xl border border-indigo-100 bg-indigo-50/60 p-3.5">
+                            <div class="text-xs font-bold text-indigo-900 mb-2.5">新建连线</div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                <label class="block">
+                                    <span class="block text-[10px] font-semibold text-slate-500 mb-1">起点节点</span>
+                                    <select id="connSourceSelect" class="w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-indigo-500">${eventOptions}</select>
+                                </label>
+                                <label class="block">
+                                    <span class="block text-[10px] font-semibold text-slate-500 mb-1">终点节点</span>
+                                    <select id="connTargetSelect" class="w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-indigo-500">${eventOptions}</select>
+                                </label>
+                            </div>
+
+                            <div class="mt-3">
+                                <span class="block text-[10px] font-semibold text-slate-500 mb-1.5">方向</span>
+                                <div class="grid grid-cols-3 gap-1.5">
+                                    <label class="cursor-pointer">
+                                        <input type="radio" name="connDirection" value="forward" checked class="sr-only peer">
+                                        <span class="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">→ 指向</span>
+                                    </label>
+                                    <label class="cursor-pointer">
+                                        <input type="radio" name="connDirection" value="backward" class="sr-only peer">
+                                        <span class="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">← 被指向</span>
+                                    </label>
+                                    <label class="cursor-pointer">
+                                        <input type="radio" name="connDirection" value="both" class="sr-only peer">
+                                        <span class="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">↔ 双向</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="mt-3 flex gap-2">
+                                <input id="connLabelInput" type="text" maxlength="40" placeholder="连线文字描述（可选）" class="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
+                                <button type="button" onclick="createConnection()" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm shrink-0">
+                                    <i class="fa-solid fa-plus mr-1"></i>添加
+                                </button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-xs font-bold text-slate-700">已有连线</span>
+                                <span class="text-[10px] text-slate-400">${window.connections.length} 条</span>
+                            </div>
+                            <div class="space-y-2 ${window.connections.length ? '' : 'border border-dashed border-slate-200 rounded-xl'}">
+                                ${connectionRows || '<div class="py-6 text-center text-[11px] text-slate-400">还没有连线，先选择两个节点添加一条吧。</div>'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            modal.classList.remove('hidden');
+            setTimeout(() => document.getElementById('connSourceSelect')?.focus(), 50);
+        };
+
+        window.closeConnectionManager = function() {
+            document.getElementById('connectionManagerModal')?.classList.add('hidden');
+        };
+
+        window.escapeHtml = function(value) {
+            return String(value ?? '').replace(/[&<>"']/g, ch => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[ch]));
+        };
+
+        window.createConnection = async function() {
+            if (window.isLocked) return;
+
+            const sourceId = document.getElementById('connSourceSelect')?.value;
+            const targetId = document.getElementById('connTargetSelect')?.value;
+            const dir = document.querySelector('input[name="connDirection"]:checked')?.value || 'forward';
+            const label = (document.getElementById('connLabelInput')?.value || '').trim();
+
+            if (!sourceId || !targetId) {
+                window.showToast("请选择起点和终点节点", "error");
+                return;
+            }
+            if (String(sourceId) === String(targetId)) {
+                window.showToast("不能把节点连到自己", "error");
+                return;
+            }
+
+            const exists = window.connections.some(c =>
+                String(c.sourceId) === String(sourceId) &&
+                String(c.targetId) === String(targetId)
+            );
+            if (exists) {
+                window.showToast("这两个节点之间已经存在同向连线", "error");
+                return;
+            }
+
+            const connection = {
+                id: 'conn_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+                sourceId: isNaN(sourceId) ? sourceId : Number(sourceId),
+                targetId: isNaN(targetId) ? targetId : Number(targetId),
+                dir,
+                label
+            };
+
+            window.connections.push(connection);
+            saveLocalData();
+            window.renderSvgConnections();
+
+            if (currentUser && db) {
+                try {
+                    updateSyncStatus('syncing', '保存连线...');
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'connections', String(connection.id)), connection);
+                    updateSyncStatus('synced', '已同步云端');
+                } catch (err) {
+                    updateSyncStatus('offline', '已就绪');
+                    window.showToast("连线已添加，但云端同步失败", "error");
+                }
+            }
+
+            window.showToast("连线已添加", "success");
+            window.openConnectionManager();
+        };
+
+        window.deleteConnection = async function(connectionId) {
+            if (window.isLocked) return;
+
+            const target = window.connections.find(c => String(c.id) === String(connectionId));
+            if (!target) return;
+
+            window.connections = window.connections.filter(c => String(c.id) !== String(connectionId));
+            saveLocalData();
+            window.renderSvgConnections();
+
+            if (currentUser && db) {
+                try {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'connections', String(connectionId)));
+                } catch (err) {
+                    window.showToast("本地已删除，但云端删除失败", "error");
+                    return;
+                }
+            }
+
+            window.showToast("连线已删除", "info");
+            window.openConnectionManager();
+        };
+
         window.renderSvgConnections = function() {
             const group = document.getElementById('svgConnectionsGroup');
             const container = document.getElementById('timelineContainer');
@@ -1611,10 +1825,15 @@
                 const pt = getQuadPointAndAngle(0.5, x1, y1, midX, midY, x2, y2);
                 
                 if (conn.dir === 'both') {
-                    const poly1 = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-                    poly1.setAttribute("points", "-6,-4.5 6,0 -6,4.5");
-                    poly1.setAttribute("transform", `translate(${pt.x}, ${pt.y}) rotate(${pt.angle + 180})`);
-                    g.appendChild(poly1);
+                    const polyForward = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+                    polyForward.setAttribute("points", "-6,-4.5 6,0 -6,4.5");
+                    polyForward.setAttribute("transform", `translate(${pt.x + 7}, ${pt.y}) rotate(${pt.angle})`);
+                    g.appendChild(polyForward);
+
+                    const polyBackward = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+                    polyBackward.setAttribute("points", "-6,-4.5 6,0 -6,4.5");
+                    polyBackward.setAttribute("transform", `translate(${pt.x - 7}, ${pt.y}) rotate(${pt.angle + 180})`);
+                    g.appendChild(polyBackward);
                 } else {
                     const angle = conn.dir === 'backward' ? pt.angle + 180 : pt.angle;
                     const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
@@ -1846,6 +2065,81 @@
             document.getElementById('lightboxModal')?.classList.add('hidden');
         };
 
+        window.getEditingConnectionsForEvent = function(eventId) {
+            return window.connections
+                .filter(c => String(c.sourceId) === String(eventId) || String(c.targetId) === String(eventId))
+                .map(c => ({ ...c }));
+        };
+
+        window.renderEditConnections = function() {
+            const list = document.getElementById('editConnectionsList');
+            const sourceSelect = document.getElementById('editConnSource');
+            const targetSelect = document.getElementById('editConnTarget');
+            if (!list || !sourceSelect || !targetSelect) return;
+            const options = window.events.slice().sort((a,b) => String(a.date).localeCompare(String(b.date)) || String(a.title).localeCompare(String(b.title)))
+                .map(e => `<option value="${String(e.id).replace(/"/g, '&quot;')}">${escapeHtml(e.date)} · ${escapeHtml(e.title || '未命名事件')}</option>`).join('');
+            sourceSelect.innerHTML = options;
+            targetSelect.innerHTML = options;
+            if (window.editingConnectionDraftEventId !== null) {
+                sourceSelect.value = String(window.editingConnectionDraftEventId);
+                const other = window.events.find(e => String(e.id) !== String(window.editingConnectionDraftEventId));
+                if (other) targetSelect.value = String(other.id);
+            }
+            if (!window.editingConnections.length) {
+                list.innerHTML = '<p class="text-[11px] text-slate-400 italic py-1">暂无连线。可在上方选择两个节点后添加。</p>';
+                return;
+            }
+            list.innerHTML = window.editingConnections.map(conn => {
+                const source = window.events.find(e => String(e.id) === String(conn.sourceId));
+                const target = window.events.find(e => String(e.id) === String(conn.targetId));
+                const dirText = conn.dir === 'both' ? '双向' : (conn.dir === 'backward' ? '被指向' : '指向');
+                const dirIcon = conn.dir === 'both' ? '↔' : (conn.dir === 'backward' ? '←' : '→');
+                return `<div class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-xs">
+                    <span class="text-indigo-600 font-bold w-5 text-center">${dirIcon}</span>
+                    <div class="min-w-0 flex-1"><div class="font-semibold text-slate-700 truncate">${escapeHtml(source?.title || String(conn.sourceId))} <span class="text-slate-400 font-normal">→</span> ${escapeHtml(target?.title || String(conn.targetId))}</div><div class="text-[10px] text-slate-400 mt-0.5">${dirText}${conn.label ? ` · ${escapeHtml(conn.label)}` : ''}</div></div>
+                    <button type="button" onclick="removeEditingConnection('${String(conn.id).replace(/'/g, "\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center" title="移除连线"><i class="fa-solid fa-xmark text-[11px]"></i></button>
+                </div>`;
+            }).join('');
+        };
+
+        window.addEditingConnection = function() {
+            if (window.isLocked) return;
+            const sourceIdRaw = document.getElementById('editConnSource')?.value;
+            const targetIdRaw = document.getElementById('editConnTarget')?.value;
+            const dir = document.querySelector('input[name="editConnDirection"]:checked')?.value || 'forward';
+            const label = (document.getElementById('editConnLabel')?.value || '').trim();
+            if (!sourceIdRaw || !targetIdRaw || String(sourceIdRaw) === String(targetIdRaw)) { window.showToast('请选择两个不同的节点', 'error'); return; }
+            if (window.editingConnections.some(c => String(c.sourceId) === String(sourceIdRaw) && String(c.targetId) === String(targetIdRaw))) { window.showToast('这两个节点之间已经存在同向连线', 'error'); return; }
+            window.editingConnections.push({ id:'conn_' + Date.now() + '_' + Math.random().toString(36).slice(2,7), sourceId:isNaN(sourceIdRaw)?sourceIdRaw:Number(sourceIdRaw), targetId:isNaN(targetIdRaw)?targetIdRaw:Number(targetIdRaw), dir, label });
+            window.editingConnectionsDirty = true;
+            if (document.getElementById('editConnLabel')) document.getElementById('editConnLabel').value = '';
+            window.renderEditConnections();
+        };
+
+        window.removeEditingConnection = function(connectionId) {
+            window.editingConnections = window.editingConnections.filter(c => String(c.id) !== String(connectionId));
+            window.editingConnectionsDirty = true;
+            window.renderEditConnections();
+        };
+
+        window.syncEditingConnections = async function(eventId, desiredConnections) {
+            const desiredIds = new Set(desiredConnections.map(c => String(c.id)));
+            const existing = window.connections.filter(c => String(c.sourceId) === String(eventId) || String(c.targetId) === String(eventId));
+            for (const c of existing.filter(c => !desiredIds.has(String(c.id)))) {
+                window.connections = window.connections.filter(x => String(x.id) !== String(c.id));
+                if (currentUser && db) { try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'connections', String(c.id))); } catch (err) {} }
+            }
+            const existingIds = new Set(window.connections.map(c => String(c.id)));
+            for (const c of desiredConnections) {
+                if (!existingIds.has(String(c.id))) {
+                    window.connections.push({ ...c });
+                    if (currentUser && db) { try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'connections', String(c.id)), c); } catch (err) {} }
+                }
+            }
+            saveLocalData();
+            window.renderSvgConnections();
+        };
+
         window.openEditModal = function(eventId = null) {
             let modal = document.getElementById('editModal');
             if (!modal) {
@@ -1887,9 +2181,12 @@
             });
 
             window.editingLinks = event.links ? [...event.links] : [];
+            window.editingConnections = window.getEditingConnectionsForEvent(event.id);
+            window.editingConnectionsDirty = false;
+            window.editingConnectionDraftEventId = event.id;
 
             modal.innerHTML = `
-                <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-4 sm:p-6 my-4 sm:my-8 max-h-[90vh] overflow-y-auto custom-scrollbar">
+                <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-4 sm:p-5 my-3 sm:my-5 max-h-[92vh] overflow-y-auto custom-scrollbar">
                     <div class="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-200 mb-4 sm:mb-5">
                         <h3 class="font-bold text-slate-800 text-base sm:text-lg flex items-center gap-2">
                             <i class="fa-solid fa-pen-to-square text-indigo-600"></i>
@@ -1900,61 +2197,31 @@
                         </button>
                     </div>
 
-                    <form onsubmit="handlePreSaveEvent(event, '${event.id}', ${isEdit})" class="space-y-4">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-1">事件名称 *</label>
-                            <input type="text" id="editTitle" value="${event.title}" required placeholder="输入事件标题" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                    <form onsubmit="handlePreSaveEvent(event, '${event.id}', ${isEdit})" class="space-y-3.5">
+                        <div class="flex items-center gap-2 p-1 bg-slate-100 rounded-xl border border-slate-200">
+                            <button type="button" id="editPageTab1" onclick="switchEditPage(1)" class="flex-1 px-3 py-2 rounded-lg text-xs font-semibold bg-white text-indigo-700 shadow-sm border border-indigo-100">1. 基础信息</button>
+                            <button type="button" id="editPageTab2" onclick="switchEditPage(2)" class="flex-1 px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-700">2. 插入信息</button>
                         </div>
 
-                        <div class="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                            <div class="flex items-center justify-between">
-                                <label class="block text-xs font-bold text-slate-700">时间与日期范围 *</label>
-                                <label class="cursor-pointer text-xs text-indigo-600 flex items-center gap-1 font-medium select-none">
-                                    <input type="checkbox" id="isRangeToggle" ${isRangeDate ? 'checked' : ''} onchange="toggleDateRangeMode(this)">
-                                    <span>启用日期范围</span>
-                                </label>
+                        <div id="editPage1" class="space-y-3.5">
+                            <div><label class="block text-xs font-bold text-slate-700 mb-1">事件名称 *</label><input type="text" id="editTitle" value="${event.title}" required placeholder="输入事件标题" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"></div>
+                            <div class="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                                <div class="flex items-center justify-between"><label class="block text-xs font-bold text-slate-700">时间与日期范围 *</label><label class="cursor-pointer text-xs text-indigo-600 flex items-center gap-1 font-medium select-none"><input type="checkbox" id="isRangeToggle" ${isRangeDate ? 'checked' : ''} onchange="toggleDateRangeMode(this)"><span>启用日期范围</span></label></div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="singleDateContainer" style="display: ${isRangeDate ? 'none' : 'grid'};"><div><span class="block text-[10px] text-slate-500 mb-0.5">具体日期</span><input type="date" id="editDate" value="${startDateVal}" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"></div></div>
+                                <div class="grid grid-cols-2 gap-2" id="rangeDateContainer" style="display: ${isRangeDate ? 'grid' : 'none'};"><div><span class="block text-[10px] text-slate-500 mb-0.5">开始日期</span><input type="date" id="editStartDate" value="${startDateVal}" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"></div><div><span class="block text-[10px] text-slate-500 mb-0.5">结束日期</span><input type="date" id="editEndDate" value="${endDateVal}" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"></div></div>
                             </div>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="singleDateContainer" style="display: ${isRangeDate ? 'none' : 'grid'};">
-                                <div>
-                                    <span class="block text-[10px] text-slate-500 mb-0.5">具体日期</span>
-                                    <input type="date" id="editDate" value="${startDateVal}" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-2 gap-2" id="rangeDateContainer" style="display: ${isRangeDate ? 'grid' : 'none'};">
-                                <div>
-                                    <span class="block text-[10px] text-slate-500 mb-0.5">开始日期</span>
-                                    <input type="date" id="editStartDate" value="${startDateVal}" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-                                </div>
-                                <div>
-                                    <span class="block text-[10px] text-slate-500 mb-0.5">结束日期</span>
-                                    <input type="date" id="editEndDate" value="${endDateVal}" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-                                </div>
+                            <div><label class="block text-xs font-bold text-slate-700 mb-1">节点类型</label><select id="editType" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"><option value="minor" ${event.type === 'minor' ? 'selected' : ''}>普通事件</option><option value="major" ${event.type === 'major' ? 'selected' : ''}>重大里程碑</option></select></div>
+                            <div><label class="block text-xs font-bold text-slate-700 mb-1">选择 tag (多选)</label><div class="flex flex-wrap gap-1.5 p-2 border border-slate-200 rounded-lg bg-slate-50 max-h-28 overflow-y-auto" id="editTagsList">${window.availableTags.length === 0 ? '<p class="text-xs text-slate-400 italic">暂无可用 tag</p>' : window.availableTags.map(t => { const checked = event.tags && event.tags.includes(t); return `<label class="cursor-pointer text-xs flex items-center gap-1.5 px-2 py-1 rounded border transition-colors ${checked ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-semibold' : 'bg-white border-slate-200 text-slate-600'}"><input type="checkbox" value="${t}" ${checked ? 'checked' : ''} class="hidden" onchange="toggleTagSelection(this)"><span># ${t}</span></label>`; }).join('')}</div></div>
+                            <div class="space-y-2 bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
+                                <div class="flex items-center justify-between"><div><label class="block text-xs font-bold text-slate-700"><i class="fa-solid fa-diagram-project text-indigo-600 mr-1"></i>逻辑连线</label></div><button type="button" onclick="openConnectionManager()" class="text-[10px] text-indigo-600 hover:text-indigo-800 font-semibold">打开完整管理</button></div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2"><select id="editConnSource" class="w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-indigo-500"></select><select id="editConnTarget" class="w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-indigo-500"></select></div>
+                                <div class="grid grid-cols-3 gap-1.5"><label class="cursor-pointer"><input type="radio" name="editConnDirection" value="forward" checked class="sr-only peer"><span class="flex items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">→ 指向</span></label><label class="cursor-pointer"><input type="radio" name="editConnDirection" value="backward" class="sr-only peer"><span class="flex items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">← 被指向</span></label><label class="cursor-pointer"><input type="radio" name="editConnDirection" value="both" class="sr-only peer"><span class="flex items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">↔ 双向</span></label></div>
+                                <div class="flex gap-2"><input id="editConnLabel" type="text" maxlength="40" placeholder="连线文字描述（可选）" class="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500"><button type="button" onclick="addEditingConnection()" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm shrink-0"><i class="fa-solid fa-plus mr-1"></i>添加</button></div>
+                                <div id="editConnectionsList" class="space-y-1.5 max-h-32 overflow-y-auto"></div>
                             </div>
                         </div>
 
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-1">节点类型</label>
-                            <select id="editType" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-                                <option value="minor" ${event.type === 'minor' ? 'selected' : ''}>普通事件</option>
-                                <option value="major" ${event.type === 'major' ? 'selected' : ''}>重大里程碑</option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-1">选择 tag (多选)</label>
-                            <div class="flex flex-wrap gap-1.5 p-2 border border-slate-200 rounded-lg bg-slate-50 max-h-28 overflow-y-auto" id="editTagsList">
-                                ${window.availableTags.length === 0 ? '<p class="text-xs text-slate-400 italic">暂无可用 tag</p>' : window.availableTags.map(t => {
-                                    const checked = event.tags && event.tags.includes(t);
-                                    return `
-                                        <label class="cursor-pointer text-xs flex items-center gap-1.5 px-2 py-1 rounded border transition-colors ${checked ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-semibold' : 'bg-white border-slate-200 text-slate-600'}">
-                                            <input type="checkbox" value="${t}" ${checked ? 'checked' : ''} class="hidden" onchange="toggleTagSelection(this)">
-                                            <span># ${t}</span>
-                                        </label>
-                                    `;
-                                }).join('')}
-                            </div>
-                        </div>
-
+                        <div id="editPage2" class="space-y-3.5 hidden">
                         <div class="space-y-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
                             <label class="block text-xs font-bold text-slate-700"><i class="fa-solid fa-photo-film text-indigo-600 mr-1"></i>媒体与网址附件</label>
                             
@@ -1999,21 +2266,12 @@
                             </div>
                         </div>
 
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-1">详细经过与描述</label>
-                            <textarea id="editDescription" rows="3" placeholder="记录关于这件事的详细经过..." class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 resize-none">${event.description || ''}</textarea>
+                            <div><label class="block text-xs font-bold text-slate-700 mb-1">详细经过与描述</label><textarea id="editDescription" rows="5" placeholder="记录关于这件事的详细经过..." class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 resize-none">${event.description || ''}</textarea></div>
                         </div>
 
                         <div class="flex items-center justify-between pt-3 border-t border-slate-200 gap-3">
-                            ${isEdit ? `
-                                <button type="button" onclick="deleteEvent('${event.id}')" class="px-4 py-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg text-xs font-medium transition-colors">
-                                    删除事件
-                                </button>
-                            ` : '<div></div>'}
-                            <div class="flex items-center gap-2">
-                                <button type="button" onclick="closeEditModal()" class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button>
-                                <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">保存事件</button>
-                            </div>
+                            <div>${isEdit ? `<button type="button" onclick="deleteEvent('${event.id}')" class="px-4 py-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg text-xs font-medium transition-colors">删除事件</button>` : '<div></div>'}</div>
+                            <div class="flex items-center gap-2"><button type="button" id="editPrevBtn" onclick="switchEditPage(1)" class="hidden px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">上一步</button><button type="button" id="editNextBtn" onclick="switchEditPage(2)" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium">下一步</button><button type="button" onclick="closeEditModal()" class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button><button type="submit" id="editSaveBtn" class="hidden px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">保存事件</button></div>
                         </div>
                     </form>
                 </div>
@@ -2021,7 +2279,21 @@
             window.renderMicroPreviews();
             window.renderVideoPreviews();
             window.renderLinkPreviews();
+            window.renderEditConnections();
+            window.switchEditPage(1);
             modal.classList.remove('hidden');
+        };
+
+        window.switchEditPage = function(page) {
+            const p1=document.getElementById('editPage1'), p2=document.getElementById('editPage2');
+            const t1=document.getElementById('editPageTab1'), t2=document.getElementById('editPageTab2');
+            const prev=document.getElementById('editPrevBtn'), next=document.getElementById('editNextBtn'), save=document.getElementById('editSaveBtn');
+            if(!p1||!p2)return;
+            const first=page===1;
+            p1.classList.toggle('hidden',!first); p2.classList.toggle('hidden',first);
+            t1.className=first?'flex-1 px-3 py-2 rounded-lg text-xs font-semibold bg-white text-indigo-700 shadow-sm border border-indigo-100':'flex-1 px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-700';
+            t2.className=!first?'flex-1 px-3 py-2 rounded-lg text-xs font-semibold bg-white text-indigo-700 shadow-sm border border-indigo-100':'flex-1 px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-700';
+            prev.classList.toggle('hidden',first); next.classList.toggle('hidden',!first); save.classList.toggle('hidden',first);
         };
 
         window.toggleDateRangeMode = function(checkbox) {
@@ -2038,6 +2310,7 @@
 
         window.closeEditModal = function() {
             document.getElementById('editModal')?.classList.add('hidden');
+            window.editingConnections = []; window.editingConnectionsDirty = false; window.editingConnectionDraftEventId = null;
         };
 
         window.toggleTagSelection = function(checkbox) {
@@ -2360,6 +2633,7 @@
                 images: [...window.editingImageFiles],
                 videos: [...window.editingVideos],
                 links: [...window.editingLinks],
+                connections: [...window.editingConnections],
                 _isEdit: isEdit
             };
 
