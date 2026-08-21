@@ -114,6 +114,49 @@
             cursor: pointer;
             position: absolute;
         }
+
+        /* 边缘自动滚动热区 */
+        .scroll-edge {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 60px;
+            z-index: 15;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+        .scroll-edge-left {
+            left: 0;
+            background: linear-gradient(to right, rgba(99, 102, 241, 0.08), transparent);
+        }
+        .scroll-edge-right {
+            right: 0;
+            background: linear-gradient(to left, rgba(99, 102, 241, 0.08), transparent);
+        }
+        .scroll-edge:hover {
+            background: linear-gradient(to right, rgba(99, 102, 241, 0.18), transparent);
+        }
+        .scroll-edge-right:hover {
+            background: linear-gradient(to left, rgba(99, 102, 241, 0.18), transparent);
+        }
+        .scroll-edge .edge-icon {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 14px;
+            color: #818cf8;
+            opacity: 0.4;
+            transition: opacity 0.2s ease;
+        }
+        .scroll-edge:hover .edge-icon {
+            opacity: 0.9;
+        }
+        .scroll-edge-left .edge-icon {
+            left: 8px;
+        }
+        .scroll-edge-right .edge-icon {
+            right: 8px;
+        }
     </style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
@@ -204,6 +247,14 @@
                 <span id="densityLabel" class="font-mono text-indigo-600 font-semibold">密度: 标准</span>
             </div>
 
+            <!-- 边缘滚动热区 -->
+            <div class="scroll-edge scroll-edge-left" id="scrollEdgeLeft" title="向左滚动">
+                <i class="fa-solid fa-chevron-left edge-icon"></i>
+            </div>
+            <div class="scroll-edge scroll-edge-right" id="scrollEdgeRight" title="向右滚动">
+                <i class="fa-solid fa-chevron-right edge-icon"></i>
+            </div>
+
             <button onclick="scrollTimeline(-300)" class="hidden md:flex absolute left-2 top-1/2 -translate-y-1/2 z-20 bg-white/95 hover:bg-white shadow-lg rounded-full w-9 h-9 border border-slate-200 items-center justify-center text-slate-700 hover:text-indigo-600 transition-all">
                 <i class="fa-solid fa-chevron-left text-xs"></i>
             </button>
@@ -225,7 +276,7 @@
                 <i class="fa-solid fa-folder-open"></i>
             </div>
             <h3 class="text-base font-semibold text-slate-700">暂无事件</h3>
-            <p class="text-slate-500 text-xs mt-1 max-w-md">点击右上角的“新建事件”开始记录[cite: 1]。</p>
+            <p class="text-slate-500 text-xs mt-1 max-w-md">点击右上角的“新建事件”开始记录。</p>
         </div>
     </main>
 
@@ -254,6 +305,13 @@
                         <i class="fa-solid fa-forward text-xs"></i>
                     </button>
                 </div>
+            </div>
+
+            <!-- 音量控制 -->
+            <div class="mb-4 flex items-center gap-3 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
+                <i class="fa-solid fa-volume-low text-slate-500 text-sm"></i>
+                <input type="range" id="bgmVolumeSlider" min="0" max="1" step="0.01" value="0.7" oninput="updateBgmVolume(this.value)" class="flex-grow h-1.5 bg-slate-300 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                <span id="bgmVolumeLabel" class="text-xs font-mono text-slate-500 w-10 text-right">70%</span>
             </div>
 
             <div id="musicLinkContainer" class="mb-4">
@@ -379,7 +437,7 @@
         </div>
     </div>
 
-    <!-- Confirm Save Modal -->
+    <!-- Confirm Save Modal (保留用于二次确认) -->
     <div id="confirmSaveModal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-md z-[70] hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center transform scale-100 transition-transform">
             <div class="w-12 h-12 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xl mx-auto mb-3">
@@ -390,6 +448,20 @@
             <div class="flex justify-center gap-3">
                 <button onclick="closeConfirmSaveModal()" class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button>
                 <button onclick="confirmSaveEvent()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">确认保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Saving Progress Modal (新增：保存等待界面) -->
+    <div id="savingModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[75] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center">
+            <div class="w-14 h-14 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-2xl mx-auto mb-3">
+                <i class="fa-solid fa-spinner fa-spin"></i>
+            </div>
+            <h3 class="font-bold text-slate-800 text-base mb-1">正在保存...</h3>
+            <p class="text-xs text-slate-500">请稍候，正在同步数据到云端</p>
+            <div class="mt-4 w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                <div id="savingProgressBar" class="bg-indigo-600 h-full rounded-full transition-all duration-300" style="width: 0%;"></div>
             </div>
         </div>
     </div>
@@ -533,10 +605,11 @@
         window.events = [];
         window.connections = [];
         window.availableTags = [];
-        window.bgmPlaylist = []; // 修复歌曲删除后重新出现bug：使用独立playlist数组
+        window.bgmPlaylist = [];
         window.currentBgmIndex = -1;
         window.isBgmPlaying = false;
         window.lastVideoPlayingState = false;
+        window.bgmVolume = 0.7;
         
         window.isLocked = localStorage.getItem('yuhoutianqing_isLocked') === 'false' ? false : true;
         
@@ -650,6 +723,7 @@
         async function initAppAndCloudSync() {
             window.updateLockButtonUI();
             initBgmAudioPlayer();
+            initScrollEdges();
 
             const syncTimeout = setTimeout(() => {
                 if (!isInitialLoadDone) {
@@ -817,6 +891,9 @@
             const audio = document.getElementById('globalBgmAudio');
             if (!audio) return;
 
+            // 设置初始音量
+            audio.volume = window.bgmVolume;
+
             audio.onended = () => {
                 playRandomBgm();
             };
@@ -846,8 +923,59 @@
             }, true);
         }
 
+        // 边缘自动滚动功能
+        function initScrollEdges() {
+            const leftEdge = document.getElementById('scrollEdgeLeft');
+            const rightEdge = document.getElementById('scrollEdgeRight');
+            const container = document.getElementById('timelineContainer');
+            if (!leftEdge || !rightEdge || !container) return;
+
+            let leftInterval = null;
+            let rightInterval = null;
+
+            leftEdge.addEventListener('mouseenter', () => {
+                if (leftInterval) clearInterval(leftInterval);
+                leftInterval = setInterval(() => {
+                    container.scrollLeft -= 8;
+                }, 16);
+            });
+            leftEdge.addEventListener('mouseleave', () => {
+                if (leftInterval) {
+                    clearInterval(leftInterval);
+                    leftInterval = null;
+                }
+            });
+
+            rightEdge.addEventListener('mouseenter', () => {
+                if (rightInterval) clearInterval(rightInterval);
+                rightInterval = setInterval(() => {
+                    container.scrollLeft += 8;
+                }, 16);
+            });
+            rightEdge.addEventListener('mouseleave', () => {
+                if (rightInterval) {
+                    clearInterval(rightInterval);
+                    rightInterval = null;
+                }
+            });
+        }
+
+        window.updateBgmVolume = function(val) {
+            const volume = parseFloat(val);
+            window.bgmVolume = volume;
+            const audio = document.getElementById('globalBgmAudio');
+            if (audio) audio.volume = volume;
+            const label = document.getElementById('bgmVolumeLabel');
+            if (label) label.innerText = Math.round(volume * 100) + '%';
+        };
+
         window.openMusicModal = function() {
             window.renderBgmPlaylist();
+            // 同步音量滑块
+            const slider = document.getElementById('bgmVolumeSlider');
+            if (slider) slider.value = window.bgmVolume;
+            const label = document.getElementById('bgmVolumeLabel');
+            if (label) label.innerText = Math.round(window.bgmVolume * 100) + '%';
             document.getElementById('musicModal')?.classList.remove('hidden');
         };
 
@@ -986,6 +1114,7 @@
             if (!audio) return;
 
             audio.src = song.url;
+            audio.volume = window.bgmVolume;
             audio.play().then(() => {
                 window.isBgmPlaying = true;
                 updateBgmUIState(song.name);
@@ -1005,6 +1134,7 @@
         function resumeBgm() {
             const audio = document.getElementById('globalBgmAudio');
             if (!audio || window.bgmPlaylist.length === 0) return;
+            audio.volume = window.bgmVolume;
             audio.play().then(() => {
                 window.isBgmPlaying = true;
                 updateBgmUIState(window.bgmPlaylist[window.currentBgmIndex]?.name);
@@ -1207,6 +1337,7 @@
             document.getElementById('confirmSaveModal')?.classList.add('hidden');
         };
 
+        // 修改保存逻辑：先显示保存等待界面，完成后再关闭
         window.confirmSaveEvent = async function() {
             if (window.pendingSaveData) {
                 const eventData = window.pendingSaveData;
@@ -1214,14 +1345,34 @@
                 delete eventData._isEdit;
 
                 window.closeConfirmSaveModal();
-                window.closeEditModal();
+                // 显示保存等待界面
+                const savingModal = document.getElementById('savingModal');
+                const progressBar = document.getElementById('savingProgressBar');
+                if (savingModal) savingModal.classList.remove('hidden');
+                if (progressBar) progressBar.style.width = '30%';
 
-                const desiredConnections = eventData.connections || [];
-                delete eventData.connections;
-                await window.saveEventToCloud(eventData);
-                await window.syncEditingConnections(eventData.id, desiredConnections);
-                window.showToast(isEdit ? "保存成功" : "新建事件成功", "success");
-                window.pendingSaveData = null;
+                try {
+                    // 模拟进度
+                    if (progressBar) setTimeout(() => progressBar.style.width = '60%', 400);
+                    
+                    const desiredConnections = eventData.connections || [];
+                    delete eventData.connections;
+                    await window.saveEventToCloud(eventData);
+                    
+                    if (progressBar) progressBar.style.width = '80%';
+                    await window.syncEditingConnections(eventData.id, desiredConnections);
+                    
+                    if (progressBar) progressBar.style.width = '100%';
+                    await new Promise(r => setTimeout(r, 300)); // 让进度条走完
+                    
+                    if (savingModal) savingModal.classList.add('hidden');
+                    window.closeEditModal();
+                    window.showToast(isEdit ? "保存成功" : "新建事件成功", "success");
+                    window.pendingSaveData = null;
+                } catch (err) {
+                    if (savingModal) savingModal.classList.add('hidden');
+                    window.showToast("保存失败，请重试", "error");
+                }
             }
         };
 
@@ -2185,8 +2336,9 @@
             window.editingConnectionsDirty = false;
             window.editingConnectionDraftEventId = event.id;
 
+            // 宽度从 max-w-2xl 改为 max-w-xl
             modal.innerHTML = `
-                <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-4 sm:p-5 my-3 sm:my-5 max-h-[92vh] overflow-y-auto custom-scrollbar">
+                <div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full p-4 sm:p-5 my-3 sm:my-5 max-h-[92vh] overflow-y-auto custom-scrollbar">
                     <div class="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-200 mb-4 sm:mb-5">
                         <h3 class="font-bold text-slate-800 text-base sm:text-lg flex items-center gap-2">
                             <i class="fa-solid fa-pen-to-square text-indigo-600"></i>
@@ -2225,7 +2377,6 @@
                         <div class="space-y-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
                             <label class="block text-xs font-bold text-slate-700"><i class="fa-solid fa-photo-film text-indigo-600 mr-1"></i>媒体与网址附件</label>
                             
-                            <!-- 要求1：提示上传图片或视频最好不超过1mb -->
                             <div class="text-[11px] text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5">
                                 <i class="fa-solid fa-triangle-exclamation"></i>
                                 <span>提示：上传图片或视频文件最好不超过 1MB，避免页面卡顿或云端同步受阻。</span>
@@ -2544,6 +2695,24 @@
             applyImageTransform();
         };
 
+        // 截选图片时滚轮缩放
+        window.initCropWheel = function() {
+            const container = document.getElementById('cropContainer');
+            if (!container) return;
+            container.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? -0.05 : 0.05;
+                let newScale = cropState.scale + delta;
+                newScale = Math.max(0.2, Math.min(3, newScale));
+                cropState.scale = newScale;
+                const slider = document.getElementById('imageScaleSlider');
+                const text = document.getElementById('imageScaleText');
+                if (slider) slider.value = newScale;
+                if (text) text.innerText = `${Math.round(newScale * 100)}%`;
+                applyImageTransform();
+            }, { passive: false });
+        };
+
         function applyImageTransform() {
             const targetImg = document.getElementById('cropTargetImg');
             if (!targetImg) return;
@@ -2655,7 +2824,10 @@
         };
 
         window.onresize = () => window.renderSvgConnections();
-        window.onload = () => initAppAndCloudSync();
+        window.onload = () => {
+            initAppAndCloudSync();
+            window.initCropWheel();
+        };
     </script>
 </body>
 </html>
