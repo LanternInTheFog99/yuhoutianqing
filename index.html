@@ -1,0 +1,2076 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>雨后天晴</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        .transition-all-custom {
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.4);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(107, 114, 128, 0.7);
+        }
+        
+        .timeline-dot {
+            transition: transform 0.2s ease, width 0.2s ease, height 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .timeline-hover-tooltip {
+            pointer-events: none;
+            opacity: 0;
+            transform: translateY(10px) scale(0.92);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+        .timeline-node-container:hover .timeline-hover-tooltip {
+            pointer-events: auto;
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+
+        .svg-conn-line {
+            opacity: 0 !important;
+            visibility: hidden !important;
+            transition: opacity 0.25s ease;
+            pointer-events: none;
+        }
+        
+        .svg-conn-line path {
+            stroke: #6366f1;
+            stroke-width: 2.5px;
+            stroke-dasharray: 6 4;
+            transition: stroke 0.2s ease, stroke-width 0.2s ease;
+        }
+
+        .svg-conn-line polygon {
+            fill: #4f46e5;
+            transition: fill 0.2s ease, transform 0.2s ease;
+        }
+
+        .svg-conn-line text {
+            font-size: 11px;
+            fill: #4f46e5;
+            font-weight: 600;
+            text-anchor: middle;
+            transition: opacity 0.2s ease;
+        }
+        
+        .svg-conn-line.active-line {
+            opacity: 1 !important;
+            visibility: visible !important;
+            filter: drop-shadow(0 2px 4px rgba(79, 70, 229, 0.35));
+        }
+
+        .svg-conn-line.active-line path {
+            stroke: #4f46e5 !important;
+            stroke-width: 3px !important;
+        }
+
+        .timeline-node-container:hover .timeline-dot {
+            transform: scale(1.3);
+            box-shadow: 0 0 0 6px rgba(99, 102, 241, 0.25);
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen font-sans flex flex-col antialiased">
+
+    <!-- Header / Navbar -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-6xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+                <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-lg sm:text-xl shadow-sm">
+                    <i class="fa-solid fa-cloud-sun text-base sm:text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-base sm:text-xl text-slate-900 tracking-wide">雨后天晴</h1>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-1.5 sm:gap-2">
+                <div id="syncStatus" class="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs bg-slate-100 text-slate-500 font-medium">
+                    <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse" id="syncDot"></span>
+                    <span id="syncText">正在同步...</span>
+                </div>
+
+                <button onclick="openTagModal()" class="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-medium border border-slate-300 hover:bg-slate-50 text-slate-700 flex items-center gap-1 transition-all">
+                    <i class="fa-solid fa-tags text-slate-500"></i>
+                    <span class="hidden md:inline">tag库</span>
+                </button>
+
+                <button onclick="openShareModal()" class="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-medium border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 flex items-center gap-1 transition-all shadow-sm">
+                    <i class="fa-solid fa-share-nodes text-indigo-600"></i>
+                    <span class="hidden md:inline">分享协同</span>
+                </button>
+
+                <button id="lockToggleBtn" onclick="toggleLockState()" class="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs font-medium transition-all shadow-sm border">
+                    <!-- Dynamic Content in JS -->
+                </button>
+
+                <button id="addEventBtn" onclick="handleNewEventClick()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 shadow-sm transition-all shrink-0">
+                    <i class="fa-solid fa-plus"></i>
+                    <span class="hidden sm:inline">新建事件</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-grow max-w-6xl w-full mx-auto px-3 sm:px-6 py-6 sm:py-8">
+        <!-- Toast Box -->
+        <div id="toastBox" class="hidden fixed top-20 right-4 z-[9999] bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl border border-slate-700 flex items-center gap-3 transition-all duration-300 transform translate-y-0 opacity-100">
+            <i id="toastIcon" class="fa-solid fa-circle-info text-indigo-400 text-lg"></i>
+            <span id="toastText" class="text-sm font-medium">提示信息</span>
+        </div>
+
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-6 bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-sm">
+            <div class="flex items-center justify-center gap-2 bg-slate-100 p-1 rounded-lg">
+                <button id="viewTimelineBtn" onclick="switchView('timeline')" class="flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-all bg-white text-indigo-600 shadow-sm">
+                    <i class="fa-solid fa-timeline"></i>
+                    <span>时间线</span>
+                </button>
+                <button id="viewGridBtn" onclick="switchView('grid')" class="flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-all text-slate-600 hover:text-slate-900">
+                    <i class="fa-solid fa-border-all"></i>
+                    <span>卡片</span>
+                </button>
+            </div>
+
+            <div id="zoomControlContainer" class="flex items-center justify-center gap-2 border-y sm:border-y-0 sm:border-x border-slate-200 py-2 sm:py-0 sm:px-4">
+                <span class="text-xs text-slate-500 font-medium hidden md:flex items-center gap-1">
+                    <i class="fa-solid fa-magnifying-glass text-slate-400"></i>
+                    <span>密度:</span>
+                </span>
+                <button onclick="changeZoom(-1)" title="缩小密度" class="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center text-xs transition-colors font-bold">-</button>
+                <input type="range" id="zoomSlider" min="1" max="5" value="3" oninput="setZoom(this.value)" class="w-24 sm:w-20 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                <button onclick="changeZoom(1)" title="放大密度" class="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center text-xs transition-colors font-bold">+</button>
+            </div>
+
+            <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs w-full sm:w-auto">
+                <i class="fa-solid fa-magnifying-glass text-slate-400"></i>
+                <input type="text" id="searchInput" oninput="handleSearch()" placeholder="搜索事件或tag..." class="bg-transparent outline-none text-slate-700 placeholder-slate-400 w-full sm:w-44">
+            </div>
+        </div>
+
+        <div id="timelineWrapper" class="relative group my-6 sm:my-8 bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm overflow-hidden">
+            <div class="text-[11px] sm:text-xs text-slate-400 mb-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1">
+                <span><i class="fa-solid fa-circle-info text-indigo-500 mr-1"></i>悬停在节点上显示该节点与其他节点的逻辑联系</span>
+                <span id="densityLabel" class="font-mono text-indigo-600 font-semibold">密度: 标准</span>
+            </div>
+
+            <button onclick="scrollTimeline(-300)" class="hidden md:flex absolute left-2 top-1/2 -translate-y-1/2 z-20 bg-white/95 hover:bg-white shadow-lg rounded-full w-9 h-9 border border-slate-200 items-center justify-center text-slate-700 hover:text-indigo-600 transition-all">
+                <i class="fa-solid fa-chevron-left text-xs"></i>
+            </button>
+            <button onclick="scrollTimeline(300)" class="hidden md:flex absolute right-2 top-1/2 -translate-y-1/2 z-20 bg-white/95 hover:bg-white shadow-lg rounded-full w-9 h-9 border border-slate-200 items-center justify-center text-slate-700 hover:text-indigo-600 transition-all">
+                <i class="fa-solid fa-chevron-right text-xs"></i>
+            </button>
+
+            <div id="timelineContainer" onscroll="renderSvgConnections()" onwheel="handleTimelineWheel(event)" class="overflow-x-auto pt-32 sm:pt-36 pb-16 sm:pb-20 px-4 sm:px-12 flex items-center relative min-h-[420px] sm:min-h-[460px] custom-scrollbar scroll-smooth">
+                <svg id="timelineSvgOverlay" class="absolute top-0 left-0 pointer-events-none z-0">
+                    <g id="svgConnectionsGroup"></g>
+                </svg>
+                <div id="timelineMainAxis" class="absolute left-0 right-0 h-1 bg-slate-300 rounded-full z-0 transition-all"></div>
+                <div id="timelineNodesTrack" class="flex items-center w-full relative z-10 min-w-full"></div>
+            </div>
+        </div>
+
+        <div id="eventGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 hidden"></div>
+
+        <div id="emptyState" class="hidden flex-col items-center justify-center py-20 text-center">
+            <div class="w-16 h-16 bg-slate-200 text-slate-400 rounded-full flex items-center justify-center text-2xl mb-4">
+                <i class="fa-solid fa-folder-open"></i>
+            </div>
+            <h3 class="text-base font-semibold text-slate-700">暂无事件</h3>
+            <p class="text-slate-500 text-xs mt-1 max-w-md">点击右上角的“新建事件”开始记录。</p>
+        </div>
+    </main>
+
+    <!-- Tag Manager Modal -->
+    <div id="tagModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
+                <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                    <i class="fa-solid fa-tags text-indigo-600"></i>
+                    <span>tag库</span>
+                </h3>
+                <button onclick="closeTagModal()" class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div id="tagInputContainer" class="flex gap-2 mb-4">
+                <input type="text" id="newTagInput" placeholder="输入新tag名称" class="flex-grow px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
+                <button onclick="addNewTagFromModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-xs font-medium shrink-0">新建tag</button>
+            </div>
+            <div id="tagModalList" class="flex flex-wrap gap-2 max-h-60 overflow-y-auto p-1"></div>
+        </div>
+    </div>
+
+    <!-- Share Collaboration Modal -->
+    <div id="shareModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
+                <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                    <i class="fa-solid fa-users text-indigo-600"></i>
+                    <span>多端实时协同分享</span>
+                </h3>
+                <button onclick="closeShareModal()" class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <div class="bg-indigo-50/60 border border-indigo-100 rounded-xl p-3.5 mb-4 text-xs text-slate-600 space-y-2">
+                <div class="font-bold text-indigo-900 flex items-center gap-1.5">
+                    <i class="fa-solid fa-circle-info text-indigo-600"></i>
+                    <span>协同使用说明</span>
+                </div>
+                <ul class="list-disc list-inside space-y-1.5 text-slate-600 leading-relaxed">
+                    <li><span class="font-semibold text-slate-800">多端同步：</span>复制专属链接发送给好友即可加入。</li>
+                    <li><span class="font-semibold text-slate-800">实时协作：</span>任何人在空间内操作均会实时同步。</li>
+                </ul>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-xs font-bold text-slate-700 mb-1">当前空间 ID (Room)</label>
+                <div class="flex gap-2">
+                    <input type="text" id="shareRoomInput" placeholder="公共空间 (default)" class="flex-grow px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
+                    <button onclick="switchRoomFromInput()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg text-xs font-medium shrink-0">切换/创建空间</button>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 mb-4">
+                <label class="block text-[11px] font-semibold text-slate-500 mb-1">协同分享专用链接</label>
+                <div class="flex items-center gap-2">
+                    <input type="text" id="shareUrlInput" readonly class="flex-grow bg-white px-2.5 py-1.5 border border-slate-200 rounded-md text-xs font-mono text-slate-700 select-all outline-none">
+                    <button onclick="copyShareLink()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-xs font-medium shrink-0 flex items-center gap-1">
+                        <i class="fa-solid fa-copy"></i>
+                        <span>复制链接</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex justify-end">
+                <button onclick="closeShareModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-medium text-slate-700">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Unlock Password Modal -->
+    <div id="pwdModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
+                <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                    <i class="fa-solid fa-lock text-amber-500"></i>
+                    <span>解锁编辑权限</span>
+                </h3>
+                <button onclick="closePwdModal()" class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <p class="text-xs text-slate-500 mb-3">请输入管理密码解锁修改与编辑权限：</p>
+            <input type="password" id="unlockPwdInput" placeholder="输入解锁密码" onkeydown="if(event.key==='Enter') submitUnlockPassword()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 mb-4">
+            <div class="flex justify-end gap-2">
+                <button onclick="closePwdModal()" class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button>
+                <button onclick="submitUnlockPassword()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">解锁</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Delete Modal -->
+    <div id="confirmModal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-md z-[70] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center transform scale-100 transition-transform">
+            <div class="w-12 h-12 rounded-full bg-rose-100 text-rose-500 flex items-center justify-center text-xl mx-auto mb-3">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h3 class="font-bold text-slate-800 text-base mb-1">确认删除事件？</h3>
+            <p class="text-xs text-slate-500 mb-5">删除后将无法恢复，关联的逻辑连接也将同步注销。</p>
+            <div class="flex justify-center gap-3">
+                <button onclick="closeConfirmModal()" class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button>
+                <button onclick="confirmDeleteEvent()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-medium shadow-sm">确认删除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Save Modal -->
+    <div id="confirmSaveModal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-md z-[70] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center transform scale-100 transition-transform">
+            <div class="w-12 h-12 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xl mx-auto mb-3">
+                <i class="fa-solid fa-circle-question"></i>
+            </div>
+            <h3 class="font-bold text-slate-800 text-base mb-1">确认保存事件？</h3>
+            <p class="text-xs text-slate-500 mb-5">请检查信息是否无误，确认后将进行保存并同步。</p>
+            <div class="flex justify-center gap-3">
+                <button onclick="closeConfirmSaveModal()" class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button>
+                <button onclick="confirmSaveEvent()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">确认保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Crop Modal -->
+    <div id="cropModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[80] hidden flex items-center justify-center p-2 sm:p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl max-w-3xl w-full p-4 sm:p-6 text-white flex flex-col items-center">
+            <div class="flex items-center justify-between w-full pb-3 border-b border-slate-800 mb-3">
+                <h3 class="font-bold text-base flex items-center gap-2">
+                    <i class="fa-solid fa-crop text-indigo-400"></i>
+                    <span>图片区域截选</span>
+                </h3>
+                <button onclick="closeCropModal()" class="text-slate-400 hover:text-white w-8 h-8 rounded-full flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <!-- 模式切换标签 -->
+            <div class="flex items-center gap-2 mb-3 bg-slate-800 p-1 rounded-lg w-full justify-center">
+                <button type="button" id="cropTabOuter" onclick="switchCropMode('outer')" class="flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 rounded-md text-xs font-semibold bg-indigo-600 text-white transition-all text-center">
+                    1. 封面图截选
+                </button>
+                <button type="button" id="cropTabInner" onclick="switchCropMode('inner')" class="flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 rounded-md text-xs font-semibold text-slate-400 hover:text-white transition-all text-center">
+                    2. 详情图截选
+                </button>
+            </div>
+
+            <p class="text-[11px] sm:text-xs text-slate-400 mb-2 text-center" id="cropModeTip">框大小固定，不可调整；您可以<strong>缩放图片</strong>或<strong>拖动图片内部</strong>来对齐选框：</p>
+            
+            <!-- 图片与固定大小框容器 -->
+            <div id="cropContainer" class="relative max-h-[40vh] w-full overflow-hidden border border-slate-700 rounded-xl bg-black flex justify-center items-center my-1 select-none cursor-grab active:cursor-grabbing p-6">
+                <div class="relative inline-block" id="cropWrapper">
+                    <img id="cropTargetImg" class="block pointer-events-none transition-transform duration-75" style="transform: scale(1); transform-origin: top left;">
+                    
+                    <!-- 固定的裁剪框层（居中覆盖在容器正中央） -->
+                    <div id="cropBoxFixed" class="absolute border-2 border-indigo-400 bg-indigo-500/10 shadow-[0_0_0_9999px_rgba(0,0,0,0.65)] pointer-events-none flex items-center justify-center" style="top: 50%; left: 50%; transform: translate(-50%, -50%);">
+                        <span id="cropBoxLabel" class="absolute top-2 left-2 bg-indigo-600 text-white text-[10px] px-2 py-0.5 rounded font-mono shadow">尺寸</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 图片缩放条 -->
+            <div class="flex items-center gap-3 w-full bg-slate-800/60 px-4 py-2.5 rounded-xl border border-slate-800 mt-3">
+                <span class="text-xs text-slate-400 font-medium shrink-0"><i class="fa-solid fa-magnifying-glass mr-1"></i>缩放:</span>
+                <input type="range" id="imageScaleSlider" min="0.2" max="3" step="0.01" value="1" oninput="handleImageScaleChange(this.value)" class="flex-grow h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+                <span id="imageScaleText" class="text-xs font-mono text-indigo-400 w-12 text-right">100%</span>
+            </div>
+
+            <div class="flex flex-col sm:flex-row justify-between items-center w-full mt-4 pt-3 border-t border-slate-800 gap-2">
+                <span class="text-[11px] text-slate-400">提示：切换标签可分别截选两套图</span>
+                <div class="flex gap-2 w-full sm:w-auto justify-end">
+                    <button onclick="closeCropModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium">取消</button>
+                    <button onclick="confirmCropImage()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">完成截选并保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Lightbox Modal for Fullscreen View (支持切图) -->
+    <div id="lightboxModal" class="fixed inset-0 bg-slate-950/95 z-[90] hidden flex items-center justify-center p-4" onclick="closeLightbox()">
+        <!-- 关闭按钮 -->
+        <button class="absolute top-4 right-4 sm:top-6 sm:right-6 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full flex items-center justify-center transition-colors z-20">
+            <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+
+        <!-- 上一张按钮 -->
+        <button id="lightboxPrevBtn" onclick="event.stopPropagation(); changeLightboxImage(-1)" class="absolute left-2 sm:left-6 top-1/2 -translate-y-1/2 text-slate-300 hover:text-white bg-slate-800/80 hover:bg-indigo-600 w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all z-20 shadow-lg">
+            <i class="fa-solid fa-chevron-left text-base sm:text-lg"></i>
+        </button>
+
+        <!-- 下一张按钮 -->
+        <button id="lightboxNextBtn" onclick="event.stopPropagation(); changeLightboxImage(1)" class="absolute right-2 sm:right-6 top-1/2 -translate-y-1/2 text-slate-300 hover:text-white bg-slate-800/80 hover:bg-indigo-600 w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all z-20 shadow-lg">
+            <i class="fa-solid fa-chevron-right text-base sm:text-lg"></i>
+        </button>
+
+        <!-- 大图与计数器 -->
+        <div class="relative flex flex-col items-center justify-center max-w-full max-h-[90vh]" onclick="event.stopPropagation()">
+            <img id="lightboxImg" class="max-w-full max-h-[82vh] object-contain rounded-lg shadow-2xl transition-all">
+            <div id="lightboxCounter" class="absolute -bottom-8 text-xs text-slate-400 font-mono tracking-widest bg-slate-900/80 px-3 py-1 rounded-full border border-slate-800"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const urlParams = new URLSearchParams(window.location.search);
+        window.currentRoomId = urlParams.get('room') || 'default';
+
+        const baseAppId = typeof __app_id !== 'undefined' ? __app_id : 'yuhoutianqing-app';
+        const appId = `${baseAppId}-${window.currentRoomId}`;
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC_E_OiW5o7ekAA04y_xNcBQ1_BZEtOBOM",
+            authDomain: "yuhoutianqing-3d170.firebaseapp.com",
+            databaseURL: "https://yuhoutianqing-3d170-default-rtdb.firebaseio.com",
+            projectId: "yuhoutianqing-3d170",
+            storageBucket: "yuhoutianqing-3d170.firebasestorage.app",
+            messagingSenderId: "162241948953",
+            appId: "1:162241948953:web:7d004f19089f4a17a1e988",
+            measurementId: "G-QGEYCHBDDG"
+        };
+
+        let app = null;
+        let auth = null;
+        let db = null;
+
+        if (firebaseConfig) {
+            try {
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+            } catch (err) {
+                console.warn("Firebase initialization error:", err);
+            }
+        }
+
+        window.events = [];
+        window.connections = [];
+        window.availableTags = [];
+        
+        window.isLocked = localStorage.getItem('yuhoutianqing_isLocked') === 'false' ? false : true;
+        
+        if (!localStorage.getItem('yuhoutianqing_lockPassword')) {
+            localStorage.setItem('yuhoutianqing_lockPassword', 'tingyu1938');
+        }
+        
+        window.currentView = 'timeline';
+        window.zoomLevel = 3;
+        window.activeHoverIntervals = {};
+        window.editingImageFiles = [];
+        window.editingVideos = [];
+        window.editingLinks = [];
+        window.pendingDeleteId = null;
+        window.pendingSaveData = null;
+
+        // 灯箱大图切图状态
+        window.currentLightboxImages = [];
+        window.currentLightboxIndex = 0;
+
+        const CROP_SIZES = {
+            outer: { w: 200, h: 125, label: '封面尺寸 (宽屏)' },
+            inner: { w: 180, h: 260, label: '详情图尺寸' }
+        };
+
+        let cropState = {
+            index: -1,
+            mode: 'outer',
+            naturalWidth: 0,
+            naturalHeight: 0,
+            scale: 1,
+            imgOffsetX: 0,
+            imgOffsetY: 0
+        };
+
+        let currentUser = null;
+        let isInitialLoadDone = false;
+
+        function loadLocalData() {
+            try {
+                const localEv = localStorage.getItem('yuhoutianqing_events');
+                const localConn = localStorage.getItem('yuhoutianqing_connections');
+                const localTags = localStorage.getItem('yuhoutianqing_tags');
+
+                if (localEv) window.events = JSON.parse(localEv);
+                if (localConn) window.connections = JSON.parse(localConn);
+                if (localTags) window.availableTags = JSON.parse(localTags);
+            } catch (e) {
+                console.warn("localStorage 读取异常:", e);
+            }
+        }
+
+        function saveLocalData() {
+            try {
+                localStorage.setItem('yuhoutianqing_events', JSON.stringify(window.events));
+                localStorage.setItem('yuhoutianqing_connections', JSON.stringify(window.connections));
+                localStorage.setItem('yuhoutianqing_tags', JSON.stringify(window.availableTags));
+            } catch (e) {
+                console.warn("localStorage 保存失败:", e);
+            }
+        }
+
+        function initializeLocalFallback(reason = '已就绪 (本地)') {
+            if (isInitialLoadDone) return;
+            isInitialLoadDone = true;
+            loadLocalData();
+            window.renderEvents();
+            updateSyncStatus('offline', reason);
+        }
+
+        async function initAppAndCloudSync() {
+            window.updateLockButtonUI();
+
+            const syncTimeout = setTimeout(() => {
+                if (!isInitialLoadDone) {
+                    initializeLocalFallback('已就绪 (本地)');
+                }
+            }, 2500);
+
+            if (!firebaseConfig || !auth || !db) {
+                clearTimeout(syncTimeout);
+                initializeLocalFallback('已就绪 (本地)');
+                return;
+            }
+
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    const userCred = await signInWithCustomToken(auth, __initial_auth_token);
+                    currentUser = userCred.user;
+                } else {
+                    const userCred = await signInAnonymously(auth);
+                    currentUser = userCred.user;
+                }
+            } catch (err) {
+                clearTimeout(syncTimeout);
+                initializeLocalFallback('已就绪 (本地)');
+                return;
+            }
+
+            if (currentUser) {
+                setupRealtimeListeners(syncTimeout);
+            } else {
+                clearTimeout(syncTimeout);
+                initializeLocalFallback('已就绪 (本地)');
+            }
+        }
+
+        function updateSyncStatus(type, text) {
+            const dot = document.getElementById('syncDot');
+            const textEl = document.getElementById('syncText');
+            if (!dot || !textEl) return;
+            textEl.innerText = text;
+            if (type === 'synced') {
+                dot.className = "w-2 h-2 rounded-full bg-emerald-500";
+            } else if (type === 'syncing') {
+                dot.className = "w-2 h-2 rounded-full bg-amber-400 animate-pulse";
+            } else if (type === 'offline') {
+                dot.className = "w-2 h-2 rounded-full bg-indigo-500";
+            } else {
+                dot.className = "w-2 h-2 rounded-full bg-rose-500";
+            }
+        }
+
+        function setupRealtimeListeners(syncTimeout) {
+            if (!currentUser || !db) return;
+
+            try {
+                const eventsCol = collection(db, 'artifacts', appId, 'public', 'data', 'events');
+                const connCol = collection(db, 'artifacts', appId, 'public', 'data', 'connections');
+                const tagsCol = collection(db, 'artifacts', appId, 'public', 'data', 'tags');
+
+                onSnapshot(eventsCol, async (snapshot) => {
+                    if (syncTimeout) clearTimeout(syncTimeout);
+                    isInitialLoadDone = true;
+                    window.events = snapshot.docs.map(doc => ({ id: isNaN(doc.id) ? doc.id : Number(doc.id), ...doc.data() }));
+                    saveLocalData();
+                    window.renderEvents();
+                    updateSyncStatus('synced', '已同步云端');
+                }, (error) => {
+                    if (syncTimeout) clearTimeout(syncTimeout);
+                    initializeLocalFallback('已就绪 (本地)');
+                });
+
+                onSnapshot(connCol, (snapshot) => {
+                    window.connections = snapshot.docs.map(doc => ({ id: isNaN(doc.id) ? doc.id : Number(doc.id), ...doc.data() }));
+                    saveLocalData();
+                    window.renderSvgConnections();
+                });
+
+                onSnapshot(tagsCol, (snapshot) => {
+                    if (!snapshot.empty) {
+                        const loadedTags = snapshot.docs.map(doc => doc.data().name);
+                        if (loadedTags.length >= 0) window.availableTags = loadedTags;
+                    }
+                    saveLocalData();
+                    window.renderTagModalList();
+                });
+            } catch (err) {
+                if (syncTimeout) clearTimeout(syncTimeout);
+                initializeLocalFallback('已就绪 (本地)');
+            }
+        }
+
+        window.saveEventToCloud = async function(eventData) {
+            const index = window.events.findIndex(e => String(e.id) === String(eventData.id));
+            if (index >= 0) {
+                window.events[index] = eventData;
+            } else {
+                window.events.push(eventData);
+            }
+            saveLocalData();
+            window.renderEvents();
+
+            if (!currentUser || !db) return;
+            try {
+                updateSyncStatus('syncing', '保存中...');
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', String(eventData.id)), eventData);
+                updateSyncStatus('synced', '已同步云端');
+            } catch (e) {
+                updateSyncStatus('offline', '已就绪 (本地)');
+            }
+        };
+
+        window.deleteEventFromCloud = async function(eventId) {
+            window.events = window.events.filter(e => String(e.id) !== String(eventId));
+            window.connections = window.connections.filter(c => String(c.sourceId) !== String(eventId) && String(c.targetId) !== String(eventId));
+            saveLocalData();
+            window.renderEvents();
+
+            if (!currentUser || !db) return;
+            try {
+                updateSyncStatus('syncing', '删除中...');
+                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', String(eventId)));
+                const toDeleteConns = window.connections.filter(c => String(c.sourceId) === String(eventId) || String(c.targetId) === String(eventId));
+                for (const c of toDeleteConns) {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'connections', String(c.id)));
+                }
+                updateSyncStatus('synced', '已同步云端');
+            } catch (e) {
+                updateSyncStatus('offline', '已就绪 (本地)');
+            }
+        };
+
+        window.saveConnectionToCloud = async function(connData) {
+            const index = window.connections.findIndex(c => String(c.id) === String(connData.id));
+            if (index >= 0) {
+                window.connections[index] = connData;
+            } else {
+                window.connections.push(connData);
+            }
+            saveLocalData();
+            window.renderSvgConnections();
+
+            if (!currentUser || !db) return;
+            try {
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'connections', String(connData.id)), connData);
+            } catch (e) {}
+        };
+
+        window.deleteConnectionFromCloud = async function(connId) {
+            window.connections = window.connections.filter(c => String(c.id) !== String(connId));
+            saveLocalData();
+            window.renderSvgConnections();
+
+            if (!currentUser || !db) return;
+            try {
+                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'connections', String(connId)));
+            } catch (e) {}
+        };
+
+        window.saveTagToCloud = async function(tagName) {
+            if (!window.availableTags.includes(tagName)) {
+                window.availableTags.push(tagName);
+            }
+            saveLocalData();
+            window.renderTagModalList();
+
+            if (!currentUser || !db) return;
+            try {
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tags', tagName), { name: tagName });
+            } catch (e) {}
+        };
+
+        window.deleteTagFromCloud = async function(tagName) {
+            window.availableTags = window.availableTags.filter(t => t !== tagName);
+            saveLocalData();
+            window.renderTagModalList();
+
+            if (!currentUser || !db) return;
+            try {
+                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tags', tagName));
+            } catch (e) {}
+        };
+
+        window.updateLockButtonUI = function() {
+            const lockBtn = document.getElementById('lockToggleBtn');
+            if (!lockBtn) return;
+            if (window.isLocked) {
+                lockBtn.className = "flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs font-medium transition-all shadow-sm border bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100";
+                lockBtn.innerHTML = `<i class="fa-solid fa-lock text-amber-600"></i><span class="hidden sm:inline">浏览模式 (点击解锁)</span><span class="sm:hidden">浏览</span>`;
+            } else {
+                lockBtn.className = "flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs font-medium transition-all shadow-sm border bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100";
+                lockBtn.innerHTML = `<i class="fa-solid fa-lock-open text-emerald-600"></i><span class="hidden sm:inline">编辑模式 (已解锁)</span><span class="sm:hidden">编辑</span>`;
+            }
+        };
+
+        window.toggleLockState = function() {
+            if (window.isLocked) {
+                window.openPwdModal();
+            } else {
+                window.isLocked = true;
+                localStorage.setItem('yuhoutianqing_isLocked', 'true');
+                window.updateLockButtonUI();
+                window.showToast("已恢复为浏览模式", "info");
+            }
+        };
+
+        window.openPwdModal = function() {
+            const pwdInput = document.getElementById('unlockPwdInput');
+            if (pwdInput) pwdInput.value = '';
+            document.getElementById('pwdModal')?.classList.remove('hidden');
+            setTimeout(() => pwdInput?.focus(), 100);
+        };
+
+        window.closePwdModal = function() {
+            document.getElementById('pwdModal')?.classList.add('hidden');
+        };
+
+        window.submitUnlockPassword = function() {
+            const pwdInput = document.getElementById('unlockPwdInput');
+            const pwd = pwdInput ? pwdInput.value : '';
+            const currentLockPwd = localStorage.getItem('yuhoutianqing_lockPassword') || 'tingyu1938';
+            if (pwd === currentLockPwd) {
+                window.isLocked = false;
+                localStorage.setItem('yuhoutianqing_isLocked', 'false');
+                window.updateLockButtonUI();
+                window.closePwdModal();
+                window.showToast("解锁成功，已切换至编辑模式", "success");
+            } else {
+                window.showToast("密码错误，无法解锁", "error");
+            }
+        };
+
+        window.openShareModal = function() {
+            const roomInput = document.getElementById('shareRoomInput');
+            const urlInput = document.getElementById('shareUrlInput');
+            if (roomInput) roomInput.value = window.currentRoomId === 'default' ? '' : window.currentRoomId;
+
+            const shareUrl = window.location.origin + window.location.pathname + (window.currentRoomId !== 'default' ? `?room=${encodeURIComponent(window.currentRoomId)}` : '');
+            if (urlInput) urlInput.value = shareUrl;
+
+            document.getElementById('shareModal')?.classList.remove('hidden');
+        };
+
+        window.closeShareModal = function() {
+            document.getElementById('shareModal')?.classList.add('hidden');
+        };
+
+        window.copyShareLink = function() {
+            const urlInput = document.getElementById('shareUrlInput');
+            if (!urlInput) return;
+            urlInput.select();
+            try {
+                document.execCommand('copy');
+                window.showToast("协同链接已复制到剪贴板！", "success");
+            } catch (err) {
+                window.showToast("复制失败", "error");
+            }
+        };
+
+        window.switchRoomFromInput = function() {
+            const roomInput = document.getElementById('shareRoomInput');
+            const newRoom = roomInput ? roomInput.value.trim() : '';
+            const targetRoom = newRoom || 'default';
+            const newUrl = window.location.origin + window.location.pathname + (targetRoom !== 'default' ? `?room=${encodeURIComponent(targetRoom)}` : '');
+            window.location.href = newUrl;
+        };
+
+        window.handleNewEventClick = function() {
+            if (window.isLocked) {
+                window.showToast("当前处于浏览模式，请先解锁密码", "error");
+                window.openPwdModal();
+            } else {
+                window.openEditModal();
+            }
+        };
+
+        window.handleEventClick = function(eventId) {
+            if (window.isLocked) {
+                window.openReadOnlyFullscreen(eventId);
+            } else {
+                window.openEditModal(eventId);
+            }
+        };
+
+        window.openTagModal = function() {
+            const inputContainer = document.getElementById('tagInputContainer');
+            if (inputContainer) {
+                if (window.isLocked) {
+                    inputContainer.style.display = 'none';
+                } else {
+                    inputContainer.style.display = 'flex';
+                }
+            }
+            window.renderTagModalList();
+            document.getElementById('tagModal')?.classList.remove('hidden');
+        };
+
+        window.closeTagModal = function() {
+            document.getElementById('tagModal')?.classList.add('hidden');
+        };
+
+        window.renderTagModalList = function() {
+            const container = document.getElementById('tagModalList');
+            if (!container) return;
+            
+            if (window.availableTags.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400 italic py-2">暂无 tag，请在编辑模式下新建</p>`;
+                return;
+            }
+
+            container.innerHTML = window.availableTags.map(t => `
+                <div class="flex items-center gap-1.5 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg text-xs text-slate-700 font-medium">
+                    <span># ${t}</span>
+                    ${!window.isLocked ? `
+                        <button onclick="deleteTag('${t}')" title="删除 tag" class="text-slate-400 hover:text-rose-500 ml-1">
+                            <i class="fa-solid fa-xmark text-xs"></i>
+                        </button>
+                    ` : ''}
+                </div>
+            `).join('');
+        };
+
+        window.addNewTagFromModal = async function() {
+            if (window.isLocked) {
+                window.showToast("浏览模式无法修改或添加 tag", "error");
+                return;
+            }
+            const input = document.getElementById('newTagInput');
+            const newTag = input ? input.value.trim() : '';
+            if (!newTag) {
+                window.showToast("请输入 tag 名称", "error");
+                return;
+            }
+            if (window.availableTags.includes(newTag)) {
+                window.showToast("该 tag 已存在", "error");
+                return;
+            }
+            window.availableTags.push(newTag);
+            if (input) input.value = '';
+            await window.saveTagToCloud(newTag);
+            window.showToast(`已添加 tag: ${newTag}`, "success");
+        };
+
+        window.deleteTag = async function(tagName) {
+            if (window.isLocked) return;
+            window.availableTags = window.availableTags.filter(t => t !== tagName);
+            await window.deleteTagFromCloud(tagName);
+            window.showToast(`已移除 tag: ${tagName}`, "info");
+        };
+
+        window.deleteEvent = function(id) {
+            window.pendingDeleteId = id;
+            document.getElementById('confirmModal')?.classList.remove('hidden');
+        };
+
+        window.closeConfirmModal = function() {
+            window.pendingDeleteId = null;
+            document.getElementById('confirmModal')?.classList.add('hidden');
+        };
+
+        window.confirmDeleteEvent = async function() {
+            if (window.pendingDeleteId !== null) {
+                const targetId = window.pendingDeleteId;
+                window.closeConfirmModal();
+                window.closeEditModal();
+                await window.deleteEventFromCloud(targetId);
+                window.showToast("事件及关联已成功删除", "info");
+            }
+        };
+
+        window.closeConfirmSaveModal = function() {
+            window.pendingSaveData = null;
+            document.getElementById('confirmSaveModal')?.classList.add('hidden');
+        };
+
+        window.confirmSaveEvent = async function() {
+            if (window.pendingSaveData) {
+                const eventData = window.pendingSaveData;
+                const isEdit = window.pendingSaveData._isEdit;
+                delete eventData._isEdit;
+
+                window.closeConfirmSaveModal();
+                window.closeEditModal();
+
+                await window.saveEventToCloud(eventData);
+                window.showToast(isEdit ? "事件修改已保存" : "新建事件成功", "success");
+                window.pendingSaveData = null;
+            }
+        };
+
+        window.renderEvents = function() {
+            const filtered = window.getFilteredEvents();
+            const emptyState = document.getElementById('emptyState');
+            if (filtered.length === 0) {
+                emptyState?.classList.remove('hidden');
+                emptyState?.classList.add('flex');
+            } else {
+                emptyState?.classList.add('hidden');
+                emptyState?.classList.remove('flex');
+            }
+
+            if (window.currentView === 'timeline') {
+                window.renderTimelineView(filtered);
+            } else {
+                window.renderGridView(filtered);
+            }
+        };
+
+        window.getFilteredEvents = function() {
+            const query = (document.getElementById('searchInput')?.value || '').trim().toLowerCase();
+            if (!query) return window.events;
+            return window.events.filter(e => 
+                e.title.toLowerCase().includes(query) ||
+                (e.description && e.description.toLowerCase().includes(query)) ||
+                (e.tags && e.tags.some(t => t.toLowerCase().includes(query)))
+            );
+        };
+
+        window.handleSearch = function() {
+            window.renderEvents();
+        };
+
+        window.switchView = function(view) {
+            window.currentView = view;
+            const timelineWrapper = document.getElementById('timelineWrapper');
+            const eventGrid = document.getElementById('eventGrid');
+            const timelineBtn = document.getElementById('viewTimelineBtn');
+            const gridBtn = document.getElementById('viewGridBtn');
+            const zoomContainer = document.getElementById('zoomControlContainer');
+
+            if (view === 'timeline') {
+                timelineWrapper?.classList.remove('hidden');
+                eventGrid?.classList.add('hidden');
+                zoomContainer?.classList.remove('hidden');
+
+                if (timelineBtn) timelineBtn.className = "flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-all bg-white text-indigo-600 shadow-sm";
+                if (gridBtn) gridBtn.className = "flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-all text-slate-600 hover:text-slate-900";
+            } else {
+                timelineWrapper?.classList.add('hidden');
+                eventGrid?.classList.remove('hidden');
+                zoomContainer?.classList.add('hidden');
+
+                if (gridBtn) gridBtn.className = "flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-all bg-white text-indigo-600 shadow-sm";
+                if (timelineBtn) timelineBtn.className = "flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-all text-slate-600 hover:text-slate-900";
+            }
+            window.renderEvents();
+        };
+
+        window.scrollTimeline = function(amount) {
+            const container = document.getElementById('timelineContainer');
+            if (container) container.scrollBy({ left: amount, behavior: 'smooth' });
+        };
+
+        window.getZoomScale = function() {
+            const scales = { 1: 0.55, 2: 0.78, 3: 1.0, 4: 1.3, 5: 1.65 };
+            return scales[window.zoomLevel] || 1.0;
+        };
+
+        window.setZoom = function(val) {
+            window.zoomLevel = parseInt(val);
+            const zoomSlider = document.getElementById('zoomSlider');
+            if (zoomSlider) zoomSlider.value = window.zoomLevel;
+            const labels = { 1: "超紧凑", 2: "紧凑", 3: "标准", 4: "宽松", 5: "展开" };
+            const densityLabel = document.getElementById('densityLabel');
+            if (densityLabel) densityLabel.innerText = `密度: ${labels[window.zoomLevel]}`;
+            window.renderEvents();
+        };
+
+        window.changeZoom = function(delta) {
+            const newZoom = Math.min(5, Math.max(1, window.zoomLevel + delta));
+            window.setZoom(newZoom);
+        };
+
+        window.handleTimelineWheel = function(e) {
+            if (e.ctrlKey || e.altKey) {
+                e.preventDefault();
+                window.changeZoom(e.deltaY < 0 ? 1 : -1);
+            } else {
+                const container = document.getElementById('timelineContainer');
+                if (container) container.scrollLeft += e.deltaY;
+            }
+        };
+
+        window.renderTimelineView = function(eventList = window.events) {
+            const track = document.getElementById('timelineNodesTrack');
+            if (!track) return;
+            track.innerHTML = '';
+
+            if (eventList.length === 0) {
+                window.renderSvgConnections();
+                return;
+            }
+
+            const scale = window.getZoomScale();
+            const gapPx = Math.round(150 * scale);
+            const dotMajorSize = Math.round(20 * scale);
+            const dotMinorSize = Math.round(12 * scale);
+            const fontSizeTitle = Math.max(10, Math.round(13 * scale));
+            const previewWidth = Math.round(160 * Math.min(1.2, Math.max(0.7, scale)));
+            const previewImgHeight = Math.round(100 * Math.min(1.2, Math.max(0.7, scale)));
+
+            const sorted = [...eventList].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            sorted.forEach((event) => {
+                const isMajor = event.type === 'major';
+                const dotSize = isMajor ? dotMajorSize : dotMinorSize;
+                const nodeContainer = document.createElement('div');
+                nodeContainer.className = "timeline-node-container relative flex flex-col items-center justify-center shrink-0 cursor-pointer group py-6";
+                nodeContainer.style.width = `${gapPx}px`;
+
+                const hasImages = event.images && event.images.length > 0;
+                const firstImgObj = hasImages ? event.images[0] : null;
+                const firstImgSrc = typeof firstImgObj === 'string' ? firstImgObj : (firstImgObj?.outer || firstImgObj?.original);
+
+                nodeContainer.innerHTML = `
+                    ${hasImages ? `
+                        <div class="timeline-hover-tooltip absolute bottom-full mb-3 z-30 bg-slate-900 rounded-xl border border-slate-700 overflow-hidden pointer-events-none" style="width: ${previewWidth}px; height: ${previewImgHeight}px;">
+                            <img id="hover-img-${event.id}" src="${firstImgSrc}" class="w-full h-full object-cover transition-opacity duration-300">
+                        </div>
+                    ` : ''}
+
+                    <div onclick="handleEventClick(${event.id})" class="text-center mb-3 max-w-[130px] select-none">
+                        <span class="block font-medium ${isMajor ? 'text-indigo-900 font-bold' : 'text-slate-700'} line-clamp-1" style="font-size: ${fontSizeTitle}px;">
+                            ${event.title}
+                        </span>
+                        <span class="block text-[10px] text-slate-400 font-mono mt-0.5">
+                            ${event.date}
+                        </span>
+                    </div>
+
+                    <div id="timeline-dot-${event.id}" onclick="handleEventClick(${event.id})" class="timeline-dot rounded-full bg-white border-2 ${isMajor ? 'border-indigo-600 bg-indigo-600 shadow-md ring-4 ring-indigo-100' : 'border-slate-400 hover:border-indigo-500 hover:bg-indigo-500'} flex items-center justify-center z-10 shrink-0" style="width: ${dotSize}px; height: ${dotSize}px;">
+                    </div>
+                `;
+
+                nodeContainer.addEventListener('mouseenter', () => {
+                    window.highlightConnectionsForEvent(event.id, true);
+                    if (event.images && event.images.length > 1) {
+                        let imgIdx = 0;
+                        const imgEl = document.getElementById(`hover-img-${event.id}`);
+                        window.activeHoverIntervals[event.id] = setInterval(() => {
+                            imgIdx = (imgIdx + 1) % event.images.length;
+                            const curImgObj = event.images[imgIdx];
+                            const curSrc = typeof curImgObj === 'string' ? curImgObj : (curImgObj?.outer || curImgObj?.original);
+                            if (imgEl) imgEl.src = curSrc;
+                        }, 1500);
+                    }
+                });
+
+                nodeContainer.addEventListener('mouseleave', () => {
+                    window.highlightConnectionsForEvent(event.id, false);
+                    if (window.activeHoverIntervals[event.id]) {
+                        clearInterval(window.activeHoverIntervals[event.id]);
+                        delete window.activeHoverIntervals[event.id];
+                    }
+                });
+
+                track.appendChild(nodeContainer);
+            });
+
+            requestAnimationFrame(() => {
+                const firstDot = document.querySelector('.timeline-dot');
+                const axisLine = document.getElementById('timelineMainAxis');
+                const container = document.getElementById('timelineContainer');
+                if (firstDot && axisLine && container) {
+                    const dotRect = firstDot.getBoundingClientRect();
+                    const containerRect = container.getBoundingClientRect();
+                    const dotCenterY = (dotRect.top + dotRect.height / 2) - containerRect.top + container.scrollTop;
+                    axisLine.style.top = `${dotCenterY}px`;
+                    axisLine.style.transform = 'translateY(-50%)';
+                }
+                window.renderSvgConnections();
+            });
+        };
+
+        window.renderSvgConnections = function() {
+            const group = document.getElementById('svgConnectionsGroup');
+            const container = document.getElementById('timelineContainer');
+            const svgOverlay = document.getElementById('timelineSvgOverlay');
+            if (!group || !container || !svgOverlay) return;
+
+            group.innerHTML = '';
+
+            const scrollW = container.scrollWidth;
+            const scrollH = container.scrollHeight;
+            svgOverlay.style.width = `${scrollW}px`;
+            svgOverlay.style.height = `${scrollH}px`;
+
+            const containerRect = container.getBoundingClientRect();
+
+            function getQuadPointAndAngle(t, p0x, p0y, p1x, p1y, p2x, p2y) {
+                const mt = 1 - t;
+                const px = mt * mt * p0x + 2 * mt * t * p1x + t * t * p2x;
+                const py = mt * mt * p0y + 2 * mt * t * p1y + t * t * p2y;
+                const dx = 2 * mt * (p1x - p0x) + 2 * t * (p2x - p1x);
+                const dy = 2 * mt * (p1y - p0y) + 2 * t * (p2y - p1y);
+                const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+                return { x: px, y: py, angle };
+            }
+
+            window.connections.forEach(conn => {
+                const sourceDot = document.getElementById(`timeline-dot-${conn.sourceId}`);
+                const targetDot = document.getElementById(`timeline-dot-${conn.targetId}`);
+
+                if (!sourceDot || !targetDot) return;
+
+                const sourceRect = sourceDot.getBoundingClientRect();
+                const targetRect = targetDot.getBoundingClientRect();
+
+                const x1 = (sourceRect.left + sourceRect.width / 2) - containerRect.left + container.scrollLeft;
+                const y1 = (sourceRect.top + sourceRect.height / 2) - containerRect.top + container.scrollTop;
+                const x2 = (targetRect.left + targetRect.width / 2) - containerRect.left + container.scrollLeft;
+                const y2 = (targetRect.top + targetRect.height / 2) - containerRect.top + container.scrollTop;
+
+                const distance = Math.abs(x2 - x1);
+                const arcHeight = Math.min(140, Math.max(45, distance * 0.25));
+                const midX = (x1 + x2) / 2;
+                const midY = Math.min(y1, y2) - arcHeight;
+
+                const pathD = `M ${x1} ${y1} Q ${midX} ${midY} ${x2} ${y2}`;
+
+                const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                g.setAttribute("class", `svg-conn-line conn-from-${conn.sourceId} conn-to-${conn.targetId}`);
+                g.setAttribute("data-source", conn.sourceId);
+                g.setAttribute("data-target", conn.targetId);
+
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                path.setAttribute("d", pathD);
+                path.setAttribute("fill", "none");
+                g.appendChild(path);
+
+                // 让图标准确位于线的绝对中心 (t = 0.5)
+                const pt = getQuadPointAndAngle(0.5, x1, y1, midX, midY, x2, y2);
+                
+                if (conn.dir === 'both') {
+                    const poly1 = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+                    poly1.setAttribute("points", "-6,-4.5 6,0 -6,4.5");
+                    poly1.setAttribute("transform", `translate(${pt.x}, ${pt.y}) rotate(${pt.angle + 180})`);
+                    g.appendChild(poly1);
+                } else {
+                    const angle = conn.dir === 'backward' ? pt.angle + 180 : pt.angle;
+                    const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+                    poly.setAttribute("points", "-6,-4.5 6,0 -6,4.5");
+                    poly.setAttribute("transform", `translate(${pt.x}, ${pt.y}) rotate(${angle})`);
+                    g.appendChild(poly);
+                }
+
+                // 如果有文字描述，则显示在虚线上方
+                if (conn.label && conn.label.trim() !== '') {
+                    const textEl = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    textEl.setAttribute("x", pt.x);
+                    textEl.setAttribute("y", pt.y - 12);
+                    textEl.textContent = conn.label;
+                    g.appendChild(textEl);
+                }
+
+                group.appendChild(g);
+            });
+        };
+
+        window.highlightConnectionsForEvent = function(eventId, highlight) {
+            const lines = document.querySelectorAll('#svgConnectionsGroup .svg-conn-line');
+            lines.forEach(line => {
+                const sId = isNaN(line.getAttribute('data-source')) ? line.getAttribute('data-source') : parseInt(line.getAttribute('data-source'));
+                const tId = isNaN(line.getAttribute('data-target')) ? line.getAttribute('data-target') : parseInt(line.getAttribute('data-target'));
+
+                if (sId === eventId || tId === eventId) {
+                    if (highlight) {
+                        line.classList.add('active-line');
+                    } else {
+                        line.classList.remove('active-line');
+                    }
+                }
+            });
+        };
+
+        window.renderGridView = function(eventList = window.events) {
+            const grid = document.getElementById('eventGrid');
+            if (!grid) return;
+            grid.innerHTML = '';
+
+            eventList.forEach(event => {
+                const card = document.createElement('div');
+                card.className = "bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden cursor-pointer flex flex-col";
+                
+                card.addEventListener('mouseenter', () => window.highlightConnectionsForEvent(event.id, true));
+                card.addEventListener('mouseleave', () => window.highlightConnectionsForEvent(event.id, false));
+                card.onclick = () => window.handleEventClick(event.id);
+
+                const hasImg = event.images && event.images.length > 0;
+                const firstImgObj = hasImg ? event.images[0] : null;
+                const firstImgSrc = typeof firstImgObj === 'string' ? firstImgObj : (firstImgObj?.outer || firstImgObj?.original);
+
+                card.innerHTML = `
+                    ${hasImg ? `
+                        <div class="h-44 bg-slate-900 overflow-hidden relative">
+                            <img src="${firstImgSrc}" class="w-full h-full object-cover hover:scale-105 transition-transform duration-500">
+                            ${event.images.length > 1 ? `<span class="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded-md"><i class="fa-solid fa-images mr-1"></i>${event.images.length}</span>` : ''}
+                        </div>
+                    ` : ''}
+                    <div class="p-4 sm:p-5 flex-grow flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between gap-2 mb-2">
+                                <span class="text-xs font-mono font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">${event.date}</span>
+                                <span class="text-xs text-slate-400 font-medium">${event.type === 'major' ? '重大里程碑' : '普通事件'}</span>
+                            </div>
+                            <h3 class="font-bold text-slate-800 text-base mb-2 line-clamp-1">${event.title}</h3>
+                            <p class="text-xs text-slate-600 line-clamp-2 leading-relaxed mb-4">${event.description || '暂无描述'}</p>
+                        </div>
+                        ${event.tags && event.tags.length > 0 ? `
+                            <div class="flex flex-wrap gap-1.5 pt-3 border-t border-slate-100">
+                                ${event.tags.map(t => `<span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium"># ${t}</span>`).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        };
+
+        window.openReadOnlyFullscreen = function(eventId) {
+            const event = window.events.find(e => e.id === eventId);
+            if (!event) return;
+
+            let viewer = document.getElementById('fullscreenViewer');
+            if (!viewer) {
+                viewer = document.createElement('div');
+                viewer.id = 'fullscreenViewer';
+                viewer.className = "fixed inset-0 bg-slate-950/90 text-white z-50 overflow-y-auto backdrop-blur-md p-3 sm:p-8 flex flex-col items-center";
+                document.body.appendChild(viewer);
+            }
+
+            const relatedConns = window.connections.filter(c => c.sourceId === eventId || c.targetId === eventId);
+            let connHtml = '';
+            if (relatedConns.length > 0) {
+                connHtml = `
+                    <div class="border-t border-slate-800 pt-6 mb-6">
+                        <h4 class="text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                            <i class="fa-solid fa-diagram-project"></i>
+                            <span>节点关联联系</span>
+                        </h4>
+                        <div class="space-y-2">
+                            ${relatedConns.map(c => {
+                                const isSource = c.sourceId === eventId;
+                                const otherId = isSource ? c.targetId : c.sourceId;
+                                const otherEvent = window.events.find(e => e.id === otherId);
+
+                                let arrowIcon = '➔';
+                                let relLabel = '指向目标';
+                                if (c.dir === 'both') {
+                                    arrowIcon = '↔';
+                                    relLabel = '双向关联';
+                                } else if (!isSource) {
+                                    arrowIcon = '⬅';
+                                    relLabel = '被其指向';
+                                }
+
+                                return `
+                                    <div class="flex items-center justify-between bg-slate-800/60 border border-slate-700/80 px-3 py-2 rounded-xl text-xs" onmouseenter="highlightConnectionsForEvent('${eventId}', true)" onmouseleave="highlightConnectionsForEvent('${eventId}', false)">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-indigo-400 font-bold text-sm">${arrowIcon}</span>
+                                            <span class="font-medium text-slate-200">${otherEvent ? otherEvent.title : '未知事件'}</span>
+                                            ${c.label ? `<span class="bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded text-[10px] ml-2">“${c.label}”</span>` : ''}
+                                        </div>
+                                        <span class="text-[10px] text-slate-400 font-mono">${relLabel}</span>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            let imagesHtml = '';
+            if (event.images && event.images.length > 0) {
+                const fullSrcList = event.images.map(imgObj => typeof imgObj === 'string' ? imgObj : imgObj.original);
+                imagesHtml = `
+                    <div class="mb-6">
+                        <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">事件配图 (点击查看大图)</h4>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                            ${event.images.map((imgObj, idx) => {
+                                const thumbSrc = typeof imgObj === 'string' ? imgObj : (imgObj.inner || imgObj.original);
+                                const listStr = JSON.stringify(fullSrcList).replace(/"/g, '&quot;');
+                                return `
+                                    <div onclick="openLightbox(${listStr}, ${idx})" class="group relative aspect-[3/4] bg-slate-950 rounded-xl overflow-hidden border border-slate-800 cursor-pointer shadow-md hover:border-indigo-500 transition-all">
+                                        <img src="${thumbSrc}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                                        <div class="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                            <i class="fa-solid fa-magnifying-glass-plus text-white text-sm drop-shadow"></i>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            let videosHtml = '';
+            if (event.videos && event.videos.length > 0) {
+                videosHtml = `
+                    <div class="mb-6">
+                        <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-video mr-1"></i>事件视频</h4>
+                        <div class="space-y-3">
+                            ${event.videos.map(v => `
+                                <div class="bg-black rounded-xl overflow-hidden border border-slate-800">
+                                    <video src="${v}" controls class="w-full max-h-80 object-contain"></video>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            let linksHtml = '';
+            if (event.links && event.links.length > 0) {
+                linksHtml = `
+                    <div class="mb-6">
+                        <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-link mr-1"></i>跳转网址</h4>
+                        <div class="flex flex-wrap gap-2">
+                            ${event.links.map(l => `
+                                <a href="${l.url}" target="_blank" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-indigo-300 hover:text-indigo-200 px-3 py-2 rounded-xl text-xs transition-colors">
+                                    <i class="fa-solid fa-globe"></i>
+                                    <span class="font-medium">${l.title || l.url}</span>
+                                    <i class="fa-solid fa-arrow-up-right-from-square text-[10px] text-slate-400"></i>
+                                </a>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            viewer.innerHTML = `
+                <div class="max-w-3xl w-full my-auto bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-10 shadow-2xl relative">
+                    <button onclick="closeReadOnlyFullscreen()" class="absolute top-4 right-4 sm:top-6 sm:right-6 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full flex items-center justify-center transition-colors">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="text-xs font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full font-semibold">${event.date}</span>
+                        ${event.type === 'major' ? '<span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full">重大里程碑</span>' : ''}
+                    </div>
+
+                    <h1 class="text-2xl sm:text-3xl font-bold text-white mb-4 tracking-wide">${event.title}</h1>
+
+                    ${event.tags && event.tags.length > 0 ? `
+                        <div class="flex flex-wrap gap-2 mb-6">
+                            ${event.tags.map(t => `<span class="text-xs bg-slate-800 text-slate-300 border border-slate-700 px-2.5 py-1 rounded-md"># ${t}</span>`).join('')}
+                        </div>
+                    ` : ''}
+
+                    ${imagesHtml}
+                    ${videosHtml}
+                    ${linksHtml}
+                    ${connHtml}
+
+                    <div class="border-t border-slate-800 pt-6">
+                        <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">事件经过与描述</h4>
+                        <p class="text-sm sm:text-base text-slate-200 leading-relaxed whitespace-pre-wrap">${event.description || '无详细描述'}</p>
+                    </div>
+                </div>
+            `;
+            viewer.classList.remove('hidden');
+        };
+
+        window.closeReadOnlyFullscreen = function() {
+            const viewer = document.getElementById('fullscreenViewer');
+            if (viewer) viewer.classList.add('hidden');
+        };
+
+        window.openLightbox = function(imagesOrSrc, index = 0) {
+            if (Array.isArray(imagesOrSrc)) {
+                window.currentLightboxImages = imagesOrSrc;
+                window.currentLightboxIndex = index;
+            } else {
+                window.currentLightboxImages = [imagesOrSrc];
+                window.currentLightboxIndex = 0;
+            }
+
+            updateLightboxDisplay();
+            document.getElementById('lightboxModal')?.classList.remove('hidden');
+        };
+
+        function updateLightboxDisplay() {
+            const lightboxImg = document.getElementById('lightboxImg');
+            const counter = document.getElementById('lightboxCounter');
+            const prevBtn = document.getElementById('lightboxPrevBtn');
+            const nextBtn = document.getElementById('lightboxNextBtn');
+
+            if (!lightboxImg) return;
+
+            const total = window.currentLightboxImages.length;
+            const currentSrc = window.currentLightboxImages[window.currentLightboxIndex];
+
+            lightboxImg.src = currentSrc;
+
+            if (counter) {
+                counter.innerText = total > 1 ? `${window.currentLightboxIndex + 1} / ${total}` : '';
+            }
+
+            if (prevBtn && nextBtn) {
+                if (total > 1) {
+                    prevBtn.style.display = 'flex';
+                    nextBtn.style.display = 'flex';
+                } else {
+                    prevBtn.style.display = 'none';
+                    nextBtn.style.display = 'none';
+                }
+            }
+        }
+
+        window.changeLightboxImage = function(direction) {
+            const total = window.currentLightboxImages.length;
+            if (total <= 1) return;
+
+            window.currentLightboxIndex = (window.currentLightboxIndex + direction + total) % total;
+            updateLightboxDisplay();
+        };
+
+        window.closeLightbox = function() {
+            document.getElementById('lightboxModal')?.classList.add('hidden');
+        };
+
+        document.addEventListener('keydown', (e) => {
+            const lightbox = document.getElementById('lightboxModal');
+            if (lightbox && !lightbox.classList.contains('hidden')) {
+                if (e.key === 'ArrowLeft') {
+                    window.changeLightboxImage(-1);
+                } else if (e.key === 'ArrowRight') {
+                    window.changeLightboxImage(1);
+                } else if (e.key === 'Escape') {
+                    window.closeLightbox();
+                }
+            }
+        });
+
+        window.openEditModal = function(eventId = null) {
+            let modal = document.getElementById('editModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'editModal';
+                modal.className = "fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto";
+                document.body.appendChild(modal);
+            }
+
+            const isEdit = eventId !== null;
+            const event = isEdit ? window.events.find(e => e.id === eventId) : {
+                id: Date.now(),
+                title: '',
+                date: new Date().toISOString().split('T')[0],
+                type: 'minor',
+                tags: [],
+                images: [],
+                videos: [],
+                links: [],
+                description: ''
+            };
+
+            window.editingImageFiles = (event.images ? event.images : []).map(img => {
+                if (typeof img === 'string') {
+                    return { original: img, outer: img, inner: img };
+                }
+                return { 
+                    original: img.original, 
+                    outer: img.outer || img.original, 
+                    inner: img.inner || img.original 
+                };
+            });
+
+            window.editingVideos = event.videos ? [...event.videos] : [];
+            window.editingLinks = event.links ? [...event.links] : [];
+
+            modal.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-4 sm:p-6 my-4 sm:my-8 max-h-[90vh] overflow-y-auto custom-scrollbar">
+                    <div class="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-200 mb-4 sm:mb-5">
+                        <h3 class="font-bold text-slate-800 text-base sm:text-lg flex items-center gap-2">
+                            <i class="fa-solid fa-pen-to-square text-indigo-600"></i>
+                            <span>${isEdit ? '编辑事件' : '新建事件'}</span>
+                        </h3>
+                        <button onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full flex items-center justify-center">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+
+                    <form onsubmit="handlePreSaveEvent(event, '${event.id}', ${isEdit})" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">事件名称 *</label>
+                            <input type="text" id="editTitle" value="${event.title}" required placeholder="输入事件标题" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">发生日期 *</label>
+                                <input type="date" id="editDate" value="${event.date}" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">节点类型</label>
+                                <select id="editType" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                                    <option value="minor" ${event.type === 'minor' ? 'selected' : ''}>普通事件</option>
+                                    <option value="major" ${event.type === 'major' ? 'selected' : ''}>重大里程碑</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">选择 tag (多选)</label>
+                            <div class="flex flex-wrap gap-1.5 p-2 border border-slate-200 rounded-lg bg-slate-50 max-h-28 overflow-y-auto" id="editTagsList">
+                                ${window.availableTags.length === 0 ? '<p class="text-xs text-slate-400 italic">暂无可用 tag，请在顶部 “tag库” 中添加</p>' : window.availableTags.map(t => {
+                                    const checked = event.tags && event.tags.includes(t);
+                                    return `
+                                        <label class="cursor-pointer text-xs flex items-center gap-1.5 px-2 py-1 rounded border transition-colors ${checked ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-semibold' : 'bg-white border-slate-200 text-slate-600'}">
+                                            <input type="checkbox" value="${t}" ${checked ? 'checked' : ''} class="hidden" onchange="toggleTagSelection(this)">
+                                            <span># ${t}</span>
+                                        </label>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+
+                        <div class="border border-indigo-100 bg-indigo-50/40 rounded-xl p-3 space-y-2">
+                            <label class="block text-xs font-bold text-indigo-900 flex items-center justify-between">
+                                <span class="flex items-center gap-1.5">
+                                    <i class="fa-solid fa-diagram-project text-indigo-600"></i>
+                                    <span>节点逻辑连接设置</span>
+                                </span>
+                            </label>
+                            
+                            <div id="eventConnList" class="space-y-1.5"></div>
+
+                            <div class="flex flex-col gap-2 pt-2 border-t border-indigo-100">
+                                <div class="flex gap-2">
+                                    <select id="newConnTarget" class="flex-grow px-2 py-1.5 border border-slate-300 rounded text-xs bg-white outline-none">
+                                        <option value="">选择目标事件...</option>
+                                    </select>
+                                    <select id="newConnDir" class="w-28 px-2 py-1.5 border border-slate-300 rounded text-xs bg-white outline-none">
+                                        <option value="forward">指向 ➔</option>
+                                        <option value="backward">被指向 ➔</option>
+                                        <option value="both">双向 ↔</option>
+                                    </select>
+                                </div>
+                                <div class="flex gap-2">
+                                    <input type="text" id="newConnLabel" placeholder="连线上方文字描述 (可选)" class="flex-grow px-2 py-1.5 border border-slate-300 rounded text-xs bg-white outline-none">
+                                    <button type="button" onclick="addConnectionFromModal('${event.id}')" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-medium shrink-0">
+                                        添加连接
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="block text-xs font-bold text-slate-700">添加图片并截选</label>
+                                <span class="text-[10px] text-slate-400">支持横屏(封面)与详情缩略图</span>
+                            </div>
+                            <div class="border-2 border-dashed border-slate-300 rounded-xl p-4 text-center hover:bg-slate-50 transition-colors cursor-pointer" onclick="document.getElementById('editFileInput').click()">
+                                <i class="fa-solid fa-cloud-arrow-up text-2xl text-indigo-500 mb-1 block"></i>
+                                <span class="text-xs text-slate-600 font-medium">点击选择本地照片上传</span>
+                                <input type="file" id="editFileInput" multiple accept="image/*" class="hidden" onchange="handleLocalImageUpload(event)">
+                            </div>
+                            <div id="imageMicroPreviews" class="flex flex-wrap gap-2 mt-3"></div>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="block text-xs font-bold text-slate-700">添加视频</label>
+                                <span class="text-[10px] text-slate-400">支持本地上传或直链</span>
+                            </div>
+                            <div class="flex gap-2 mb-2">
+                                <input type="file" id="editVideoFileInput" accept="video/*" class="hidden" onchange="handleLocalVideoUpload(event)">
+                                <button type="button" onclick="document.getElementById('editVideoFileInput').click()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 rounded-lg text-xs font-medium flex items-center gap-1.5">
+                                    <i class="fa-solid fa-file-video text-indigo-600"></i>
+                                    <span>上传本地视频</span>
+                                </button>
+                            </div>
+                            <div class="flex gap-2">
+                                <input type="text" id="newVideoUrlInput" placeholder="输入视频网络地址 (URL)" class="flex-grow px-3 py-1.5 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
+                                <button type="button" onclick="addVideoUrl()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shrink-0">添加网址视频</button>
+                            </div>
+                            <div id="videoPreviews" class="space-y-2 mt-3"></div>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="block text-xs font-bold text-slate-700">跳转网址 (网页链接)</label>
+                                <span class="text-[10px] text-slate-400">支持添加外部跳转链接</span>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
+                                <input type="text" id="newLinkTitleInput" placeholder="链接显示名称 (如：官方文档)" class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
+                                <input type="text" id="newLinkUrlInput" placeholder="网址链接 (https://...)" class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <button type="button" onclick="addLinkItem()" class="w-full py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5">
+                                <i class="fa-solid fa-link text-indigo-600"></i>
+                                <span>添加跳转网址</span>
+                            </button>
+                            <div id="linkPreviews" class="space-y-2 mt-3"></div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">详细经过与描述</label>
+                            <textarea id="editDescription" rows="3" placeholder="记录关于这件事的详细经过..." class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 resize-none">${event.description || ''}</textarea>
+                        </div>
+
+                        <div class="flex items-center justify-between pt-3 border-t border-slate-200 gap-3">
+                            ${isEdit ? `
+                                <button type="button" onclick="deleteEvent('${event.id}')" class="px-4 py-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg text-xs font-medium transition-colors">
+                                    删除事件
+                                </button>
+                            ` : '<div></div>'}
+                            <div class="flex items-center gap-2">
+                                <button type="button" onclick="closeEditModal()" class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button>
+                                <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">保存事件</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            `;
+
+            window.renderMicroPreviews();
+            window.renderVideoPreviews();
+            window.renderLinkPreviews();
+            window.renderModalConnections(event.id);
+            modal.classList.remove('hidden');
+        };
+
+        window.closeEditModal = function() {
+            const modal = document.getElementById('editModal');
+            if (modal) modal.classList.add('hidden');
+        };
+
+        window.toggleTagSelection = function(checkbox) {
+            const parent = checkbox.closest('label');
+            if (!parent) return;
+            if (checkbox.checked) {
+                parent.className = "cursor-pointer text-xs flex items-center gap-1.5 px-2 py-1 rounded border transition-colors bg-indigo-50 border-indigo-300 text-indigo-700 font-semibold";
+            } else {
+                parent.className = "cursor-pointer text-xs flex items-center gap-1.5 px-2 py-1 rounded border transition-colors bg-white border-slate-200 text-slate-600";
+            }
+        };
+
+        window.renderModalConnections = function(eventId) {
+            const listContainer = document.getElementById('eventConnList');
+            const targetSelect = document.getElementById('newConnTarget');
+            if (!listContainer || !targetSelect) return;
+
+            targetSelect.innerHTML = `<option value="">选择目标事件...</option>`;
+            window.events.filter(e => String(e.id) !== String(eventId)).forEach(e => {
+                targetSelect.innerHTML += `<option value="${e.id}">${e.title} (${e.date})</option>`;
+            });
+
+            const currentConns = window.connections.filter(c => String(c.sourceId) === String(eventId) || String(c.targetId) === String(eventId));
+            if (currentConns.length === 0) {
+                listContainer.innerHTML = `<p class="text-[11px] text-slate-400 italic">暂无节点逻辑连接</p>`;
+                return;
+            }
+
+            listContainer.innerHTML = currentConns.map(c => {
+                const isSource = String(c.sourceId) === String(eventId);
+                const otherId = isSource ? c.targetId : c.sourceId;
+                const otherEvent = window.events.find(e => String(e.id) === String(otherId));
+                let dirLabel = c.dir === 'both' ? '↔ 双向' : (isSource ? '➔ 指向' : '⬅ 被指');
+                let labelText = c.label ? ` [${c.label}]` : '';
+
+                return `
+                    <div class="flex items-center justify-between bg-white px-2.5 py-1.5 rounded border border-slate-200 text-xs">
+                        <span class="text-slate-700 font-medium truncate max-w-[220px] sm:max-w-[320px]">
+                            ${dirLabel}: <strong class="text-indigo-900">${otherEvent ? otherEvent.title : '未知事件'}</strong><span class="text-indigo-500">${labelText}</span>
+                        </span>
+                        <button type="button" onclick="removeConnection('${c.id}', '${eventId}')" class="text-slate-400 hover:text-rose-500 ml-2 shrink-0">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        };
+
+        window.addConnectionFromModal = async function(eventId) {
+            const targetSelect = document.getElementById('newConnTarget');
+            const targetIdRaw = targetSelect?.value;
+            const targetId = isNaN(targetIdRaw) ? targetIdRaw : Number(targetIdRaw);
+            const dir = document.getElementById('newConnDir')?.value || 'forward';
+            const label = document.getElementById('newConnLabel')?.value.trim() || '';
+
+            if (!targetIdRaw) {
+                window.showToast("请先选择关联的目标事件", "error");
+                return;
+            }
+
+            const parsedEventId = isNaN(eventId) ? eventId : Number(eventId);
+            const exists = window.connections.some(c => 
+                (String(c.sourceId) === String(parsedEventId) && String(c.targetId) === String(targetId)) || 
+                (String(c.sourceId) === String(targetId) && String(c.targetId) === String(parsedEventId))
+            );
+            if (exists) {
+                window.showToast("节点间已存在关联", "info");
+                return;
+            }
+
+            const newConn = { id: Date.now(), sourceId: parsedEventId, targetId: targetId, dir: dir, label: label };
+            await window.saveConnectionToCloud(newConn);
+            window.renderModalConnections(eventId);
+            window.showToast("成功添加节点连接", "success");
+        };
+
+        window.removeConnection = async function(connId, currentEventId) {
+            await window.deleteConnectionFromCloud(connId);
+            window.renderModalConnections(currentEventId);
+            window.showToast("已移除节点连接", "info");
+        };
+
+        window.handleLocalImageUpload = function(e) {
+            const files = Array.from(e.target.files);
+            files.forEach(f => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const base64 = event.target.result;
+                    window.editingImageFiles.push({ original: base64, outer: base64, inner: base64 });
+                    window.renderMicroPreviews();
+                };
+                reader.readAsDataURL(f);
+            });
+        };
+
+        window.renderMicroPreviews = function() {
+            const container = document.getElementById('imageMicroPreviews');
+            if (!container) return;
+            container.innerHTML = window.editingImageFiles.map((imgObj, idx) => {
+                const outerSrc = imgObj.outer || imgObj.original;
+                return `
+                    <div class="relative w-20 h-16 rounded-lg overflow-hidden border border-slate-200 group bg-slate-900 flex">
+                        <img src="${outerSrc}" class="w-full h-full object-cover">
+                        <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
+                            <button type="button" onclick="openCropModal(${idx})" title="裁剪图片" class="bg-indigo-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] hover:bg-indigo-700">
+                                <i class="fa-solid fa-crop"></i>
+                            </button>
+                            <button type="button" onclick="removeMicroPreview(${idx})" title="删除图片" class="bg-rose-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] hover:bg-rose-700">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        };
+
+        window.removeMicroPreview = function(index) {
+            window.editingImageFiles.splice(index, 1);
+            window.renderMicroPreviews();
+        };
+
+        window.handleLocalVideoUpload = function(e) {
+            const files = Array.from(e.target.files);
+            files.forEach(f => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    window.editingVideos.push(event.target.result);
+                    window.renderVideoPreviews();
+                };
+                reader.readAsDataURL(f);
+            });
+        };
+
+        window.addVideoUrl = function() {
+            const input = document.getElementById('newVideoUrlInput');
+            const url = input ? input.value.trim() : '';
+            if (!url) {
+                window.showToast("请输入有效的视频网址", "error");
+                return;
+            }
+            window.editingVideos.push(url);
+            if (input) input.value = '';
+            window.renderVideoPreviews();
+            window.showToast("视频添加成功", "success");
+        };
+
+        window.renderVideoPreviews = function() {
+            const container = document.getElementById('videoPreviews');
+            if (!container) return;
+            if (window.editingVideos.length === 0) {
+                container.innerHTML = "";
+                return;
+            }
+            container.innerHTML = window.editingVideos.map((v, idx) => `
+                <div class="flex items-center justify-between bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg text-xs">
+                    <span class="text-slate-700 font-mono truncate max-w-[220px] sm:max-w-[280px]"><i class="fa-solid fa-video mr-1 text-indigo-500"></i>${v}</span>
+                    <button type="button" onclick="removeVideoItem(${idx})" class="text-slate-400 hover:text-rose-500 shrink-0">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            `).join('');
+        };
+
+        window.removeVideoItem = function(idx) {
+            window.editingVideos.splice(idx, 1);
+            window.renderVideoPreviews();
+        };
+
+        window.addLinkItem = function() {
+            const titleInput = document.getElementById('newLinkTitleInput');
+            const urlInput = document.getElementById('newLinkUrlInput');
+            const title = titleInput ? titleInput.value.trim() : '';
+            const url = urlInput ? urlInput.value.trim() : '';
+
+            if (!url) {
+                window.showToast("请输入跳转网址", "error");
+                return;
+            }
+            window.editingLinks.push({ title: title || url, url: url });
+            if (titleInput) titleInput.value = '';
+            if (urlInput) urlInput.value = '';
+            window.renderLinkPreviews();
+            window.showToast("网址添加成功", "success");
+        };
+
+        window.renderLinkPreviews = function() {
+            const container = document.getElementById('linkPreviews');
+            if (!container) return;
+            if (window.editingLinks.length === 0) {
+                container.innerHTML = "";
+                return;
+            }
+            container.innerHTML = window.editingLinks.map((l, idx) => `
+                <div class="flex items-center justify-between bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg text-xs">
+                    <span class="text-indigo-600 font-medium truncate max-w-[220px] sm:max-w-[280px]"><i class="fa-solid fa-globe mr-1"></i>${l.title} (${l.url})</span>
+                    <button type="button" onclick="removeLinkItem(${idx})" class="text-slate-400 hover:text-rose-500 shrink-0">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            `).join('');
+        };
+
+        window.removeLinkItem = function(idx) {
+            window.editingLinks.splice(idx, 1);
+            window.renderLinkPreviews();
+        };
+
+        window.openCropModal = function(index) {
+            cropState.index = index;
+            cropState.mode = 'outer';
+            const imgObj = window.editingImageFiles[index];
+            if (!imgObj) return;
+
+            const modal = document.getElementById('cropModal');
+            const targetImg = document.getElementById('cropTargetImg');
+            if (!modal || !targetImg) return;
+
+            targetImg.src = imgObj.original;
+            modal.classList.remove('hidden');
+
+            targetImg.onload = () => {
+                cropState.naturalWidth = targetImg.naturalWidth;
+                cropState.naturalHeight = targetImg.naturalHeight;
+
+                cropState.scale = 1;
+                cropState.imgOffsetX = 0;
+                cropState.imgOffsetY = 0;
+
+                updateCropUIState();
+            };
+
+            setupCropContainerDragEvents();
+        };
+
+        window.switchCropMode = function(mode) {
+            cropState.mode = mode;
+            updateCropUIState();
+        };
+
+        function updateCropUIState() {
+            const tabOuter = document.getElementById('cropTabOuter');
+            const tabInner = document.getElementById('cropTabInner');
+            const cropBoxFixed = document.getElementById('cropBoxFixed');
+            const cropBoxLabel = document.getElementById('cropBoxLabel');
+            const slider = document.getElementById('imageScaleSlider');
+            const sliderText = document.getElementById('imageScaleText');
+
+            if (cropState.mode === 'outer') {
+                tabOuter.className = "flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 rounded-md text-xs font-semibold bg-indigo-600 text-white transition-all text-center";
+                tabInner.className = "flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 rounded-md text-xs font-semibold text-slate-400 hover:text-white transition-all text-center";
+                cropBoxLabel.innerText = CROP_SIZES.outer.label;
+            } else {
+                tabOuter.className = "flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 rounded-md text-xs font-semibold text-slate-400 hover:text-white transition-all text-center";
+                tabInner.className = "flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 rounded-md text-xs font-semibold bg-indigo-600 text-white transition-all text-center";
+                cropBoxLabel.innerText = CROP_SIZES.inner.label;
+            }
+
+            const currentDim = CROP_SIZES[cropState.mode];
+            cropBoxFixed.style.width = `${currentDim.w}px`;
+            cropBoxFixed.style.height = `${currentDim.h}px`;
+
+            slider.value = cropState.scale;
+            sliderText.innerText = `${Math.round(cropState.scale * 100)}%`;
+
+            applyImageTransform();
+        }
+
+        window.handleImageScaleChange = function(val) {
+            cropState.scale = parseFloat(val);
+            document.getElementById('imageScaleText').innerText = `${Math.round(cropState.scale * 100)}%`;
+            applyImageTransform();
+        };
+
+        function applyImageTransform() {
+            const targetImg = document.getElementById('cropTargetImg');
+            if (!targetImg) return;
+            const renderW = cropState.naturalWidth * cropState.scale;
+            const renderH = cropState.naturalHeight * cropState.scale;
+
+            targetImg.style.width = `${renderW}px`;
+            targetImg.style.height = `${renderH}px`;
+            targetImg.style.transform = `translate(${cropState.imgOffsetX}px, ${cropState.imgOffsetY}px)`;
+        }
+
+        function setupCropContainerDragEvents() {
+            const container = document.getElementById('cropContainer');
+            if (!container) return;
+
+            let isDragging = false;
+            let startX = 0;
+            let startY = 0;
+            let origOffsetX = 0;
+            let origOffsetY = 0;
+
+            container.onmousedown = (e) => {
+                isDragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                origOffsetX = cropState.imgOffsetX;
+                origOffsetY = cropState.imgOffsetY;
+            };
+
+            // 适配移动端触控拖动
+            container.ontouchstart = (e) => {
+                if (e.touches.length === 1) {
+                    isDragging = true;
+                    startX = e.touches[0].clientX;
+                    startY = e.touches[0].clientY;
+                    origOffsetX = cropState.imgOffsetX;
+                    origOffsetY = cropState.imgOffsetY;
+                }
+            };
+
+            window.onmousemove = (e) => {
+                if (!isDragging) return;
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                cropState.imgOffsetX = origOffsetX + dx;
+                cropState.imgOffsetY = origOffsetY + dy;
+                applyImageTransform();
+            };
+
+            window.ontouchmove = (e) => {
+                if (!isDragging || e.touches.length !== 1) return;
+                const dx = e.touches[0].clientX - startX;
+                const dy = e.touches[0].clientY - startY;
+                cropState.imgOffsetX = origOffsetX + dx;
+                cropState.imgOffsetY = origOffsetY + dy;
+                applyImageTransform();
+            };
+
+            window.onmouseup = () => { isDragging = false; };
+            window.ontouchend = () => { isDragging = false; };
+        }
+
+        window.closeCropModal = function() {
+            document.getElementById('cropModal')?.classList.add('hidden');
+        };
+
+        window.confirmCropImage = function() {
+            const targetImg = document.getElementById('cropTargetImg');
+            const cropBoxFixed = document.getElementById('cropBoxFixed');
+            if (!targetImg || !cropBoxFixed || cropState.index < 0) return;
+
+            const currentDim = CROP_SIZES[cropState.mode];
+            
+            const boxRect = cropBoxFixed.getBoundingClientRect();
+            const imgRect = targetImg.getBoundingClientRect();
+
+            const relX = (boxRect.left - imgRect.left) / cropState.scale;
+            const relY = (boxRect.top - imgRect.top) / cropState.scale;
+            const relW = currentDim.w / cropState.scale;
+            const relH = currentDim.h / cropState.scale;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = currentDim.w;
+            canvas.height = currentDim.h;
+            const ctx = canvas.getContext('2d');
+
+            const imgObj = new Image();
+            imgObj.src = targetImg.src;
+            imgObj.onload = () => {
+                ctx.drawImage(
+                    imgObj, 
+                    relX, relY, relW, relH, 
+                    0, 0, currentDim.w, currentDim.h
+                );
+                const croppedBase64 = canvas.toDataURL('image/jpeg', 0.9);
+
+                if (cropState.mode === 'outer') {
+                    window.editingImageFiles[cropState.index].outer = croppedBase64;
+                    window.showToast("封面图截选成功！请继续截选详情缩略图", "success");
+                    window.switchCropMode('inner');
+                } else {
+                    window.editingImageFiles[cropState.index].inner = croppedBase64;
+                    window.showToast("详情缩略图截选完成", "success");
+                    window.renderMicroPreviews();
+                    window.closeCropModal();
+                }
+            };
+        };
+
+        window.handlePreSaveEvent = function(e, idRaw, isEdit) {
+            e.preventDefault();
+            const id = isNaN(idRaw) ? idRaw : Number(idRaw);
+            const title = document.getElementById('editTitle')?.value.trim();
+            const date = document.getElementById('editDate')?.value;
+            const type = document.getElementById('editType')?.value;
+            const description = document.getElementById('editDescription')?.value.trim();
+
+            const selectedTags = Array.from(document.querySelectorAll('#editTagsList input[type="checkbox"]:checked'))
+                .map(cb => cb.value);
+
+            if (!title || !date) {
+                window.showToast("请填写必填项", "error");
+                return;
+            }
+
+            window.pendingSaveData = {
+                id: id,
+                title: title,
+                date: date,
+                type: type,
+                description: description,
+                tags: selectedTags,
+                images: [...window.editingImageFiles],
+                videos: [...window.editingVideos],
+                links: [...window.editingLinks],
+                _isEdit: isEdit
+            };
+
+            document.getElementById('confirmSaveModal')?.classList.remove('hidden');
+        };
+
+        window.showToast = function(text, type = "info") {
+            const toastBox = document.getElementById('toastBox');
+            const toastText = document.getElementById('toastText');
+            const toastIcon = document.getElementById('toastIcon');
+
+            if (!toastBox || !toastText || !toastIcon) return;
+
+            toastText.innerText = text;
+            if (type === "success") {
+                toastIcon.className = "fa-solid fa-circle-check text-emerald-400 text-lg";
+            } else if (type === "error") {
+                toastIcon.className = "fa-solid fa-circle-exclamation text-rose-400 text-lg";
+            } else {
+                toastIcon.className = "fa-solid fa-circle-info text-indigo-400 text-lg";
+            }
+
+            toastBox.classList.remove('hidden');
+            setTimeout(() => {
+                toastBox.classList.add('hidden');
+            }, 3000);
+        };
+
+        window.onresize = () => window.renderSvgConnections();
+        window.onload = () => initAppAndCloudSync();
+    </script>
+</body>
+</html>
