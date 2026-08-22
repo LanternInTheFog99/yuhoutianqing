@@ -483,44 +483,38 @@
             <div class="flex items-center justify-between w-full pb-3 border-b border-slate-800 mb-3">
                 <h3 class="font-bold text-base flex items-center gap-2">
                     <i class="fa-solid fa-crop text-indigo-400"></i>
-                    <span>图片区域截选</span>
+                    <span>预览图截选</span>
                 </h3>
                 <button onclick="closeCropModal()" class="text-slate-400 hover:text-white w-8 h-8 rounded-full flex items-center justify-center">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
-            
-            <div class="flex items-center gap-2 mb-3 bg-slate-800 p-1 rounded-lg w-full justify-center flex-wrap">
-                <button type="button" id="cropTabOuter" onclick="switchCropMode('outer')" class="flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 rounded-md text-xs font-semibold bg-indigo-600 text-white transition-all text-center">
-                    1. 封面图截选
-                </button>
-                <button type="button" id="cropTabInner" onclick="switchCropMode('inner')" class="flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 rounded-md text-xs font-semibold text-slate-400 hover:text-white transition-all text-center">
-                    2. 详情图截选
-                </button>
-                <button type="button" id="cropTabCollection" onclick="switchCropMode('collection')" class="hidden flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 rounded-md text-xs font-semibold text-slate-400 hover:text-white transition-all text-center">
-                    3. 集合截选
-                </button>
-            </div>
 
-            <p class="text-[11px] sm:text-xs text-slate-400 mb-2 text-center" id="cropModeTip">框大小固定，不可调整；您可以缩放图片或拖动图片内部来对齐选框：</p>
+            <p class="text-[11px] sm:text-xs text-slate-400 mb-2 text-center" id="cropModeTip">用于时间线节点的预览图展示</p>
             
-            <div id="cropContainer" class="relative max-h-[40vh] w-full overflow-hidden border border-slate-700 rounded-xl bg-black flex justify-center items-center my-1 select-none cursor-grab active:cursor-grabbing p-6">
-                <div class="relative inline-block" id="cropWrapper">
-                    <img id="cropTargetImg" class="block pointer-events-none transition-transform duration-75" style="transform: scale(1); transform-origin: top left;">
-                    <div id="cropBoxFixed" class="absolute border-2 border-indigo-400 bg-indigo-500/10 shadow-[0_0_0_9999px_rgba(0,0,0,0.65)] pointer-events-none flex items-center justify-center" style="top: 50%; left: 50%; transform: translate(-50%, -50%);">
-                        <span id="cropBoxLabel" class="absolute top-2 left-2 bg-indigo-600 text-white text-[10px] px-2 py-0.5 rounded font-mono shadow">尺寸</span>
-                    </div>
+            <div id="cropContainer" class="relative w-full h-[42vh] min-h-[260px] overflow-hidden border border-slate-700 rounded-xl bg-black select-none my-1 cursor-grab" style="touch-action: none;">
+                <img id="cropTargetImg" class="absolute top-0 left-0 max-w-none pointer-events-none" draggable="false" alt="">
+                <div id="cropBoxFixed" class="absolute border-2 border-indigo-400 bg-indigo-500/10 shadow-[0_0_0_9999px_rgba(0,0,0,0.55)] box-border cursor-move" style="left:40px;top:40px;width:200px;height:160px;">
+                    <span id="cropBoxLabel" class="absolute -top-6 left-0 bg-indigo-600 text-white text-[10px] px-2 py-0.5 rounded font-mono shadow whitespace-nowrap">选区</span>
+                    <div class="crop-handle absolute w-3 h-3 bg-white border border-indigo-500 rounded-sm -top-1.5 -left-1.5 cursor-nwse-resize" data-handle="nw"></div>
+                    <div class="crop-handle absolute w-3 h-3 bg-white border border-indigo-500 rounded-sm -top-1.5 -right-1.5 cursor-nesw-resize" data-handle="ne"></div>
+                    <div class="crop-handle absolute w-3 h-3 bg-white border border-indigo-500 rounded-sm -bottom-1.5 -left-1.5 cursor-nesw-resize" data-handle="sw"></div>
+                    <div class="crop-handle absolute w-3 h-3 bg-white border border-indigo-500 rounded-sm -bottom-1.5 -right-1.5 cursor-nwse-resize" data-handle="se"></div>
+                    <div class="crop-handle absolute w-3 h-3 bg-white border border-indigo-500 rounded-sm -top-1.5 left-1/2 -translate-x-1/2 cursor-ns-resize" data-handle="n"></div>
+                    <div class="crop-handle absolute w-3 h-3 bg-white border border-indigo-500 rounded-sm -bottom-1.5 left-1/2 -translate-x-1/2 cursor-ns-resize" data-handle="s"></div>
+                    <div class="crop-handle absolute w-3 h-3 bg-white border border-indigo-500 rounded-sm top-1/2 -translate-y-1/2 -left-1.5 cursor-ew-resize" data-handle="w"></div>
+                    <div class="crop-handle absolute w-3 h-3 bg-white border border-indigo-500 rounded-sm top-1/2 -translate-y-1/2 -right-1.5 cursor-ew-resize" data-handle="e"></div>
                 </div>
             </div>
 
             <div class="flex items-center gap-3 w-full bg-slate-800/60 px-4 py-2.5 rounded-xl border border-slate-800 mt-3">
                 <span class="text-xs text-slate-400 font-medium shrink-0"><i class="fa-solid fa-magnifying-glass mr-1"></i>缩放:</span>
-                <input type="range" id="imageScaleSlider" min="0.2" max="3" step="0.01" value="1" oninput="handleImageScaleChange(this.value)" class="flex-grow h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+                <input type="range" id="imageScaleSlider" min="0.15" max="4" step="0.01" value="1" oninput="handleImageScaleChange(this.value)" class="flex-grow h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
                 <span id="imageScaleText" class="text-xs font-mono text-indigo-400 w-12 text-right">100%</span>
             </div>
 
             <div class="flex flex-col sm:flex-row justify-between items-center w-full mt-4 pt-3 border-t border-slate-800 gap-2">
-                <span class="text-[11px] text-slate-400">提示：切换标签可分别截选两套图</span>
+                <span class="text-[11px] text-slate-400"></span>
                 <div class="flex gap-2 w-full sm:w-auto justify-end">
                     <button onclick="closeCropModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium">取消</button>
                     <button onclick="confirmCropImage()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">完成截选并保存</button>
@@ -660,10 +654,10 @@
             return srcs;
         };
 
-        window.startPreviewSlideshow = function(nodeEl) {
-            if (!nodeEl) return;
-            window.stopPreviewSlideshow(nodeEl, false);
-            const imgs = nodeEl.querySelectorAll('.preview-slide-img');
+        window.startPreviewSlideshow = function(rootEl) {
+            if (!rootEl) return;
+            window.stopPreviewSlideshow(rootEl, false);
+            const imgs = rootEl.querySelectorAll('.preview-slide-img');
             if (!imgs.length) return;
             const timers = [];
             imgs.forEach(img => {
@@ -678,17 +672,17 @@
                 }, window.PREVIEW_SLIDE_MS || 1400);
                 timers.push(t);
             });
-            nodeEl._previewSlideTimers = timers;
+            rootEl._previewSlideTimers = timers;
         };
 
-        window.stopPreviewSlideshow = function(nodeEl, resetToFirst = true) {
-            if (!nodeEl) return;
-            if (nodeEl._previewSlideTimers) {
-                nodeEl._previewSlideTimers.forEach(clearInterval);
-                nodeEl._previewSlideTimers = null;
+        window.stopPreviewSlideshow = function(rootEl, resetToFirst = true) {
+            if (!rootEl) return;
+            if (rootEl._previewSlideTimers) {
+                rootEl._previewSlideTimers.forEach(clearInterval);
+                rootEl._previewSlideTimers = null;
             }
             if (resetToFirst) {
-                nodeEl.querySelectorAll('.preview-slide-img').forEach(img => {
+                rootEl.querySelectorAll('.preview-slide-img').forEach(img => {
                     const srcs = img._slideSrcs;
                     if (srcs && srcs[0]) {
                         img.src = srcs[0];
@@ -712,20 +706,17 @@
 
         let activeVideoCropIndex = -1;
 
-        const CROP_SIZES = {
-            outer: { w: 200, h: 125, label: '封面尺寸' },
-            inner: { w: 180, h: 260, label: '详情图尺寸' },
-            collection: { w: 160, h: 160, label: '集合尺寸' }
-        };
-
         let cropState = {
             index: -1,
-            mode: 'outer',
             naturalWidth: 0,
             naturalHeight: 0,
             scale: 1,
-            imgOffsetX: 0,
-            imgOffsetY: 0
+            imgX: 0,
+            imgY: 0,
+            boxX: 40,
+            boxY: 40,
+            boxW: 200,
+            boxH: 160
         };
 
         let currentUser = null;
@@ -1027,7 +1018,6 @@
             let isScrollingRight = false;
             let animationId = null;
             let lastForceHoverNode = null;
-            // 进入边缘时记录：当时不完全在屏内的节点下标，只有这些会弹预览
             let offscreenIndices = [];
 
             function clearForceHover() {
@@ -1078,7 +1068,6 @@
                 offscreenIndices = list;
             }
 
-            // 预览与滚动同步：屏外节点一进入画面就切换到它的预览
             function updateHoverSyncedWithScroll() {
                 if (offscreenIndices.length === 0) {
                     clearForceHover();
@@ -1087,7 +1076,6 @@
                 const nodes = getOrderedNodes();
                 const cr = container.getBoundingClientRect();
                 const pad = 4;
-
                 let best = null;
                 let bestScore = Infinity;
 
@@ -1097,10 +1085,8 @@
                     const nr = node.getBoundingClientRect();
                     const visible = nr.right > cr.left + pad && nr.left < cr.right - pad;
                     if (!visible) return;
-
                     const centerX = nr.left + nr.width / 2;
                     if (isScrollingRight) {
-                        // 向右滑：优先「刚从右侧进入」的节点
                         const score = cr.right - centerX;
                         if (score >= 0 && score < bestScore) {
                             bestScore = score;
@@ -1143,12 +1129,9 @@
                     offscreenIndices = [];
                     return;
                 }
-
                 const speed = window.edgeScrollSpeed || 18;
-                // 立刻按滑速滚动
                 if (isScrollingLeft) container.scrollLeft -= speed;
                 if (isScrollingRight) container.scrollLeft += speed;
-
                 updateHoverSyncedWithScroll();
                 animationId = requestAnimationFrame(smoothScroll);
             }
@@ -1166,7 +1149,6 @@
                     offscreenIndices = [];
                 }
             });
-
             rightEdge.addEventListener('mouseenter', () => {
                 isScrollingRight = true;
                 captureOffscreenIndices('right');
@@ -1703,7 +1685,6 @@
                     displayTitle = `${prefix}等${items.length}件事`;
                 }
 
-                // 取事件预览图：集合优先用 collection 正方形，否则 outer/封面
                 function getEventTileSrc(ev, preferCollection) {
                     const list = window.getEventPreviewSrcs(ev, preferCollection);
                     return list.length ? list[0] : null;
@@ -1872,14 +1853,9 @@
 
                     <div id="stackCardsWrapper" class="relative w-full flex-grow flex items-center justify-center overflow-hidden my-auto" style="height: 400px;">
                         ${items.map((event, idx) => {
-                            let firstImgSrc = null;
-                            if (event.images && event.images.length > 0) {
-                                const firstImgObj = event.images[0];
-                                firstImgSrc = typeof firstImgObj === 'string' ? firstImgObj : (firstImgObj?.outer || firstImgObj?.original);
-                            } else if (event.videos && event.videos.length > 0) {
-                                const v = event.videos[0];
-                                firstImgSrc = typeof v === 'object' ? v.cover : null;
-                            }
+                            const slideSrcs = window.getEventPreviewSrcs(event, false);
+                            const firstImgSrc = slideSrcs[0] || null;
+                            const slideJson = JSON.stringify(slideSrcs).replace(/"/g, '&quot;');
                             
                             return `
                                 <div class="stack-card bg-white rounded-2xl overflow-hidden shadow-2xl border border-slate-300 flex flex-col select-none"
@@ -1890,7 +1866,7 @@
                                      
                                     ${firstImgSrc ? `
                                         <div class="h-36 bg-slate-900 overflow-hidden relative pointer-events-none">
-                                            <img src="${firstImgSrc}" class="w-full h-full object-cover">
+                                            <img class="preview-slide-img w-full h-full object-cover transition-opacity duration-300" src="${firstImgSrc}" data-slide-json="${slideJson}" alt="">
                                         </div>
                                     ` : `
                                         <div class="h-36 bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg pointer-events-none">
@@ -1915,12 +1891,32 @@
             `;
 
             modal.classList.remove('hidden');
+            modal.querySelectorAll('.preview-slide-img').forEach(img => {
+                let srcs = [];
+                try {
+                    const raw = (img.getAttribute('data-slide-json') || '').replace(/&quot;/g, '"');
+                    srcs = JSON.parse(raw || '[]');
+                } catch (_) {}
+                img._slideSrcs = Array.isArray(srcs) && srcs.length ? srcs : (img.src ? [img.src] : []);
+                img.style.transition = 'opacity 0.25s ease';
+            });
             updateStackCardStyles(0);
             setupStackWheelInteraction();
+            const wrapper = document.getElementById('stackCardsWrapper');
+            if (wrapper) {
+                wrapper.querySelectorAll('.stack-card').forEach((c, i) => {
+                    if (i === 0) window.startPreviewSlideshow(c);
+                    else window.stopPreviewSlideshow(c, true);
+                });
+            }
         };
 
         window.closeStackManagerModal = function() {
-            document.getElementById('stackManagerModal')?.classList.add('hidden');
+            const modal = document.getElementById('stackManagerModal');
+            if (modal) {
+                modal.querySelectorAll('.stack-card').forEach(c => window.stopPreviewSlideshow(c, true));
+                modal.classList.add('hidden');
+            }
         };
 
         let currentActiveStackIndex = 0;
@@ -1942,6 +1938,11 @@
                 card.style.transform = `translateX(${translateX}px) scale(${scale})`;
                 card.style.opacity = opacity;
                 card.style.pointerEvents = Math.abs(offset) <= 1 ? 'auto' : 'none';
+            });
+        
+            cards.forEach((card, idx) => {
+                if (idx === activeIndex) window.startPreviewSlideshow(card);
+                else window.stopPreviewSlideshow(card, true);
             });
         }
 
@@ -2956,7 +2957,6 @@
 
         window.openCropModal = function(index) {
             cropState.index = index;
-            cropState.mode = 'outer';
             const imgObj = window.editingImageFiles[index];
             if (!imgObj) return;
 
@@ -2964,156 +2964,165 @@
             const targetImg = document.getElementById('cropTargetImg');
             if (!modal || !targetImg) return;
 
-            // 仅当该日期已有多个事件时显示「集合截选」
-            const tabCollection = document.getElementById('cropTabCollection');
-            const showCollection = window.currentEditDateIsMultiEvent();
-            if (tabCollection) {
-                if (showCollection) tabCollection.classList.remove('hidden');
-                else tabCollection.classList.add('hidden');
-            }
-
-            targetImg.src = imgObj.original;
+            targetImg.src = imgObj.original || imgObj.outer || '';
             modal.classList.remove('hidden');
-            // 确保拖动/滚轮已绑定（防止首次打开前未初始化）
-            window.initCropWheel();
+            window.initCropInteractions();
 
-            targetImg.onload = () => {
-                cropState.naturalWidth = targetImg.naturalWidth;
-                cropState.naturalHeight = targetImg.naturalHeight;
-                cropState.scale = 1;
-                cropState.imgOffsetX = 0;
-                cropState.imgOffsetY = 0;
-                updateCropUIState();
+            const setup = () => {
+                cropState.naturalWidth = targetImg.naturalWidth || 800;
+                cropState.naturalHeight = targetImg.naturalHeight || 600;
+                const container = document.getElementById('cropContainer');
+                const cw = container.clientWidth;
+                const ch = container.clientHeight;
+                // 初始缩放：完整显示图片
+                const fit = Math.min(cw / cropState.naturalWidth, ch / cropState.naturalHeight) * 0.92;
+                cropState.scale = Math.max(0.15, Math.min(4, fit));
+                const dispW = cropState.naturalWidth * cropState.scale;
+                const dispH = cropState.naturalHeight * cropState.scale;
+                cropState.imgX = (cw - dispW) / 2;
+                cropState.imgY = (ch - dispH) / 2;
+                // 初始选框：居中，约占视口 55%
+                cropState.boxW = Math.min(cw * 0.55, dispW * 0.85, 320);
+                cropState.boxH = Math.min(ch * 0.55, dispH * 0.85, 240);
+                cropState.boxX = (cw - cropState.boxW) / 2;
+                cropState.boxY = (ch - cropState.boxH) / 2;
+                applyCropUI();
             };
-            // 若图片已缓存完成，onload 可能不触发
-            if (targetImg.complete && targetImg.naturalWidth) {
-                cropState.naturalWidth = targetImg.naturalWidth;
-                cropState.naturalHeight = targetImg.naturalHeight;
-                cropState.scale = 1;
-                cropState.imgOffsetX = 0;
-                cropState.imgOffsetY = 0;
-                updateCropUIState();
-            }
+
+            targetImg.onload = setup;
+            if (targetImg.complete && targetImg.naturalWidth) setup();
         };
 
-        window.switchCropMode = function(mode) {
-            if (mode === 'collection' && !window.currentEditDateIsMultiEvent()) {
-                mode = 'outer';
-            }
-            cropState.mode = mode;
-            updateCropUIState();
-        };
-
-        function updateCropUIState() {
-            const tabOuter = document.getElementById('cropTabOuter');
-            const tabInner = document.getElementById('cropTabInner');
-            const tabCollection = document.getElementById('cropTabCollection');
-            const cropBoxFixed = document.getElementById('cropBoxFixed');
-            const cropBoxLabel = document.getElementById('cropBoxLabel');
+        function applyCropUI() {
+            const targetImg = document.getElementById('cropTargetImg');
+            const box = document.getElementById('cropBoxFixed');
+            const label = document.getElementById('cropBoxLabel');
             const slider = document.getElementById('imageScaleSlider');
             const sliderText = document.getElementById('imageScaleText');
-            const tip = document.getElementById('cropModeTip');
+            if (!targetImg || !box) return;
 
-            const inactive = "flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 rounded-md text-xs font-semibold text-slate-400 hover:text-white transition-all text-center";
-            const active = "flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 rounded-md text-xs font-semibold bg-indigo-600 text-white transition-all text-center";
+            targetImg.style.width = (cropState.naturalWidth * cropState.scale) + 'px';
+            targetImg.style.height = (cropState.naturalHeight * cropState.scale) + 'px';
+            targetImg.style.left = cropState.imgX + 'px';
+            targetImg.style.top = cropState.imgY + 'px';
+            targetImg.style.transform = 'none';
 
-            if (tabOuter) tabOuter.className = cropState.mode === 'outer' ? active : inactive;
-            if (tabInner) tabInner.className = cropState.mode === 'inner' ? active : inactive;
-            if (tabCollection) tabCollection.className = (cropState.mode === 'collection' ? active : inactive) + (window.currentEditDateIsMultiEvent() ? '' : ' hidden');
+            box.style.left = cropState.boxX + 'px';
+            box.style.top = cropState.boxY + 'px';
+            box.style.width = cropState.boxW + 'px';
+            box.style.height = cropState.boxH + 'px';
+            if (label) label.innerText = Math.round(cropState.boxW) + ' × ' + Math.round(cropState.boxH);
 
-            const currentDim = CROP_SIZES[cropState.mode] || CROP_SIZES.outer;
-            if (cropBoxLabel) cropBoxLabel.innerText = currentDim.label;
-            if (cropBoxFixed) {
-                cropBoxFixed.style.width = `${currentDim.w}px`;
-                cropBoxFixed.style.height = `${currentDim.h}px`;
-            }
-            if (tip) {
-                tip.innerText = cropState.mode === 'collection'
-                    ? '集合截选为正方形，用于同一日期多事件节点的分块封面；框大小固定，可缩放或拖动图片对齐。'
-                    : '框大小固定，不可调整；您可以缩放图片或拖动图片内部来对齐选框：';
-            }
             if (slider) slider.value = cropState.scale;
-            if (sliderText) sliderText.innerText = `${Math.round(cropState.scale * 100)}%`;
-            applyImageTransform();
+            if (sliderText) sliderText.innerText = Math.round(cropState.scale * 100) + '%';
         }
 
+        // 缩放时以选框中心为锚点，保证选框与框内画面不跟着“整体挪动”
         window.handleImageScaleChange = function(val) {
-            cropState.scale = parseFloat(val);
-            document.getElementById('imageScaleText').innerText = `${Math.round(cropState.scale * 100)}%`;
-            applyImageTransform();
+            const newScale = Math.max(0.15, Math.min(4, parseFloat(val) || 1));
+            const oldScale = cropState.scale || 1;
+            if (Math.abs(newScale - oldScale) < 1e-6) return;
+
+            const anchorX = cropState.boxX + cropState.boxW / 2;
+            const anchorY = cropState.boxY + cropState.boxH / 2;
+            // 选框中心对应的原图像素
+            const srcX = (anchorX - cropState.imgX) / oldScale;
+            const srcY = (anchorY - cropState.imgY) / oldScale;
+
+            cropState.scale = newScale;
+            cropState.imgX = anchorX - srcX * newScale;
+            cropState.imgY = anchorY - srcY * newScale;
+            applyCropUI();
         };
 
-        // 截选图片时滚轮缩放 + 拖动平移
-        window.initCropWheel = function() {
+        window.initCropInteractions = function() {
             const container = document.getElementById('cropContainer');
-            if (!container || container.dataset.cropInited === '1') return;
+            const box = document.getElementById('cropBoxFixed');
+            if (!container || !box || container.dataset.cropInited === '1') return;
             container.dataset.cropInited = '1';
+
+            let mode = null; // 'pan' | 'moveBox' | 'resize'
+            let handle = null;
+            let startX = 0, startY = 0;
+            let origin = {};
 
             container.addEventListener('wheel', (e) => {
                 e.preventDefault();
-                const delta = e.deltaY > 0 ? -0.02 : 0.02;
-                let newScale = cropState.scale + delta;
-                newScale = Math.max(0.2, Math.min(3, newScale));
-                cropState.scale = newScale;
-                const slider = document.getElementById('imageScaleSlider');
-                const text = document.getElementById('imageScaleText');
-                if (slider) slider.value = newScale;
-                if (text) text.innerText = `${Math.round(newScale * 100)}%`;
-                applyImageTransform();
+                const delta = e.deltaY > 0 ? -0.04 : 0.04;
+                window.handleImageScaleChange(cropState.scale + delta);
             }, { passive: false });
 
-            let dragging = false;
-            let startX = 0;
-            let startY = 0;
-            let originOffsetX = 0;
-            let originOffsetY = 0;
-
-            const onPointerDown = (e) => {
-                // 只响应主按键 / 单指
+            const onDown = (e) => {
                 if (e.pointerType === 'mouse' && e.button !== 0) return;
-                dragging = true;
+                const t = e.target;
                 startX = e.clientX;
                 startY = e.clientY;
-                originOffsetX = cropState.imgOffsetX;
-                originOffsetY = cropState.imgOffsetY;
-                container.style.cursor = 'grabbing';
+                if (t.classList && t.classList.contains('crop-handle')) {
+                    mode = 'resize';
+                    handle = t.getAttribute('data-handle');
+                    origin = { boxX: cropState.boxX, boxY: cropState.boxY, boxW: cropState.boxW, boxH: cropState.boxH };
+                } else if (t === box || (t.closest && t.closest('#cropBoxFixed') && !t.classList.contains('crop-handle'))) {
+                    mode = 'moveBox';
+                    origin = { boxX: cropState.boxX, boxY: cropState.boxY };
+                } else {
+                    mode = 'pan';
+                    origin = { imgX: cropState.imgX, imgY: cropState.imgY };
+                }
                 try { container.setPointerCapture(e.pointerId); } catch (_) {}
                 e.preventDefault();
             };
-            const onPointerMove = (e) => {
-                if (!dragging) return;
+
+            const onMove = (e) => {
+                if (!mode) return;
                 const dx = e.clientX - startX;
                 const dy = e.clientY - startY;
-                cropState.imgOffsetX = originOffsetX + dx;
-                cropState.imgOffsetY = originOffsetY + dy;
-                applyImageTransform();
+                const cw = container.clientWidth;
+                const ch = container.clientHeight;
+                const minSize = 40;
+
+                if (mode === 'pan') {
+                    cropState.imgX = origin.imgX + dx;
+                    cropState.imgY = origin.imgY + dy;
+                } else if (mode === 'moveBox') {
+                    cropState.boxX = Math.max(0, Math.min(cw - cropState.boxW, origin.boxX + dx));
+                    cropState.boxY = Math.max(0, Math.min(ch - cropState.boxH, origin.boxY + dy));
+                } else if (mode === 'resize') {
+                    let { boxX, boxY, boxW, boxH } = origin;
+                    if (handle.includes('e')) boxW = origin.boxW + dx;
+                    if (handle.includes('s')) boxH = origin.boxH + dy;
+                    if (handle.includes('w')) { boxX = origin.boxX + dx; boxW = origin.boxW - dx; }
+                    if (handle.includes('n')) { boxY = origin.boxY + dy; boxH = origin.boxH - dy; }
+                    if (boxW < minSize) {
+                        if (handle.includes('w')) boxX = origin.boxX + origin.boxW - minSize;
+                        boxW = minSize;
+                    }
+                    if (boxH < minSize) {
+                        if (handle.includes('n')) boxY = origin.boxY + origin.boxH - minSize;
+                        boxH = minSize;
+                    }
+                    boxX = Math.max(0, Math.min(boxX, cw - minSize));
+                    boxY = Math.max(0, Math.min(boxY, ch - minSize));
+                    boxW = Math.max(minSize, Math.min(boxW, cw - boxX));
+                    boxH = Math.max(minSize, Math.min(boxH, ch - boxY));
+                    cropState.boxX = boxX;
+                    cropState.boxY = boxY;
+                    cropState.boxW = boxW;
+                    cropState.boxH = boxH;
+                }
+                applyCropUI();
             };
-            const onPointerUp = (e) => {
-                if (!dragging) return;
-                dragging = false;
-                container.style.cursor = '';
+
+            const onUp = (e) => {
+                mode = null;
+                handle = null;
                 try { container.releasePointerCapture(e.pointerId); } catch (_) {}
             };
 
-            container.addEventListener('pointerdown', onPointerDown);
-            container.addEventListener('pointermove', onPointerMove);
-            container.addEventListener('pointerup', onPointerUp);
-            container.addEventListener('pointercancel', onPointerUp);
-            container.addEventListener('pointerleave', () => {
-                if (dragging) {
-                    dragging = false;
-                    container.style.cursor = '';
-                }
-            });
+            container.addEventListener('pointerdown', onDown);
+            container.addEventListener('pointermove', onMove);
+            container.addEventListener('pointerup', onUp);
+            container.addEventListener('pointercancel', onUp);
         };
-
-        function applyImageTransform() {
-            const targetImg = document.getElementById('cropTargetImg');
-            if (!targetImg) return;
-            targetImg.style.width = `${cropState.naturalWidth * cropState.scale}px`;
-            targetImg.style.height = `${cropState.naturalHeight * cropState.scale}px`;
-            targetImg.style.transform = `translate(${cropState.imgOffsetX}px, ${cropState.imgOffsetY}px)`;
-        }
 
         window.closeCropModal = function() {
             document.getElementById('cropModal')?.classList.add('hidden');
@@ -3121,36 +3130,18 @@
 
         window.confirmCropImage = function() {
             const targetImg = document.getElementById('cropTargetImg');
-            const cropBoxFixed = document.getElementById('cropBoxFixed');
-            if (!targetImg || !cropBoxFixed || cropState.index < 0) return;
-
-            const currentDim = CROP_SIZES[cropState.mode] || CROP_SIZES.outer;
-            const boxRect = cropBoxFixed.getBoundingClientRect();
-            const imgRect = targetImg.getBoundingClientRect();
-            if (!imgRect.width || !imgRect.height) {
+            if (!targetImg || cropState.index < 0) return;
+            if (!cropState.naturalWidth || !cropState.scale) {
                 window.showToast("图片尚未加载完成，请稍候再截选", "error");
                 return;
             }
 
-            // 使用选框内容区（去掉 border），并按「显示尺寸 → 原图像素」精确映射，避免预览相对截选框左右偏移
-            const cs = window.getComputedStyle(cropBoxFixed);
-            const bL = parseFloat(cs.borderLeftWidth) || 0;
-            const bR = parseFloat(cs.borderRightWidth) || 0;
-            const bT = parseFloat(cs.borderTopWidth) || 0;
-            const bB = parseFloat(cs.borderBottomWidth) || 0;
-            const contentLeft = boxRect.left + bL;
-            const contentTop = boxRect.top + bT;
-            const contentW = Math.max(1, boxRect.width - bL - bR);
-            const contentH = Math.max(1, boxRect.height - bT - bB);
+            // 选框 → 原图像素
+            let sx = (cropState.boxX - cropState.imgX) / cropState.scale;
+            let sy = (cropState.boxY - cropState.imgY) / cropState.scale;
+            let sw = cropState.boxW / cropState.scale;
+            let sh = cropState.boxH / cropState.scale;
 
-            const scaleX = cropState.naturalWidth / imgRect.width;
-            const scaleY = cropState.naturalHeight / imgRect.height;
-            let sx = (contentLeft - imgRect.left) * scaleX;
-            let sy = (contentTop - imgRect.top) * scaleY;
-            let sw = contentW * scaleX;
-            let sh = contentH * scaleY;
-
-            // 钳制到原图范围，防止越界采样导致画面偏移
             if (sx < 0) { sw += sx; sx = 0; }
             if (sy < 0) { sh += sy; sy = 0; }
             if (sx + sw > cropState.naturalWidth) sw = cropState.naturalWidth - sx;
@@ -3158,38 +3149,35 @@
             sw = Math.max(1, sw);
             sh = Math.max(1, sh);
 
+            // 输出尺寸：保持选区比例，长边不超过 1200
+            const maxSide = 1200;
+            let outW = Math.round(sw);
+            let outH = Math.round(sh);
+            if (outW > maxSide || outH > maxSide) {
+                const r = Math.min(maxSide / outW, maxSide / outH);
+                outW = Math.max(1, Math.round(outW * r));
+                outH = Math.max(1, Math.round(outH * r));
+            }
+
             const canvas = document.createElement('canvas');
-            canvas.width = currentDim.w;
-            canvas.height = currentDim.h;
+            canvas.width = outW;
+            canvas.height = outH;
             const ctx = canvas.getContext('2d');
 
             const imgObj = new Image();
             imgObj.onload = () => {
-                ctx.drawImage(imgObj, sx, sy, sw, sh, 0, 0, currentDim.w, currentDim.h);
-                const croppedBase64 = canvas.toDataURL('image/jpeg', 0.85);
+                ctx.drawImage(imgObj, sx, sy, sw, sh, 0, 0, outW, outH);
+                const croppedBase64 = canvas.toDataURL('image/jpeg', 0.88);
                 const target = window.editingImageFiles[cropState.index];
                 if (!target) return;
 
-                if (cropState.mode === 'outer') {
-                    target.outer = croppedBase64;
-                    if (!target.collection) target.collection = croppedBase64;
-                    window.showToast("封面图截选成功", "success");
-                    window.switchCropMode('inner');
-                } else if (cropState.mode === 'inner') {
-                    target.inner = croppedBase64;
-                    window.showToast("详情缩略图截选完成", "success");
-                    if (window.currentEditDateIsMultiEvent()) {
-                        window.switchCropMode('collection');
-                    } else {
-                        window.renderMicroPreviews();
-                        window.closeCropModal();
-                    }
-                } else if (cropState.mode === 'collection') {
-                    target.collection = croppedBase64;
-                    window.showToast("集合截选完成", "success");
-                    window.renderMicroPreviews();
-                    window.closeCropModal();
-                }
+                // 一次截选同步到封面 / 详情 / 集合，预览用 object-cover 自适应比例
+                target.outer = croppedBase64;
+                target.inner = croppedBase64;
+                target.collection = croppedBase64;
+                window.showToast("预览图截选完成", "success");
+                window.renderMicroPreviews();
+                window.closeCropModal();
             };
             imgObj.onerror = () => window.showToast("截选失败，请重试", "error");
             imgObj.src = targetImg.src;
@@ -3258,7 +3246,6 @@
         window.onresize = () => window.renderSvgConnections();
         window.onload = () => {
             initAppAndCloudSync();
-            window.initCropWheel();
         };
     </script>
 </body>
