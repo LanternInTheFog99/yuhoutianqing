@@ -160,6 +160,18 @@
         .scroll-edge-right .edge-icon {
             right: 8px;
         }
+
+        /* 节点高亮闪烁 */
+        @keyframes nodePulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.4); }
+            50% { box-shadow: 0 0 0 8px rgba(79, 70, 229, 0.1); }
+        }
+        .timeline-node-container.auto-scroll-highlight .timeline-dot {
+            animation: nodePulse 1.2s ease-in-out 2;
+        }
+        .timeline-node-container.auto-scroll-highlight .merged-dots-container {
+            animation: nodePulse 1.2s ease-in-out 2;
+        }
     </style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
@@ -247,7 +259,10 @@
 
             <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs w-full sm:w-auto">
                 <i class="fa-solid fa-magnifying-glass text-slate-400"></i>
-                <input type="text" id="searchInput" oninput="handleSearch()" placeholder="搜索事件或tag..." class="bg-transparent outline-none text-slate-700 placeholder-slate-400 w-full sm:w-44">
+                <input type="text" id="searchInput" onkeydown="if(event.key==='Enter') handleSearch()" placeholder="搜索事件名…" class="bg-transparent outline-none text-slate-700 placeholder-slate-400 w-full sm:w-44">
+                <button onclick="handleSearch()" class="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium transition-colors shrink-0">
+                    确定
+                </button>
             </div>
         </div>
 
@@ -356,7 +371,7 @@
                 </button>
             </div>
             <div id="tagInputContainer" class="flex gap-2 mb-4">
-                <input type="text" id="newTagInput" placeholder="输入新tag名称" class="flex-grow px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
+                <input type="text" id="newTagInput" placeholder="输入新tag名称" class="flex-grow px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500" onkeydown="if(event.key==='Enter') addNewTagFromModal()">
                 <button onclick="addNewTagFromModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-xs font-medium shrink-0">新建tag</button>
             </div>
             <div id="tagModalList" class="flex flex-wrap gap-2 max-h-60 overflow-y-auto p-1"></div>
@@ -390,7 +405,7 @@
             <div class="mb-4">
                 <label class="block text-xs font-bold text-slate-700 mb-1">当前空间 ID (Room)</label>
                 <div class="flex gap-2">
-                    <input type="text" id="shareRoomInput" placeholder="公共空间 (default)" class="flex-grow px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
+                    <input type="text" id="shareRoomInput" placeholder="公共空间 (default)" class="flex-grow px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500" onkeydown="if(event.key==='Enter') switchRoomFromInput()">
                     <button onclick="switchRoomFromInput()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg text-xs font-medium shrink-0">切换/创建空间</button>
                 </div>
             </div>
@@ -490,9 +505,7 @@
                 </button>
             </div>
 
-            <p class="text-[11px] sm:text-xs text-slate-400 mb-2 text-center" id="cropModeTip">
-                拖动图片移动位置 · 拖动选框边角调整大小 · 滚轮或滑块缩放图片（选框位置与大小保持不动）· 一次截选适配所有预览尺寸
-            </p>
+            <p class="text-[11px] sm:text-xs text-slate-400 mb-2 text-center" id="cropModeTip"></p>
             
             <div id="cropContainer" class="relative w-full h-[42vh] min-h-[260px] overflow-hidden border border-slate-700 rounded-xl bg-black select-none my-1 cursor-grab" style="touch-action: none;">
                 <img id="cropTargetImg" class="absolute top-0 left-0 max-w-none pointer-events-none" draggable="false" alt="">
@@ -540,7 +553,7 @@
             <p class="text-xs text-slate-400 mb-3">请播放或拖动进度条至目标画面，然后点击下方按钮截取当前帧作为封面：</p>
             
             <div class="relative w-full bg-black rounded-xl overflow-hidden mb-4 border border-slate-700 flex justify-center">
-                <video id="videoCropPlayer" controls crossorigin="anonymous" class="max-h-60 w-object-contain"></video>
+                <video id="videoCropPlayer" controls playsinline webkit-playsinline class="max-h-60 w-full object-contain bg-black"></video>
             </div>
 
             <div class="flex justify-between items-center w-full pt-3 border-t border-slate-800">
@@ -579,7 +592,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const urlParams = new URLSearchParams(window.location.search);
         window.currentRoomId = urlParams.get('room') || 'default';
@@ -630,7 +643,14 @@
         window.zoomLevel = 3;
         window.edgeScrollSpeed = Number(localStorage.getItem('yuhoutianqing_edgeScrollSpeed')) || 18;
         window.activeHoverIntervals = {};
+        window.activeTagFilter = null;
         window.PREVIEW_SLIDE_MS = 1400;
+
+        // ==================== 自动滚动巡游相关 ====================
+        window.autoScrollQueue = [];
+        window.autoScrollTimer = null;
+        window.autoScrollIsActive = false;
+        window.autoScrollStayMs = 1800; // 每个节点停留时间
 
         window.getEventPreviewSrcs = function(ev, preferCollection) {
             const srcs = [];
@@ -694,6 +714,177 @@
             }
         };
 
+        // 获取某个节点的所有连接节点（去重）
+        window.getConnectedNodesForNode = function(nodeContainer) {
+            const dateStr = nodeContainer.getAttribute('data-date');
+            if (!dateStr) return [];
+            const events = window.events.filter(e => e.date === dateStr);
+            const eventIds = events.map(e => e.id);
+            const relatedIds = new Set();
+            window.connections.forEach(c => {
+                eventIds.forEach(id => {
+                    if (String(c.sourceId) === String(id)) relatedIds.add(String(c.targetId));
+                    if (String(c.targetId) === String(id)) relatedIds.add(String(c.sourceId));
+                });
+            });
+            // 按日期排序
+            const relatedEvents = window.events.filter(e => relatedIds.has(String(e.id)));
+            // 去重并排序
+            const seenDates = new Set();
+            const sorted = relatedEvents
+                .filter(e => !eventIds.includes(e.id))
+                .sort((a, b) => new Date(a.date.split('至')[0]) - new Date(b.date.split('至')[0]));
+            const result = [];
+            sorted.forEach(e => {
+                if (!seenDates.has(e.date)) {
+                    seenDates.add(e.date);
+                    result.push(e.date);
+                }
+            });
+            return result;
+        };
+
+        // 自动滚动巡游核心函数
+        window.startAutoScrollTour = function(startNode) {
+            // 停止之前的巡游
+            window.stopAutoScrollTour();
+
+            if (!startNode) return;
+            
+            // 收集所有需要遍历的节点：从起始节点出发，沿着连线方向遍历
+            const visited = new Set();
+            const queue = [startNode];
+            const tourNodes = [];
+            
+            while (queue.length > 0) {
+                const current = queue.shift();
+                const dateStr = current.getAttribute('data-date');
+                if (!dateStr || visited.has(dateStr)) continue;
+                visited.add(dateStr);
+                tourNodes.push(current);
+                
+                // 获取连接的节点
+                const connectedDates = window.getConnectedNodesForNode(current);
+                // 按时间顺序排序
+                const allNodes = document.querySelectorAll('.timeline-node-container');
+                const connectedNodes = [];
+                connectedDates.forEach(d => {
+                    allNodes.forEach(n => {
+                        if (n.getAttribute('data-date') === d && !visited.has(d)) {
+                            connectedNodes.push(n);
+                        }
+                    });
+                });
+                // 按时间顺序添加到队列
+                connectedNodes.forEach(n => {
+                    if (!queue.includes(n) && !visited.has(n.getAttribute('data-date'))) {
+                        queue.push(n);
+                    }
+                });
+            }
+
+            if (tourNodes.length <= 1) {
+                // 如果没有更多节点，只高亮当前节点
+                window.highlightNodeForTour(startNode);
+                return;
+            }
+
+            window.autoScrollQueue = tourNodes;
+            window.autoScrollIsActive = true;
+            window.autoScrollCurrentIndex = 0;
+            window.autoScrollNextNode();
+        };
+
+        window.autoScrollNextNode = function() {
+            if (!window.autoScrollIsActive || window.autoScrollQueue.length === 0) {
+                window.stopAutoScrollTour();
+                return;
+            }
+
+            const node = window.autoScrollQueue[window.autoScrollCurrentIndex];
+            if (!node || !node.isConnected) {
+                window.stopAutoScrollTour();
+                return;
+            }
+
+            // 滚动到节点位置
+            const container = document.getElementById('timelineContainer');
+            if (container) {
+                const nodeRect = node.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+                const targetScrollLeft = container.scrollLeft + (nodeRect.left - containerRect.left) - containerRect.width / 2 + nodeRect.width / 2;
+                container.scrollTo({ left: Math.max(0, targetScrollLeft), behavior: 'smooth' });
+            }
+
+            // 高亮节点
+            window.highlightNodeForTour(node);
+
+            // 设置定时器，停留后移动到下一个
+            window.autoScrollTimer = setTimeout(() => {
+                window.autoScrollCurrentIndex++;
+                if (window.autoScrollCurrentIndex >= window.autoScrollQueue.length) {
+                    // 如果遍历完，从头开始（循环）
+                    window.autoScrollCurrentIndex = 0;
+                    // 但为了不无限循环，可以停止，这里改为停止
+                    window.stopAutoScrollTour();
+                    // 或者循环：取消下面注释即可循环
+                    // window.autoScrollNextNode();
+                } else {
+                    window.autoScrollNextNode();
+                }
+            }, window.autoScrollStayMs);
+        };
+
+        window.highlightNodeForTour = function(node) {
+            // 清除之前的高亮
+            document.querySelectorAll('.timeline-node-container.auto-scroll-highlight').forEach(el => {
+                el.classList.remove('auto-scroll-highlight');
+            });
+            // 清除之前的 force-hover
+            document.querySelectorAll('.timeline-node-container.force-hover').forEach(el => {
+                el.classList.remove('force-hover');
+            });
+            
+            if (node) {
+                node.classList.add('force-hover', 'auto-scroll-highlight');
+                // 触发预览
+                window.startPreviewSlideshow(node);
+                // 显示连线
+                const dateStr = node.getAttribute('data-date');
+                if (dateStr) {
+                    window.events.filter(e => e.date === dateStr).forEach(e => {
+                        window.highlightConnectionsForEvent(e.id, true);
+                    });
+                }
+                // 显示相关节点预览
+                const ids = window.events.filter(e => e.date === dateStr).map(e => e.id);
+                window.showRelatedConnectionPreviews(ids, node);
+            }
+        };
+
+        window.stopAutoScrollTour = function() {
+            window.autoScrollIsActive = false;
+            if (window.autoScrollTimer) {
+                clearTimeout(window.autoScrollTimer);
+                window.autoScrollTimer = null;
+            }
+            window.autoScrollQueue = [];
+            // 清除高亮
+            document.querySelectorAll('.timeline-node-container.auto-scroll-highlight').forEach(el => {
+                el.classList.remove('auto-scroll-highlight');
+            });
+            document.querySelectorAll('.timeline-node-container.force-hover').forEach(el => {
+                el.classList.remove('force-hover');
+            });
+            document.querySelectorAll('.timeline-node-container.conn-related-preview').forEach(el => {
+                el.classList.remove('conn-related-preview');
+            });
+            // 清除连线高亮
+            document.querySelectorAll('#svgConnectionsGroup .svg-conn-line.active-line').forEach(el => {
+                el.classList.remove('active-line');
+            });
+        };
+
         window.editingImageFiles = [];
         window.editingVideos = [];
         window.editingLinks = [];
@@ -723,6 +914,7 @@
 
         let currentUser = null;
         let isInitialLoadDone = false;
+        let isCloudDataLoaded = false;
 
         function compressImage(file, maxWidth = 800, maxHeight = 800, quality = 0.7) {
             return new Promise((resolve) => {
@@ -769,8 +961,10 @@
                     const parsedBgm = JSON.parse(localBgm);
                     window.bgmPlaylist = Array.isArray(parsedBgm) ? parsedBgm.filter(song => /^https?:\/\//i.test(song?.url || '')) : [];
                 }
+                return true;
             } catch (e) {
                 console.warn("localStorage 读取异常:", e);
+                return false;
             }
         }
 
@@ -798,11 +992,18 @@
             initBgmAudioPlayer();
             initScrollEdges();
 
+            // 先加载本地数据作为后备
+            const hasLocalData = loadLocalData();
+            if (hasLocalData && window.events.length > 0) {
+                window.renderEvents();
+                updateSyncStatus('offline', '本地数据已加载');
+            }
+
             const syncTimeout = setTimeout(() => {
                 if (!isInitialLoadDone) {
                     initializeLocalFallback('已就绪');
                 }
-            }, 2500);
+            }, 3000);
 
             if (!firebaseConfig || !auth || !db) {
                 clearTimeout(syncTimeout);
@@ -857,21 +1058,57 @@
                 const tagsCol = collection(db, 'artifacts', appId, 'public', 'data', 'tags');
                 const bgmCol = collection(db, 'artifacts', appId, 'public', 'data', 'bgm');
 
+                // 先尝试一次性获取所有数据，避免空状态
+                let cloudDataLoaded = false;
+
                 onSnapshot(eventsCol, async (snapshot) => {
                     if (syncTimeout) clearTimeout(syncTimeout);
                     isInitialLoadDone = true;
-                    window.events = snapshot.docs.map(doc => ({ id: isNaN(doc.id) ? doc.id : Number(doc.id), ...doc.data() }));
-                    saveLocalData();
-                    window.renderEvents();
-                    updateSyncStatus('synced', '已同步云端');
-                }, () => {
+                    isCloudDataLoaded = true;
+                    // 如果快照有数据，用云端数据覆盖本地
+                    if (snapshot.docs.length > 0) {
+                        window.events = snapshot.docs.map(doc => ({ id: isNaN(doc.id) ? doc.id : Number(doc.id), ...doc.data() }));
+                        saveLocalData();
+                        window.renderEvents();
+                        updateSyncStatus('synced', '已同步云端');
+                    } else {
+                        // 云端没有数据，检查本地是否有数据
+                        if (window.events.length === 0) {
+                            // 尝试从本地恢复
+                            loadLocalData();
+                            if (window.events.length > 0) {
+                                window.renderEvents();
+                                updateSyncStatus('offline', '本地数据已恢复');
+                            } else {
+                                window.renderEvents();
+                                updateSyncStatus('synced', '云端同步完成');
+                            }
+                        } else {
+                            window.renderEvents();
+                            updateSyncStatus('synced', '云端同步完成');
+                        }
+                    }
+                }, (error) => {
+                    // 监听失败时使用本地数据
+                    console.warn('Firestore listen error:', error);
                     if (syncTimeout) clearTimeout(syncTimeout);
-                    initializeLocalFallback('已就绪');
+                    if (!isInitialLoadDone) {
+                        initializeLocalFallback('已就绪');
+                    } else {
+                        // 如果已有数据但监听失败，保持显示
+                        updateSyncStatus('offline', '连接中断，使用本地数据');
+                    }
                 });
 
                 onSnapshot(connCol, (snapshot) => {
-                    window.connections = snapshot.docs.map(doc => ({ id: isNaN(doc.id) ? doc.id : Number(doc.id), ...doc.data() }));
+                    if (snapshot.docs.length > 0) {
+                        window.connections = snapshot.docs.map(doc => ({ id: isNaN(doc.id) ? doc.id : Number(doc.id), ...doc.data() }));
+                    }
                     saveLocalData();
+                    window.renderSvgConnections();
+                }, () => {
+                    // 连接失败时使用本地数据
+                    loadLocalData();
                     window.renderSvgConnections();
                 });
 
@@ -882,6 +1119,9 @@
                     }
                     saveLocalData();
                     window.renderTagModalList();
+                }, () => {
+                    loadLocalData();
+                    window.renderTagModalList();
                 });
 
                 onSnapshot(bgmCol, (snapshot) => {
@@ -891,7 +1131,29 @@
                     }
                     saveLocalData();
                     window.renderBgmPlaylist();
+                }, () => {
+                    loadLocalData();
+                    window.renderBgmPlaylist();
                 });
+
+                // 额外：尝试从云端拉取一次数据作为兜底
+                setTimeout(async () => {
+                    try {
+                        const snap = await getDocs(eventsCol);
+                        if (snap.docs.length > 0 && !isCloudDataLoaded) {
+                            window.events = snap.docs.map(doc => ({ id: isNaN(doc.id) ? doc.id : Number(doc.id), ...doc.data() }));
+                            saveLocalData();
+                            window.renderEvents();
+                            updateSyncStatus('synced', '已同步云端');
+                            isCloudDataLoaded = true;
+                            isInitialLoadDone = true;
+                            if (syncTimeout) clearTimeout(syncTimeout);
+                        }
+                    } catch (err) {
+                        // 静默失败，使用本地数据
+                    }
+                }, 1000);
+
             } catch (err) {
                 if (syncTimeout) clearTimeout(syncTimeout);
                 initializeLocalFallback('已就绪');
@@ -964,14 +1226,12 @@
             const audio = document.getElementById('globalBgmAudio');
             if (!audio) return;
 
-            // 设置初始音量
             audio.volume = window.bgmVolume;
 
             audio.onended = () => {
                 playRandomBgm();
             };
 
-            // 全局监听所有视频播放状态，实现有声视频播放时自动暂停，停止后恢复播放
             document.addEventListener('play', (e) => {
                 if (e.target && e.target.tagName === 'VIDEO') {
                     if (!e.target.muted) {
@@ -996,7 +1256,6 @@
             }, true);
         }
 
-        // 边缘自动滚动速度调节（3–50，数值越大越快）
         window.setEdgeScrollSpeed = function(val) {
             const speed = Math.max(3, Math.min(50, parseInt(val, 10) || 18));
             window.edgeScrollSpeed = speed;
@@ -1007,7 +1266,7 @@
             if (label) label.innerText = String(speed);
         };
 
-        // 边缘自动滚动：立刻滑动；只对初始屏外节点弹预览；预览与滚动同步
+        // ==================== 边缘滚动（保留原有功能，但禁用自动巡游触发） ====================
         function initScrollEdges() {
             const leftEdge = document.getElementById('scrollEdgeLeft');
             const rightEdge = document.getElementById('scrollEdgeRight');
@@ -1027,6 +1286,9 @@
                     lastForceHoverNode.classList.remove('force-hover');
                     if (typeof window.stopPreviewSlideshow === 'function') {
                         window.stopPreviewSlideshow(lastForceHoverNode, true);
+                    }
+                    if (typeof window.clearRelatedConnectionPreviews === 'function') {
+                        window.clearRelatedConnectionPreviews(null);
                     }
                     const dateStr = lastForceHoverNode.getAttribute('data-date');
                     if (dateStr) {
@@ -1060,6 +1322,11 @@
                     window.startPreviewSlideshow(node);
                 }
                 lastForceHoverNode = node;
+                const dateStr2 = node.getAttribute('data-date');
+                if (dateStr2) {
+                    const ids = window.events.filter(e => e.date === dateStr2).map(e => e.id);
+                    window.showRelatedConnectionPreviews(ids, node);
+                }
             }
 
             function captureOffscreenIndices(direction) {
@@ -1124,11 +1391,40 @@
                     offscreenIndices = [];
                     return;
                 }
-                const speed = window.edgeScrollSpeed || 18;
+                // 使用更慢的速度：edgeScrollSpeed 值越小越慢
+                const speed = Math.max(1, (window.edgeScrollSpeed || 18) * 0.3);
                 if (isScrollingLeft) container.scrollLeft -= speed;
                 if (isScrollingRight) container.scrollLeft += speed;
                 updateHoverSyncedWithScroll();
                 animationId = requestAnimationFrame(smoothScroll);
+            }
+
+            // 鼠标悬停边缘时启动自动巡游
+            let edgeHoverTimer = null;
+            let isEdgeHovering = false;
+
+            function startEdgeTour(direction) {
+                if (window.autoScrollIsActive) return;
+                // 找到当前可见的节点，然后启动巡游
+                const container = document.getElementById('timelineContainer');
+                const cr = container.getBoundingClientRect();
+                const nodes = document.querySelectorAll('.timeline-node-container');
+                let targetNode = null;
+                let bestDist = Infinity;
+                
+                nodes.forEach(n => {
+                    const nr = n.getBoundingClientRect();
+                    const centerX = nr.left + nr.width / 2;
+                    const dist = Math.abs(centerX - (cr.left + cr.width / 2));
+                    if (dist < bestDist && nr.right > cr.left && nr.left < cr.right) {
+                        bestDist = dist;
+                        targetNode = n;
+                    }
+                });
+
+                if (targetNode) {
+                    window.startAutoScrollTour(targetNode);
+                }
             }
 
             leftEdge.addEventListener('mouseenter', () => {
@@ -1136,22 +1432,46 @@
                 captureOffscreenIndices('left');
                 clearForceHover();
                 if (!animationId) animationId = requestAnimationFrame(smoothScroll);
+                
+                // 延迟启动巡游（让用户先看到边缘滚动效果）
+                if (edgeHoverTimer) clearTimeout(edgeHoverTimer);
+                edgeHoverTimer = setTimeout(() => {
+                    if (!window.autoScrollIsActive) {
+                        startEdgeTour('left');
+                    }
+                }, 800);
             });
             leftEdge.addEventListener('mouseleave', () => {
                 isScrollingLeft = false;
+                if (edgeHoverTimer) {
+                    clearTimeout(edgeHoverTimer);
+                    edgeHoverTimer = null;
+                }
                 if (!isScrollingRight) {
                     clearForceHover();
                     offscreenIndices = [];
                 }
+                // 不停止巡游，让巡游继续
             });
             rightEdge.addEventListener('mouseenter', () => {
                 isScrollingRight = true;
                 captureOffscreenIndices('right');
                 clearForceHover();
                 if (!animationId) animationId = requestAnimationFrame(smoothScroll);
+                
+                if (edgeHoverTimer) clearTimeout(edgeHoverTimer);
+                edgeHoverTimer = setTimeout(() => {
+                    if (!window.autoScrollIsActive) {
+                        startEdgeTour('right');
+                    }
+                }, 800);
             });
             rightEdge.addEventListener('mouseleave', () => {
                 isScrollingRight = false;
+                if (edgeHoverTimer) {
+                    clearTimeout(edgeHoverTimer);
+                    edgeHoverTimer = null;
+                }
                 if (!isScrollingLeft) {
                     clearForceHover();
                     offscreenIndices = [];
@@ -1170,7 +1490,6 @@
 
         window.openMusicModal = function() {
             window.renderBgmPlaylist();
-            // 同步音量滑块
             const slider = document.getElementById('bgmVolumeSlider');
             if (slider) slider.value = window.bgmVolume;
             const label = document.getElementById('bgmVolumeLabel');
@@ -1342,10 +1661,8 @@
 
         function updateBgmUIState(songName) {
             const titleEl = document.getElementById('currentSongTitle');
-            const statusEl = document.getElementById('currentSongStatus');
             const btn = document.getElementById('bgmPlayPauseBtn');
             if (titleEl) titleEl.innerText = songName || '当前未播放音乐';
-            if (statusEl) statusEl.innerText = window.isBgmPlaying ? '正在随机播放' : '已暂停';
             if (btn) {
                 btn.innerHTML = window.isBgmPlaying ? '<i class="fa-solid fa-pause text-xs"></i>' : '<i class="fa-solid fa-play text-xs"></i>';
             }
@@ -1474,16 +1791,19 @@
                 return;
             }
 
-            container.innerHTML = window.availableTags.map(t => `
-                <div class="flex items-center gap-1.5 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg text-xs text-slate-700 font-medium">
-                    <span># ${t}</span>
+            container.innerHTML = window.availableTags.map(t => {
+                const active = window.activeTagFilter === t;
+                const safe = String(t).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                return `
+                <div class="flex items-center gap-1.5 ${active ? 'bg-indigo-100 border-indigo-300 text-indigo-800' : 'bg-slate-100 border-slate-200 text-slate-700'} border px-2.5 py-1 rounded-lg text-xs font-medium">
+                    <button type="button" onclick="filterByTag('${safe}')" class="hover:underline"># ${t}</button>
                     ${!window.isLocked ? `
-                        <button onclick="deleteTag('${t}')" title="删除 tag" class="text-slate-400 hover:text-rose-500 ml-1">
+                        <button type="button" onclick="event.stopPropagation(); deleteTag('${safe}')" class="text-slate-400 hover:text-rose-500 ml-1">
                             <i class="fa-solid fa-xmark text-xs"></i>
                         </button>
                     ` : ''}
-                </div>
-            `).join('');
+                </div>`;
+            }).join('');
         };
 
         window.addNewTagFromModal = async function() {
@@ -1587,17 +1907,60 @@
         };
 
         window.getFilteredEvents = function() {
+            let list = window.events.slice();
+            if (window.activeTagFilter) {
+                const tag = window.activeTagFilter;
+                list = list.filter(e => e.tags && e.tags.some(t => t === tag));
+            }
             const query = (document.getElementById('searchInput')?.value || '').trim().toLowerCase();
-            if (!query) return window.events;
-            return window.events.filter(e => 
-                e.title.toLowerCase().includes(query) ||
-                (e.description && e.description.toLowerCase().includes(query)) ||
-                (e.tags && e.tags.some(t => t.toLowerCase().includes(query)))
-            );
+            if (query) {
+                list = list.filter(e =>
+                    (e.title && e.title.toLowerCase().includes(query)) ||
+                    (e.description && e.description.toLowerCase().includes(query)) ||
+                    (e.tags && e.tags.some(t => String(t).toLowerCase().includes(query)))
+                );
+            }
+            return list;
         };
 
         window.handleSearch = function() {
+            const input = document.getElementById('searchInput');
+            // 输入搜索时清除 tag 点选筛选
+            if ((input?.value || '').trim()) {
+                window.activeTagFilter = null;
+            }
             window.renderEvents();
+            requestAnimationFrame(() => {
+                window.scrollTimelineToFirstNode();
+            });
+        };
+
+        window.scrollTimelineToFirstNode = function() {
+            const container = document.getElementById('timelineContainer');
+            const first = document.querySelector('.timeline-node-container');
+            if (!container || !first) {
+                if (container) container.scrollLeft = 0;
+                return;
+            }
+            const cr = container.getBoundingClientRect();
+            const fr = first.getBoundingClientRect();
+            container.scrollLeft += (fr.left - cr.left - 48);
+            if (container.scrollLeft < 0) container.scrollLeft = 0;
+        };
+
+        window.filterByTag = function(tag) {
+            window.activeTagFilter = tag || null;
+            const input = document.getElementById('searchInput');
+            if (input) input.value = '';
+            window.closeTagModal();
+            window.renderEvents();
+            requestAnimationFrame(() => window.scrollTimelineToFirstNode());
+        };
+
+        window.clearTagFilter = function() {
+            window.activeTagFilter = null;
+            window.renderEvents();
+            requestAnimationFrame(() => window.scrollTimelineToFirstNode());
         };
 
         window.scrollTimeline = function(amount) {
@@ -1638,7 +2001,6 @@
         window.renderTimelineView = function(eventList = window.events) {
             const track = document.getElementById('timelineNodesTrack');
             if (!track) return;
-            // 清空节点，但保留主时间轴线（挂在 track 内部才能随内容完整延伸）
             track.innerHTML = '';
             const axisEl = document.createElement('div');
             axisEl.id = 'timelineMainAxis';
@@ -1680,7 +2042,6 @@
                     displayTitle = `${prefix}等${items.length}件事`;
                 }
 
-                // 取事件预览图：集合优先用 collection 正方形，否则 outer/封面
                 function getEventTileSrc(ev, preferCollection) {
                     const list = window.getEventPreviewSrcs(ev, preferCollection);
                     return list.length ? list[0] : null;
@@ -1689,7 +2050,6 @@
                 let firstImgSrc = getEventTileSrc(firstEvent, false);
                 const itemPreviewSrcLists = items.map(ev => window.getEventPreviewSrcs(ev, isMerged));
 
-                // 生成统一的 identifier
                 let dotId;
                 if (isMerged) {
                     dotId = `merged-${dateStr.replace(/[^a-zA-Z0-9]/g, '_')}`;
@@ -1697,7 +2057,6 @@
                     dotId = String(firstEvent.id);
                 }
 
-                // 合并节点：N 个等大正方形拼满，外框刚好等于网格（无黑边空隙）
                 let tooltipInnerHtml = '';
                 let tooltipStyle = `width: ${previewWidth}px; height: ${previewImgHeight}px;`;
                 if (isMerged) {
@@ -1707,7 +2066,6 @@
                     const cell = Math.max(20, Math.floor(Math.min(previewWidth / cols, previewImgHeight / rows)));
                     const gridW = cell * cols;
                     const gridH = cell * rows;
-                    // 外框尺寸 = 网格尺寸，不再留未填充黑边
                     tooltipStyle = `width: ${gridW}px; height: ${gridH}px;`;
                     const tiles = items.map((ev, tileIdx) => {
                         const srcs = itemPreviewSrcLists[tileIdx] || [];
@@ -1771,11 +2129,17 @@
                 nodeContainer.addEventListener('mouseenter', () => {
                     items.forEach(e => window.highlightConnectionsForEvent(e.id, true));
                     window.startPreviewSlideshow(nodeContainer);
+                    window.showRelatedConnectionPreviews(items.map(e => e.id), nodeContainer);
                 });
 
                 nodeContainer.addEventListener('mouseleave', () => {
                     items.forEach(e => window.highlightConnectionsForEvent(e.id, false));
                     window.stopPreviewSlideshow(nodeContainer, true);
+                    window.clearRelatedConnectionPreviews(nodeContainer);
+                    // 如果巡游激活，不要清除巡游的高亮
+                    if (!window.autoScrollIsActive) {
+                        nodeContainer.classList.remove('force-hover');
+                    }
                 });
 
                 track.appendChild(nodeContainer);
@@ -1787,7 +2151,6 @@
                 const track = document.getElementById('timelineNodesTrack');
                 const container = document.getElementById('timelineContainer');
                 if (axisLine && track) {
-                    // 主轴线挂在 track 内部，强制铺满整个内容宽度，滚动后也不会断开
                     const fullW = Math.max(track.scrollWidth, track.offsetWidth, container ? container.scrollWidth : 0);
                     axisLine.style.left = '0';
                     axisLine.style.right = 'auto';
@@ -1801,7 +2164,6 @@
                             : String(groupEntries[0][1][0].id);
                         const dotEl = firstNode.querySelector('#timeline-dot-' + firstDotId) || firstNode.querySelector('[id^="timeline-dot-"]');
                         if (dotEl) {
-                            // 相对 track 计算垂直位置，保证轴线始终穿过节点圆点
                             const dotRect = dotEl.getBoundingClientRect();
                             const trackRect = track.getBoundingClientRect();
                             const dotCenterY = (dotRect.top + dotRect.height / 2) - trackRect.top;
@@ -2222,10 +2584,8 @@
                 const sEvent = window.events.find(e => String(e.id) === String(conn.sourceId));
                 const tEvent = window.events.find(e => String(e.id) === String(conn.targetId));
                 
-                // 修正：根据事件是否被合并来查找对应的 dot 元素
                 let sourceDot = document.getElementById(`timeline-dot-${conn.sourceId}`);
                 if (!sourceDot && sEvent) {
-                    // 尝试查找合并节点的 dot
                     const mergedId = `merged-${sEvent.date.replace(/[^a-zA-Z0-9]/g, '_')}`;
                     sourceDot = document.getElementById(`timeline-dot-${mergedId}`);
                 }
@@ -2301,7 +2661,7 @@
                 const sId = isNaN(line.getAttribute('data-source')) ? line.getAttribute('data-source') : parseInt(line.getAttribute('data-source'));
                 const tId = isNaN(line.getAttribute('data-target')) ? line.getAttribute('data-target') : parseInt(line.getAttribute('data-target'));
 
-                if (sId === eventId || tId === eventId) {
+                if (String(sId) === String(eventId) || String(tId) === String(eventId)) {
                     if (highlight) {
                         line.classList.add('active-line');
                     } else {
@@ -2309,6 +2669,79 @@
                     }
                 }
             });
+        };
+
+        window.getConnectedEventIds = function(eventIds) {
+            const seed = new Set((eventIds || []).map(String));
+            const related = new Set();
+            (window.connections || []).forEach(c => {
+                const s = String(c.sourceId);
+                const t = String(c.targetId);
+                if (seed.has(s)) related.add(t);
+                if (seed.has(t)) related.add(s);
+            });
+            seed.forEach(id => related.delete(id));
+            return Array.from(related);
+        };
+
+        window.getNodeContainerForEventId = function(eventId) {
+            const ev = window.events.find(e => String(e.id) === String(eventId));
+            if (!ev) return null;
+            const nodes = document.querySelectorAll('.timeline-node-container');
+            for (const n of nodes) {
+                if (n.getAttribute('data-date') === ev.date) return n;
+            }
+            return null;
+        };
+
+        window.showRelatedConnectionPreviews = function(eventIds, primaryNode) {
+            window.clearRelatedConnectionPreviews(primaryNode);
+            const relatedIds = window.getConnectedEventIds(eventIds);
+            if (!relatedIds.length) return;
+            const relatedNodes = [];
+            relatedIds.forEach(id => {
+                const node = window.getNodeContainerForEventId(id);
+                if (!node || node === primaryNode) return;
+                if (node.classList.contains('force-hover') || node.matches(':hover')) return;
+                node.classList.add('force-hover', 'conn-related-preview');
+                if (typeof window.startPreviewSlideshow === 'function') {
+                    window.startPreviewSlideshow(node);
+                }
+                relatedNodes.push(node);
+            });
+            if (relatedNodes.length) {
+                window.scrollToRevealRelatedNodes(primaryNode, relatedNodes);
+            }
+        };
+
+        window.clearRelatedConnectionPreviews = function(exceptNode) {
+            document.querySelectorAll('.timeline-node-container.conn-related-preview').forEach(node => {
+                if (exceptNode && node === exceptNode) return;
+                node.classList.remove('force-hover', 'conn-related-preview');
+                if (typeof window.stopPreviewSlideshow === 'function') {
+                    window.stopPreviewSlideshow(node, true);
+                }
+            });
+        };
+
+        window.scrollToRevealRelatedNodes = function(primaryNode, relatedNodes) {
+            const container = document.getElementById('timelineContainer');
+            if (!container) return;
+            const cr = container.getBoundingClientRect();
+            const nodes = [primaryNode, ...(relatedNodes || [])].filter(Boolean);
+            let minL = Infinity, maxR = -Infinity;
+            nodes.forEach(n => {
+                const r = n.getBoundingClientRect();
+                minL = Math.min(minL, r.left);
+                maxR = Math.max(maxR, r.right);
+            });
+            if (!isFinite(minL) || !isFinite(maxR)) return;
+            const pad = 56;
+            if (maxR > cr.right - pad) {
+                container.scrollLeft += (maxR - cr.right + pad);
+            } else if (minL < cr.left + pad) {
+                container.scrollLeft += (minL - cr.left - pad);
+            }
         };
 
         window.openReadOnlyFullscreen = function(eventId, fromStackDate = null) {
@@ -2392,11 +2825,14 @@
                         <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-video mr-1"></i>事件视频</h4>
                         <div class="space-y-3">
                             ${event.videos.map(v => {
-                                const vUrl = typeof v === 'object' ? v.url : v;
-                                const vCover = typeof v === 'object' ? v.cover : '';
+                                const vUrl = typeof v === 'object' ? (v.blobUrl || v.url) : v;
+                                const vCover = typeof v === 'object' ? (v.cover || '') : '';
+                                const vType = typeof v === 'object' && v.mime ? `type="${v.mime}"` : '';
                                 return `
                                     <div class="bg-black rounded-xl overflow-hidden border border-slate-800">
-                                        <video src="${vUrl}" ${vCover ? `poster="${vCover}"` : ''} controls autoplay muted loop class="w-full max-h-80 object-contain"></video>
+                                        <video ${vCover ? `poster="${vCover}"` : ''} controls playsinline webkit-playsinline preload="metadata" class="w-full max-h-80 object-contain bg-black">
+                                            <source src="${vUrl}" ${vType}>
+                                        </video>
                                     </div>
                                 `;
                             }).join('')}
@@ -2826,15 +3262,31 @@
         };
 
         window.handleLocalVideoUpload = async function(e) {
-            const files = Array.from(e.target.files);
+            const input = e.target;
+            const files = Array.from(input.files || []);
             for (const f of files) {
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    window.editingVideos.push({ url: ev.target.result, cover: '' });
+                try {
+                    const blobUrl = URL.createObjectURL(f);
+                    const dataUrl = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = (ev) => resolve(ev.target.result);
+                        reader.onerror = reject;
+                        reader.readAsDataURL(f);
+                    });
+                    window.editingVideos.push({
+                        url: dataUrl,
+                        blobUrl: blobUrl,
+                        cover: '',
+                        mime: f.type || 'video/mp4',
+                        name: f.name || ''
+                    });
                     window.renderVideoPreviews();
-                };
-                reader.readAsDataURL(f);
+                } catch (err) {
+                    console.warn(err);
+                    window.showToast('视频添加失败', 'error');
+                }
             }
+            input.value = '';
         };
 
         window.addVideoLink = function() {
@@ -2886,9 +3338,11 @@
             const player = document.getElementById('videoCropPlayer');
             if (!modal || !player) return;
 
-            player.src = vidObj.url;
+            player.removeAttribute('crossorigin');
+            player.src = vidObj.blobUrl || vidObj.url;
             modal.classList.remove('hidden');
             player.load();
+            player.play().catch(() => {});
         };
 
         window.closeVideoCropModal = function() {
@@ -2912,7 +3366,7 @@
 
             const frameDataUrl = canvas.toDataURL('image/jpeg', 0.8);
             window.editingVideos[activeVideoCropIndex].cover = frameDataUrl;
-            window.showToast("视频封面截选成功", "success");
+            window.showToast("截选完成", "success");
             window.renderVideoPreviews();
             window.closeVideoCropModal();
         };
@@ -2964,7 +3418,6 @@
 
         window.initLinkDragDrop = function(container) {
             if (!container || container.dataset.dndBound === '1') {
-                // re-bind each render: clear flag and re-attach once via delegation on container
             }
             if (container.dataset.dndBound === '1') return;
             container.dataset.dndBound = '1';
@@ -3099,7 +3552,6 @@
             window.renderMicroPreviews();
         };
 
-        // 当前编辑事件所在日期是否已有多个事件（集合截选仅在此情况显示）
         window.currentEditDateIsMultiEvent = function() {
             let dateStr = '';
             const isRange = document.getElementById('isRangeToggle')?.checked;
@@ -3134,14 +3586,12 @@
                 const container = document.getElementById('cropContainer');
                 const cw = container.clientWidth;
                 const ch = container.clientHeight;
-                // 初始缩放：完整显示图片
                 const fit = Math.min(cw / cropState.naturalWidth, ch / cropState.naturalHeight) * 0.92;
                 cropState.scale = Math.max(0.15, Math.min(4, fit));
                 const dispW = cropState.naturalWidth * cropState.scale;
                 const dispH = cropState.naturalHeight * cropState.scale;
                 cropState.imgX = (cw - dispW) / 2;
                 cropState.imgY = (ch - dispH) / 2;
-                // 初始选框：居中，约占视口 55%
                 cropState.boxW = Math.min(cw * 0.55, dispW * 0.85, 320);
                 cropState.boxH = Math.min(ch * 0.55, dispH * 0.85, 240);
                 cropState.boxX = (cw - cropState.boxW) / 2;
@@ -3177,7 +3627,6 @@
             if (sliderText) sliderText.innerText = Math.round(cropState.scale * 100) + '%';
         }
 
-        // 缩放时以选框中心为锚点，保证选框与框内画面不跟着“整体挪动”
         window.handleImageScaleChange = function(val) {
             const newScale = Math.max(0.15, Math.min(4, parseFloat(val) || 1));
             const oldScale = cropState.scale || 1;
@@ -3185,7 +3634,6 @@
 
             const anchorX = cropState.boxX + cropState.boxW / 2;
             const anchorY = cropState.boxY + cropState.boxH / 2;
-            // 选框中心对应的原图像素
             const srcX = (anchorX - cropState.imgX) / oldScale;
             const srcY = (anchorY - cropState.imgY) / oldScale;
 
@@ -3201,7 +3649,7 @@
             if (!container || !box || container.dataset.cropInited === '1') return;
             container.dataset.cropInited = '1';
 
-            let mode = null; // 'pan' | 'moveBox' | 'resize'
+            let mode = null;
             let handle = null;
             let startX = 0, startY = 0;
             let origin = {};
@@ -3296,7 +3744,6 @@
                 return;
             }
 
-            // 选框 → 原图像素
             let sx = (cropState.boxX - cropState.imgX) / cropState.scale;
             let sy = (cropState.boxY - cropState.imgY) / cropState.scale;
             let sw = cropState.boxW / cropState.scale;
@@ -3309,7 +3756,6 @@
             sw = Math.max(1, sw);
             sh = Math.max(1, sh);
 
-            // 输出尺寸：保持选区比例，长边不超过 1200
             const maxSide = 1200;
             let outW = Math.round(sw);
             let outH = Math.round(sh);
@@ -3331,11 +3777,10 @@
                 const target = window.editingImageFiles[cropState.index];
                 if (!target) return;
 
-                // 一次截选同步到封面 / 详情 / 集合，预览用 object-cover 自适应比例
                 target.outer = croppedBase64;
                 target.inner = croppedBase64;
                 target.collection = croppedBase64;
-                window.showToast("截选完成（已适配全部预览尺寸）", "success");
+                window.showToast("截选完成", "success");
                 window.renderMicroPreviews();
                 window.closeCropModal();
             };
@@ -3380,7 +3825,12 @@
                 description: description,
                 tags: selectedTags,
                 images: [...window.editingImageFiles],
-                videos: [...window.editingVideos],
+                videos: window.editingVideos.map(v => ({
+                    url: v.url,
+                    cover: v.cover || '',
+                    mime: v.mime || '',
+                    name: v.name || ''
+                })),
                 links: [...window.editingLinks],
                 connections: [...window.editingConnections],
                 _isEdit: isEdit
