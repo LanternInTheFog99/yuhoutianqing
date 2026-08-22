@@ -58,7 +58,8 @@
             transition: opacity 0.2s ease, transform 0.2s ease;
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
         }
-        .timeline-node-container:hover .timeline-hover-tooltip {
+        .timeline-node-container:hover .timeline-hover-tooltip,
+        .timeline-node-container.force-hover .timeline-hover-tooltip {
             pointer-events: auto;
             opacity: 1;
             transform: translateY(0) scale(1);
@@ -105,7 +106,9 @@
         }
 
         .timeline-node-container:hover .timeline-dot,
-        .timeline-node-container:hover .merged-dots-container {
+        .timeline-node-container:hover .merged-dots-container,
+        .timeline-node-container.force-hover .timeline-dot,
+        .timeline-node-container.force-hover .merged-dots-container {
             transform: scale(1.15);
         }
 
@@ -225,7 +228,7 @@
                 </button>
             </div>
 
-            <div id="zoomControlContainer" class="flex items-center justify-center gap-2 border-y sm:border-y-0 sm:border-x border-slate-200 py-2 sm:py-0 sm:px-4">
+            <div id="zoomControlContainer" class="flex flex-wrap items-center justify-center gap-2 border-y sm:border-y-0 sm:border-x border-slate-200 py-2 sm:py-0 sm:px-4">
                 <span class="text-xs text-slate-500 font-medium hidden md:flex items-center gap-1">
                     <i class="fa-solid fa-magnifying-glass text-slate-400"></i>
                     <span>密度:</span>
@@ -233,6 +236,13 @@
                 <button onclick="changeZoom(-1)" title="缩小密度" class="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center text-xs transition-colors font-bold">-</button>
                 <input type="range" id="zoomSlider" min="1" max="5" value="3" oninput="setZoom(this.value)" class="w-24 sm:w-20 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
                 <button onclick="changeZoom(1)" title="放大密度" class="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center text-xs transition-colors font-bold">+</button>
+                <span class="hidden sm:inline w-px h-4 bg-slate-200 mx-1"></span>
+                <span class="text-xs text-slate-500 font-medium hidden md:flex items-center gap-1" title="边缘自动滑动速度">
+                    <i class="fa-solid fa-gauge-high text-slate-400"></i>
+                    <span>滑速:</span>
+                </span>
+                <input type="range" id="edgeSpeedSlider" min="3" max="50" step="1" value="18" oninput="setEdgeScrollSpeed(this.value)" class="w-24 sm:w-20 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" title="边缘自动滑动速度">
+                <span id="edgeSpeedLabel" class="text-[10px] font-mono text-indigo-600 w-7 text-center">18</span>
             </div>
 
             <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs w-full sm:w-auto">
@@ -243,7 +253,7 @@
 
         <div id="timelineWrapper" class="relative group my-6 sm:my-8 bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm overflow-hidden">
             <div class="text-[11px] sm:text-xs text-slate-400 mb-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1">
-                <span><i class="fa-solid fa-circle-info text-indigo-500 mr-1"></i>悬停在节点上显示该节点与其他节点的逻辑联系</span>
+                <span><i class="fa-solid fa-circle-info text-indigo-500 mr-1"></i>悬停节点可看预览；鼠标移到左右边缘自动滑动时，也会依次“扫过”节点并弹出预览</span>
                 <span id="densityLabel" class="font-mono text-indigo-600 font-semibold">密度: 标准</span>
             </div>
 
@@ -266,8 +276,9 @@
                 <svg id="timelineSvgOverlay" class="absolute top-0 left-0 pointer-events-none z-[20] overflow-visible">
                     <g id="svgConnectionsGroup"></g>
                 </svg>
-                <div id="timelineMainAxis" class="absolute left-0 right-0 h-1 bg-slate-300 rounded-full z-0 transition-all"></div>
-                <div id="timelineNodesTrack" class="flex items-center w-full relative z-10 min-w-full"></div>
+                <div id="timelineNodesTrack" class="flex items-center w-full relative z-10 min-w-full">
+                    <div id="timelineMainAxis" class="absolute left-0 right-0 h-1 bg-slate-300 rounded-full z-0 pointer-events-none"></div>
+                </div>
             </div>
         </div>
 
@@ -618,6 +629,7 @@
         }
         
         window.zoomLevel = 3;
+        window.edgeScrollSpeed = Number(localStorage.getItem('yuhoutianqing_edgeScrollSpeed')) || 18;
         window.activeHoverIntervals = {};
         window.editingImageFiles = [];
         window.editingVideos = [];
@@ -923,45 +935,146 @@
             }, true);
         }
 
-        // 边缘自动滚动 - 使用 requestAnimationFrame 实现丝滑滚动
+        // 边缘自动滚动速度调节（3–50，数值越大越快）
+        window.setEdgeScrollSpeed = function(val) {
+            const speed = Math.max(3, Math.min(50, parseInt(val, 10) || 18));
+            window.edgeScrollSpeed = speed;
+            localStorage.setItem('yuhoutianqing_edgeScrollSpeed', String(speed));
+            const slider = document.getElementById('edgeSpeedSlider');
+            const label = document.getElementById('edgeSpeedLabel');
+            if (slider) slider.value = speed;
+            if (label) label.innerText = String(speed);
+        };
+
+        // 边缘自动滚动：按节点顺序从 1 号扫到最后一个（或反向），同屏/屏外预览节奏一致
         function initScrollEdges() {
             const leftEdge = document.getElementById('scrollEdgeLeft');
             const rightEdge = document.getElementById('scrollEdgeRight');
             const container = document.getElementById('timelineContainer');
             if (!leftEdge || !rightEdge || !container) return;
 
+            window.setEdgeScrollSpeed(window.edgeScrollSpeed);
+
             let isScrollingLeft = false;
             let isScrollingRight = false;
             let animationId = null;
+            let lastForceHoverNode = null;
+            let browseIndex = -1;
+            let lastStepTime = 0;
 
-            function smoothScroll() {
+            function clearForceHover() {
+                if (lastForceHoverNode) {
+                    lastForceHoverNode.classList.remove('force-hover');
+                    const dateStr = lastForceHoverNode.getAttribute('data-date');
+                    if (dateStr) {
+                        window.events.filter(e => e.date === dateStr).forEach(e => {
+                            window.highlightConnectionsForEvent(e.id, false);
+                        });
+                    }
+                    lastForceHoverNode = null;
+                }
+            }
+
+            function getOrderedNodes() {
+                return Array.from(document.querySelectorAll('.timeline-node-container'));
+            }
+
+            function applyHoverToNode(node) {
+                clearForceHover();
+                if (!node) return;
+                node.classList.add('force-hover');
+                const dateStr = node.getAttribute('data-date');
+                if (dateStr) {
+                    window.events.filter(e => e.date === dateStr).forEach(e => {
+                        window.highlightConnectionsForEvent(e.id, true);
+                    });
+                }
+                lastForceHoverNode = node;
+            }
+
+            // 把目标节点缓动到可视区域中心（同屏节点几乎不动，屏外节点会滚进来）
+            function easeNodeTowardCenter(node, speed) {
+                if (!node) return;
+                const containerRect = container.getBoundingClientRect();
+                const nodeRect = node.getBoundingClientRect();
+                const nodeCenter = nodeRect.left + nodeRect.width / 2;
+                const viewCenter = containerRect.left + containerRect.width / 2;
+                const delta = nodeCenter - viewCenter;
+                if (Math.abs(delta) < 2) return;
+                const step = Math.sign(delta) * Math.min(Math.abs(delta), Math.max(speed * 0.9, 6));
+                container.scrollLeft += step;
+            }
+
+            function smoothScroll(timestamp) {
                 if (!isScrollingLeft && !isScrollingRight) {
                     animationId = null;
+                    clearForceHover();
+                    browseIndex = -1;
                     return;
                 }
-                if (isScrollingLeft) {
-                    container.scrollLeft -= 2.2;   // 速度控制：数值越大滚动越快
+
+                const nodes = getOrderedNodes();
+                if (nodes.length === 0) {
+                    animationId = requestAnimationFrame(smoothScroll);
+                    return;
                 }
-                if (isScrollingRight) {
-                    container.scrollLeft += 2.2;
+
+                const speed = window.edgeScrollSpeed || 18;
+                // 每个节点停留时长：同屏与屏外完全一致，滑速越高停留越短
+                const dwellMs = Math.max(160, 1500 - speed * 26);
+                const now = timestamp || performance.now();
+
+                // 首次进入：向右从 1 号开始，向左从最后一个开始
+                if (browseIndex < 0) {
+                    browseIndex = isScrollingRight ? 0 : (nodes.length - 1);
+                    lastStepTime = now;
+                    applyHoverToNode(nodes[browseIndex]);
+                } else if (now - lastStepTime >= dwellMs) {
+                    lastStepTime = now;
+                    if (isScrollingRight && browseIndex < nodes.length - 1) {
+                        browseIndex += 1;
+                        applyHoverToNode(nodes[browseIndex]);
+                    } else if (isScrollingLeft && browseIndex > 0) {
+                        browseIndex -= 1;
+                        applyHoverToNode(nodes[browseIndex]);
+                    }
+                    // 已到端点则保持当前节点悬停，不再切换
                 }
+
+                // 持续把当前节点对准中线，保证节奏与滚动一致
+                if (browseIndex >= 0 && browseIndex < nodes.length) {
+                    easeNodeTowardCenter(nodes[browseIndex], speed);
+                }
+
                 animationId = requestAnimationFrame(smoothScroll);
             }
 
             leftEdge.addEventListener('mouseenter', () => {
                 isScrollingLeft = true;
-                if (!animationId) smoothScroll();
+                browseIndex = -1; // 重新从最后一个开始往回扫
+                lastStepTime = 0;
+                if (!animationId) animationId = requestAnimationFrame(smoothScroll);
             });
             leftEdge.addEventListener('mouseleave', () => {
                 isScrollingLeft = false;
+                if (!isScrollingRight) {
+                    clearForceHover();
+                    browseIndex = -1;
+                }
             });
 
             rightEdge.addEventListener('mouseenter', () => {
                 isScrollingRight = true;
-                if (!animationId) smoothScroll();
+                browseIndex = -1; // 重新从 1 号开始往最后扫
+                lastStepTime = 0;
+                if (!animationId) animationId = requestAnimationFrame(smoothScroll);
             });
             rightEdge.addEventListener('mouseleave', () => {
                 isScrollingRight = false;
+                if (!isScrollingLeft) {
+                    clearForceHover();
+                    browseIndex = -1;
+                }
             });
         }
 
@@ -1444,7 +1557,12 @@
         window.renderTimelineView = function(eventList = window.events) {
             const track = document.getElementById('timelineNodesTrack');
             if (!track) return;
+            // 清空节点，但保留主时间轴线（挂在 track 内部才能随内容完整延伸）
             track.innerHTML = '';
+            const axisEl = document.createElement('div');
+            axisEl.id = 'timelineMainAxis';
+            axisEl.className = 'absolute left-0 right-0 h-1 bg-slate-300 rounded-full z-0 pointer-events-none';
+            track.appendChild(axisEl);
 
             if (eventList.length === 0) {
                 window.renderSvgConnections();
@@ -1490,18 +1608,31 @@
                     firstImgSrc = typeof firstVid === 'object' ? firstVid.cover : null;
                 }
 
-                const identifier = isMerged ? `merged-${dateStr.replace(/[^a-zA-Z0-9]/g, '_')}` : firstEvent.id;
+                // 生成统一的 identifier
+                let dotId;
+                if (isMerged) {
+                    dotId = `merged-${dateStr.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                } else {
+                    dotId = String(firstEvent.id);
+                }
 
                 const nodeContainer = document.createElement('div');
                 nodeContainer.className = "timeline-node-container relative flex flex-col items-center justify-center shrink-0 cursor-pointer group py-6";
                 nodeContainer.style.width = `${gapPx}px`;
+                nodeContainer.setAttribute('data-date', dateStr);
 
                 nodeContainer.innerHTML = `
-                    ${firstImgSrc ? `
-                        <div class="timeline-hover-tooltip absolute bottom-full mb-3 z-30 bg-slate-900 rounded-xl border border-slate-700 overflow-hidden pointer-events-none" style="width: ${previewWidth}px; height: ${previewImgHeight}px;">
+                    <div class="timeline-hover-tooltip absolute bottom-full mb-3 z-30 bg-slate-900 rounded-xl border border-slate-700 overflow-hidden pointer-events-none shadow-xl" style="width: ${previewWidth}px; ${firstImgSrc ? `height: ${previewImgHeight}px;` : ''}">
+                        ${firstImgSrc ? `
                             <img src="${firstImgSrc}" class="w-full h-full object-cover transition-opacity duration-300">
-                        </div>
-                    ` : ''}
+                        ` : `
+                            <div class="p-3 flex flex-col gap-1.5">
+                                <div class="text-[10px] font-mono text-indigo-300">${dateStr}</div>
+                                <div class="text-xs font-semibold text-white leading-snug line-clamp-3">${displayTitle}</div>
+                                ${isMerged ? `<div class="text-[10px] text-slate-400">共 ${items.length} 个同期事件</div>` : ''}
+                            </div>
+                        `}
+                    </div>
 
                     <div onclick="handleGroupClick('${dateStr.replace(/'/g, "\\'")}')" class="text-center mb-3 max-w-[130px] select-none">
                         <span class="block font-medium ${hasMajor ? 'text-indigo-900 font-bold' : 'text-slate-700'} line-clamp-1" style="font-size: ${fontSizeTitle}px;">
@@ -1512,7 +1643,7 @@
                         </span>
                     </div>
 
-                    <div id="timeline-dot-${identifier}" onclick="handleGroupClick('${dateStr.replace(/'/g, "\\'")}')" class="flex items-center justify-center z-10 shrink-0">
+                    <div id="timeline-dot-${dotId}" onclick="handleGroupClick('${dateStr.replace(/'/g, "\\'")}')" class="flex items-center justify-center z-10 shrink-0">
                         ${isMerged ? `
                             <div class="merged-dots-container">
                                 <div class="merged-dot-left" style="width: ${dotMinorSize}px; height: ${dotMinorSize}px;"></div>
@@ -1538,16 +1669,30 @@
             requestAnimationFrame(() => {
                 const firstNode = document.querySelector('.timeline-node-container');
                 const axisLine = document.getElementById('timelineMainAxis');
+                const track = document.getElementById('timelineNodesTrack');
                 const container = document.getElementById('timelineContainer');
-                if (firstNode && axisLine && container) {
-                    const firstDateStr = groupEntries.length > 0 ? groupEntries[0][0] : '';
-                    const dotEl = firstNode.querySelector('#timeline-dot-' + (groupEntries.length > 0 && groupEntries[0][1].length > 1 ? `merged-${firstDateStr.replace(/[^a-zA-Z0-9]/g, '_')}` : groupEntries[0][1][0].id));
-                    if (dotEl) {
-                        const dotRect = dotEl.getBoundingClientRect();
-                        const containerRect = container.getBoundingClientRect();
-                        const dotCenterY = (dotRect.top + dotRect.height / 2) - containerRect.top + container.scrollTop;
-                        axisLine.style.top = `${dotCenterY}px`;
-                        axisLine.style.transform = 'translateY(-50%)';
+                if (axisLine && track) {
+                    // 主轴线挂在 track 内部，强制铺满整个内容宽度，滚动后也不会断开
+                    const fullW = Math.max(track.scrollWidth, track.offsetWidth, container ? container.scrollWidth : 0);
+                    axisLine.style.left = '0';
+                    axisLine.style.right = 'auto';
+                    axisLine.style.width = fullW + 'px';
+
+                    if (firstNode && container) {
+                        const firstDateStr = groupEntries.length > 0 ? groupEntries[0][0] : '';
+                        const isMergedFirst = groupEntries.length > 0 && groupEntries[0][1].length > 1;
+                        const firstDotId = isMergedFirst
+                            ? `merged-${firstDateStr.replace(/[^a-zA-Z0-9]/g, '_')}`
+                            : String(groupEntries[0][1][0].id);
+                        const dotEl = firstNode.querySelector('#timeline-dot-' + firstDotId) || firstNode.querySelector('[id^="timeline-dot-"]');
+                        if (dotEl) {
+                            // 相对 track 计算垂直位置，保证轴线始终穿过节点圆点
+                            const dotRect = dotEl.getBoundingClientRect();
+                            const trackRect = track.getBoundingClientRect();
+                            const dotCenterY = (dotRect.top + dotRect.height / 2) - trackRect.top;
+                            axisLine.style.top = `${dotCenterY}px`;
+                            axisLine.style.transform = 'translateY(-50%)';
+                        }
                     }
                 }
                 window.renderSvgConnections();
@@ -1943,10 +2088,22 @@
             }
 
             window.connections.forEach(conn => {
-                const sEvent = window.events.find(e => e.id == conn.sourceId);
-                const tEvent = window.events.find(e => e.id == conn.targetId);
-                const sourceDot = document.getElementById(`timeline-dot-${conn.sourceId}`) || document.getElementById(`timeline-dot-merged-${sEvent?.date.replace(/[^a-zA-Z0-9]/g, '_')}`);
-                const targetDot = document.getElementById(`timeline-dot-${conn.targetId}`) || document.getElementById(`timeline-dot-merged-${tEvent?.date.replace(/[^a-zA-Z0-9]/g, '_')}`);
+                const sEvent = window.events.find(e => String(e.id) === String(conn.sourceId));
+                const tEvent = window.events.find(e => String(e.id) === String(conn.targetId));
+                
+                // 修正：根据事件是否被合并来查找对应的 dot 元素
+                let sourceDot = document.getElementById(`timeline-dot-${conn.sourceId}`);
+                if (!sourceDot && sEvent) {
+                    // 尝试查找合并节点的 dot
+                    const mergedId = `merged-${sEvent.date.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                    sourceDot = document.getElementById(`timeline-dot-${mergedId}`);
+                }
+                
+                let targetDot = document.getElementById(`timeline-dot-${conn.targetId}`);
+                if (!targetDot && tEvent) {
+                    const mergedId = `merged-${tEvent.date.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                    targetDot = document.getElementById(`timeline-dot-${mergedId}`);
+                }
 
                 if (!sourceDot || !targetDot) return;
 
@@ -2702,7 +2859,7 @@
             if (!container) return;
             container.addEventListener('wheel', (e) => {
                 e.preventDefault();
-                const delta = e.deltaY > 0 ? -0.05 : 0.05;
+                const delta = e.deltaY > 0 ? -0.02 : 0.02;
                 let newScale = cropState.scale + delta;
                 newScale = Math.max(0.2, Math.min(3, newScale));
                 cropState.scale = newScale;
