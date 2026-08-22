@@ -253,7 +253,7 @@
 
         <div id="timelineWrapper" class="relative group my-6 sm:my-8 bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm overflow-hidden">
             <div class="text-[11px] sm:text-xs text-slate-400 mb-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1">
-                <span><i class="fa-solid fa-circle-info text-indigo-500 mr-1"></i>悬停节点可看预览；移到左右边缘会立刻滑动，并为屏幕外滚入的节点依次弹出预览</span>
+                <span><i class="fa-solid fa-circle-info text-indigo-500 mr-1"></i>悬停预览 · 边缘滑动</span>
                 <span id="densityLabel" class="font-mono text-indigo-600 font-semibold">密度: 标准</span>
             </div>
 
@@ -483,19 +483,21 @@
             <div class="flex items-center justify-between w-full pb-3 border-b border-slate-800 mb-3">
                 <h3 class="font-bold text-base flex items-center gap-2">
                     <i class="fa-solid fa-crop text-indigo-400"></i>
-                    <span>预览图截选</span>
+                    <span>自由截选</span>
                 </h3>
                 <button onclick="closeCropModal()" class="text-slate-400 hover:text-white w-8 h-8 rounded-full flex items-center justify-center">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
 
-            <p class="text-[11px] sm:text-xs text-slate-400 mb-2 text-center" id="cropModeTip">用于时间线节点的预览图展示</p>
+            <p class="text-[11px] sm:text-xs text-slate-400 mb-2 text-center" id="cropModeTip">
+                拖动图片移动位置 · 拖动选框边角调整大小 · 滚轮或滑块缩放图片（选框位置与大小保持不动）· 一次截选适配所有预览尺寸
+            </p>
             
             <div id="cropContainer" class="relative w-full h-[42vh] min-h-[260px] overflow-hidden border border-slate-700 rounded-xl bg-black select-none my-1 cursor-grab" style="touch-action: none;">
                 <img id="cropTargetImg" class="absolute top-0 left-0 max-w-none pointer-events-none" draggable="false" alt="">
                 <div id="cropBoxFixed" class="absolute border-2 border-indigo-400 bg-indigo-500/10 shadow-[0_0_0_9999px_rgba(0,0,0,0.55)] box-border cursor-move" style="left:40px;top:40px;width:200px;height:160px;">
-                    <span id="cropBoxLabel" class="absolute -top-6 left-0 bg-indigo-600 text-white text-[10px] px-2 py-0.5 rounded font-mono shadow whitespace-nowrap">选区</span>
+                    <span id="cropBoxLabel" class="absolute -top-6 left-0 bg-indigo-600 text-white text-[10px] px-2 py-0.5 rounded font-mono shadow whitespace-nowrap">自由选区</span>
                     <div class="crop-handle absolute w-3 h-3 bg-white border border-indigo-500 rounded-sm -top-1.5 -left-1.5 cursor-nwse-resize" data-handle="nw"></div>
                     <div class="crop-handle absolute w-3 h-3 bg-white border border-indigo-500 rounded-sm -top-1.5 -right-1.5 cursor-nesw-resize" data-handle="ne"></div>
                     <div class="crop-handle absolute w-3 h-3 bg-white border border-indigo-500 rounded-sm -bottom-1.5 -left-1.5 cursor-nesw-resize" data-handle="sw"></div>
@@ -514,7 +516,7 @@
             </div>
 
             <div class="flex flex-col sm:flex-row justify-between items-center w-full mt-4 pt-3 border-t border-slate-800 gap-2">
-                <span class="text-[11px] text-slate-400"></span>
+                <span class="text-[11px] text-slate-400">提示：一次截选即可用于封面、详情与集合预览</span>
                 <div class="flex gap-2 w-full sm:w-auto justify-end">
                     <button onclick="closeCropModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium">取消</button>
                     <button onclick="confirmCropImage()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">完成截选并保存</button>
@@ -1023,7 +1025,9 @@
             function clearForceHover() {
                 if (lastForceHoverNode) {
                     lastForceHoverNode.classList.remove('force-hover');
-                    window.stopPreviewSlideshow(lastForceHoverNode, true);
+                    if (typeof window.stopPreviewSlideshow === 'function') {
+                        window.stopPreviewSlideshow(lastForceHoverNode, true);
+                    }
                     const dateStr = lastForceHoverNode.getAttribute('data-date');
                     if (dateStr) {
                         window.events.filter(e => e.date === dateStr).forEach(e => {
@@ -1052,7 +1056,9 @@
                         window.highlightConnectionsForEvent(e.id, true);
                     });
                 }
-                window.startPreviewSlideshow(node);
+                if (typeof window.startPreviewSlideshow === 'function') {
+                    window.startPreviewSlideshow(node);
+                }
                 lastForceHoverNode = node;
             }
 
@@ -1083,21 +1089,14 @@
                     const node = nodes[i];
                     if (!node || !node.isConnected) return;
                     const nr = node.getBoundingClientRect();
-                    const visible = nr.right > cr.left + pad && nr.left < cr.right - pad;
-                    if (!visible) return;
+                    if (!(nr.right > cr.left + pad && nr.left < cr.right - pad)) return;
                     const centerX = nr.left + nr.width / 2;
                     if (isScrollingRight) {
                         const score = cr.right - centerX;
-                        if (score >= 0 && score < bestScore) {
-                            bestScore = score;
-                            best = node;
-                        }
+                        if (score >= 0 && score < bestScore) { bestScore = score; best = node; }
                     } else if (isScrollingLeft) {
                         const score = centerX - cr.left;
-                        if (score >= 0 && score < bestScore) {
-                            bestScore = score;
-                            best = node;
-                        }
+                        if (score >= 0 && score < bestScore) { bestScore = score; best = node; }
                     }
                 });
 
@@ -1109,12 +1108,8 @@
                         if (!node || !node.isConnected) return;
                         const nr = node.getBoundingClientRect();
                         if (nr.right <= cr.left + pad || nr.left >= cr.right - pad) return;
-                        const centerX = nr.left + nr.width / 2;
-                        const dist = Math.abs(centerX - mid);
-                        if (dist < bestScore) {
-                            bestScore = dist;
-                            best = node;
-                        }
+                        const dist = Math.abs(nr.left + nr.width / 2 - mid);
+                        if (dist < bestScore) { bestScore = dist; best = node; }
                     });
                 }
 
@@ -1685,6 +1680,7 @@
                     displayTitle = `${prefix}等${items.length}件事`;
                 }
 
+                // 取事件预览图：集合优先用 collection 正方形，否则 outer/封面
                 function getEventTileSrc(ev, preferCollection) {
                     const list = window.getEventPreviewSrcs(ev, preferCollection);
                     return list.length ? list[0] : null;
@@ -1902,19 +1898,14 @@
             });
             updateStackCardStyles(0);
             setupStackWheelInteraction();
-            const wrapper = document.getElementById('stackCardsWrapper');
-            if (wrapper) {
-                wrapper.querySelectorAll('.stack-card').forEach((c, i) => {
-                    if (i === 0) window.startPreviewSlideshow(c);
-                    else window.stopPreviewSlideshow(c, true);
-                });
-            }
         };
 
         window.closeStackManagerModal = function() {
             const modal = document.getElementById('stackManagerModal');
             if (modal) {
-                modal.querySelectorAll('.stack-card').forEach(c => window.stopPreviewSlideshow(c, true));
+                modal.querySelectorAll('.stack-card').forEach(c => {
+                    if (typeof window.stopPreviewSlideshow === 'function') window.stopPreviewSlideshow(c, true);
+                });
                 modal.classList.add('hidden');
             }
         };
@@ -1941,6 +1932,7 @@
             });
         
             cards.forEach((card, idx) => {
+                if (typeof window.startPreviewSlideshow !== 'function') return;
                 if (idx === activeIndex) window.startPreviewSlideshow(card);
                 else window.stopPreviewSlideshow(card, true);
             });
@@ -2091,7 +2083,7 @@
                             </div>
 
                             <div class="mt-3 flex gap-2">
-                                <input id="connLabelInput" type="text" maxlength="40" placeholder="连线文字描述（可选）" class="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
+                                <input id="connLabelInput" type="text" maxlength="40" placeholder="连线文字" class="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
                                 <button type="button" onclick="createConnection()" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm shrink-0">
                                     <i class="fa-solid fa-plus mr-1"></i>添加
                                 </button>
@@ -2104,7 +2096,7 @@
                                 <span class="text-[10px] text-slate-400">${window.connections.length} 条</span>
                             </div>
                             <div class="space-y-2 ${window.connections.length ? '' : 'border border-dashed border-slate-200 rounded-xl'}">
-                                ${connectionRows || '<div class="py-6 text-center text-[11px] text-slate-400">还没有连线，先选择两个节点添加一条吧。</div>'}
+                                ${connectionRows || '<div class="py-6 text-center text-[11px] text-slate-400">还没有连线</div>'}
                             </div>
                         </div>
                     </div>
@@ -2524,44 +2516,91 @@
             const list = document.getElementById('editConnectionsList');
             const sourceSelect = document.getElementById('editConnSource');
             const targetSelect = document.getElementById('editConnTarget');
-            if (!list || !sourceSelect || !targetSelect) return;
-            const options = window.events.slice().sort((a,b) => String(a.date).localeCompare(String(b.date)) || String(a.title).localeCompare(String(b.title)))
-                .map(e => `<option value="${String(e.id).replace(/"/g, '&quot;')}">${escapeHtml(e.date)} · ${escapeHtml(e.title || '未命名事件')}</option>`).join('');
-            sourceSelect.innerHTML = options;
-            targetSelect.innerHTML = options;
-            if (window.editingConnectionDraftEventId !== null) {
-                sourceSelect.value = String(window.editingConnectionDraftEventId);
-                const other = window.events.find(e => String(e.id) !== String(window.editingConnectionDraftEventId));
-                if (other) targetSelect.value = String(other.id);
+            if (!list || !targetSelect) return;
+
+            const selfId = window.editingConnectionDraftEventId;
+            const others = window.events
+                .filter(e => String(e.id) !== String(selfId))
+                .slice()
+                .sort((a,b) => String(a.date).localeCompare(String(b.date)) || String(a.title).localeCompare(String(b.title)));
+            const options = others.map(e =>
+                `<option value="${String(e.id).replace(/"/g, '&quot;')}">${escapeHtml(e.date)} · ${escapeHtml(e.title || '未命名事件')}</option>`
+            ).join('');
+            targetSelect.innerHTML = options
+                ? `<option value="">选择连接的事件</option>` + options
+                : `<option value="">暂无其他事件可选</option>`;
+
+            if (sourceSelect) {
+                const selfOpt = selfId != null
+                    ? `<option value="${String(selfId).replace(/"/g, '&quot;')}" selected>当前事件</option>`
+                    : '';
+                sourceSelect.innerHTML = selfOpt;
+                if (selfId != null) sourceSelect.value = String(selfId);
             }
+
             if (!window.editingConnections.length) {
-                list.innerHTML = '<p class="text-[11px] text-slate-400 italic py-1">暂无连线。可在上方选择两个节点后添加。</p>';
+                list.innerHTML = '<p class="text-[11px] text-slate-400 italic py-1">暂无连线</p>';
                 return;
             }
             list.innerHTML = window.editingConnections.map(conn => {
                 const source = window.events.find(e => String(e.id) === String(conn.sourceId));
                 const target = window.events.find(e => String(e.id) === String(conn.targetId));
+                const sourceTitle = String(conn.sourceId) === String(selfId) ? '当前事件' : (source?.title || String(conn.sourceId));
+                const targetTitle = String(conn.targetId) === String(selfId) ? '当前事件' : (target?.title || String(conn.targetId));
                 const dirText = conn.dir === 'both' ? '双向' : (conn.dir === 'backward' ? '被指向' : '指向');
                 const dirIcon = conn.dir === 'both' ? '↔' : (conn.dir === 'backward' ? '←' : '→');
                 return `<div class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-xs">
                     <span class="text-indigo-600 font-bold w-5 text-center">${dirIcon}</span>
-                    <div class="min-w-0 flex-1"><div class="font-semibold text-slate-700 truncate">${escapeHtml(source?.title || String(conn.sourceId))} <span class="text-slate-400 font-normal">→</span> ${escapeHtml(target?.title || String(conn.targetId))}</div><div class="text-[10px] text-slate-400 mt-0.5">${dirText}${conn.label ? ` · ${escapeHtml(conn.label)}` : ''}</div></div>
-                    <button type="button" onclick="removeEditingConnection('${String(conn.id).replace(/'/g, "\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center" title="移除连线"><i class="fa-solid fa-xmark text-[11px]"></i></button>
+                    <div class="min-w-0 flex-1"><div class="font-semibold text-slate-700 truncate">${escapeHtml(sourceTitle)} <span class="text-slate-400 font-normal">→</span> ${escapeHtml(targetTitle)}</div><div class="text-[10px] text-slate-400 mt-0.5">${dirText}${conn.label ? ` · ${escapeHtml(conn.label)}` : ''}</div></div>
+                    <button type="button" onclick="removeEditingConnection('${String(conn.id).replace(/'/g, "\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center shrink-0"><i class="fa-solid fa-xmark"></i></button>
                 </div>`;
             }).join('');
         };
 
         window.addEditingConnection = function() {
             if (window.isLocked) return;
-            const sourceIdRaw = document.getElementById('editConnSource')?.value;
+            const selfId = window.editingConnectionDraftEventId;
             const targetIdRaw = document.getElementById('editConnTarget')?.value;
             const dir = document.querySelector('input[name="editConnDirection"]:checked')?.value || 'forward';
             const label = (document.getElementById('editConnLabel')?.value || '').trim();
-            if (!sourceIdRaw || !targetIdRaw || String(sourceIdRaw) === String(targetIdRaw)) { window.showToast('请选择两个不同的节点', 'error'); return; }
-            if (window.editingConnections.some(c => String(c.sourceId) === String(sourceIdRaw) && String(c.targetId) === String(targetIdRaw))) { window.showToast('这两个节点之间已经存在同向连线', 'error'); return; }
-            window.editingConnections.push({ id:'conn_' + Date.now() + '_' + Math.random().toString(36).slice(2,7), sourceId:isNaN(sourceIdRaw)?sourceIdRaw:Number(sourceIdRaw), targetId:isNaN(targetIdRaw)?targetIdRaw:Number(targetIdRaw), dir, label });
+            if (selfId == null || selfId === '') {
+                window.showToast('无法添加连线', 'error');
+                return;
+            }
+            if (!targetIdRaw) {
+                window.showToast('请选择要连接的事件', 'error');
+                return;
+            }
+            if (String(selfId) === String(targetIdRaw)) {
+                window.showToast('请选择其他事件', 'error');
+                return;
+            }
+            let sourceId = selfId;
+            let targetId = targetIdRaw;
+            let storedDir = dir;
+            if (dir === 'backward') {
+                sourceId = targetIdRaw;
+                targetId = selfId;
+                storedDir = 'forward';
+            }
+            const exists = window.editingConnections.some(c =>
+                String(c.sourceId) === String(sourceId) && String(c.targetId) === String(targetId) &&
+                (c.dir === 'both') === (storedDir === 'both')
+            );
+            if (exists) {
+                window.showToast('连线已存在', 'error');
+                return;
+            }
+            window.editingConnections.push({
+                id: 'draft_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+                sourceId: isNaN(Number(sourceId)) ? sourceId : Number(sourceId),
+                targetId: isNaN(Number(targetId)) ? targetId : Number(targetId),
+                dir: storedDir === 'both' ? 'both' : 'forward',
+                label: label
+            });
             window.editingConnectionsDirty = true;
-            if (document.getElementById('editConnLabel')) document.getElementById('editConnLabel').value = '';
+            const labelInput = document.getElementById('editConnLabel');
+            if (labelInput) labelInput.value = '';
             window.renderEditConnections();
         };
 
@@ -2670,9 +2709,10 @@
                             <div><label class="block text-xs font-bold text-slate-700 mb-1">选择 tag (多选)</label><div class="flex flex-wrap gap-1.5 p-2 border border-slate-200 rounded-lg bg-slate-50 max-h-28 overflow-y-auto" id="editTagsList">${window.availableTags.length === 0 ? '<p class="text-xs text-slate-400 italic">暂无可用 tag</p>' : window.availableTags.map(t => { const checked = event.tags && event.tags.includes(t); return `<label class="cursor-pointer text-xs flex items-center gap-1.5 px-2 py-1 rounded border transition-colors ${checked ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-semibold' : 'bg-white border-slate-200 text-slate-600'}"><input type="checkbox" value="${t}" ${checked ? 'checked' : ''} class="hidden" onchange="toggleTagSelection(this)"><span># ${t}</span></label>`; }).join('')}</div></div>
                             <div class="space-y-2 bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
                                 <div class="flex items-center justify-between"><div><label class="block text-xs font-bold text-slate-700"><i class="fa-solid fa-diagram-project text-indigo-600 mr-1"></i>逻辑连线</label></div><button type="button" onclick="openConnectionManager()" class="text-[10px] text-indigo-600 hover:text-indigo-800 font-semibold">打开完整管理</button></div>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2"><select id="editConnSource" class="w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-indigo-500"></select><select id="editConnTarget" class="w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-indigo-500"></select></div>
+                                <select id="editConnSource" class="hidden"></select>
+                                <select id="editConnTarget" class="w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-indigo-500"></select>
                                 <div class="grid grid-cols-3 gap-1.5"><label class="cursor-pointer"><input type="radio" name="editConnDirection" value="forward" checked class="sr-only peer"><span class="flex items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">→ 指向</span></label><label class="cursor-pointer"><input type="radio" name="editConnDirection" value="backward" class="sr-only peer"><span class="flex items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">← 被指向</span></label><label class="cursor-pointer"><input type="radio" name="editConnDirection" value="both" class="sr-only peer"><span class="flex items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">↔ 双向</span></label></div>
-                                <div class="flex gap-2"><input id="editConnLabel" type="text" maxlength="40" placeholder="连线文字描述（可选）" class="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500"><button type="button" onclick="addEditingConnection()" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm shrink-0"><i class="fa-solid fa-plus mr-1"></i>添加</button></div>
+                                <div class="flex gap-2"><input id="editConnLabel" type="text" maxlength="40" placeholder="连线文字" class="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500"><button type="button" onclick="addEditingConnection()" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm shrink-0"><i class="fa-solid fa-plus mr-1"></i>添加</button></div>
                                 <div id="editConnectionsList" class="space-y-1.5 max-h-32 overflow-y-auto"></div>
                             </div>
                         </div>
@@ -2713,7 +2753,7 @@
                             <div class="space-y-2 pt-2 border-t border-slate-200">
                                 <span class="block text-[11px] font-bold text-slate-600">添加相关网址链接</span>
                                 <div class="flex gap-1.5">
-                                    <input type="text" id="linkTitleInput" placeholder="网址标题 (可选)" class="w-1/3 px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs outline-none">
+                                    <input type="text" id="linkTitleInput" placeholder="网址标题" class="w-1/3 px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs outline-none">
                                     <input type="url" id="linkUrlInput" placeholder="https://..." class="flex-grow px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs outline-none">
                                     <button type="button" onclick="addWebLink()" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium shrink-0">添加网址</button>
                                 </div>
@@ -2902,15 +2942,135 @@
             const container = document.getElementById('linkPreviewsContainer');
             if (!container) return;
             if (window.editingLinks.length === 0) {
-                container.innerHTML = '<p class="text-[11px] text-slate-400 italic">暂无添加网址</p>';
+                container.innerHTML = '<p class="text-[11px] text-slate-400 italic">暂无网址</p>';
                 return;
             }
+            const locked = !!window.isLocked;
             container.innerHTML = window.editingLinks.map((l, idx) => `
-                <div class="flex items-center justify-between bg-white border border-slate-200 px-2.5 py-1 rounded-lg text-xs">
-                    <span class="truncate text-slate-700 max-w-[280px]"><i class="fa-solid fa-globe text-indigo-500 mr-1"></i>${l.title}</span>
-                    <button type="button" onclick="removeWebLink(${idx})" class="text-rose-500 hover:text-rose-700"><i class="fa-solid fa-xmark"></i></button>
+                <div class="link-row flex items-center justify-between gap-2 bg-white border border-slate-200 px-2.5 py-1.5 rounded-lg text-xs ${locked ? '' : 'cursor-grab active:cursor-grabbing'}"
+                     draggable="${locked ? 'false' : 'true'}"
+                     data-link-index="${idx}">
+                    <button type="button" onclick="openEditLinkModal(${idx})" class="flex items-center gap-1.5 min-w-0 flex-1 text-left hover:text-indigo-700">
+                        <i class="fa-solid fa-globe text-indigo-500 shrink-0"></i>
+                        <span class="truncate text-slate-700">${String(l.title || l.url || '').replace(/</g, '&lt;')}</span>
+                    </button>
+                    ${locked ? '' : `<button type="button" onclick="removeWebLink(${idx})" class="text-rose-500 hover:text-rose-700 shrink-0 p-1"><i class="fa-solid fa-xmark"></i></button>`}
                 </div>
             `).join('');
+            if (!locked) window.initLinkDragDrop(container);
+        };
+
+        window._linkDragFrom = null;
+
+        window.initLinkDragDrop = function(container) {
+            if (!container || container.dataset.dndBound === '1') {
+                // re-bind each render: clear flag and re-attach once via delegation on container
+            }
+            if (container.dataset.dndBound === '1') return;
+            container.dataset.dndBound = '1';
+
+            container.addEventListener('dragstart', (e) => {
+                const row = e.target.closest('.link-row');
+                if (!row || window.isLocked) return;
+                window._linkDragFrom = parseInt(row.getAttribute('data-link-index'), 10);
+                row.classList.add('opacity-50');
+                try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(window._linkDragFrom)); } catch (_) {}
+            });
+            container.addEventListener('dragend', (e) => {
+                const row = e.target.closest('.link-row');
+                if (row) row.classList.remove('opacity-50');
+                window._linkDragFrom = null;
+                container.querySelectorAll('.link-row').forEach(r => r.classList.remove('ring-2', 'ring-indigo-300'));
+            });
+            container.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const row = e.target.closest('.link-row');
+                container.querySelectorAll('.link-row').forEach(r => r.classList.remove('ring-2', 'ring-indigo-300'));
+                if (row) row.classList.add('ring-2', 'ring-indigo-300');
+            });
+            container.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const row = e.target.closest('.link-row');
+                if (!row || window._linkDragFrom == null) return;
+                const to = parseInt(row.getAttribute('data-link-index'), 10);
+                const from = window._linkDragFrom;
+                if (isNaN(to) || isNaN(from) || from === to) return;
+                const arr = window.editingLinks;
+                const [item] = arr.splice(from, 1);
+                arr.splice(to, 0, item);
+                window._linkDragFrom = null;
+                window.renderLinkPreviews();
+            });
+        };
+
+        window.openEditLinkModal = function(index) {
+            if (window.isLocked) return;
+            const link = window.editingLinks[index];
+            if (!link) return;
+            let modal = document.getElementById('editLinkModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'editLinkModal';
+                modal.className = 'fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[90] flex items-center justify-center p-4';
+                document.body.appendChild(modal);
+            }
+            modal.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-bold text-slate-800 text-sm">编辑网址</h3>
+                        <button type="button" onclick="closeEditLinkModal()" class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">标题</label>
+                            <input id="editLinkTitleInput" type="text" value="${String(link.title || '').replace(/"/g, '&quot;')}" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">网址</label>
+                            <input id="editLinkUrlInput" type="url" value="${String(link.url || '').replace(/"/g, '&quot;')}" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500 font-mono">
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-2 mt-4">
+                        <button type="button" onclick="closeEditLinkModal()" class="px-3 py-1.5 rounded-lg text-xs bg-slate-100 text-slate-600 hover:bg-slate-200">取消</button>
+                        <button type="button" onclick="saveEditLinkModal(${index})" class="px-3 py-1.5 rounded-lg text-xs bg-indigo-600 text-white hover:bg-indigo-700">保存</button>
+                    </div>
+                </div>`;
+            modal.classList.remove('hidden');
+            modal.onclick = (e) => { if (e.target === modal) window.closeEditLinkModal(); };
+        };
+
+        window.closeEditLinkModal = function() {
+            const modal = document.getElementById('editLinkModal');
+            if (modal) modal.classList.add('hidden');
+        };
+
+        window.saveEditLinkModal = function(index) {
+            if (!window.editingLinks[index]) return;
+            const title = (document.getElementById('editLinkTitleInput')?.value || '').trim();
+            const url = (document.getElementById('editLinkUrlInput')?.value || '').trim();
+            if (!url) {
+                window.showToast('请填写网址', 'error');
+                return;
+            }
+            window.editingLinks[index].title = title || url;
+            window.editingLinks[index].url = url;
+            window.closeEditLinkModal();
+            window.renderLinkPreviews();
+        };
+
+        window.updateWebLink = function(index, field, value) {
+            if (!window.editingLinks[index]) return;
+            window.editingLinks[index][field] = (value || '').trim();
+        };
+
+        window.moveWebLink = function(index, delta) {
+            const j = index + delta;
+            if (j < 0 || j >= window.editingLinks.length) return;
+            const arr = window.editingLinks;
+            const tmp = arr[index];
+            arr[index] = arr[j];
+            arr[j] = tmp;
+            window.renderLinkPreviews();
         };
 
         window.renderMicroPreviews = function() {
@@ -3175,7 +3335,7 @@
                 target.outer = croppedBase64;
                 target.inner = croppedBase64;
                 target.collection = croppedBase64;
-                window.showToast("预览图截选完成", "success");
+                window.showToast("截选完成（已适配全部预览尺寸）", "success");
                 window.renderMicroPreviews();
                 window.closeCropModal();
             };
