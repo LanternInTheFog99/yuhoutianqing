@@ -253,7 +253,7 @@
 
         <div id="timelineWrapper" class="relative group my-6 sm:my-8 bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm overflow-hidden">
             <div class="text-[11px] sm:text-xs text-slate-400 mb-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1">
-                <span><i class="fa-solid fa-circle-info text-indigo-500 mr-1"></i>悬停节点可看预览；鼠标移到左右边缘自动滑动时，也会依次“扫过”节点并弹出预览</span>
+                <span><i class="fa-solid fa-circle-info text-indigo-500 mr-1"></i>悬停节点可看预览；移到左右边缘会立刻滑动，并为屏幕外滚入的节点依次弹出预览</span>
                 <span id="densityLabel" class="font-mono text-indigo-600 font-semibold">密度: 标准</span>
             </div>
 
@@ -634,6 +634,70 @@
         window.zoomLevel = 3;
         window.edgeScrollSpeed = Number(localStorage.getItem('yuhoutianqing_edgeScrollSpeed')) || 18;
         window.activeHoverIntervals = {};
+        window.PREVIEW_SLIDE_MS = 1400;
+
+        window.getEventPreviewSrcs = function(ev, preferCollection) {
+            const srcs = [];
+            if (!ev) return srcs;
+            if (ev.images && ev.images.length > 0) {
+                ev.images.forEach(imgObj => {
+                    if (typeof imgObj === 'string') {
+                        if (imgObj) srcs.push(imgObj);
+                    } else if (imgObj) {
+                        let s = preferCollection
+                            ? (imgObj.collection || imgObj.outer || imgObj.original)
+                            : (imgObj.outer || imgObj.original || imgObj.collection);
+                        if (s) srcs.push(s);
+                    }
+                });
+            }
+            if (srcs.length === 0 && ev.videos && ev.videos.length > 0) {
+                ev.videos.forEach(v => {
+                    const c = typeof v === 'object' ? v.cover : null;
+                    if (c) srcs.push(c);
+                });
+            }
+            return srcs;
+        };
+
+        window.startPreviewSlideshow = function(nodeEl) {
+            if (!nodeEl) return;
+            window.stopPreviewSlideshow(nodeEl, false);
+            const imgs = nodeEl.querySelectorAll('.preview-slide-img');
+            if (!imgs.length) return;
+            const timers = [];
+            imgs.forEach(img => {
+                const srcs = img._slideSrcs;
+                if (!srcs || srcs.length <= 1) return;
+                let idx = 0;
+                const t = setInterval(() => {
+                    idx = (idx + 1) % srcs.length;
+                    img.style.opacity = '0.7';
+                    img.src = srcs[idx];
+                    requestAnimationFrame(() => { img.style.opacity = '1'; });
+                }, window.PREVIEW_SLIDE_MS || 1400);
+                timers.push(t);
+            });
+            nodeEl._previewSlideTimers = timers;
+        };
+
+        window.stopPreviewSlideshow = function(nodeEl, resetToFirst = true) {
+            if (!nodeEl) return;
+            if (nodeEl._previewSlideTimers) {
+                nodeEl._previewSlideTimers.forEach(clearInterval);
+                nodeEl._previewSlideTimers = null;
+            }
+            if (resetToFirst) {
+                nodeEl.querySelectorAll('.preview-slide-img').forEach(img => {
+                    const srcs = img._slideSrcs;
+                    if (srcs && srcs[0]) {
+                        img.src = srcs[0];
+                        img.style.opacity = '1';
+                    }
+                });
+            }
+        };
+
         window.editingImageFiles = [];
         window.editingVideos = [];
         window.editingLinks = [];
@@ -950,7 +1014,7 @@
             if (label) label.innerText = String(speed);
         };
 
-        // 边缘自动滚动：按节点顺序从 1 号扫到最后一个（或反向），同屏/屏外预览节奏一致
+        // 边缘自动滚动：立刻滑动；只对初始屏外节点弹预览；预览与滚动同步
         function initScrollEdges() {
             const leftEdge = document.getElementById('scrollEdgeLeft');
             const rightEdge = document.getElementById('scrollEdgeRight');
@@ -963,12 +1027,13 @@
             let isScrollingRight = false;
             let animationId = null;
             let lastForceHoverNode = null;
-            let browseIndex = -1;
-            let lastStepTime = 0;
+            // 进入边缘时记录：当时不完全在屏内的节点下标，只有这些会弹预览
+            let offscreenIndices = [];
 
             function clearForceHover() {
                 if (lastForceHoverNode) {
                     lastForceHoverNode.classList.remove('force-hover');
+                    window.stopPreviewSlideshow(lastForceHoverNode, true);
                     const dateStr = lastForceHoverNode.getAttribute('data-date');
                     if (dateStr) {
                         window.events.filter(e => e.date === dateStr).forEach(e => {
@@ -984,8 +1049,12 @@
             }
 
             function applyHoverToNode(node) {
+                if (!node) {
+                    clearForceHover();
+                    return;
+                }
+                if (node === lastForceHoverNode) return;
                 clearForceHover();
-                if (!node) return;
                 node.classList.add('force-hover');
                 const dateStr = node.getAttribute('data-date');
                 if (dateStr) {
@@ -993,91 +1062,122 @@
                         window.highlightConnectionsForEvent(e.id, true);
                     });
                 }
+                window.startPreviewSlideshow(node);
                 lastForceHoverNode = node;
             }
 
-            // 把目标节点缓动到可视区域中心（同屏节点几乎不动，屏外节点会滚进来）
-            function easeNodeTowardCenter(node, speed) {
-                if (!node) return;
-                const containerRect = container.getBoundingClientRect();
-                const nodeRect = node.getBoundingClientRect();
-                const nodeCenter = nodeRect.left + nodeRect.width / 2;
-                const viewCenter = containerRect.left + containerRect.width / 2;
-                const delta = nodeCenter - viewCenter;
-                if (Math.abs(delta) < 2) return;
-                const step = Math.sign(delta) * Math.min(Math.abs(delta), Math.max(speed * 0.9, 6));
-                container.scrollLeft += step;
+            function captureOffscreenIndices(direction) {
+                const nodes = getOrderedNodes();
+                const cr = container.getBoundingClientRect();
+                const list = [];
+                nodes.forEach((node, i) => {
+                    const nr = node.getBoundingClientRect();
+                    if (direction === 'right' && nr.right > cr.right + 2) list.push(i);
+                    if (direction === 'left' && nr.left < cr.left - 2) list.push(i);
+                });
+                offscreenIndices = list;
             }
 
-            function smoothScroll(timestamp) {
+            // 预览与滚动同步：屏外节点一进入画面就切换到它的预览
+            function updateHoverSyncedWithScroll() {
+                if (offscreenIndices.length === 0) {
+                    clearForceHover();
+                    return;
+                }
+                const nodes = getOrderedNodes();
+                const cr = container.getBoundingClientRect();
+                const pad = 4;
+
+                let best = null;
+                let bestScore = Infinity;
+
+                offscreenIndices.forEach((i) => {
+                    const node = nodes[i];
+                    if (!node || !node.isConnected) return;
+                    const nr = node.getBoundingClientRect();
+                    const visible = nr.right > cr.left + pad && nr.left < cr.right - pad;
+                    if (!visible) return;
+
+                    const centerX = nr.left + nr.width / 2;
+                    if (isScrollingRight) {
+                        // 向右滑：优先「刚从右侧进入」的节点
+                        const score = cr.right - centerX;
+                        if (score >= 0 && score < bestScore) {
+                            bestScore = score;
+                            best = node;
+                        }
+                    } else if (isScrollingLeft) {
+                        const score = centerX - cr.left;
+                        if (score >= 0 && score < bestScore) {
+                            bestScore = score;
+                            best = node;
+                        }
+                    }
+                });
+
+                if (!best) {
+                    const mid = cr.left + cr.width / 2;
+                    bestScore = Infinity;
+                    offscreenIndices.forEach((i) => {
+                        const node = nodes[i];
+                        if (!node || !node.isConnected) return;
+                        const nr = node.getBoundingClientRect();
+                        if (nr.right <= cr.left + pad || nr.left >= cr.right - pad) return;
+                        const centerX = nr.left + nr.width / 2;
+                        const dist = Math.abs(centerX - mid);
+                        if (dist < bestScore) {
+                            bestScore = dist;
+                            best = node;
+                        }
+                    });
+                }
+
+                if (best) applyHoverToNode(best);
+                else clearForceHover();
+            }
+
+            function smoothScroll() {
                 if (!isScrollingLeft && !isScrollingRight) {
                     animationId = null;
                     clearForceHover();
-                    browseIndex = -1;
-                    return;
-                }
-
-                const nodes = getOrderedNodes();
-                if (nodes.length === 0) {
-                    animationId = requestAnimationFrame(smoothScroll);
+                    offscreenIndices = [];
                     return;
                 }
 
                 const speed = window.edgeScrollSpeed || 18;
-                // 每个节点停留时长：同屏与屏外完全一致，滑速越高停留越短
-                const dwellMs = Math.max(160, 1500 - speed * 26);
-                const now = timestamp || performance.now();
+                // 立刻按滑速滚动
+                if (isScrollingLeft) container.scrollLeft -= speed;
+                if (isScrollingRight) container.scrollLeft += speed;
 
-                // 首次进入：向右从 1 号开始，向左从最后一个开始
-                if (browseIndex < 0) {
-                    browseIndex = isScrollingRight ? 0 : (nodes.length - 1);
-                    lastStepTime = now;
-                    applyHoverToNode(nodes[browseIndex]);
-                } else if (now - lastStepTime >= dwellMs) {
-                    lastStepTime = now;
-                    if (isScrollingRight && browseIndex < nodes.length - 1) {
-                        browseIndex += 1;
-                        applyHoverToNode(nodes[browseIndex]);
-                    } else if (isScrollingLeft && browseIndex > 0) {
-                        browseIndex -= 1;
-                        applyHoverToNode(nodes[browseIndex]);
-                    }
-                    // 已到端点则保持当前节点悬停，不再切换
-                }
-
-                // 持续把当前节点对准中线，保证节奏与滚动一致
-                if (browseIndex >= 0 && browseIndex < nodes.length) {
-                    easeNodeTowardCenter(nodes[browseIndex], speed);
-                }
-
+                updateHoverSyncedWithScroll();
                 animationId = requestAnimationFrame(smoothScroll);
             }
 
             leftEdge.addEventListener('mouseenter', () => {
                 isScrollingLeft = true;
-                browseIndex = -1; // 重新从最后一个开始往回扫
-                lastStepTime = 0;
+                captureOffscreenIndices('left');
+                clearForceHover();
                 if (!animationId) animationId = requestAnimationFrame(smoothScroll);
             });
             leftEdge.addEventListener('mouseleave', () => {
                 isScrollingLeft = false;
                 if (!isScrollingRight) {
                     clearForceHover();
-                    browseIndex = -1;
+                    offscreenIndices = [];
                 }
             });
 
             rightEdge.addEventListener('mouseenter', () => {
                 isScrollingRight = true;
-                browseIndex = -1; // 重新从 1 号开始往最后扫
-                lastStepTime = 0;
+                captureOffscreenIndices('right');
+                clearForceHover();
                 if (!animationId) animationId = requestAnimationFrame(smoothScroll);
             });
             rightEdge.addEventListener('mouseleave', () => {
                 isScrollingRight = false;
                 if (!isScrollingLeft) {
                     clearForceHover();
-                    browseIndex = -1;
+                    offscreenIndices = [];
                 }
             });
         }
@@ -1605,20 +1705,12 @@
 
                 // 取事件预览图：集合优先用 collection 正方形，否则 outer/封面
                 function getEventTileSrc(ev, preferCollection) {
-                    if (ev.images && ev.images.length > 0) {
-                        const imgObj = ev.images[0];
-                        if (typeof imgObj === 'string') return imgObj;
-                        if (preferCollection && imgObj.collection) return imgObj.collection;
-                        return imgObj.outer || imgObj.original || imgObj.collection || null;
-                    }
-                    if (ev.videos && ev.videos.length > 0) {
-                        const v = ev.videos[0];
-                        return typeof v === 'object' ? (v.cover || null) : null;
-                    }
-                    return null;
+                    const list = window.getEventPreviewSrcs(ev, preferCollection);
+                    return list.length ? list[0] : null;
                 }
 
                 let firstImgSrc = getEventTileSrc(firstEvent, false);
+                const itemPreviewSrcLists = items.map(ev => window.getEventPreviewSrcs(ev, isMerged));
 
                 // 生成统一的 identifier
                 let dotId;
@@ -1640,10 +1732,11 @@
                     const gridH = cell * rows;
                     // 外框尺寸 = 网格尺寸，不再留未填充黑边
                     tooltipStyle = `width: ${gridW}px; height: ${gridH}px;`;
-                    const tiles = items.map((ev) => {
-                        const src = getEventTileSrc(ev, true);
+                    const tiles = items.map((ev, tileIdx) => {
+                        const srcs = itemPreviewSrcLists[tileIdx] || [];
+                        const src = srcs[0] || null;
                         if (src) {
-                            return `<div class="overflow-hidden bg-slate-800" style="width:${cell}px;height:${cell}px;"><img src="${src}" class="w-full h-full object-cover" alt="" draggable="false"></div>`;
+                            return `<div class="overflow-hidden bg-slate-800" style="width:${cell}px;height:${cell}px;"><img class="preview-slide-img w-full h-full object-cover transition-opacity duration-300" data-tile-idx="${tileIdx}" src="${src}" alt="" draggable="false"></div>`;
                         }
                         return `<div class="bg-slate-800 flex items-center justify-center" style="width:${cell}px;height:${cell}px;"><span class="text-[8px] text-slate-400 px-0.5 text-center leading-tight line-clamp-2">${(ev.title || '').slice(0, 8)}</span></div>`;
                     }).join('');
@@ -1651,7 +1744,7 @@
                     const pads = Array.from({ length: pad }, () => `<div class="bg-slate-800" style="width:${cell}px;height:${cell}px;"></div>`).join('');
                     tooltipInnerHtml = `<div class="grid gap-0" style="grid-template-columns: repeat(${cols}, ${cell}px); width:${gridW}px; height:${gridH}px;">${tiles}${pads}</div>`;
                 } else if (firstImgSrc) {
-                    tooltipInnerHtml = `<img src="${firstImgSrc}" class="w-full h-full object-cover transition-opacity duration-300">`;
+                    tooltipInnerHtml = `<img class="preview-slide-img w-full h-full object-cover transition-opacity duration-300" data-tile-idx="0" src="${firstImgSrc}" alt="">`;
                 } else {
                     tooltipInnerHtml = `
                         <div class="p-3 flex flex-col gap-1.5">
@@ -1691,12 +1784,21 @@
                     </div>
                 `;
 
+                nodeContainer.querySelectorAll('.preview-slide-img').forEach(img => {
+                    const tileIdx = parseInt(img.getAttribute('data-tile-idx') || '0', 10);
+                    const srcs = itemPreviewSrcLists[tileIdx] || [];
+                    img._slideSrcs = srcs.length ? srcs : (img.src ? [img.src] : []);
+                    img.style.transition = 'opacity 0.25s ease';
+                });
+
                 nodeContainer.addEventListener('mouseenter', () => {
                     items.forEach(e => window.highlightConnectionsForEvent(e.id, true));
+                    window.startPreviewSlideshow(nodeContainer);
                 });
 
                 nodeContainer.addEventListener('mouseleave', () => {
                     items.forEach(e => window.highlightConnectionsForEvent(e.id, false));
+                    window.stopPreviewSlideshow(nodeContainer, true);
                 });
 
                 track.appendChild(nodeContainer);
