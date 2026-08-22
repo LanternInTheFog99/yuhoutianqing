@@ -490,12 +490,15 @@
                 </button>
             </div>
             
-            <div class="flex items-center gap-2 mb-3 bg-slate-800 p-1 rounded-lg w-full justify-center">
+            <div class="flex items-center gap-2 mb-3 bg-slate-800 p-1 rounded-lg w-full justify-center flex-wrap">
                 <button type="button" id="cropTabOuter" onclick="switchCropMode('outer')" class="flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 rounded-md text-xs font-semibold bg-indigo-600 text-white transition-all text-center">
                     1. 封面图截选
                 </button>
                 <button type="button" id="cropTabInner" onclick="switchCropMode('inner')" class="flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 rounded-md text-xs font-semibold text-slate-400 hover:text-white transition-all text-center">
                     2. 详情图截选
+                </button>
+                <button type="button" id="cropTabCollection" onclick="switchCropMode('collection')" class="hidden flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 rounded-md text-xs font-semibold text-slate-400 hover:text-white transition-all text-center">
+                    3. 集合截选
                 </button>
             </div>
 
@@ -647,7 +650,8 @@
 
         const CROP_SIZES = {
             outer: { w: 200, h: 125, label: '封面尺寸' },
-            inner: { w: 180, h: 260, label: '详情图尺寸' }
+            inner: { w: 180, h: 260, label: '详情图尺寸' },
+            collection: { w: 160, h: 160, label: '集合尺寸' }
         };
 
         let cropState = {
@@ -1599,14 +1603,22 @@
                     displayTitle = `${prefix}等${items.length}件事`;
                 }
 
-                let firstImgSrc = null;
-                if (firstEvent.images && firstEvent.images.length > 0) {
-                    const firstImgObj = firstEvent.images[0];
-                    firstImgSrc = typeof firstImgObj === 'string' ? firstImgObj : (firstImgObj?.outer || firstImgObj?.original);
-                } else if (firstEvent.videos && firstEvent.videos.length > 0) {
-                    const firstVid = firstEvent.videos[0];
-                    firstImgSrc = typeof firstVid === 'object' ? firstVid.cover : null;
+                // 取事件预览图：集合优先用 collection 正方形，否则 outer/封面
+                function getEventTileSrc(ev, preferCollection) {
+                    if (ev.images && ev.images.length > 0) {
+                        const imgObj = ev.images[0];
+                        if (typeof imgObj === 'string') return imgObj;
+                        if (preferCollection && imgObj.collection) return imgObj.collection;
+                        return imgObj.outer || imgObj.original || imgObj.collection || null;
+                    }
+                    if (ev.videos && ev.videos.length > 0) {
+                        const v = ev.videos[0];
+                        return typeof v === 'object' ? (v.cover || null) : null;
+                    }
+                    return null;
                 }
+
+                let firstImgSrc = getEventTileSrc(firstEvent, false);
 
                 // 生成统一的 identifier
                 let dotId;
@@ -1616,22 +1628,46 @@
                     dotId = String(firstEvent.id);
                 }
 
+                // 合并节点：N 个等大正方形拼满，外框刚好等于网格（无黑边空隙）
+                let tooltipInnerHtml = '';
+                let tooltipStyle = `width: ${previewWidth}px; height: ${previewImgHeight}px;`;
+                if (isMerged) {
+                    const n = items.length;
+                    const cols = Math.ceil(Math.sqrt(n));
+                    const rows = Math.ceil(n / cols);
+                    const cell = Math.max(20, Math.floor(Math.min(previewWidth / cols, previewImgHeight / rows)));
+                    const gridW = cell * cols;
+                    const gridH = cell * rows;
+                    // 外框尺寸 = 网格尺寸，不再留未填充黑边
+                    tooltipStyle = `width: ${gridW}px; height: ${gridH}px;`;
+                    const tiles = items.map((ev) => {
+                        const src = getEventTileSrc(ev, true);
+                        if (src) {
+                            return `<div class="overflow-hidden bg-slate-800" style="width:${cell}px;height:${cell}px;"><img src="${src}" class="w-full h-full object-cover" alt="" draggable="false"></div>`;
+                        }
+                        return `<div class="bg-slate-800 flex items-center justify-center" style="width:${cell}px;height:${cell}px;"><span class="text-[8px] text-slate-400 px-0.5 text-center leading-tight line-clamp-2">${(ev.title || '').slice(0, 8)}</span></div>`;
+                    }).join('');
+                    const pad = cols * rows - n;
+                    const pads = Array.from({ length: pad }, () => `<div class="bg-slate-800" style="width:${cell}px;height:${cell}px;"></div>`).join('');
+                    tooltipInnerHtml = `<div class="grid gap-0" style="grid-template-columns: repeat(${cols}, ${cell}px); width:${gridW}px; height:${gridH}px;">${tiles}${pads}</div>`;
+                } else if (firstImgSrc) {
+                    tooltipInnerHtml = `<img src="${firstImgSrc}" class="w-full h-full object-cover transition-opacity duration-300">`;
+                } else {
+                    tooltipInnerHtml = `
+                        <div class="p-3 flex flex-col gap-1.5">
+                            <div class="text-[10px] font-mono text-indigo-300">${dateStr}</div>
+                            <div class="text-xs font-semibold text-white leading-snug line-clamp-3">${displayTitle}</div>
+                        </div>`;
+                }
+
                 const nodeContainer = document.createElement('div');
                 nodeContainer.className = "timeline-node-container relative flex flex-col items-center justify-center shrink-0 cursor-pointer group py-6";
                 nodeContainer.style.width = `${gapPx}px`;
                 nodeContainer.setAttribute('data-date', dateStr);
 
                 nodeContainer.innerHTML = `
-                    <div class="timeline-hover-tooltip absolute bottom-full mb-3 z-30 bg-slate-900 rounded-xl border border-slate-700 overflow-hidden pointer-events-none shadow-xl" style="width: ${previewWidth}px; ${firstImgSrc ? `height: ${previewImgHeight}px;` : ''}">
-                        ${firstImgSrc ? `
-                            <img src="${firstImgSrc}" class="w-full h-full object-cover transition-opacity duration-300">
-                        ` : `
-                            <div class="p-3 flex flex-col gap-1.5">
-                                <div class="text-[10px] font-mono text-indigo-300">${dateStr}</div>
-                                <div class="text-xs font-semibold text-white leading-snug line-clamp-3">${displayTitle}</div>
-                                ${isMerged ? `<div class="text-[10px] text-slate-400">共 ${items.length} 个同期事件</div>` : ''}
-                            </div>
-                        `}
+                    <div class="timeline-hover-tooltip absolute bottom-full mb-3 z-30 bg-slate-900 rounded-xl border border-slate-700 overflow-hidden pointer-events-none shadow-xl" style="${tooltipStyle}">
+                        ${tooltipInnerHtml}
                     </div>
 
                     <div onclick="handleGroupClick('${dateStr.replace(/'/g, "\\'")}')" class="text-center mb-3 max-w-[130px] select-none">
@@ -2478,10 +2514,17 @@
 
             window.editingImageFiles = (event.images ? event.images : []).map(img => {
                 if (typeof img === 'string') {
-                    return { original: img, outer: img, inner: img };
+                    return { original: img, outer: img, inner: img, collection: img };
                 }
-                return { original: img.original, outer: img.outer || img.original, inner: img.inner || img.original };
+                return {
+                    original: img.original,
+                    outer: img.outer || img.original,
+                    inner: img.inner || img.original,
+                    collection: img.collection || img.outer || img.original
+                };
             });
+            window.editingEventId = event.id;
+            window.editingEventDate = event.date;
 
             window.editingVideos = (event.videos ? event.videos : []).map(v => {
                 if (typeof v === 'string') {
@@ -2634,7 +2677,7 @@
             const files = Array.from(e.target.files);
             for (const f of files) {
                 const base64 = await compressImage(f);
-                window.editingImageFiles.push({ original: base64, outer: base64, inner: base64 });
+                window.editingImageFiles.push({ original: base64, outer: base64, inner: base64, collection: base64 });
                 window.renderMicroPreviews();
             }
         };
@@ -2793,6 +2836,22 @@
             window.renderMicroPreviews();
         };
 
+        // 当前编辑事件所在日期是否已有多个事件（集合截选仅在此情况显示）
+        window.currentEditDateIsMultiEvent = function() {
+            let dateStr = '';
+            const isRange = document.getElementById('isRangeToggle')?.checked;
+            if (isRange) {
+                const s = document.getElementById('editStartDate')?.value || '';
+                const e = document.getElementById('editEndDate')?.value || '';
+                if (s && e) dateStr = `${s}至${e}`;
+            } else {
+                dateStr = document.getElementById('editDate')?.value || window.editingEventDate || '';
+            }
+            if (!dateStr) return false;
+            const count = window.events.filter(ev => ev.date === dateStr).length;
+            return count >= 2;
+        };
+
         window.openCropModal = function(index) {
             cropState.index = index;
             cropState.mode = 'outer';
@@ -2803,8 +2862,18 @@
             const targetImg = document.getElementById('cropTargetImg');
             if (!modal || !targetImg) return;
 
+            // 仅当该日期已有多个事件时显示「集合截选」
+            const tabCollection = document.getElementById('cropTabCollection');
+            const showCollection = window.currentEditDateIsMultiEvent();
+            if (tabCollection) {
+                if (showCollection) tabCollection.classList.remove('hidden');
+                else tabCollection.classList.add('hidden');
+            }
+
             targetImg.src = imgObj.original;
             modal.classList.remove('hidden');
+            // 确保拖动/滚轮已绑定（防止首次打开前未初始化）
+            window.initCropWheel();
 
             targetImg.onload = () => {
                 cropState.naturalWidth = targetImg.naturalWidth;
@@ -2814,9 +2883,21 @@
                 cropState.imgOffsetY = 0;
                 updateCropUIState();
             };
+            // 若图片已缓存完成，onload 可能不触发
+            if (targetImg.complete && targetImg.naturalWidth) {
+                cropState.naturalWidth = targetImg.naturalWidth;
+                cropState.naturalHeight = targetImg.naturalHeight;
+                cropState.scale = 1;
+                cropState.imgOffsetX = 0;
+                cropState.imgOffsetY = 0;
+                updateCropUIState();
+            }
         };
 
         window.switchCropMode = function(mode) {
+            if (mode === 'collection' && !window.currentEditDateIsMultiEvent()) {
+                mode = 'outer';
+            }
             cropState.mode = mode;
             updateCropUIState();
         };
@@ -2824,26 +2905,33 @@
         function updateCropUIState() {
             const tabOuter = document.getElementById('cropTabOuter');
             const tabInner = document.getElementById('cropTabInner');
+            const tabCollection = document.getElementById('cropTabCollection');
             const cropBoxFixed = document.getElementById('cropBoxFixed');
             const cropBoxLabel = document.getElementById('cropBoxLabel');
             const slider = document.getElementById('imageScaleSlider');
             const sliderText = document.getElementById('imageScaleText');
+            const tip = document.getElementById('cropModeTip');
 
-            if (cropState.mode === 'outer') {
-                tabOuter.className = "flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 rounded-md text-xs font-semibold bg-indigo-600 text-white transition-all text-center";
-                tabInner.className = "flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 rounded-md text-xs font-semibold text-slate-400 hover:text-white transition-all text-center";
-                cropBoxLabel.innerText = CROP_SIZES.outer.label;
-            } else {
-                tabOuter.className = "flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 rounded-md text-xs font-semibold text-slate-400 hover:text-white transition-all text-center";
-                tabInner.className = "flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 rounded-md text-xs font-semibold bg-indigo-600 text-white transition-all text-center";
-                cropBoxLabel.innerText = CROP_SIZES.inner.label;
+            const inactive = "flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 rounded-md text-xs font-semibold text-slate-400 hover:text-white transition-all text-center";
+            const active = "flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 rounded-md text-xs font-semibold bg-indigo-600 text-white transition-all text-center";
+
+            if (tabOuter) tabOuter.className = cropState.mode === 'outer' ? active : inactive;
+            if (tabInner) tabInner.className = cropState.mode === 'inner' ? active : inactive;
+            if (tabCollection) tabCollection.className = (cropState.mode === 'collection' ? active : inactive) + (window.currentEditDateIsMultiEvent() ? '' : ' hidden');
+
+            const currentDim = CROP_SIZES[cropState.mode] || CROP_SIZES.outer;
+            if (cropBoxLabel) cropBoxLabel.innerText = currentDim.label;
+            if (cropBoxFixed) {
+                cropBoxFixed.style.width = `${currentDim.w}px`;
+                cropBoxFixed.style.height = `${currentDim.h}px`;
             }
-
-            const currentDim = CROP_SIZES[cropState.mode];
-            cropBoxFixed.style.width = `${currentDim.w}px`;
-            cropBoxFixed.style.height = `${currentDim.h}px`;
-            slider.value = cropState.scale;
-            sliderText.innerText = `${Math.round(cropState.scale * 100)}%`;
+            if (tip) {
+                tip.innerText = cropState.mode === 'collection'
+                    ? '集合截选为正方形，用于同一日期多事件节点的分块封面；框大小固定，可缩放或拖动图片对齐。'
+                    : '框大小固定，不可调整；您可以缩放图片或拖动图片内部来对齐选框：';
+            }
+            if (slider) slider.value = cropState.scale;
+            if (sliderText) sliderText.innerText = `${Math.round(cropState.scale * 100)}%`;
             applyImageTransform();
         }
 
@@ -2853,10 +2941,12 @@
             applyImageTransform();
         };
 
-        // 截选图片时滚轮缩放
+        // 截选图片时滚轮缩放 + 拖动平移
         window.initCropWheel = function() {
             const container = document.getElementById('cropContainer');
-            if (!container) return;
+            if (!container || container.dataset.cropInited === '1') return;
+            container.dataset.cropInited = '1';
+
             container.addEventListener('wheel', (e) => {
                 e.preventDefault();
                 const delta = e.deltaY > 0 ? -0.02 : 0.02;
@@ -2869,6 +2959,50 @@
                 if (text) text.innerText = `${Math.round(newScale * 100)}%`;
                 applyImageTransform();
             }, { passive: false });
+
+            let dragging = false;
+            let startX = 0;
+            let startY = 0;
+            let originOffsetX = 0;
+            let originOffsetY = 0;
+
+            const onPointerDown = (e) => {
+                // 只响应主按键 / 单指
+                if (e.pointerType === 'mouse' && e.button !== 0) return;
+                dragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                originOffsetX = cropState.imgOffsetX;
+                originOffsetY = cropState.imgOffsetY;
+                container.style.cursor = 'grabbing';
+                try { container.setPointerCapture(e.pointerId); } catch (_) {}
+                e.preventDefault();
+            };
+            const onPointerMove = (e) => {
+                if (!dragging) return;
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                cropState.imgOffsetX = originOffsetX + dx;
+                cropState.imgOffsetY = originOffsetY + dy;
+                applyImageTransform();
+            };
+            const onPointerUp = (e) => {
+                if (!dragging) return;
+                dragging = false;
+                container.style.cursor = '';
+                try { container.releasePointerCapture(e.pointerId); } catch (_) {}
+            };
+
+            container.addEventListener('pointerdown', onPointerDown);
+            container.addEventListener('pointermove', onPointerMove);
+            container.addEventListener('pointerup', onPointerUp);
+            container.addEventListener('pointercancel', onPointerUp);
+            container.addEventListener('pointerleave', () => {
+                if (dragging) {
+                    dragging = false;
+                    container.style.cursor = '';
+                }
+            });
         };
 
         function applyImageTransform() {
@@ -2888,14 +3022,39 @@
             const cropBoxFixed = document.getElementById('cropBoxFixed');
             if (!targetImg || !cropBoxFixed || cropState.index < 0) return;
 
-            const currentDim = CROP_SIZES[cropState.mode];
+            const currentDim = CROP_SIZES[cropState.mode] || CROP_SIZES.outer;
             const boxRect = cropBoxFixed.getBoundingClientRect();
             const imgRect = targetImg.getBoundingClientRect();
+            if (!imgRect.width || !imgRect.height) {
+                window.showToast("图片尚未加载完成，请稍候再截选", "error");
+                return;
+            }
 
-            const relX = (boxRect.left - imgRect.left) / cropState.scale;
-            const relY = (boxRect.top - imgRect.top) / cropState.scale;
-            const relW = currentDim.w / cropState.scale;
-            const relH = currentDim.h / cropState.scale;
+            // 使用选框内容区（去掉 border），并按「显示尺寸 → 原图像素」精确映射，避免预览相对截选框左右偏移
+            const cs = window.getComputedStyle(cropBoxFixed);
+            const bL = parseFloat(cs.borderLeftWidth) || 0;
+            const bR = parseFloat(cs.borderRightWidth) || 0;
+            const bT = parseFloat(cs.borderTopWidth) || 0;
+            const bB = parseFloat(cs.borderBottomWidth) || 0;
+            const contentLeft = boxRect.left + bL;
+            const contentTop = boxRect.top + bT;
+            const contentW = Math.max(1, boxRect.width - bL - bR);
+            const contentH = Math.max(1, boxRect.height - bT - bB);
+
+            const scaleX = cropState.naturalWidth / imgRect.width;
+            const scaleY = cropState.naturalHeight / imgRect.height;
+            let sx = (contentLeft - imgRect.left) * scaleX;
+            let sy = (contentTop - imgRect.top) * scaleY;
+            let sw = contentW * scaleX;
+            let sh = contentH * scaleY;
+
+            // 钳制到原图范围，防止越界采样导致画面偏移
+            if (sx < 0) { sw += sx; sx = 0; }
+            if (sy < 0) { sh += sy; sy = 0; }
+            if (sx + sw > cropState.naturalWidth) sw = cropState.naturalWidth - sx;
+            if (sy + sh > cropState.naturalHeight) sh = cropState.naturalHeight - sy;
+            sw = Math.max(1, sw);
+            sh = Math.max(1, sh);
 
             const canvas = document.createElement('canvas');
             canvas.width = currentDim.w;
@@ -2903,22 +3062,35 @@
             const ctx = canvas.getContext('2d');
 
             const imgObj = new Image();
-            imgObj.src = targetImg.src;
             imgObj.onload = () => {
-                ctx.drawImage(imgObj, relX, relY, relW, relH, 0, 0, currentDim.w, currentDim.h);
-                const croppedBase64 = canvas.toDataURL('image/jpeg', 0.8);
+                ctx.drawImage(imgObj, sx, sy, sw, sh, 0, 0, currentDim.w, currentDim.h);
+                const croppedBase64 = canvas.toDataURL('image/jpeg', 0.85);
+                const target = window.editingImageFiles[cropState.index];
+                if (!target) return;
 
                 if (cropState.mode === 'outer') {
-                    window.editingImageFiles[cropState.index].outer = croppedBase64;
+                    target.outer = croppedBase64;
+                    if (!target.collection) target.collection = croppedBase64;
                     window.showToast("封面图截选成功", "success");
                     window.switchCropMode('inner');
-                } else {
-                    window.editingImageFiles[cropState.index].inner = croppedBase64;
+                } else if (cropState.mode === 'inner') {
+                    target.inner = croppedBase64;
                     window.showToast("详情缩略图截选完成", "success");
+                    if (window.currentEditDateIsMultiEvent()) {
+                        window.switchCropMode('collection');
+                    } else {
+                        window.renderMicroPreviews();
+                        window.closeCropModal();
+                    }
+                } else if (cropState.mode === 'collection') {
+                    target.collection = croppedBase64;
+                    window.showToast("集合截选完成", "success");
                     window.renderMicroPreviews();
                     window.closeCropModal();
                 }
             };
+            imgObj.onerror = () => window.showToast("截选失败，请重试", "error");
+            imgObj.src = targetImg.src;
         };
 
         window.handlePreSaveEvent = function(e, idRaw, isEdit) {
