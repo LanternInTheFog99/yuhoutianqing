@@ -57,12 +57,13 @@
             transform: translateY(10px) scale(0.92);
             transition: opacity 0.2s ease, transform 0.2s ease;
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+            transform-origin: bottom center;
         }
         .timeline-node-container:hover .timeline-hover-tooltip,
         .timeline-node-container.force-hover .timeline-hover-tooltip {
             pointer-events: auto;
             opacity: 1;
-            transform: translateY(0) scale(1);
+            transform: translateY(0) scale(var(--preview-scale, 1));
         }
 
         .svg-conn-line {
@@ -123,10 +124,12 @@
             position: absolute;
             top: 0;
             bottom: 0;
-            width: 60px;
-            z-index: 15;
+            width: 48px;
+            z-index: 40;
             cursor: pointer;
             transition: background 0.2s ease;
+            /* 仅作视觉提示，真正判定在 container 的 mousemove 里，避免被节点抢走事件 */
+            pointer-events: none;
         }
         .scroll-edge-left {
             left: 0;
@@ -141,6 +144,12 @@
         }
         .scroll-edge-right:hover {
             background: linear-gradient(to left, rgba(99, 102, 241, 0.18), transparent);
+        }
+        .scroll-edge.edge-active {
+            background: linear-gradient(to right, rgba(99, 102, 241, 0.22), transparent) !important;
+        }
+        .scroll-edge-right.edge-active {
+            background: linear-gradient(to left, rgba(99, 102, 241, 0.22), transparent) !important;
         }
         .scroll-edge .edge-icon {
             position: absolute;
@@ -159,6 +168,42 @@
         }
         .scroll-edge-right .edge-icon {
             right: 8px;
+        }
+
+        /* 节点：文字恢复原有显示宽度；仅圆点附近小范围响应悬停判定 */
+        .timeline-node-container {
+            pointer-events: none;
+        }
+        .timeline-node-container .node-title-area {
+            pointer-events: auto; /* 可点击打开，但不扩大圆点热区 */
+        }
+        .timeline-node-container .node-hit-area {
+            pointer-events: auto;
+        }
+
+        /* ========== 悬停重组（rearrange）相关样式 ========== */
+        /* 重组激活时，默认隐藏所有节点，仅显示参与重组的节点 */
+        #timelineContainer.rearrange-active .timeline-node-container {
+            visibility: hidden;
+            pointer-events: none;
+        }
+        #timelineContainer.rearrange-active .timeline-node-container.rearrange-visible {
+            visibility: visible;
+            pointer-events: auto;
+        }
+        /* 重组时禁用节点过渡动画（直接到位，无"拉取"动画） */
+        #timelineContainer.rearrange-active .timeline-node-container,
+        #timelineContainer.rearrange-active .timeline-node-container.rearrange-visible {
+            transition: none !important;
+        }
+        /* 重组时保留主时间轴线（锚点不动，轴线仍有参考意义） */
+        #timelineContainer.rearrange-active #timelineMainAxis {
+            opacity: 1;
+        }
+        /* 重组时高亮锚点 A */
+        #timelineContainer.rearrange-active .timeline-node-container.rearrange-anchor .timeline-dot,
+        #timelineContainer.rearrange-active .timeline-node-container.rearrange-anchor .merged-dots-container {
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.25);
         }
     </style>
 </head>
@@ -241,8 +286,8 @@
                     <i class="fa-solid fa-gauge-high text-slate-400"></i>
                     <span>滑速:</span>
                 </span>
-                <input type="range" id="edgeSpeedSlider" min="3" max="50" step="1" value="18" oninput="setEdgeScrollSpeed(this.value)" class="w-24 sm:w-20 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" title="边缘自动滑动速度">
-                <span id="edgeSpeedLabel" class="text-[10px] font-mono text-indigo-600 w-7 text-center">18</span>
+                <input type="range" id="edgeSpeedSlider" min="1" max="20" step="1" value="5" oninput="setEdgeScrollSpeed(this.value)" class="w-24 sm:w-20 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" title="边缘自动滑动速度">
+                <span id="edgeSpeedLabel" class="text-[10px] font-mono text-indigo-600 w-8 text-center">5</span>
             </div>
 
             <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs w-full sm:w-auto">
@@ -275,7 +320,7 @@
                 <i class="fa-solid fa-chevron-right text-xs"></i>
             </button>
 
-            <div id="timelineContainer" onscroll="renderSvgConnections()" onwheel="handleTimelineWheel(event)" class="overflow-x-auto pt-32 sm:pt-36 pb-16 sm:pb-20 px-4 sm:px-12 flex items-center relative min-h-[420px] sm:min-h-[460px] custom-scrollbar scroll-smooth">
+            <div id="timelineContainer" onscroll="renderSvgConnections()" onwheel="handleTimelineWheel(event)" class="overflow-x-auto pt-32 sm:pt-36 pb-16 sm:pb-20 px-4 sm:px-12 flex items-center relative min-h-[420px] sm:min-h-[460px] custom-scrollbar">
                 <svg id="timelineSvgOverlay" class="absolute top-0 left-0 pointer-events-none z-[20] overflow-visible">
                     <g id="svgConnectionsGroup"></g>
                 </svg>
@@ -358,11 +403,36 @@
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
-            <div id="tagInputContainer" class="flex gap-2 mb-4">
+            <div id="tagInputContainer" class="flex gap-2 mb-3">
                 <input type="text" id="newTagInput" placeholder="输入新tag名称" class="flex-grow px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
                 <button onclick="addNewTagFromModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-xs font-medium shrink-0">新建tag</button>
             </div>
-            <div id="tagModalList" class="flex flex-wrap gap-2 max-h-60 overflow-y-auto p-1"></div>
+
+            <div class="mb-2 flex items-center gap-2">
+                <span class="text-[11px] font-semibold text-slate-500 shrink-0">筛选模式</span>
+                <div class="flex flex-1 rounded-lg border border-slate-200 overflow-hidden text-[11px] font-semibold">
+                    <button type="button" id="tagModeIncludeBtn" onclick="setTagFilterDraftMode('include')" class="flex-1 px-2 py-1.5 bg-indigo-50 text-indigo-700">包含</button>
+                    <button type="button" id="tagModeExcludeBtn" onclick="setTagFilterDraftMode('exclude')" class="flex-1 px-2 py-1.5 bg-white text-slate-500">排除</button>
+                </div>
+            </div>
+            <div class="mb-2 flex items-center gap-2">
+                <span class="text-[11px] font-semibold text-slate-500 shrink-0">匹配方式</span>
+                <div class="flex flex-1 rounded-lg border border-slate-200 overflow-hidden text-[11px] font-semibold">
+                    <button type="button" id="tagMatchAnyBtn" onclick="setTagFilterDraftMatch('any')" class="flex-1 px-2 py-1.5 bg-indigo-50 text-indigo-700">任一</button>
+                    <button type="button" id="tagMatchAllBtn" onclick="setTagFilterDraftMatch('all')" class="flex-1 px-2 py-1.5 bg-white text-slate-500">全部</button>
+                </div>
+            </div>
+            <p class="text-[10px] text-slate-400 mb-2 leading-relaxed" id="tagFilterHint">点击 tag 选中，可多选。包含+任一：有其中任意 tag 即显示；包含+全部：必须同时拥有所选全部 tag。排除同理。</p>
+
+            <div id="tagModalList" class="flex flex-wrap gap-2 max-h-52 overflow-y-auto p-1 mb-3"></div>
+
+            <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                <button type="button" onclick="clearTagFilter()" class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 text-slate-600 hover:bg-slate-50">清除筛选</button>
+                <div class="flex gap-2">
+                    <button type="button" onclick="closeTagModal()" class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 text-slate-600 hover:bg-slate-50">取消</button>
+                    <button type="button" onclick="applyTagFilter()" class="px-4 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm">确定筛选</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -629,9 +699,21 @@
         }
         
         window.zoomLevel = 3;
-        window.edgeScrollSpeed = Number(localStorage.getItem('yuhoutianqing_edgeScrollSpeed')) || 18;
+        window.edgeScrollSpeed = (function() {
+            const v = Number(localStorage.getItem('yuhoutianqing_edgeScrollSpeed'));
+            // 统一到 1–20 慢速档；旧版大数值做压缩迁移
+            if (!v || isNaN(v)) return 5;
+            if (v > 20) return Math.max(1, Math.min(20, Math.round(v / 6)));
+            return Math.max(1, Math.min(20, v));
+        })();
         window.activeHoverIntervals = {};
-        window.activeTagFilter = null;
+        window.activeTagFilter = null; // 兼容旧逻辑，实际使用下面两个
+        window.tagFilterMode = 'include'; // 'include' | 'exclude'
+        window.tagFilterMatch = 'any'; // 'any' | 'all'
+        window.tagFilterSelected = []; // 已生效的 tag 列表
+        window.tagFilterDraftMode = 'include';
+        window.tagFilterDraftMatch = 'any';
+        window.tagFilterDraftSelected = []; // 弹窗内草稿
         window.PREVIEW_SLIDE_MS = 1400;
 
         window.getEventPreviewSrcs = function(ev, preferCollection) {
@@ -1017,9 +1099,9 @@
             }, true);
         }
 
-        // 边缘自动滚动速度调节（3–50，数值越大越快）
+        // 边缘自动滚动速度调节（1–20 档，约 档位×0.18 px/帧，整体明显偏慢）
         window.setEdgeScrollSpeed = function(val) {
-            const speed = Math.max(3, Math.min(50, parseInt(val, 10) || 18));
+            const speed = Math.max(1, Math.min(20, parseInt(val, 10) || 5));
             window.edgeScrollSpeed = speed;
             localStorage.setItem('yuhoutianqing_edgeScrollSpeed', String(speed));
             const slider = document.getElementById('edgeSpeedSlider');
@@ -1028,23 +1110,28 @@
             if (label) label.innerText = String(speed);
         };
 
-        // 边缘自动滚动：立刻滑动；只对初始屏外节点弹预览；预览与滚动同步
+        // 边缘自动滚动：基于 container 内 mousemove 判定左右热区，不依赖叠加层抢事件
         function initScrollEdges() {
             const leftEdge = document.getElementById('scrollEdgeLeft');
             const rightEdge = document.getElementById('scrollEdgeRight');
             const container = document.getElementById('timelineContainer');
-            if (!leftEdge || !rightEdge || !container) return;
+            const wrapper = document.getElementById('timelineWrapper');
+            if (!container) return;
 
             window.setEdgeScrollSpeed(window.edgeScrollSpeed);
+
+            const EDGE_PX = 48; // 左右热区宽度（与 wrapper 上的视觉热区保持一致）
 
             let isScrollingLeft = false;
             let isScrollingRight = false;
             let animationId = null;
             let lastForceHoverNode = null;
             let offscreenIndices = [];
-            // 边缘自动滑动期间为 true，用于抑制"关联节点预览图"等连带效果，
-            // 避免出现两个预览图同时出现的场景。
             let isEdgeScrolling = false;
+            let lastScrollTs = 0;
+
+            // 全局：当前指针是否在边缘热区（供节点 mouseenter 抑制悬停连线）
+            window._pointerInEdgeZone = false;
 
             function clearForceHover() {
                 if (lastForceHoverNode) {
@@ -1087,7 +1174,7 @@
                     window.startPreviewSlideshow(node);
                 }
                 lastForceHoverNode = node;
-                // 边缘自动滑动期间不拉出关联节点的预览图，让各节点逐个单独出现/消失
+                // 边缘自动滑动期间不拉出关联节点预览
                 if (!isEdgeScrolling) {
                     const dateStr2 = node.getAttribute('data-date');
                     if (dateStr2) {
@@ -1152,49 +1239,151 @@
                 else clearForceHover();
             }
 
-            function smoothScroll() {
+            function stopEdgeScroll() {
+                isScrollingLeft = false;
+                isScrollingRight = false;
+                isEdgeScrolling = false;
+                lastScrollTs = 0;
+                window._pointerInEdgeZone = false;
+                window.setRearrangeEdgeScrolling(false);
+                clearForceHover();
+                offscreenIndices = [];
+                if (leftEdge) leftEdge.classList.remove('edge-active');
+                if (rightEdge) rightEdge.classList.remove('edge-active');
+                if (animationId) {
+                    cancelAnimationFrame(animationId);
+                    animationId = null;
+                }
+            }
+
+            function smoothScroll(ts) {
                 if (!isScrollingLeft && !isScrollingRight) {
                     animationId = null;
                     isEdgeScrolling = false;
+                    lastScrollTs = 0;
+                    window.setRearrangeEdgeScrolling(false);
                     clearForceHover();
                     offscreenIndices = [];
+                    container.style.scrollBehavior = '';
                     return;
                 }
-                const speed = window.edgeScrollSpeed || 18;
-                if (isScrollingLeft) container.scrollLeft -= speed;
-                if (isScrollingRight) container.scrollLeft += speed;
-                updateHoverSyncedWithScroll();
+                if (!lastScrollTs) lastScrollTs = ts || performance.now();
+                const now = ts || performance.now();
+                const dt = Math.min(48, Math.max(8, now - lastScrollTs));
+                lastScrollTs = now;
+                const level = Number(window.edgeScrollSpeed) || 5;
+                const speedPerFrame = level * 0.18;
+                const step = speedPerFrame * (dt / 16.67);
+                container.style.scrollBehavior = 'auto';
+                if (isScrollingLeft) container.scrollLeft -= step;
+                if (isScrollingRight) container.scrollLeft += step;
+                // 边缘滚动只负责滚动，不再根据滚动位置强制悬停节点。
+                // 正常节点 hover 仍由浏览器 :hover / 原有 mouseenter 逻辑负责。
                 animationId = requestAnimationFrame(smoothScroll);
             }
 
-            leftEdge.addEventListener('mouseenter', () => {
-                isScrollingLeft = true;
-                captureOffscreenIndices('left');
-                clearForceHover();
-                isEdgeScrolling = true;
-                if (!animationId) animationId = requestAnimationFrame(smoothScroll);
-            });
-            leftEdge.addEventListener('mouseleave', () => {
-                isScrollingLeft = false;
-                if (!isScrollingRight) {
-                    clearForceHover();
-                    offscreenIndices = [];
+            function startEdgeScroll(direction) {
+                if (!window.isLocked) return;
+                // 同一方向已经在滚动时，不要每个 mousemove 都重复初始化；
+                // 重复初始化会干扰 requestAnimationFrame 的连续滚动。
+                if ((direction === 'left' && isScrollingLeft) ||
+                    (direction === 'right' && isScrollingRight)) {
+                    return;
                 }
-            });
-            rightEdge.addEventListener('mouseenter', () => {
-                isScrollingRight = true;
-                captureOffscreenIndices('right');
-                clearForceHover();
-                isEdgeScrolling = true;
-                if (!animationId) animationId = requestAnimationFrame(smoothScroll);
-            });
-            rightEdge.addEventListener('mouseleave', () => {
-                isScrollingRight = false;
-                if (!isScrollingLeft) {
-                    clearForceHover();
-                    offscreenIndices = [];
+                // 清掉贴边节点的悬停连线/重组
+                if (typeof window.exitRearrange === 'function') window.exitRearrange();
+                if (typeof window.clearRelatedConnectionPreviews === 'function') {
+                    window.clearRelatedConnectionPreviews(null);
                 }
+                // 去掉所有节点上的临时高亮
+                document.querySelectorAll('.timeline-node-container').forEach(n => {
+                    n.classList.remove('force-hover', 'conn-related-preview');
+                });
+
+                const wasLeft = isScrollingLeft;
+                const wasRight = isScrollingRight;
+                isScrollingLeft = direction === 'left';
+                isScrollingRight = direction === 'right';
+                isEdgeScrolling = true;
+                window._pointerInEdgeZone = true;
+                window.setRearrangeEdgeScrolling(true);
+                container.style.scrollBehavior = 'auto';
+
+                if (leftEdge) leftEdge.classList.toggle('edge-active', isScrollingLeft);
+                if (rightEdge) rightEdge.classList.toggle('edge-active', isScrollingRight);
+
+                if (direction === 'left' && !wasLeft) {
+                    captureOffscreenIndices('left');
+                    clearForceHover();
+                    lastScrollTs = 0;
+                }
+                if (direction === 'right' && !wasRight) {
+                    captureOffscreenIndices('right');
+                    clearForceHover();
+                    lastScrollTs = 0;
+                }
+                if (!animationId) animationId = requestAnimationFrame(smoothScroll);
+            }
+
+            function updateEdgeFromPointer(clientX, clientY) {
+                if (!window.isLocked) {
+                    if (isEdgeScrolling) stopEdgeScroll();
+                    window._pointerInEdgeZone = false;
+                    return;
+                }
+                const cr = container.getBoundingClientRect();
+                // 热区视觉上属于 wrapper，因此用 wrapper 的左右边界计算，
+                // 避免 timelineContainer 自身的左右 padding 造成左右热区错位。
+                const wr = wrapper ? wrapper.getBoundingClientRect() : cr;
+                // 指针必须在时间线内容的垂直范围内
+                if (clientY < cr.top || clientY > cr.bottom) {
+                    if (isEdgeScrolling || window._pointerInEdgeZone) stopEdgeScroll();
+                    return;
+                }
+                const nearLeft = clientX >= wr.left && clientX <= wr.left + EDGE_PX;
+                const nearRight = clientX <= wr.right && clientX >= wr.right - EDGE_PX;
+
+                window._pointerInEdgeZone = nearLeft || nearRight;
+
+                if (nearLeft) {
+                    startEdgeScroll('left');
+                } else if (nearRight) {
+                    startEdgeScroll('right');
+                } else if (isEdgeScrolling) {
+                    stopEdgeScroll();
+                }
+            }
+
+            // 主判定：在 container 上监听指针（节点无法抢走）
+            container.addEventListener('mousemove', (e) => {
+                updateEdgeFromPointer(e.clientX, e.clientY);
+            }, { passive: true });
+
+            container.addEventListener('mouseleave', () => {
+                stopEdgeScroll();
             });
+
+            // wrapper 只负责离开整个视觉区域时停止；实际 mousemove 只在 container 上监听，
+            // 避免两套监听反复重置左右滚动状态。
+            if (wrapper) {
+                wrapper.addEventListener('mouseleave', () => {
+                    stopEdgeScroll();
+                });
+            }
+
+            // 兼容：若仍点到旧热区元素也启动（pointer-events 已 none，基本不会）
+            if (leftEdge) {
+                leftEdge.addEventListener('mouseenter', () => startEdgeScroll('left'));
+                leftEdge.addEventListener('mouseleave', () => {
+                    if (!window._pointerInEdgeZone) stopEdgeScroll();
+                });
+            }
+            if (rightEdge) {
+                rightEdge.addEventListener('mouseenter', () => startEdgeScroll('right'));
+                rightEdge.addEventListener('mouseleave', () => {
+                    if (!window._pointerInEdgeZone) stopEdgeScroll();
+                });
+            }
         }
 
         window.updateBgmVolume = function(val) {
@@ -1495,6 +1684,12 @@
             if (inputContainer) {
                 inputContainer.style.display = window.isLocked ? 'none' : 'flex';
             }
+            // 打开时用当前已生效筛选初始化草稿
+            window.tagFilterDraftMode = window.tagFilterMode || 'include';
+            window.tagFilterDraftMatch = window.tagFilterMatch || 'any';
+            window.tagFilterDraftSelected = Array.isArray(window.tagFilterSelected) ? window.tagFilterSelected.slice() : [];
+            window.setTagFilterDraftMode(window.tagFilterDraftMode);
+            window.setTagFilterDraftMatch(window.tagFilterDraftMatch);
             window.renderTagModalList();
             document.getElementById('tagModal')?.classList.remove('hidden');
         };
@@ -1503,21 +1698,136 @@
             document.getElementById('tagModal')?.classList.add('hidden');
         };
 
+        window.setTagFilterDraftMode = function(mode) {
+            window.tagFilterDraftMode = mode === 'exclude' ? 'exclude' : 'include';
+            const inc = document.getElementById('tagModeIncludeBtn');
+            const exc = document.getElementById('tagModeExcludeBtn');
+            if (inc && exc) {
+                if (window.tagFilterDraftMode === 'include') {
+                    inc.className = 'flex-1 px-2 py-1.5 bg-indigo-50 text-indigo-700';
+                    exc.className = 'flex-1 px-2 py-1.5 bg-white text-slate-500';
+                } else {
+                    exc.className = 'flex-1 px-2 py-1.5 bg-rose-50 text-rose-700';
+                    inc.className = 'flex-1 px-2 py-1.5 bg-white text-slate-500';
+                }
+            }
+            window.updateTagFilterHint();
+            window.renderTagModalList();
+        };
+
+        window.setTagFilterDraftMatch = function(match) {
+            window.tagFilterDraftMatch = match === 'all' ? 'all' : 'any';
+            const anyBtn = document.getElementById('tagMatchAnyBtn');
+            const allBtn = document.getElementById('tagMatchAllBtn');
+            if (anyBtn && allBtn) {
+                if (window.tagFilterDraftMatch === 'any') {
+                    anyBtn.className = 'flex-1 px-2 py-1.5 bg-indigo-50 text-indigo-700';
+                    allBtn.className = 'flex-1 px-2 py-1.5 bg-white text-slate-500';
+                } else {
+                    allBtn.className = 'flex-1 px-2 py-1.5 bg-indigo-50 text-indigo-700';
+                    anyBtn.className = 'flex-1 px-2 py-1.5 bg-white text-slate-500';
+                }
+            }
+            window.updateTagFilterHint();
+        };
+
+        window.updateTagFilterHint = function() {
+            const hint = document.getElementById('tagFilterHint');
+            if (!hint) return;
+            const isExc = window.tagFilterDraftMode === 'exclude';
+            const isAll = window.tagFilterDraftMatch === 'all';
+            if (!isExc && !isAll) {
+                hint.textContent = '点击 tag 选中，可多选。包含 + 任一：事件有其中任意一个 tag 即显示。';
+            } else if (!isExc && isAll) {
+                hint.textContent = '点击 tag 选中，可多选。包含 + 全部：事件必须同时拥有所选全部 tag 才显示。';
+            } else if (isExc && !isAll) {
+                hint.textContent = '点击 tag 选中，可多选。排除 + 任一：事件有其中任意一个 tag 即隐藏。';
+            } else {
+                hint.textContent = '点击 tag 选中，可多选。排除 + 全部：事件同时拥有所选全部 tag 才隐藏。';
+            }
+        };
+
+        window.toggleTagDraft = function(tag) {
+            const arr = window.tagFilterDraftSelected || [];
+            const idx = arr.indexOf(tag);
+            if (idx >= 0) arr.splice(idx, 1);
+            else arr.push(tag);
+            window.tagFilterDraftSelected = arr;
+            window.renderTagModalList();
+        };
+
+        window.applyTagFilter = function() {
+            window.tagFilterMode = window.tagFilterDraftMode === 'exclude' ? 'exclude' : 'include';
+            window.tagFilterMatch = window.tagFilterDraftMatch === 'all' ? 'all' : 'any';
+            window.tagFilterSelected = (window.tagFilterDraftSelected || []).slice();
+            // 兼容旧字段
+            window.activeTagFilter = window.tagFilterSelected.length === 1 ? window.tagFilterSelected[0] : null;
+            window.closeTagModal();
+            window.renderEvents();
+            requestAnimationFrame(() => window.scrollTimelineToFirstNode());
+            const n = window.tagFilterSelected.length;
+            if (n === 0) {
+                window.showToast('已清除 tag 筛选', 'info');
+            } else {
+                const modeText = window.tagFilterMode === 'exclude' ? '排除' : '包含';
+                const matchText = window.tagFilterMatch === 'all' ? '全部' : '任一';
+                window.showToast(`已${modeText}·${matchText}筛选 ${n} 个 tag`, 'success');
+            }
+            window.updateTagFilterBadge();
+        };
+
+        window.updateTagFilterBadge = function() {
+            // 在 tag 按钮旁显示当前筛选状态（若有）
+            let badge = document.getElementById('tagFilterBadge');
+            const btn = document.querySelector('button[onclick="openTagModal()"]');
+            if (!btn) return;
+            const n = (window.tagFilterSelected || []).length;
+            if (n === 0) {
+                if (badge) badge.remove();
+                return;
+            }
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.id = 'tagFilterBadge';
+                badge.className = 'ml-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-indigo-600 text-white leading-none';
+                btn.appendChild(badge);
+            }
+            const prefix = (window.tagFilterMode === 'exclude' ? '排' : '含') + (window.tagFilterMatch === 'all' ? '全' : '');
+            badge.textContent = prefix + n;
+            badge.className = window.tagFilterMode === 'exclude'
+                ? 'ml-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-rose-600 text-white leading-none'
+                : 'ml-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-indigo-600 text-white leading-none';
+        };
+
         window.renderTagModalList = function() {
             const container = document.getElementById('tagModalList');
             if (!container) return;
-            
+
             if (window.availableTags.length === 0) {
                 container.innerHTML = `<p class="text-xs text-slate-400 italic py-2">暂无 tag</p>`;
                 return;
             }
 
+            const draft = window.tagFilterDraftSelected || [];
+            const isExclude = window.tagFilterDraftMode === 'exclude';
+
             container.innerHTML = window.availableTags.map(t => {
-                const active = window.activeTagFilter === t;
+                const selected = draft.includes(t);
                 const safe = String(t).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                let chipCls;
+                if (selected && isExclude) {
+                    chipCls = 'bg-rose-100 border-rose-300 text-rose-800';
+                } else if (selected) {
+                    chipCls = 'bg-indigo-100 border-indigo-300 text-indigo-800';
+                } else {
+                    chipCls = 'bg-slate-100 border-slate-200 text-slate-700';
+                }
                 return `
-                <div class="flex items-center gap-1.5 ${active ? 'bg-indigo-100 border-indigo-300 text-indigo-800' : 'bg-slate-100 border-slate-200 text-slate-700'} border px-2.5 py-1 rounded-lg text-xs font-medium">
-                    <button type="button" onclick="filterByTag('${safe}')" class="hover:underline"># ${t}</button>
+                <div class="flex items-center gap-1.5 ${chipCls} border px-2.5 py-1 rounded-lg text-xs font-medium">
+                    <button type="button" onclick="toggleTagDraft('${safe}')" class="hover:underline flex items-center gap-1">
+                        ${selected ? '<i class="fa-solid fa-check text-[10px]"></i>' : ''}
+                        <span># ${t}</span>
+                    </button>
                     ${!window.isLocked ? `
                         <button type="button" onclick="event.stopPropagation(); deleteTag('${safe}')" class="text-slate-400 hover:text-rose-500 ml-1">
                             <i class="fa-solid fa-xmark text-xs"></i>
@@ -1629,7 +1939,29 @@
 
                 window.getFilteredEvents = function() {
             let list = window.events.slice();
-            if (window.activeTagFilter) {
+            const selected = window.tagFilterSelected || [];
+            const matchAll = window.tagFilterMatch === 'all';
+            if (selected.length > 0) {
+                if (window.tagFilterMode === 'exclude') {
+                    // 排除：any=有任一即隐藏；all=同时拥有全部才隐藏
+                    list = list.filter(e => {
+                        const tags = e.tags || [];
+                        if (matchAll) {
+                            return !selected.every(t => tags.includes(t));
+                        }
+                        return !selected.some(t => tags.includes(t));
+                    });
+                } else {
+                    // 包含：any=有任一即显示；all=必须全部都有
+                    list = list.filter(e => {
+                        const tags = e.tags || [];
+                        if (matchAll) {
+                            return selected.every(t => tags.includes(t));
+                        }
+                        return selected.some(t => tags.includes(t));
+                    });
+                }
+            } else if (window.activeTagFilter) {
                 const tag = window.activeTagFilter;
                 list = list.filter(e => e.tags && e.tags.some(t => t === tag));
             }
@@ -1648,6 +1980,9 @@
             // 输入搜索时清除 tag 点选筛选，避免叠加空白
             if ((document.getElementById('searchInput')?.value || '').trim()) {
                 window.activeTagFilter = null;
+                window.tagFilterSelected = [];
+                window.tagFilterDraftSelected = [];
+                if (typeof window.updateTagFilterBadge === 'function') window.updateTagFilterBadge();
             }
             window.renderEvents();
             requestAnimationFrame(() => {
@@ -1670,18 +2005,28 @@
         };
 
         window.filterByTag = function(tag) {
-            window.activeTagFilter = tag || null;
-            const input = document.getElementById('searchInput');
-            if (input) input.value = '';
-            window.closeTagModal();
-            window.renderEvents();
-            requestAnimationFrame(() => window.scrollTimelineToFirstNode());
+            // 兼容：单击切换草稿中的选中，需点确定才生效；若已是唯一生效项则清除
+            if (!tag) return;
+            if (window.tagFilterSelected.length === 1 && window.tagFilterSelected[0] === tag && window.tagFilterMode === 'include') {
+                window.clearTagFilter();
+                return;
+            }
+            window.toggleTagDraft(tag);
         };
 
         window.clearTagFilter = function() {
             window.activeTagFilter = null;
+            window.tagFilterSelected = [];
+            window.tagFilterDraftSelected = [];
+            window.tagFilterMode = 'include';
+            window.tagFilterDraftMode = 'include';
+            window.tagFilterMatch = 'any';
+            window.tagFilterDraftMatch = 'any';
+            window.updateTagFilterBadge();
+            window.renderTagModalList();
             window.renderEvents();
             requestAnimationFrame(() => window.scrollTimelineToFirstNode());
+            window.showToast('已清除 tag 筛选', 'info');
         };
 
         window.scrollTimeline = function(amount) {
@@ -1819,12 +2164,13 @@
                 nodeContainer.style.width = `${gapPx}px`;
                 nodeContainer.setAttribute('data-date', dateStr);
 
+                                                const hitW = Math.max(40, Math.min(52, Math.round(gapPx * 0.2)));
                 nodeContainer.innerHTML = `
                     <div class="timeline-hover-tooltip absolute bottom-full mb-3 z-30 bg-slate-900 rounded-xl border border-slate-700 overflow-hidden pointer-events-none shadow-xl" style="${tooltipStyle}">
                         ${tooltipInnerHtml}
                     </div>
 
-                    <div onclick="handleGroupClick('${dateStr.replace(/'/g, "\\'")}')" class="text-center mb-3 max-w-[130px] select-none">
+                    <div onclick="handleGroupClick('${dateStr.replace(/'/g, "\\'")}')" class="node-title-area text-center mb-3 max-w-[130px] select-none">
                         <span class="block font-medium ${hasMajor ? 'text-indigo-900 font-bold' : 'text-slate-700'} line-clamp-1" style="font-size: ${fontSizeTitle}px;">
                             ${displayTitle}
                         </span>
@@ -1833,17 +2179,20 @@
                         </span>
                     </div>
 
-                    <div id="timeline-dot-${dotId}" onclick="handleGroupClick('${dateStr.replace(/'/g, "\\'")}')" class="flex items-center justify-center z-10 shrink-0">
-                        ${isMerged ? `
-                            <div class="merged-dots-container">
-                                <div class="merged-dot-left" style="width: ${dotMinorSize}px; height: ${dotMinorSize}px;"></div>
-                                <div class="merged-dot-right" style="width: ${dotMinorSize}px; height: ${dotMinorSize}px;"></div>
-                            </div>
-                        ` : `
-                            <div class="timeline-dot rounded-full bg-white border-2 ${hasMajor ? 'border-indigo-600 bg-indigo-600 shadow-md ring-4 ring-indigo-100' : 'border-slate-400 hover:border-indigo-500 hover:bg-indigo-500'}" style="width: ${(hasMajor ? dotMajorSize : dotMinorSize)}px; height: ${(hasMajor ? dotMajorSize : dotMinorSize)}px;"></div>
-                        `}
+                    <div class="node-hit-area flex items-center justify-center" style="width:${hitW}px;height:${hitW}px;">
+                        <div id="timeline-dot-${dotId}" onclick="handleGroupClick('${dateStr.replace(/'/g, "\\'")}')" class="flex items-center justify-center z-10 shrink-0">
+                            ${isMerged ? `
+                                <div class="merged-dots-container">
+                                    <div class="merged-dot-left" style="width: ${dotMinorSize}px; height: ${dotMinorSize}px;"></div>
+                                    <div class="merged-dot-right" style="width: ${dotMinorSize}px; height: ${dotMinorSize}px;"></div>
+                                </div>
+                            ` : `
+                                <div class="timeline-dot rounded-full bg-white border-2 ${hasMajor ? 'border-indigo-600 bg-indigo-600 shadow-md ring-4 ring-indigo-100' : 'border-slate-400 hover:border-indigo-500 hover:bg-indigo-500'}" style="width: ${(hasMajor ? dotMajorSize : dotMinorSize)}px; height: ${(hasMajor ? dotMajorSize : dotMinorSize)}px;"></div>
+                            `}
+                        </div>
                     </div>
                 `;
+
 
                 nodeContainer.querySelectorAll('.preview-slide-img').forEach(img => {
                     const tileIdx = parseInt(img.getAttribute('data-tile-idx') || '0', 10);
@@ -1852,18 +2201,45 @@
                     img.style.transition = 'opacity 0.25s ease';
                 });
 
-                nodeContainer.addEventListener('mouseenter', () => {
+                nodeContainer.addEventListener('mouseenter', (ev) => {
+                    // 若仍处于他人触发的重组中，先退出（离开锚点即应恢复）
+                    if (rearrangeState.active && rearrangeState.anchorNode !== nodeContainer) {
+                        window.exitRearrange();
+                    }
+                    // 贴边或正在边缘滚动时：不进入悬停连线/重组
+                    if (window.isLocked && (
+                        window._pointerInEdgeZone
+                        || (typeof window.isPointerInTimelineEdgeZone === 'function'
+                            && window.isPointerInTimelineEdgeZone(ev.clientX))
+                    )) {
+                        return;
+                    }
                     items.forEach(e => window.highlightConnectionsForEvent(e.id, true));
                     window.startPreviewSlideshow(nodeContainer);
-                    window.showRelatedConnectionPreviews(items.map(e => e.id), nodeContainer);
+                    // 仅浏览模式触发重组 / 关联预览拉动；编辑模式保持静态便于操作
+                    if (!window.isLocked) return;
+                    const rearranged = window.tryRearrangeOnHover(nodeContainer, items.map(e => e.id));
+                    if (!rearranged) {
+                        window.showRelatedConnectionPreviews(items.map(e => e.id), nodeContainer);
+                    }
                 });
 
                 nodeContainer.addEventListener('mouseleave', () => {
+                    // 只要离开悬停锚点，立即退出重组并恢复原状
                     items.forEach(e => window.highlightConnectionsForEvent(e.id, false));
                     window.stopPreviewSlideshow(nodeContainer, true);
-                    window.clearRelatedConnectionPreviews(nodeContainer);
+                    if (rearrangeState.active && rearrangeState.anchorNode === nodeContainer) {
+                        window.exitRearrange();
+                    } else if (!rearrangeState.active) {
+                        window.clearRelatedConnectionPreviews(nodeContainer);
+                    } else {
+                        // 离开的是重组中的非锚点：不额外处理（锚点 leave 已负责退出）
+                    }
+                    // 非重组时也清掉关联预览
+                    if (!rearrangeState.active) {
+                        window.clearRelatedConnectionPreviews(nodeContainer);
+                    }
                 });
-
                 track.appendChild(nodeContainer);
             });
 
@@ -2304,7 +2680,20 @@
                 return { x: px, y: py, angle };
             }
 
-            window.connections.forEach(conn => {
+            // 重组模式下：仅渲染锚点事件与直接连线事件之间的连线（不画间接连线）
+            let connList = window.connections;
+            if (rearrangeState.active && rearrangeState.anchorEventIds.length) {
+                const anchorSet = new Set(rearrangeState.anchorEventIds.map(String));
+                const relatedSet = new Set(window.getConnectedEventIds(rearrangeState.anchorEventIds).map(String));
+                const allowedSet = new Set([...anchorSet, ...relatedSet]);
+                connList = window.connections.filter(c => {
+                    const s = String(c.sourceId), t = String(c.targetId);
+                    // 仅保留两端都在"锚点+直接连线"集合内，且至少一端是锚点的连线
+                    return allowedSet.has(s) && allowedSet.has(t) && (anchorSet.has(s) || anchorSet.has(t));
+                });
+            }
+
+            connList.forEach(conn => {
                 const sEvent = window.events.find(e => String(e.id) === String(conn.sourceId));
                 const tEvent = window.events.find(e => String(e.id) === String(conn.targetId));
                 
@@ -2377,6 +2766,11 @@
                     g.appendChild(textEl);
                 }
 
+                // 重组模式下连线默认需要可见（否则 opacity:0 看不到）
+                if (rearrangeState.active) {
+                    g.classList.add('active-line');
+                }
+
                 group.appendChild(g);
             });
         };
@@ -2420,6 +2814,338 @@
             return null;
         };
 
+        // ==================== 悬停重组（Hover Rearrange）====================
+        // 状态
+        let rearrangeState = {
+            active: false,
+            anchorNode: null,
+            anchorEventIds: [],
+            visibleNodes: [],   // 当前参与重组的节点 DOM（含锚点，按时间升序）
+            originalScrollLeft: 0,
+        };
+
+        // 边缘自动滑动期间为 true，用于抑制重组触发
+        let _rearrangeEdgeScrolling = false;
+
+        // 供 initScrollEdges 设置边缘滚动状态
+        window.setRearrangeEdgeScrolling = function(val) {
+            _rearrangeEdgeScrolling = !!val;
+            // 边缘滚动开始时若正处于重组，先退出
+            if (_rearrangeEdgeScrolling && rearrangeState.active) {
+                window.exitRearrange();
+            }
+        };
+
+        // 工具：获取某节点的时间（日期）用于排序
+        function _nodeDateKey(node) {
+            const dateStr = node.getAttribute('data-date') || '';
+            // 支持 "YYYY-MM-DD至YYYY-MM-DD" 取起始日期排序
+            const start = dateStr.split('至')[0];
+            const t = Date.parse(start);
+            return isNaN(t) ? 0 : t;
+        }
+
+        // 工具：节点是否在当前视口内（timelineContainer 可视区）
+        // 判定节点是否「足够在屏内」：中心点在视口内，且至少约一半宽度可见。
+        // 仅露出一点边的节点视为屏外，应触发重组。
+        function _isNodeInViewport(node, container) {
+            const cr = container.getBoundingClientRect();
+            const nr = node.getBoundingClientRect();
+            const nodeW = Math.max(1, nr.width);
+            const visibleLeft = Math.max(nr.left, cr.left);
+            const visibleRight = Math.min(nr.right, cr.right);
+            const visibleW = Math.max(0, visibleRight - visibleLeft);
+            const centerX = nr.left + nr.width / 2;
+            const centerInView = centerX >= cr.left && centerX <= cr.right;
+            // 中心在视口内且可见宽度 >= 50% 才算「在屏内」
+            return centerInView && (visibleW / nodeW) >= 0.5;
+        }
+
+        // 计算当前密度下的节点间距（与正常状态一致）
+        function _getCurrentGapPx() {
+            const scale = window.getZoomScale ? window.getZoomScale() : 1;
+            return Math.round(150 * scale);
+        }
+
+        // 尝试在悬停时触发重组。返回 true 表示已触发重组，false 表示不触发。
+        // 布局规则：
+        // 1) 锚点 A 像素位置与 scroll 不变
+        // 2) 比 A 早的节点优先放左边，比 A 晚的优先放右边
+        // 3) 某侧槽位不足时，多余节点溢到对侧；同侧多个节点按时间早→晚从左到右
+        // 4) 优先侧名额有限时，保留「原时间轴上距 A 更远」的节点在优先侧
+        // 指针是否处于时间线左右边缘热区
+        window.isPointerInTimelineEdgeZone = function(clientX) {
+            if (window._pointerInEdgeZone) return true;
+            const container = document.getElementById('timelineContainer');
+            if (!container || clientX == null) return false;
+            const cr = container.getBoundingClientRect();
+            const edge = 48;
+            return clientX <= cr.left + edge || clientX >= cr.right - edge;
+        };
+
+        window.tryRearrangeOnHover = function(anchorNode, anchorEventIds) {
+            if (!anchorNode || !anchorEventIds || !anchorEventIds.length) return false;
+            // 仅浏览模式可触发重组，编辑模式不打断操作
+            if (!window.isLocked) return false;
+            if (_rearrangeEdgeScrolling) return false;
+            if (rearrangeState.active && rearrangeState.anchorNode === anchorNode) return true;
+
+            const container = document.getElementById('timelineContainer');
+            if (!container) return false;
+
+            const relatedIds = window.getConnectedEventIds(anchorEventIds) || [];
+            if (!relatedIds.length) return false;
+
+            const relatedNodes = [];
+            relatedIds.forEach(id => {
+                const n = window.getNodeContainerForEventId(id);
+                if (n && n !== anchorNode) relatedNodes.push(n);
+            });
+            const uniqRelated = [];
+            const seen = new Set();
+            relatedNodes.forEach(n => {
+                if (seen.has(n)) return;
+                seen.add(n);
+                uniqRelated.push(n);
+            });
+            if (!uniqRelated.length) return false;
+
+            const hasOffscreen = uniqRelated.some(n => !_isNodeInViewport(n, container));
+            if (!hasOffscreen) return false;
+
+            const gap = _getCurrentGapPx();
+            const nodeW = anchorNode.offsetWidth || gap;
+            const containerRect = container.getBoundingClientRect();
+            const anchorRect = anchorNode.getBoundingClientRect();
+            const anchorLocalX = anchorRect.left - containerRect.left + container.scrollLeft;
+            const viewportW = container.clientWidth;
+            const pad = 28;
+            const viewLeft = container.scrollLeft + pad;
+            const viewRight = container.scrollLeft + viewportW - pad;
+
+            // 两侧可容纳的槽位数（相对锚点，不移动锚点）
+            let leftSlots = Math.max(0, Math.floor((anchorLocalX - viewLeft) / gap));
+            let rightSlots = Math.max(0, Math.floor((viewRight - (anchorLocalX + nodeW)) / gap));
+
+            const anchorTime = _nodeDateKey(anchorNode);
+
+            // 记录原位置，用于「距离」比较
+            function nodeLocalX(node) {
+                const r = node.getBoundingClientRect();
+                return r.left - containerRect.left + container.scrollLeft;
+            }
+            const anchorOrigX = nodeLocalX(anchorNode);
+
+            const leftCandidates = [];
+            const rightCandidates = [];
+            uniqRelated.forEach(n => {
+                const t = _nodeDateKey(n);
+                if (t < anchorTime) leftCandidates.push(n);
+                else rightCandidates.push(n); // 同时刻归右侧
+            });
+
+            // 从优先侧挑选：槽位不足时保留距锚点更远的
+            function pickForPreferredSide(candidates, slots) {
+                if (candidates.length <= slots) {
+                    return {
+                        stay: candidates.slice().sort((a, b) => _nodeDateKey(a) - _nodeDateKey(b)),
+                        overflow: []
+                    };
+                }
+                const ranked = candidates.slice().sort((a, b) => {
+                    const da = Math.abs(nodeLocalX(a) - anchorOrigX);
+                    const db = Math.abs(nodeLocalX(b) - anchorOrigX);
+                    if (db !== da) return db - da; // 远的优先留在本侧
+                    return _nodeDateKey(a) - _nodeDateKey(b);
+                });
+                const stay = ranked.slice(0, slots).sort((a, b) => _nodeDateKey(a) - _nodeDateKey(b));
+                const overflow = ranked.slice(slots).sort((a, b) => _nodeDateKey(a) - _nodeDateKey(b));
+                return { stay, overflow };
+            }
+
+            const leftPick = pickForPreferredSide(leftCandidates, leftSlots);
+            const rightPick = pickForPreferredSide(rightCandidates, rightSlots);
+
+            // 对侧溢出并入后，同侧再按时间排序（左→右 = 早→晚）
+            let finalLeft = leftPick.stay.concat(rightPick.overflow)
+                .sort((a, b) => _nodeDateKey(a) - _nodeDateKey(b));
+            let finalRight = rightPick.stay.concat(leftPick.overflow)
+                .sort((a, b) => _nodeDateKey(a) - _nodeDateKey(b));
+
+            // 若溢出后某一侧仍超出槽位，继续把多出的挤到对侧（极端窄屏）
+            while (finalLeft.length > leftSlots && leftSlots >= 0) {
+                // 从左侧拿走时间最晚的（最靠近 A 的），丢到右侧开头
+                if (finalLeft.length === 0) break;
+                if (leftSlots === 0) {
+                    // 整侧搬到右边
+                    finalRight = finalLeft.concat(finalRight)
+                        .sort((a, b) => _nodeDateKey(a) - _nodeDateKey(b));
+                    finalLeft = [];
+                    break;
+                }
+                const moved = finalLeft.pop();
+                finalRight.push(moved);
+                finalRight.sort((a, b) => _nodeDateKey(a) - _nodeDateKey(b));
+            }
+            while (finalRight.length > rightSlots && rightSlots >= 0) {
+                if (finalRight.length === 0) break;
+                if (rightSlots === 0) {
+                    finalLeft = finalLeft.concat(finalRight)
+                        .sort((a, b) => _nodeDateKey(a) - _nodeDateKey(b));
+                    finalRight = [];
+                    break;
+                }
+                const moved = finalRight.shift();
+                finalLeft.push(moved);
+                finalLeft.sort((a, b) => _nodeDateKey(a) - _nodeDateKey(b));
+            }
+
+            // 计算目标 X：左侧 earliest 在最左，最靠近 A 的是 finalLeft 最后一个
+            const targetMap = new Map();
+            targetMap.set(anchorNode, anchorLocalX);
+            finalLeft.forEach((node, i) => {
+                // i=0 最左
+                const fromRight = finalLeft.length - i; // 距 A 的槽位数
+                targetMap.set(node, anchorLocalX - fromRight * gap);
+            });
+            finalRight.forEach((node, i) => {
+                targetMap.set(node, anchorLocalX + (i + 1) * gap);
+            });
+
+            const allNodes = [anchorNode, ...uniqRelated];
+
+            rearrangeState.active = true;
+            rearrangeState.anchorNode = anchorNode;
+            rearrangeState.anchorEventIds = anchorEventIds.slice();
+            rearrangeState.visibleNodes = allNodes.slice();
+            rearrangeState.originalScrollLeft = container.scrollLeft;
+
+            container.classList.add('rearrange-active');
+
+            allNodes.forEach(node => {
+                node.classList.add('rearrange-visible');
+                if (node === anchorNode) node.classList.add('rearrange-anchor');
+            });
+
+            allNodes.forEach(node => {
+                if (node === anchorNode) {
+                    node.style.transform = 'none';
+                    return;
+                }
+                const origRect = node.getBoundingClientRect();
+                const origLeft = origRect.left - containerRect.left + container.scrollLeft;
+                const targetX = targetMap.get(node);
+                const dx = (targetX != null ? targetX : origLeft) - origLeft;
+                node.style.transform = 'translateX(' + dx + 'px)';
+            });
+
+            uniqRelated.forEach(node => {
+                node.classList.add('force-hover', 'conn-related-preview');
+                if (typeof window.startPreviewSlideshow === 'function') {
+                    window.startPreviewSlideshow(node);
+                }
+            });
+
+            // 预览图防重叠缩放（锚点 + 关联）
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    window.adjustOverlappingPreviews([anchorNode, ...uniqRelated]);
+                    window.renderSvgConnections();
+                    (rearrangeState.anchorEventIds || []).forEach(id => {
+                        window.highlightConnectionsForEvent(id, true);
+                    });
+                });
+            });
+
+            return true;
+        };
+
+        // 退出重组，恢复原始布局
+        window.exitRearrange = function() {
+            if (!rearrangeState.active) return;
+            const container = document.getElementById('timelineContainer');
+            if (container) container.classList.remove('rearrange-active');
+
+            const anchorIds = (rearrangeState.anchorEventIds || []).slice();
+
+            rearrangeState.visibleNodes.forEach(node => {
+                node.classList.remove('rearrange-visible', 'rearrange-anchor', 'force-hover', 'conn-related-preview');
+                if (typeof window.stopPreviewSlideshow === 'function') {
+                    window.stopPreviewSlideshow(node, true);
+                }
+                node.style.transform = '';
+                // 恢复预览缩放
+                node.style.removeProperty('--preview-scale');
+            });
+
+            rearrangeState.active = false;
+            rearrangeState.anchorNode = null;
+            rearrangeState.anchorEventIds = [];
+            rearrangeState.visibleNodes = [];
+            rearrangeState.originalScrollLeft = 0;
+
+            anchorIds.forEach(id => window.highlightConnectionsForEvent(id, false));
+            window.renderSvgConnections();
+        };
+
+        // 检测多个预览气泡是否靠近/重叠；缩放到「刚好不重叠且留一点空隙」为止，尽量保持较大
+        window.adjustOverlappingPreviews = function(nodes) {
+            const list = (nodes || []).filter(Boolean);
+            if (list.length < 2) {
+                list.forEach(n => { if (n) n.style.setProperty('--preview-scale', '1'); });
+                return;
+            }
+
+            list.forEach(n => n.style.setProperty('--preview-scale', '1'));
+
+            function measureRects(scale) {
+                list.forEach(n => n.style.setProperty('--preview-scale', String(scale)));
+                return list.map(n => {
+                    const tip = n.querySelector('.timeline-hover-tooltip');
+                    return tip ? tip.getBoundingClientRect() : null;
+                }).filter(Boolean);
+            }
+
+            // gapPx: 气泡之间至少保留的水平空隙
+            function isTooClose(scale, gapPx) {
+                const rects = measureRects(scale);
+                if (rects.length < 2) return false;
+                for (let i = 0; i < rects.length; i++) {
+                    for (let j = i + 1; j < rects.length; j++) {
+                        const a = rects[i], b = rects[j];
+                        const overlap = !(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom);
+                        if (overlap) return true;
+                        const hGap = a.right < b.left ? (b.left - a.right) : (b.right < a.left ? (a.left - b.right) : 0);
+                        const vOverlap = !(a.bottom <= b.top || a.top >= b.bottom);
+                        if (vOverlap && hGap < gapPx) return true;
+                    }
+                }
+                return false;
+            }
+
+            const minGap = 12; // 只要有一点空隙即可
+            const minScale = 0.72; // 不要缩得太小
+            if (!isTooClose(1, minGap)) {
+                list.forEach(n => n.style.setProperty('--preview-scale', '1'));
+                return;
+            }
+
+            // 从 0.98 往下找第一个不冲突的较大比例（步进 0.03，偏大）
+            let scale = 0.98;
+            while (scale > minScale && isTooClose(scale, minGap)) {
+                scale = Math.round((scale - 0.03) * 100) / 100;
+            }
+            const finalScale = Math.max(minScale, scale);
+            list.forEach(n => n.style.setProperty('--preview-scale', String(finalScale)));
+        };
+
+
+
+
+        // 重写 getConnectedEventIds 的"间接连线"问题已在重组布局中通过
+        // 仅使用 direct relatedIds（getConnectedEventIds 返回的直接关联）解决：
+        // 重组时不会把"连线节点的连线节点"纳入，因此不会出现 B-C 这类间接连线。
+
         window.showRelatedConnectionPreviews = function(eventIds, primaryNode) {
             window.clearRelatedConnectionPreviews(primaryNode);
             const relatedIds = window.getConnectedEventIds(eventIds);
@@ -2437,6 +3163,12 @@
             });
             if (relatedNodes.length) {
                 window.scrollToRevealRelatedNodes(primaryNode, relatedNodes);
+                // 近距离预览重叠时自动缩小
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        window.adjustOverlappingPreviews([primaryNode, ...relatedNodes].filter(Boolean));
+                    });
+                });
             }
         };
 
@@ -2447,26 +3179,37 @@
                 if (typeof window.stopPreviewSlideshow === 'function') {
                     window.stopPreviewSlideshow(node, true);
                 }
+                node.style.removeProperty('--preview-scale');
             });
         };
 
         window.scrollToRevealRelatedNodes = function(primaryNode, relatedNodes) {
             const container = document.getElementById('timelineContainer');
-            if (!container) return;
+            if (!container || !primaryNode) return;
             const cr = container.getBoundingClientRect();
-            const nodes = [primaryNode, ...(relatedNodes || [])].filter(Boolean);
-            let minL = Infinity, maxR = -Infinity;
-            nodes.forEach(n => {
+            const pr = primaryNode.getBoundingClientRect();
+            // 只关心关联节点是否在视口外；绝不把主节点滚出指针下方（避免 mouseleave 闪烁）
+            const pad = 40;
+            let delta = 0;
+            (relatedNodes || []).forEach(n => {
+                if (!n) return;
                 const r = n.getBoundingClientRect();
-                minL = Math.min(minL, r.left);
-                maxR = Math.max(maxR, r.right);
+                // 已有一部分可见则不滚动
+                if (r.right > cr.left + 8 && r.left < cr.right - 8) return;
+                if (r.left >= cr.right - pad) {
+                    // 在右侧屏外：向右滚，但保证 primary 仍留在视口内
+                    const need = r.left - (cr.right - pad);
+                    const maxShift = Math.max(0, pr.left - (cr.left + 48));
+                    delta = Math.max(delta, Math.min(need, maxShift));
+                } else if (r.right <= cr.left + pad) {
+                    // 在左侧屏外
+                    const need = r.right - (cr.left + pad); // 负值
+                    const maxShift = Math.min(0, pr.right - (cr.right - 48)); // 负向上限
+                    delta = Math.min(delta, Math.max(need, maxShift));
+                }
             });
-            if (!isFinite(minL) || !isFinite(maxR)) return;
-            const pad = 56;
-            if (maxR > cr.right - pad) {
-                container.scrollLeft += (maxR - cr.right + pad);
-            } else if (minL < cr.left + pad) {
-                container.scrollLeft += (minL - cr.left - pad);
+            if (Math.abs(delta) > 2) {
+                container.scrollLeft += delta;
             }
         };
 
