@@ -119,12 +119,12 @@
             position: absolute;
         }
 
-        /* 边缘自动滚动热区：不拦截指针，由 wrapper 级 mousemove 判定热区，避免挡住节点悬停 */
+        /* 边缘自动滚动热区：不拦截节点悬停；滚动触发依赖 document 捕获阶段指针跟踪 */
         .scroll-edge {
             position: absolute;
             top: 0;
             bottom: 0;
-            width: 48px;
+            width: 56px;
             z-index: 40;
             cursor: pointer;
             transition: background 0.2s ease;
@@ -699,15 +699,17 @@
                     <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.25</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">本次更新</span></div>
                     <div class="space-y-3 leading-7">
                         <p>优化同期事件集合的卡片堆叠效果，布局更紧凑</p>
-                        <p>统一左右滑动响应速度</p>
-                        <p>新增离线数据加载功能，网络受限时自动加载预置数据包</p>
+                        <p>统一左右边缘滑动响应速度，并优化滑速曲线</p>
+                        <p>增加离线模式，网络受限时自动加载预置数据包</p>
+                        <p>增加未同步云端时自动退回浏览模式的功能，避免在离线状态下停留在编辑模式</p>
+                        <p>修复离线模式下时间线右侧边缘自动滑动失效的问题</p>
                     </div>
                     <div class="border-t border-green-200 mt-3 pt-3 text-slate-500">
                         <div class="flex items-center gap-2 mb-1"><span class="font-bold text-indigo-700">2026.08.24</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
                         <div class="space-y-1 leading-7">
                             <p>修复退出事件详情页后视频仍继续播放的问题，退出详情页后会自动停止视频。</p>
                             <p>移除时间线视图右侧的"连线"按钮，连线管理统一放到节点编辑界面。</p>
-                            <p>视频附件支持填写和编辑标题。</p>
+                            <p>增加视频附件填写和编辑标题的功能。</p>
                         </div>
                     </div>
                 </div>
@@ -1213,8 +1215,25 @@
         }
 
         function updateSyncStatus(type, text) {
-            if (type === 'synced') window.isCloudSynced = true;
-            else if (type === 'offline' || type === 'error' || type === 'syncing') window.isCloudSynced = false;
+            if (type === 'synced') {
+                window.isCloudSynced = true;
+            } else if (type === 'offline' || type === 'error') {
+                // 无论当前是浏览还是编辑：只要未同步云端，一律退回浏览模式
+                const wasEditing = !window.isLocked;
+                window.isCloudSynced = false;
+                if (wasEditing) {
+                    window.isLocked = true;
+                    localStorage.setItem('yuhoutianqing_isLocked', 'true');
+                    setTimeout(() => {
+                        if (typeof window.showToast === 'function') {
+                            window.showToast('云端未同步，已自动退回浏览模式', 'info');
+                        }
+                    }, 0);
+                }
+            } else if (type === 'syncing') {
+                // 短暂保存中不强制改锁状态，仅标记未处于稳定同步
+                window.isCloudSynced = false;
+            }
             const dot = document.getElementById('syncDot');
             const textEl = document.getElementById('syncText');
             if (!dot || !textEl) return;
@@ -1395,7 +1414,7 @@
 
             window.setEdgeScrollSpeed(window.edgeScrollSpeed);
 
-            const EDGE_PX = 48;
+            const EDGE_PX = 56;
 
             let isScrollingLeft = false;
             let isScrollingRight = false;
@@ -1404,6 +1423,7 @@
             let offscreenIndices = [];
             let isEdgeScrolling = false;
             let lastScrollTs = 0;
+            let scrollAccum = 0;
 
             window._pointerInEdgeZone = false;
 
@@ -1517,6 +1537,7 @@
                 isScrollingRight = false;
                 isEdgeScrolling = false;
                 lastScrollTs = 0;
+                scrollAccum = 0;
                 window._pointerInEdgeZone = false;
                 window.setRearrangeEdgeScrolling(false);
                 clearForceHover();
@@ -1544,16 +1565,31 @@
                 const now = ts || performance.now();
                 const dt = Math.min(48, Math.max(8, now - lastScrollTs));
                 lastScrollTs = now;
-                const level = Number(window.edgeScrollSpeed) || 5;
-                const speedPerFrame = level * 0.18;
-                const step = speedPerFrame * (dt / 16.67);
+                // 平滑加速曲线：低档更慢更稳，高档温和提升（level 1~20）
+                // 约 0.45 ~ 5.5 px/帧 @60fps，左右共用同一累加器，避免一侧更快
+                const level = Math.max(1, Math.min(20, Number(window.edgeScrollSpeed) || 5));
+                const t = level / 20;
+                const pxPerFrame = 0.45 + Math.pow(t, 1.35) * 5.0;
+                scrollAccum += pxPerFrame * (dt / 16.67);
+                const step = Math.floor(scrollAccum);
+                if (step < 1) {
+                    animationId = requestAnimationFrame(smoothScroll);
+                    return;
+                }
+                scrollAccum -= step;
                 container.style.scrollBehavior = 'auto';
-                if (isScrollingLeft) container.scrollLeft -= step;
-                if (isScrollingRight) container.scrollLeft += step;
+                const before = container.scrollLeft;
+                if (isScrollingLeft) {
+                    container.scrollLeft = Math.max(0, before - step);
+                } else if (isScrollingRight) {
+                    const maxScroll = Math.max(0, container.scrollWidth - container.clientWidth);
+                    container.scrollLeft = Math.min(maxScroll, before + step);
+                }
                 animationId = requestAnimationFrame(smoothScroll);
             }
 
             function startEdgeScroll(direction) {
+                // 浏览模式（锁定）下才启用边缘滑动；离线浏览同样 isLocked=true
                 if (!window.isLocked) return;
                 if ((direction === 'left' && isScrollingLeft) ||
                     (direction === 'right' && isScrollingRight)) {
@@ -1583,22 +1619,26 @@
                     captureOffscreenIndices('left');
                     clearForceHover();
                     lastScrollTs = 0;
+                    scrollAccum = 0;
                 }
                 if (direction === 'right' && !wasRight) {
                     captureOffscreenIndices('right');
                     clearForceHover();
                     lastScrollTs = 0;
+                    scrollAccum = 0;
                 }
                 if (!animationId) animationId = requestAnimationFrame(smoothScroll);
             }
 
             function isInEdgeZone(clientX, clientY) {
-                const wr = wrapper ? wrapper.getBoundingClientRect() : container.getBoundingClientRect();
-                // 垂直范围以时间线容器为准，左右热区覆盖整个 wrapper 宽度边缘（含 padding）
-                const cr = container.getBoundingClientRect();
-                if (clientY < cr.top || clientY > cr.bottom) return null;
-                if (clientX >= wr.left && clientX <= wr.left + EDGE_PX) return 'left';
-                if (clientX <= wr.right && clientX >= wr.right - EDGE_PX) return 'right';
+                const root = wrapper || container;
+                if (!root) return null;
+                const wr = root.getBoundingClientRect();
+                // 垂直：以 wrapper 为准，避免 container 内边距导致上下判断不一致
+                if (clientY < wr.top - 1 || clientY > wr.bottom + 1) return null;
+                // 左右各放宽 1px，避免亚像素/滚动条导致右缘判定失败
+                if (clientX >= wr.left - 1 && clientX <= wr.left + EDGE_PX) return 'left';
+                if (clientX <= wr.right + 1 && clientX >= wr.right - EDGE_PX) return 'right';
                 return null;
             }
 
@@ -1619,59 +1659,53 @@
                 }
             }
 
-            // 在 wrapper 上跟踪指针，避免仅监听 container 时：
-            // 1) 左右 padding 区域收不到 mousemove
-            // 2) 右侧绝对定位按钮挡住 container 导致右缘失效
-            // 3) 移入边缘热区时 container mouseleave 误停滚动
+            // 统一在 document 捕获阶段跟踪指针：
+            // 彻底避免右侧按钮 / padding / 子元素抢走 container 事件导致右缘失效
             const pointerRoot = wrapper || container;
-            pointerRoot.addEventListener('mousemove', (e) => {
+            const onDocPointerMove = (e) => {
+                if (!pointerRoot) return;
+                const wr = pointerRoot.getBoundingClientRect();
+                // 指针不在时间线卡片区域内则忽略（用稍大的包围盒）
+                if (e.clientY < wr.top || e.clientY > wr.bottom ||
+                    e.clientX < wr.left - 2 || e.clientX > wr.right + 2) {
+                    if (isEdgeScrolling) stopEdgeScroll();
+                    return;
+                }
                 updateEdgeFromPointer(e.clientX, e.clientY);
-            }, { passive: true });
+            };
+            document.addEventListener('mousemove', onDocPointerMove, { passive: true, capture: true });
 
             pointerRoot.addEventListener('mouseleave', (e) => {
                 const related = e.relatedTarget;
                 if (related && pointerRoot.contains(related)) return;
-                stopEdgeScroll();
+                // 若仍落在热区像素上（子元素/按钮切换），由 onDocPointerMove 继续处理
+                const side = isInEdgeZone(e.clientX, e.clientY);
+                if (!side) stopEdgeScroll();
             });
 
-            if (leftEdge) {
-                leftEdge.addEventListener('mouseenter', () => startEdgeScroll('left'));
-                leftEdge.addEventListener('mousemove', (e) => {
-                    updateEdgeFromPointer(e.clientX, e.clientY);
-                }, { passive: true });
-                leftEdge.addEventListener('mouseleave', (e) => {
-                    const side = isInEdgeZone(e.clientX, e.clientY);
-                    if (side === 'left') return;
-                    if (!side) stopEdgeScroll();
+            const bindEdge = (el, dir) => {
+                if (!el) return;
+                el.addEventListener('mouseenter', () => startEdgeScroll(dir));
+                el.addEventListener('mousemove', (e) => updateEdgeFromPointer(e.clientX, e.clientY), { passive: true });
+                el.addEventListener('mouseleave', (e) => {
+                    if (isInEdgeZone(e.clientX, e.clientY) === dir) return;
+                    if (!isInEdgeZone(e.clientX, e.clientY)) stopEdgeScroll();
                 });
-            }
-            if (rightEdge) {
-                rightEdge.addEventListener('mouseenter', () => startEdgeScroll('right'));
-                rightEdge.addEventListener('mousemove', (e) => {
-                    updateEdgeFromPointer(e.clientX, e.clientY);
-                }, { passive: true });
-                rightEdge.addEventListener('mouseleave', (e) => {
-                    const side = isInEdgeZone(e.clientX, e.clientY);
-                    if (side === 'right') return;
-                    if (!side) stopEdgeScroll();
-                });
-            }
+            };
+            bindEdge(leftEdge, 'left');
+            bindEdge(rightEdge, 'right');
 
-            // 左右箭头按钮与热区重叠时，悬停也触发连续滚动，点击仍做离散滚动
+            // 箭头按钮与热区重叠：悬停连续滚，点击仍离散滚
             const leftNavBtn = pointerRoot.querySelector('button[onclick="scrollTimeline(-300)"]');
             const rightNavBtn = pointerRoot.querySelector('button[onclick="scrollTimeline(300)"]');
             if (leftNavBtn) {
-                leftNavBtn.addEventListener('mouseenter', () => {
-                    if (window.isLocked) startEdgeScroll('left');
-                });
+                leftNavBtn.addEventListener('mouseenter', () => { if (window.isLocked) startEdgeScroll('left'); });
                 leftNavBtn.addEventListener('mouseleave', (e) => {
                     if (!isInEdgeZone(e.clientX, e.clientY)) stopEdgeScroll();
                 });
             }
             if (rightNavBtn) {
-                rightNavBtn.addEventListener('mouseenter', () => {
-                    if (window.isLocked) startEdgeScroll('right');
-                });
+                rightNavBtn.addEventListener('mouseenter', () => { if (window.isLocked) startEdgeScroll('right'); });
                 rightNavBtn.addEventListener('mouseleave', (e) => {
                     if (!isInEdgeZone(e.clientX, e.clientY)) stopEdgeScroll();
                 });
@@ -3212,7 +3246,7 @@
             const box = wrapper || container;
             if (!box) return false;
             const rect = box.getBoundingClientRect();
-            const edge = 48;
+            const edge = 56;
             return clientX <= rect.left + edge || clientX >= rect.right - edge;
         };
 
