@@ -173,8 +173,19 @@
         /* 节点：文字恢复原有显示宽度；仅圆点附近小范围响应悬停判定 */
         .timeline-node-container {
             pointer-events: none;
+            height: 150px;
+            box-sizing: border-box;
+            position: relative;
+            justify-content: center !important;
         }
         .timeline-node-container .node-title-area {
+            position: absolute !important;
+            bottom: calc(50% + 18px);
+            left: 50%;
+            transform: translateX(-50%);
+            margin-bottom: 0 !important;
+            width: 130px;
+            max-width: 130px;
             pointer-events: auto; /* 可点击打开，但不扩大圆点热区 */
         }
         .timeline-node-container .node-hit-area {
@@ -237,7 +248,7 @@
                     <span class="hidden md:inline">tag库</span>
                 </button>
 
-                <button onclick="openShareModal()" class="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-medium border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 flex items-center gap-1 transition-all shadow-sm">
+                <button id="shareCollabBtn" onclick="openShareModal()" title="仅编辑模式可使用" class="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-medium border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 flex items-center gap-1 transition-all shadow-sm">
                     <i class="fa-solid fa-share-nodes text-indigo-600"></i>
                     <span class="hidden md:inline">分享协同</span>
                 </button>
@@ -267,9 +278,9 @@
             </div>
 
             <div class="flex items-center gap-2 shrink-0">
-                <button onclick="openConnectionManager()" title="管理节点之间的逻辑连线" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 flex items-center gap-1.5 transition-all">
-                    <i class="fa-solid fa-diagram-project"></i>
-                    <span>连线</span>
+                <button onclick="openHelpModal()" title="查看使用说明与更新日志" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 flex items-center gap-1.5 transition-all">
+                    <i class="fa-solid fa-circle-question"></i>
+                    <span>使用说明</span>
                 </button>
             </div>
 
@@ -611,7 +622,7 @@
             <p class="text-xs text-slate-400 mb-3">请播放或拖动进度条至目标画面，然后点击下方按钮截取当前帧作为封面：</p>
             
             <div class="relative w-full bg-black rounded-xl overflow-hidden mb-4 border border-slate-700 flex justify-center">
-                <video id="videoCropPlayer" controls playsinline webkit-playsinline class="max-h-60 w-full object-contain bg-black"></video>
+                <video id="videoCropPlayer" controls playsinline webkit-playsinline crossorigin="anonymous" class="max-h-60 w-full object-contain bg-black"></video>
             </div>
 
             <div class="flex justify-between items-center w-full pt-3 border-t border-slate-800">
@@ -641,6 +652,61 @@
         <div class="relative flex flex-col items-center justify-center max-w-full max-h-[90vh]" onclick="event.stopPropagation()">
             <img id="lightboxImg" class="max-w-full max-h-[82vh] object-contain rounded-lg shadow-2xl transition-all">
             <div id="lightboxCounter" class="absolute -bottom-8 text-xs text-slate-400 font-mono tracking-widest bg-slate-900/80 px-3 py-1 rounded-full border border-slate-800"></div>
+        </div>
+    </div>
+
+    <!-- 使用说明 / 更新日志 Modal -->
+    <div id="helpModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[85] hidden flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[88vh] overflow-hidden flex flex-col">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-slate-200 shrink-0">
+                <h3 class="font-bold text-slate-800 text-base flex items-center gap-2"><i class="fa-solid fa-circle-question text-indigo-600"></i><span class="text-lg">使用说明</span><span class="text-[10px] font-normal text-slate-400 ml-1">网站作者：听雨说星星的故事</span></h3>
+                <button type="button" onclick="closeHelpModal()" class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex border-b border-slate-200 bg-slate-50 px-3 pt-2 shrink-0">
+                <button id="helpTabUsage" type="button" onclick="switchHelpTab('usage')" class="flex-1 max-w-[160px] px-4 py-2.5 rounded-t-lg text-xs font-semibold bg-white text-indigo-700 border border-b-0 border-slate-200">使用说明</button>
+                <button id="helpTabChangelog" type="button" onclick="switchHelpTab('changelog')" class="flex-1 max-w-[160px] px-4 py-2.5 rounded-t-lg text-xs font-semibold text-slate-500 hover:text-slate-700">更新日志</button>
+                <button id="helpTabThanks" type="button" onclick="switchHelpTab('thanks')" class="flex-1 max-w-[160px] px-4 py-2.5 rounded-t-lg text-xs font-semibold text-slate-500 hover:text-slate-700">感谢名单</button>
+            </div>
+            <div id="helpUsagePanel" class="overflow-y-auto p-5 text-xs text-slate-600 leading-7">
+                <p class="text-slate-800 mb-5 text-sm leading-7 font-bold">本网站旨在为鱼丁们创造一个可以时刻回顾禹欣的很多「值得纪念的美好事件」的环境，以下为使用说明：</p>
+
+                <div class="mb-6 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600 leading-6">
+                    <div class="font-bold mb-1">小提示</div>
+                    <p>如果刚进入网站时看到一片空白，也不用担心，先等待数据同步完成；等右上角显示“已同步云端”后，就能看见已经同步的数据了。</p>
+                </div>
+
+                <div class="space-y-5">
+                    <div><h4 class="font-bold text-slate-800 mb-1">1. 浏览时间线</h4><p>进入网站后，可以直接通过时间线查看已经记录的事件。事件较多时，可以使用“密度”调节节点之间的间距，也可以通过时间线左右两侧的滑动方式浏览更早或更晚的内容。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">2. 查看事件详情</h4><p>点击时间线上的节点即可打开事件详情页。详情页会展示该事件的详细内容。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">3. 搜索事件</h4><p>如果想快速找到某个事件，可以使用时间线视图右侧的搜索框，输入事件标题后确认搜索。搜索结果会帮助你快速定位需要回顾的节点。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">4. 新建和编辑事件</h4><p>解锁编辑权限后，可以新建事件，也可以打开已有节点进行修改。事件中可以填写标题、日期、节点类型、tag、事件经过与描述，并根据需要添加图片、视频和网址等资料。编辑完成后保存，内容会同步到当前空间。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">5. 添加图片</h4><p>图片可以通过本地上传加入事件，也可以在编辑时重新调整。图片支持截选封面，方便让时间线和详情中的预览更加统一。详情页点击图片后还可以进入图片查看器浏览。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">6. 添加视频</h4><p>视频支持本地上传或填写视频直链，并且可以填写视频标题。编辑视频时可以截取当前画面作为预览封面。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">7. 管理节点连线</h4><p>节点之间的逻辑关系在节点编辑界面中管理。编辑某个节点时，可以添加与其他节点之间的关联，并根据需要修改或删除已有连线。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">8. 使用 tag</h4><p>tag功能可以帮助整理和筛选事件。打开 tag 库后可以创建新的 tag，并根据需要设置包含或排除条件；筛选生效后，时间线只会显示符合当前筛选条件的事件。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">9. 分享与协同</h4><p>“分享协同”属于编辑功能，只有进入编辑模式并且右上角已经显示“已同步云端”后才能使用。通过顶部的“分享协同”可以进入空间管理，复制当前空间的专属链接并分享给其他人后，可以进入同一个空间进行实时协作。不同设备使用同一个空间链接时，会共同看到同步后的内容。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">10. 背景音乐</h4><p>顶部的“背景音乐”可以管理和播放背景音乐。播放有声视频时，背景音乐会自动暂停，视频停止播放后会根据原来的播放状态恢复。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">11. 编辑权限</h4><p>网站默认处于保护状态。需要修改事件、标签或其他内容时，请先解锁编辑权限；如果只是浏览和回顾，则不需要进行编辑操作。</p></div>
+                    <p class="pt-1 text-slate-500">另：想自己上手编辑的话可以call作者给权限喵</p>
+                </div>
+            </div>
+            <div id="helpChangelogPanel" class="hidden overflow-y-auto p-5 text-xs text-slate-600 leading-relaxed">
+                <div class="border border-slate-200 rounded-xl p-4 bg-slate-50">
+                    <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.24</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">本次更新</span></div>
+                    <div class="space-y-4 leading-7">
+                        <p>修复退出事件详情页后视频仍继续播放的问题，退出详情页后会自动停止视频。</p>
+                        <p>移除时间线视图右侧的“连线”按钮，连线管理统一放到节点编辑界面。</p>
+                        <p>视频附件支持填写和编辑标题。</p>
+                    </div>
+                </div>
+            </div>
+            <div id="helpThanksPanel" class="hidden overflow-y-auto p-5 text-xs text-slate-600 leading-relaxed">
+                <div class="border border-slate-200 rounded-xl p-5 bg-slate-50">
+                    <h4 class="text-base font-bold text-slate-800 mb-3 flex items-center gap-2"><span>感谢名单</span></h4>
+                    <p class="text-slate-500 leading-6 mb-4">感谢所有帮助制作、测试和完善这个网页的人。</p>
+                    <div class="inline-block w-auto rounded-lg bg-white border border-slate-200 px-3 py-2 font-semibold text-slate-700 whitespace-nowrap">鱼猴癖</div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -693,6 +759,8 @@
         window.bgmVolume = 0.7;
         
         window.isLocked = localStorage.getItem('yuhoutianqing_isLocked') === 'false' ? false : true;
+        window.isCloudSynced = false;
+        window.canEditNow = function() { return !window.isLocked && window.isCloudSynced; };
         
         if (!localStorage.getItem('yuhoutianqing_lockPassword')) {
             localStorage.setItem('yuhoutianqing_lockPassword', 'tingyu1938');
@@ -731,7 +799,8 @@
                     }
                 });
             }
-            if (srcs.length === 0 && ev.videos && ev.videos.length > 0) {
+            // 视频封面与图片一起参与时间线悬停预览；没有封面的视频则不加入，避免显示空白。
+            if (ev.videos && ev.videos.length > 0) {
                 ev.videos.forEach(v => {
                     const c = typeof v === 'object' ? v.cover : null;
                     if (c) srcs.push(c);
@@ -743,39 +812,143 @@
         window.startPreviewSlideshow = function(rootEl) {
             if (!rootEl) return;
             window.stopPreviewSlideshow(rootEl, false);
-            const imgs = rootEl.querySelectorAll('.preview-slide-img');
+            const imgs = Array.from(rootEl.querySelectorAll('.preview-slide-img'));
             if (!imgs.length) return;
             const timers = [];
-            imgs.forEach(img => {
-                const srcs = img._slideSrcs;
-                if (!srcs || srcs.length <= 1) return;
+            const videoEls = [];
+            const schedule = (img) => {
+                const media = img._slideMedia || [];
+                if (!media.length) return;
                 let idx = 0;
-                const t = setInterval(() => {
-                    idx = (idx + 1) % srcs.length;
-                    img.style.opacity = '0.7';
-                    img.src = srcs[idx];
-                    requestAnimationFrame(() => { img.style.opacity = '1'; });
-                }, window.PREVIEW_SLIDE_MS || 1400);
-                timers.push(t);
-            });
+                const stage = img.parentElement || img;
+                let video = stage.querySelector(':scope > .preview-inline-video');
+                if (!video) {
+                    video = document.createElement('video');
+                    video.className = 'preview-inline-video absolute inset-0 w-full h-full object-cover hidden transition-opacity duration-1000';
+                    video.muted = true;
+                    video.playsInline = true;
+                    video.setAttribute('playsinline', '');
+                    video.setAttribute('webkit-playsinline', '');
+                    stage.classList.add('relative');
+                    stage.appendChild(video);
+                }
+                videoEls.push(video);
+
+                const clearVideo = () => {
+                    try { video.pause(); } catch (_) {}
+                    video.removeAttribute('src');
+                    video.load();
+                    video.classList.add('hidden');
+                    img.classList.remove('hidden');
+                };
+                const next = () => {
+                    if (!rootEl.isConnected) return;
+                    idx = (idx + 1) % media.length;
+                    const item = media[idx];
+                    clearVideo();
+                    img.src = item.cover || item.src || '';
+                    img.style.opacity = '1';
+                    if (item.type === 'video' && item.src) {
+                        const coverTimer = setTimeout(() => {
+                            if (!rootEl.isConnected) return;
+                            img.style.transition = 'opacity 1.8s ease';
+                            img.style.opacity = '0.35';
+                            video.src = item.src;
+                            video.currentTime = 0;
+                            video.classList.remove('hidden');
+                            video.style.transition = 'opacity 1.8s ease';
+                            video.style.opacity = '0';
+                            requestAnimationFrame(() => { video.style.opacity = '1'; });
+                            video.play().catch(() => {});
+                            const playTimer = setTimeout(() => {
+                                clearVideo();
+                                img.style.opacity = '1';
+                                next();
+                            }, 4000);
+                            timers.push(playTimer);
+                        }, 1100);
+                        timers.push(coverTimer);
+                    } else {
+                        const imageTimer = setTimeout(next, 2000);
+                        timers.push(imageTimer);
+                    }
+                };
+
+                const first = media[0];
+                clearVideo();
+                img.src = first.cover || first.src || '';
+                if (first.type === 'video' && first.src) {
+                    const coverTimer = setTimeout(() => {
+                        if (!rootEl.isConnected) return;
+                        img.style.transition = 'opacity 1.8s ease';
+                        img.style.opacity = '0.35';
+                        video.src = first.src;
+                        video.currentTime = 0;
+                        video.classList.remove('hidden');
+                        video.style.transition = 'opacity 1.8s ease';
+                        video.style.opacity = '0';
+                        requestAnimationFrame(() => { video.style.opacity = '1'; });
+                        video.play().catch(() => {});
+                        const playTimer = setTimeout(() => {
+                            clearVideo();
+                            img.style.opacity = '1';
+                            next();
+                        }, 4000);
+                        timers.push(playTimer);
+                    }, 1100);
+                    timers.push(coverTimer);
+                } else {
+                    timers.push(setTimeout(next, 2000));
+                }
+            };
+            imgs.forEach(schedule);
             rootEl._previewSlideTimers = timers;
+            rootEl._previewVideoEls = videoEls;
         };
 
         window.stopPreviewSlideshow = function(rootEl, resetToFirst = true) {
             if (!rootEl) return;
             if (rootEl._previewSlideTimers) {
-                rootEl._previewSlideTimers.forEach(clearInterval);
+                rootEl._previewSlideTimers.forEach(clearTimeout);
                 rootEl._previewSlideTimers = null;
             }
-            if (resetToFirst) {
-                rootEl.querySelectorAll('.preview-slide-img').forEach(img => {
-                    const srcs = img._slideSrcs;
-                    if (srcs && srcs[0]) {
-                        img.src = srcs[0];
-                        img.style.opacity = '1';
-                    }
+            if (rootEl._previewVideoEls) {
+                rootEl._previewVideoEls.forEach(video => {
+                    try { video.pause(); } catch (_) {}
+                    video.removeAttribute('src');
+                    video.load();
+                    video.classList.add('hidden');
+                });
+                rootEl._previewVideoEls = null;
+            }
+            rootEl.querySelectorAll('.preview-slide-img').forEach(img => {
+                img.style.opacity = '1';
+                if (resetToFirst) {
+                    const media = img._slideMedia || [];
+                    const first = media[0];
+                    if (first) img.src = first.cover || first.src || '';
+                }
+            });
+        };
+
+        window.getEventPreviewMedia = function(ev, preferCollection) {
+            const media = [];
+            if (!ev) return media;
+            if (ev.images && ev.images.length > 0) {
+                ev.images.forEach(imgObj => {
+                    let src = '';
+                    if (typeof imgObj === 'string') src = imgObj;
+                    else if (imgObj) src = preferCollection ? (imgObj.collection || imgObj.outer || imgObj.original) : (imgObj.outer || imgObj.original || imgObj.collection);
+                    if (src) media.push({ type: 'image', src, cover: src });
                 });
             }
+            if (ev.videos && ev.videos.length > 0) {
+                ev.videos.forEach(v => {
+                    const obj = typeof v === 'object' ? v : { url: v };
+                    if (obj.cover || obj.url) media.push({ type: 'video', src: obj.url || '', cover: obj.cover || '' });
+                });
+            }
+            return media;
         };
 
         window.editingImageFiles = [];
@@ -927,6 +1100,8 @@
         }
 
         function updateSyncStatus(type, text) {
+            if (type === 'synced') window.isCloudSynced = true;
+            else if (type === 'offline' || type === 'error' || type === 'syncing') window.isCloudSynced = false;
             const dot = document.getElementById('syncDot');
             const textEl = document.getElementById('syncText');
             if (!dot || !textEl) return;
@@ -940,6 +1115,7 @@
             } else {
                 dot.className = "w-2 h-2 rounded-full bg-rose-500";
             }
+            if (typeof window.updateLockButtonUI === 'function') window.updateLockButtonUI();
         }
 
         function setupRealtimeListeners(syncTimeout) {
@@ -959,13 +1135,7 @@
                     window.renderEvents();
                     // 仅当确实从云端取到数据时才标"已同步云端"，避免代理/网络失败时
                     // 空快照（本地缓存或无数据）被误报为同步成功。
-                    if (!snapshot.empty) {
-                        updateSyncStatus('synced', '已同步云端');
-                    } else if (window.events.length > 0) {
-                        updateSyncStatus('synced', '已同步云端');
-                    } else {
-                        updateSyncStatus('offline', '已就绪');
-                    }
+                    updateSyncStatus('synced', '已同步云端');
                 }, (err) => {
                     // 监听建立失败（如 ERR_PROXY_CONNECTION_FAILED / 网络不可达）时回退本地
                     if (syncTimeout) clearTimeout(syncTimeout);
@@ -1580,17 +1750,35 @@
 
         window.updateLockButtonUI = function() {
             const lockBtn = document.getElementById('lockToggleBtn');
+            const shareBtn = document.getElementById('shareCollabBtn');
+            const shareEnabled = !window.isLocked && window.isCloudSynced;
+            if (shareBtn) {
+                shareBtn.disabled = !shareEnabled;
+                shareBtn.className = shareEnabled
+                    ? "px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-medium border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 flex items-center gap-1 transition-all shadow-sm"
+                    : "px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-medium border border-slate-200 bg-slate-100 text-slate-400 flex items-center gap-1 transition-all shadow-sm cursor-not-allowed";
+            }
             if (!lockBtn) return;
-            if (window.isLocked) {
+            if (!window.isCloudSynced) {
+                lockBtn.className = "flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs font-medium transition-all shadow-sm border bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed";
+                lockBtn.innerHTML = `<i class="fa-solid fa-cloud-arrow-down text-slate-400"></i><span class="hidden sm:inline">等待同步</span><span class="sm:hidden">同步中</span>`;
+                lockBtn.disabled = true;
+            } else if (window.isLocked) {
+                lockBtn.disabled = false;
                 lockBtn.className = "flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs font-medium transition-all shadow-sm border bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100";
                 lockBtn.innerHTML = `<i class="fa-solid fa-lock text-amber-600"></i><span class="hidden sm:inline">浏览模式</span><span class="sm:hidden">浏览</span>`;
             } else {
+                lockBtn.disabled = false;
                 lockBtn.className = "flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs font-medium transition-all shadow-sm border bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100";
                 lockBtn.innerHTML = `<i class="fa-solid fa-lock-open text-emerald-600"></i><span class="hidden sm:inline">编辑模式</span><span class="sm:hidden">编辑</span>`;
             }
         };
 
         window.toggleLockState = function() {
+            if (!window.isCloudSynced) {
+                window.showToast('请先等待右上角显示“已同步云端”', 'error');
+                return;
+            }
             if (window.isLocked) {
                 window.openPwdModal();
             } else {
@@ -1613,6 +1801,10 @@
         };
 
         window.submitUnlockPassword = function() {
+            if (!window.isCloudSynced) {
+                window.showToast('请先等待右上角显示“已同步云端”后再进入编辑模式', 'error');
+                return;
+            }
             const pwdInput = document.getElementById('unlockPwdInput');
             const pwd = pwdInput ? pwdInput.value : '';
             const currentLockPwd = localStorage.getItem('yuhoutianqing_lockPassword') || 'tingyu1938';
@@ -1628,6 +1820,10 @@
         };
 
         window.openShareModal = function() {
+            if (!window.canEditNow()) {
+                window.showToast(window.isCloudSynced ? '请先解锁编辑模式后使用分享协同' : '请先等待右上角显示“已同步云端”', 'error');
+                return;
+            }
             const roomInput = document.getElementById('shareRoomInput');
             const urlInput = document.getElementById('shareUrlInput');
             if (roomInput) roomInput.value = window.currentRoomId === 'default' ? '' : window.currentRoomId;
@@ -1838,6 +2034,7 @@
         };
 
         window.addNewTagFromModal = async function() {
+            if (!window.canEditNow()) return;
             if (window.isLocked) return;
             const input = document.getElementById('newTagInput');
             const newTag = input ? input.value.trim() : '';
@@ -1856,6 +2053,7 @@
         };
 
         window.deleteTag = async function(tagName) {
+            if (!window.canEditNow()) return;
             if (window.isLocked) return;
             window.availableTags = window.availableTags.filter(t => t !== tagName);
             await window.deleteTagFromCloud(tagName);
@@ -2116,7 +2314,8 @@
                 }
 
                 let firstImgSrc = getEventTileSrc(firstEvent, false);
-                const itemPreviewSrcLists = items.map(ev => window.getEventPreviewSrcs(ev, isMerged));
+                const itemPreviewMediaLists = items.map(ev => window.getEventPreviewMedia(ev, isMerged));
+                const itemPreviewSrcLists = itemPreviewMediaLists.map(list => list.map(m => m.cover || m.src).filter(Boolean));
 
                 // 生成统一的 identifier
                 let dotId;
@@ -2141,8 +2340,9 @@
                     const tiles = items.map((ev, tileIdx) => {
                         const srcs = itemPreviewSrcLists[tileIdx] || [];
                         const src = srcs[0] || null;
+                        const mediaJson = JSON.stringify(itemPreviewMediaLists[tileIdx] || []).replace(/"/g, '&quot;');
                         if (src) {
-                            return `<div class="overflow-hidden bg-slate-800" style="width:${cell}px;height:${cell}px;"><img class="preview-slide-img w-full h-full object-cover transition-opacity duration-300" data-tile-idx="${tileIdx}" src="${src}" alt="" draggable="false"></div>`;
+                            return `<div class="overflow-hidden bg-slate-800 relative" style="width:${cell}px;height:${cell}px;"><img class="preview-slide-img w-full h-full object-cover transition-opacity duration-300" data-tile-idx="${tileIdx}" data-media-json="${mediaJson}" src="${src}" alt="" draggable="false"></div>`;
                         }
                         return `<div class="bg-slate-800 flex items-center justify-center" style="width:${cell}px;height:${cell}px;"><span class="text-[8px] text-slate-400 px-0.5 text-center leading-tight line-clamp-2">${(ev.title || '').slice(0, 8)}</span></div>`;
                     }).join('');
@@ -2150,7 +2350,8 @@
                     const pads = Array.from({ length: pad }, () => `<div class="bg-slate-800" style="width:${cell}px;height:${cell}px;"></div>`).join('');
                     tooltipInnerHtml = `<div class="grid gap-0" style="grid-template-columns: repeat(${cols}, ${cell}px); width:${gridW}px; height:${gridH}px;">${tiles}${pads}</div>`;
                 } else if (firstImgSrc) {
-                    tooltipInnerHtml = `<img class="preview-slide-img w-full h-full object-cover transition-opacity duration-300" data-tile-idx="0" src="${firstImgSrc}" alt="">`;
+                    const mediaJson = JSON.stringify(itemPreviewMediaLists[0] || []).replace(/"/g, '&quot;');
+                    tooltipInnerHtml = `<div class="relative w-full h-full"><img class="preview-slide-img w-full h-full object-cover transition-opacity duration-300" data-tile-idx="0" data-media-json="${mediaJson}" src="${firstImgSrc}" alt=""></div>`;
                 } else {
                     tooltipInnerHtml = `
                         <div class="p-3 flex flex-col gap-1.5">
@@ -2196,8 +2397,14 @@
 
                 nodeContainer.querySelectorAll('.preview-slide-img').forEach(img => {
                     const tileIdx = parseInt(img.getAttribute('data-tile-idx') || '0', 10);
-                    const srcs = itemPreviewSrcLists[tileIdx] || [];
-                    img._slideSrcs = srcs.length ? srcs : (img.src ? [img.src] : []);
+                    let media = itemPreviewMediaLists[tileIdx] || [];
+                    try {
+                        const raw = (img.getAttribute('data-media-json') || '').replace(/&quot;/g, '"');
+                        const parsed = JSON.parse(raw || '[]');
+                        if (Array.isArray(parsed) && parsed.length) media = parsed;
+                    } catch (_) {}
+                    img._slideMedia = media.length ? media : (img.src ? [{type:'image', src:img.src, cover:img.src}] : []);
+                    img._slideSrcs = img._slideMedia.map(m => m.cover || m.src).filter(Boolean);
                     img.style.transition = 'opacity 0.25s ease';
                 });
 
@@ -2311,9 +2518,10 @@
 
                     <div id="stackCardsWrapper" class="relative w-full flex-grow flex items-center justify-center overflow-hidden my-auto" style="height: 400px;">
                         ${items.map((event, idx) => {
-                            const slideSrcs = window.getEventPreviewSrcs(event, false);
+                            const slideMedia = window.getEventPreviewMedia(event, false);
+                            const slideSrcs = slideMedia.map(m => m.cover || m.src).filter(Boolean);
                             const firstImgSrc = slideSrcs[0] || null;
-                            const slideJson = JSON.stringify(slideSrcs).replace(/"/g, '&quot;');
+                            const slideJson = JSON.stringify(slideMedia).replace(/"/g, '&quot;');
                             
                             return `
                                 <div class="stack-card bg-white rounded-2xl overflow-hidden shadow-2xl border border-slate-300 flex flex-col select-none"
@@ -2350,12 +2558,13 @@
 
             modal.classList.remove('hidden');
             modal.querySelectorAll('.preview-slide-img').forEach(img => {
-                let srcs = [];
+                let media = [];
                 try {
                     const raw = (img.getAttribute('data-slide-json') || '').replace(/&quot;/g, '"');
-                    srcs = JSON.parse(raw || '[]');
+                    media = JSON.parse(raw || '[]');
                 } catch (_) {}
-                img._slideSrcs = Array.isArray(srcs) && srcs.length ? srcs : (img.src ? [img.src] : []);
+                img._slideMedia = Array.isArray(media) && media.length ? media : (img.src ? [{type:'image', src:img.src, cover:img.src}] : []);
+                img._slideSrcs = img._slideMedia.map(m => m.cover || m.src).filter(Boolean);
                 img.style.transition = 'opacity 0.25s ease';
             });
             updateStackCardStyles(0);
@@ -2580,6 +2789,7 @@
         };
 
         window.createConnection = async function() {
+            if (!window.canEditNow()) return;
             if (window.isLocked) return;
 
             const sourceId = document.getElementById('connSourceSelect')?.value;
@@ -2633,6 +2843,7 @@
         };
 
         window.deleteConnection = async function(connectionId) {
+            if (!window.canEditNow()) return;
             if (window.isLocked) return;
 
             const target = window.connections.find(c => String(c.id) === String(connectionId));
@@ -3296,9 +3507,11 @@
                             ${event.videos.map(v => {
                                 const vUrl = typeof v === 'object' ? (v.blobUrl || v.url) : v;
                                 const vCover = typeof v === 'object' ? (v.cover || '') : '';
+                                const vTitle = typeof v === 'object' ? (v.title || v.name || '') : '';
                                 const vType = typeof v === 'object' && v.mime ? `type="${v.mime}"` : '';
                                 return `
                                     <div class="bg-black rounded-xl overflow-hidden border border-slate-800">
+                                        ${vTitle ? `<div class="px-3 py-2 bg-slate-900 text-xs font-semibold text-slate-200 border-b border-slate-800">${escapeHtml(vTitle)}</div>` : ''}
                                         <video ${vCover ? `poster="${vCover}"` : ''} controls playsinline webkit-playsinline preload="metadata" class="w-full max-h-80 object-contain bg-black">
                                             <source src="${vUrl}" ${vType}>
                                         </video>
@@ -3343,12 +3556,13 @@
                     ${imagesHtml}
                     ${videosHtml}
                     ${linksHtml}
-                    ${connHtml}
 
-                    <div class="border-t border-slate-800 pt-6">
+                    <div class="border-t border-slate-800 pt-6 mb-6">
                         <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">事件经过与描述</h4>
                         <p class="text-sm sm:text-base text-slate-200 leading-relaxed whitespace-pre-wrap">${event.description || '无详细描述'}</p>
                     </div>
+
+                    ${connHtml}
                 </div>
             `;
             viewer.classList.remove('hidden');
@@ -3356,7 +3570,12 @@
 
         window.closeReadOnlyFullscreen = function(fromStackDate = '') {
             const viewer = document.getElementById('fullscreenViewer');
-            if (viewer) viewer.classList.add('hidden');
+            if (viewer) {
+                viewer.querySelectorAll('video').forEach(video => {
+                    try { video.pause(); video.currentTime = 0; video.removeAttribute('src'); video.load(); } catch (_) {}
+                });
+                viewer.classList.add('hidden');
+            }
             
             if (fromStackDate) {
                 const items = window.events.filter(e => e.date === fromStackDate);
@@ -3463,6 +3682,7 @@
         };
 
         window.addEditingConnection = function() {
+            if (!window.canEditNow()) return;
             if (window.isLocked) return;
             const selfId = window.editingConnectionDraftEventId;
             const targetIdRaw = document.getElementById('editConnTarget')?.value;
@@ -3534,6 +3754,10 @@
         };
 
         window.openEditModal = function(eventId = null) {
+            if (!window.canEditNow()) {
+                window.showToast(window.isCloudSynced ? '当前处于浏览模式，请先解锁编辑模式' : '请先等待右上角显示“已同步云端”后再编辑', 'error');
+                return;
+            }
             let modal = document.getElementById('editModal');
             if (!modal) {
                 modal = document.createElement('div');
@@ -3574,10 +3798,8 @@
             window.editingEventDate = event.date;
 
             window.editingVideos = (event.videos ? event.videos : []).map(v => {
-                if (typeof v === 'string') {
-                    return { url: v, cover: '' };
-                }
-                return { url: v.url, cover: v.cover || '' };
+                if (typeof v === 'string') return { url: v, cover: '', title: '' };
+                return { url: v.url, cover: v.cover || '', title: v.title || v.name || '', mime: v.mime || '', name: v.name || '' };
             });
 
             window.editingLinks = event.links ? [...event.links] : [];
@@ -3613,7 +3835,7 @@
                             <div><label class="block text-xs font-bold text-slate-700 mb-1">节点类型</label><select id="editType" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"><option value="minor" ${event.type === 'minor' ? 'selected' : ''}>普通事件</option><option value="major" ${event.type === 'major' ? 'selected' : ''}>重大里程碑</option></select></div>
                             <div><label class="block text-xs font-bold text-slate-700 mb-1">选择 tag (多选)</label><div class="flex flex-wrap gap-1.5 p-2 border border-slate-200 rounded-lg bg-slate-50 max-h-28 overflow-y-auto" id="editTagsList">${window.availableTags.length === 0 ? '<p class="text-xs text-slate-400 italic">暂无可用 tag</p>' : window.availableTags.map(t => { const checked = event.tags && event.tags.includes(t); return `<label class="cursor-pointer text-xs flex items-center gap-1.5 px-2 py-1 rounded border transition-colors ${checked ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-semibold' : 'bg-white border-slate-200 text-slate-600'}"><input type="checkbox" value="${t}" ${checked ? 'checked' : ''} class="hidden" onchange="toggleTagSelection(this)"><span># ${t}</span></label>`; }).join('')}</div></div>
                             <div class="space-y-2 bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
-                                <div class="flex items-center justify-between"><div><label class="block text-xs font-bold text-slate-700"><i class="fa-solid fa-diagram-project text-indigo-600 mr-1"></i>逻辑连线</label></div><button type="button" onclick="openConnectionManager()" class="text-[10px] text-indigo-600 hover:text-indigo-800 font-semibold">打开完整管理</button></div>
+                                <div class="flex items-center justify-between"><div><label class="block text-xs font-bold text-slate-700"><i class="fa-solid fa-diagram-project text-indigo-600 mr-1"></i>逻辑连线</label><p class="text-[10px] text-slate-400 mt-0.5">可直接添加、修改和删除当前节点的连线</p></div></div>
                                 <select id="editConnSource" class="hidden"></select>
                                 <select id="editConnTarget" class="w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-indigo-500"></select>
                                 <div class="grid grid-cols-3 gap-1.5"><label class="cursor-pointer"><input type="radio" name="editConnDirection" value="forward" checked class="sr-only peer"><span class="flex items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">→ 指向</span></label><label class="cursor-pointer"><input type="radio" name="editConnDirection" value="backward" class="sr-only peer"><span class="flex items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">← 被指向</span></label><label class="cursor-pointer"><input type="radio" name="editConnDirection" value="both" class="sr-only peer"><span class="flex items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">↔ 双向</span></label></div>
@@ -3642,14 +3864,15 @@
 
                             <div class="space-y-2 pt-2 border-t border-slate-200">
                                 <span class="block text-[11px] font-bold text-slate-600">添加视频 (支持本地上传或直链网址)</span>
-                                <div class="flex gap-2">
-                                    <button type="button" onclick="document.getElementById('videoFileInput').click()" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-xs text-slate-700 flex items-center gap-1">
-                                        <i class="fa-solid fa-upload text-indigo-600"></i> 本地上传视频
-                                    </button>
-                                    <input type="file" id="videoFileInput" multiple accept="video/*" class="hidden" onchange="handleLocalVideoUpload(event)">
-                                    <div class="flex flex-grow gap-1">
+                                <div class="flex flex-col gap-2">
+                                    <div class="flex gap-2">
+                                        <button type="button" onclick="document.getElementById('videoFileInput').click()" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-xs text-slate-700 flex items-center gap-1"><i class="fa-solid fa-upload text-indigo-600"></i> 本地上传视频</button>
+                                        <input type="file" id="videoFileInput" multiple accept="video/*" class="hidden" onchange="handleLocalVideoUpload(event)">
+                                    </div>
+                                    <div class="flex gap-1.5">
+                                        <input type="text" id="videoTitleInput" placeholder="视频标题（可选）" class="w-1/3 px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:ring-1 focus:ring-indigo-500">
                                         <input type="url" id="videoLinkInput" placeholder="或输入视频直链网址" class="flex-grow px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:ring-1 focus:ring-indigo-500">
-                                        <button type="button" onclick="addVideoLink()" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium">添加</button>
+                                        <button type="button" onclick="addVideoLink()" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium shrink-0">添加</button>
                                     </div>
                                 </div>
                                 <div id="videoPreviewsContainer" class="space-y-1.5"></div>
@@ -3748,7 +3971,8 @@
                         blobUrl: blobUrl,
                         cover: '',
                         mime: f.type || 'video/mp4',
-                        name: f.name || ''
+                        name: f.name || '',
+                        title: f.name ? f.name.replace(/\.[^.]+$/, '') : ''
                     });
                     window.renderVideoPreviews();
                 } catch (err) {
@@ -3761,14 +3985,17 @@
 
         window.addVideoLink = function() {
             const input = document.getElementById('videoLinkInput');
+            const titleInput = document.getElementById('videoTitleInput');
             const val = input ? input.value.trim() : '';
-            if (!val) {
-                window.showToast("请输入有效的视频链接", "error");
-                return;
-            }
-            window.editingVideos.push({ url: val, cover: '' });
+            const title = titleInput ? titleInput.value.trim() : '';
+            if (!val) { window.showToast("请输入有效的视频链接", "error"); return; }
+            window.editingVideos.push({ url: val, cover: '', title: title });
             input.value = '';
+            if (titleInput) titleInput.value = '';
             window.renderVideoPreviews();
+        };
+        window.updateVideoTitle = function(index, value) {
+            if (window.editingVideos[index]) window.editingVideos[index].title = String(value || '').trim();
         };
 
         window.removeVideo = function(index) {
@@ -3784,16 +4011,17 @@
                 return;
             }
             container.innerHTML = window.editingVideos.map((v, idx) => `
-                <div class="flex items-center justify-between bg-white border border-slate-200 px-2.5 py-1.5 rounded-lg text-xs gap-2">
-                    <div class="flex items-center gap-2 truncate max-w-[220px]">
-                        ${v.cover ? `<img src="${v.cover}" class="w-8 h-6 object-cover rounded border">` : '<div class="w-8 h-6 bg-slate-200 rounded flex items-center justify-center text-[9px] text-slate-500">无图</div>'}
-                        <span class="truncate text-slate-700">${v.url}</span>
+                <div class="bg-white border border-slate-200 px-2.5 py-2 rounded-lg text-xs space-y-1.5">
+                    <div class="flex items-center gap-2">
+                        ${v.cover ? `<img src="${v.cover}" class="w-8 h-6 object-cover rounded border shrink-0">` : '<div class="w-8 h-6 bg-slate-200 rounded flex items-center justify-center text-[9px] text-slate-500 shrink-0">无图</div>'}
+                        <input type="text" value="${String(v.title || '').replace(/"/g, '&quot;')}" placeholder="视频标题（可选）" onchange="updateVideoTitle(${idx}, this.value)" class="flex-1 min-w-0 px-2 py-1 border border-slate-200 rounded-md text-[11px] outline-none focus:ring-1 focus:ring-indigo-500">
                     </div>
-                    <div class="flex items-center gap-1.5 shrink-0">
-                        <button type="button" onclick="openVideoCropModal(${idx})" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded text-[10px] font-medium flex items-center gap-1">
-                            <i class="fa-solid fa-crop"></i> 截选封面
-                        </button>
-                        <button type="button" onclick="removeVideo(${idx})" class="text-rose-500 hover:text-rose-700 p-1"><i class="fa-solid fa-xmark"></i></button>
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="truncate text-[10px] text-slate-400" title="${String(v.url || '').replace(/"/g, '&quot;')}">${String(v.url || '')}</span>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            <button type="button" onclick="openVideoCropModal(${idx})" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded text-[10px] font-medium flex items-center gap-1"><i class="fa-solid fa-crop"></i> 截选封面</button>
+                            <button type="button" onclick="removeVideo(${idx})" class="text-rose-500 hover:text-rose-700 p-1"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
                     </div>
                 </div>
             `).join('');
@@ -3808,11 +4036,10 @@
             const player = document.getElementById('videoCropPlayer');
             if (!modal || !player) return;
 
-            player.removeAttribute('crossorigin');
+            player.setAttribute('crossorigin', 'anonymous');
             player.src = vidObj.blobUrl || vidObj.url;
             modal.classList.remove('hidden');
             player.load();
-            player.play().catch(() => {});
         };
 
         window.closeVideoCropModal = function() {
@@ -3828,17 +4055,27 @@
             const player = document.getElementById('videoCropPlayer');
             if (!player) return;
 
-            const canvas = document.createElement('canvas');
-            canvas.width = player.videoWidth || 640;
-            canvas.height = player.videoHeight || 360;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(player, 0, 0, canvas.width, canvas.height);
+            if (player.readyState < 2 || !player.videoWidth || !player.videoHeight) {
+                window.showToast("请先播放或拖动到需要截取的画面，再点击截取", "error");
+                return;
+            }
 
-            const frameDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-            window.editingVideos[activeVideoCropIndex].cover = frameDataUrl;
-            window.showToast("截选完成", "success");
-            window.renderVideoPreviews();
-            window.closeVideoCropModal();
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = player.videoWidth;
+                canvas.height = player.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(player, 0, 0, canvas.width, canvas.height);
+
+                const frameDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                window.editingVideos[activeVideoCropIndex].cover = frameDataUrl;
+                window.showToast("截选完成", "success");
+                window.renderVideoPreviews();
+                window.closeVideoCropModal();
+            } catch (err) {
+                console.error('视频封面截取失败:', err);
+                window.showToast("当前视频无法截取封面，请确认视频允许跨域读取后再试", "error");
+            }
         };
 
         window.addWebLink = function() {
@@ -4308,7 +4545,8 @@
                     url: v.url,
                     cover: v.cover || '',
                     mime: v.mime || '',
-                    name: v.name || ''
+                    name: v.name || '',
+                    title: v.title || ''
                 })),
                 links: [...window.editingLinks],
                 connections: [...window.editingConnections],
@@ -4317,6 +4555,30 @@
 
             document.getElementById('confirmSaveModal')?.classList.remove('hidden');
         };
+
+        window.openHelpModal = function() { const modal = document.getElementById('helpModal'); if (!modal) return; switchHelpTab('usage'); modal.classList.remove('hidden'); };
+        window.closeHelpModal = function() { document.getElementById('helpModal')?.classList.add('hidden'); };
+        window.switchHelpTab = function(tab) {
+            const usage = document.getElementById('helpUsagePanel');
+            const changelog = document.getElementById('helpChangelogPanel');
+            const thanks = document.getElementById('helpThanksPanel');
+            const b1 = document.getElementById('helpTabUsage');
+            const b2 = document.getElementById('helpTabChangelog');
+            const b3 = document.getElementById('helpTabThanks');
+            [usage, changelog, thanks].forEach(el => el?.classList.add('hidden'));
+            [b1, b2, b3].forEach(el => el?.classList.remove('bg-white','text-indigo-700','border','border-b-0','border-slate-200'));
+            if (tab === 'changelog') {
+                changelog?.classList.remove('hidden');
+                b2?.classList.add('bg-white','text-indigo-700','border','border-b-0','border-slate-200');
+            } else if (tab === 'thanks') {
+                thanks?.classList.remove('hidden');
+                b3?.classList.add('bg-white','text-indigo-700','border','border-b-0','border-slate-200');
+            } else {
+                usage?.classList.remove('hidden');
+                b1?.classList.add('bg-white','text-indigo-700','border','border-b-0','border-slate-200');
+            }
+        };
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') { const h=document.getElementById('helpModal'); if(h && !h.classList.contains('hidden')) closeHelpModal(); const v=document.getElementById('fullscreenViewer'); if(v && !v.classList.contains('hidden')) closeReadOnlyFullscreen(); } });
 
         window.showToast = function(text, type = "info") {
             const toastBox = document.getElementById('toastBox');
