@@ -119,7 +119,7 @@
             position: absolute;
         }
 
-        /* 边缘自动滚动热区 */
+        /* 边缘自动滚动热区：不拦截指针，由 wrapper 级 mousemove 判定热区，避免挡住节点悬停 */
         .scroll-edge {
             position: absolute;
             top: 0;
@@ -324,10 +324,10 @@
                 <i class="fa-solid fa-chevron-right edge-icon"></i>
             </div>
 
-            <button onclick="scrollTimeline(-300)" class="hidden md:flex absolute left-2 top-1/2 -translate-y-1/2 z-20 bg-white/95 hover:bg-white shadow-lg rounded-full w-9 h-9 border border-slate-200 items-center justify-center text-slate-700 hover:text-indigo-600 transition-all">
+            <button onclick="scrollTimeline(-300)" class="hidden md:flex absolute left-2 top-1/2 -translate-y-1/2 z-50 bg-white/95 hover:bg-white shadow-lg rounded-full w-9 h-9 border border-slate-200 items-center justify-center text-slate-700 hover:text-indigo-600 transition-all">
                 <i class="fa-solid fa-chevron-left text-xs"></i>
             </button>
-            <button onclick="scrollTimeline(300)" class="hidden md:flex absolute right-2 top-1/2 -translate-y-1/2 z-20 bg-white/95 hover:bg-white shadow-lg rounded-full w-9 h-9 border border-slate-200 items-center justify-center text-slate-700 hover:text-indigo-600 transition-all">
+            <button onclick="scrollTimeline(300)" class="hidden md:flex absolute right-2 top-1/2 -translate-y-1/2 z-50 bg-white/95 hover:bg-white shadow-lg rounded-full w-9 h-9 border border-slate-200 items-center justify-center text-slate-700 hover:text-indigo-600 transition-all">
                 <i class="fa-solid fa-chevron-right text-xs"></i>
             </button>
 
@@ -1592,56 +1592,88 @@
                 if (!animationId) animationId = requestAnimationFrame(smoothScroll);
             }
 
+            function isInEdgeZone(clientX, clientY) {
+                const wr = wrapper ? wrapper.getBoundingClientRect() : container.getBoundingClientRect();
+                // 垂直范围以时间线容器为准，左右热区覆盖整个 wrapper 宽度边缘（含 padding）
+                const cr = container.getBoundingClientRect();
+                if (clientY < cr.top || clientY > cr.bottom) return null;
+                if (clientX >= wr.left && clientX <= wr.left + EDGE_PX) return 'left';
+                if (clientX <= wr.right && clientX >= wr.right - EDGE_PX) return 'right';
+                return null;
+            }
+
             function updateEdgeFromPointer(clientX, clientY) {
                 if (!window.isLocked) {
                     if (isEdgeScrolling) stopEdgeScroll();
                     window._pointerInEdgeZone = false;
                     return;
                 }
-                const cr = container.getBoundingClientRect();
-                const wr = wrapper ? wrapper.getBoundingClientRect() : cr;
-                if (clientY < cr.top || clientY > cr.bottom) {
-                    if (isEdgeScrolling || window._pointerInEdgeZone) stopEdgeScroll();
-                    return;
-                }
-                const nearLeft = clientX >= wr.left && clientX <= wr.left + EDGE_PX;
-                const nearRight = clientX <= wr.right && clientX >= wr.right - EDGE_PX;
-
-                window._pointerInEdgeZone = nearLeft || nearRight;
-
-                if (nearLeft) {
+                const side = isInEdgeZone(clientX, clientY);
+                window._pointerInEdgeZone = !!side;
+                if (side === 'left') {
                     startEdgeScroll('left');
-                } else if (nearRight) {
+                } else if (side === 'right') {
                     startEdgeScroll('right');
                 } else if (isEdgeScrolling) {
                     stopEdgeScroll();
                 }
             }
 
-            container.addEventListener('mousemove', (e) => {
+            // 在 wrapper 上跟踪指针，避免仅监听 container 时：
+            // 1) 左右 padding 区域收不到 mousemove
+            // 2) 右侧绝对定位按钮挡住 container 导致右缘失效
+            // 3) 移入边缘热区时 container mouseleave 误停滚动
+            const pointerRoot = wrapper || container;
+            pointerRoot.addEventListener('mousemove', (e) => {
                 updateEdgeFromPointer(e.clientX, e.clientY);
             }, { passive: true });
 
-            container.addEventListener('mouseleave', () => {
+            pointerRoot.addEventListener('mouseleave', (e) => {
+                const related = e.relatedTarget;
+                if (related && pointerRoot.contains(related)) return;
                 stopEdgeScroll();
             });
 
-            if (wrapper) {
-                wrapper.addEventListener('mouseleave', () => {
-                    stopEdgeScroll();
-                });
-            }
-
             if (leftEdge) {
                 leftEdge.addEventListener('mouseenter', () => startEdgeScroll('left'));
-                leftEdge.addEventListener('mouseleave', () => {
-                    if (!window._pointerInEdgeZone) stopEdgeScroll();
+                leftEdge.addEventListener('mousemove', (e) => {
+                    updateEdgeFromPointer(e.clientX, e.clientY);
+                }, { passive: true });
+                leftEdge.addEventListener('mouseleave', (e) => {
+                    const side = isInEdgeZone(e.clientX, e.clientY);
+                    if (side === 'left') return;
+                    if (!side) stopEdgeScroll();
                 });
             }
             if (rightEdge) {
                 rightEdge.addEventListener('mouseenter', () => startEdgeScroll('right'));
-                rightEdge.addEventListener('mouseleave', () => {
-                    if (!window._pointerInEdgeZone) stopEdgeScroll();
+                rightEdge.addEventListener('mousemove', (e) => {
+                    updateEdgeFromPointer(e.clientX, e.clientY);
+                }, { passive: true });
+                rightEdge.addEventListener('mouseleave', (e) => {
+                    const side = isInEdgeZone(e.clientX, e.clientY);
+                    if (side === 'right') return;
+                    if (!side) stopEdgeScroll();
+                });
+            }
+
+            // 左右箭头按钮与热区重叠时，悬停也触发连续滚动，点击仍做离散滚动
+            const leftNavBtn = pointerRoot.querySelector('button[onclick="scrollTimeline(-300)"]');
+            const rightNavBtn = pointerRoot.querySelector('button[onclick="scrollTimeline(300)"]');
+            if (leftNavBtn) {
+                leftNavBtn.addEventListener('mouseenter', () => {
+                    if (window.isLocked) startEdgeScroll('left');
+                });
+                leftNavBtn.addEventListener('mouseleave', (e) => {
+                    if (!isInEdgeZone(e.clientX, e.clientY)) stopEdgeScroll();
+                });
+            }
+            if (rightNavBtn) {
+                rightNavBtn.addEventListener('mouseenter', () => {
+                    if (window.isLocked) startEdgeScroll('right');
+                });
+                rightNavBtn.addEventListener('mouseleave', (e) => {
+                    if (!isInEdgeZone(e.clientX, e.clientY)) stopEdgeScroll();
                 });
             }
         }
@@ -3174,11 +3206,14 @@
 
         window.isPointerInTimelineEdgeZone = function(clientX) {
             if (window._pointerInEdgeZone) return true;
+            if (clientX == null) return false;
+            const wrapper = document.getElementById('timelineWrapper');
             const container = document.getElementById('timelineContainer');
-            if (!container || clientX == null) return false;
-            const cr = container.getBoundingClientRect();
+            const box = wrapper || container;
+            if (!box) return false;
+            const rect = box.getBoundingClientRect();
             const edge = 48;
-            return clientX <= cr.left + edge || clientX >= cr.right - edge;
+            return clientX <= rect.left + edge || clientX >= rect.right - edge;
         };
 
         window.tryRearrangeOnHover = function(anchorNode, anchorEventIds) {
