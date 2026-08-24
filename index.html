@@ -668,9 +668,10 @@
                 <button id="helpTabThanks" type="button" onclick="switchHelpTab('thanks')" class="flex-1 max-w-[160px] px-4 py-2.5 rounded-t-lg text-xs font-semibold text-slate-500 hover:text-slate-700">感谢名单</button>
             </div>
             <div id="helpUsagePanel" class="overflow-y-auto p-5 text-xs text-slate-600 leading-7">
+                <div class="border border-slate-200 rounded-xl p-5 bg-gradient-to-r from-pink-50 via-purple-50 to-sky-50">
                 <p class="text-slate-800 mb-5 text-sm leading-7 font-bold">本网站旨在为鱼丁们创造一个可以时刻回顾禹欣的很多「值得纪念的美好事件」的环境，以下为使用说明：</p>
 
-                <div class="mb-6 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600 leading-6">
+                <div class="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 leading-6">
                     <div class="font-bold mb-1">小提示</div>
                     <p>如果刚进入网站时看到一片空白，也不用担心，先等待数据同步完成；等右上角显示“已同步云端”后，就能看见已经同步的数据了。</p>
                 </div>
@@ -689,9 +690,10 @@
                     <div><h4 class="font-bold text-slate-800 mb-1">11. 编辑权限</h4><p>网站默认处于保护状态。需要修改事件、标签或其他内容时，请先解锁编辑权限；如果只是浏览和回顾，则不需要进行编辑操作。</p></div>
                     <p class="pt-1 text-slate-500">另：想自己上手编辑的话可以call作者给权限喵</p>
                 </div>
+                </div>
             </div>
             <div id="helpChangelogPanel" class="hidden overflow-y-auto p-5 text-xs text-slate-600 leading-relaxed">
-                <div class="border border-slate-200 rounded-xl p-4 bg-slate-50">
+                <div class="border border-green-300 rounded-xl p-4 bg-green-50">
                     <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.24</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">本次更新</span></div>
                     <div class="space-y-4 leading-7">
                         <p>修复退出事件详情页后视频仍继续播放的问题，退出详情页后会自动停止视频。</p>
@@ -701,7 +703,7 @@
                 </div>
             </div>
             <div id="helpThanksPanel" class="hidden overflow-y-auto p-5 text-xs text-slate-600 leading-relaxed">
-                <div class="border border-slate-200 rounded-xl p-5 bg-slate-50">
+                <div class="border border-rose-300 rounded-xl p-5 bg-rose-50">
                     <h4 class="text-base font-bold text-slate-800 mb-3 flex items-center gap-2"><span>感谢名单</span></h4>
                     <p class="text-slate-500 leading-6 mb-4">感谢所有帮助制作、测试和完善这个网页的人。</p>
                     <div class="inline-block w-auto rounded-lg bg-white border border-slate-200 px-3 py-2 font-semibold text-slate-700 whitespace-nowrap">鱼猴癖</div>
@@ -824,7 +826,7 @@
                 let video = stage.querySelector(':scope > .preview-inline-video');
                 if (!video) {
                     video = document.createElement('video');
-                    video.className = 'preview-inline-video absolute inset-0 w-full h-full object-cover hidden transition-opacity duration-1000';
+                    video.className = 'preview-inline-video absolute inset-0 w-full h-full object-cover hidden';
                     video.muted = true;
                     video.playsInline = true;
                     video.setAttribute('playsinline', '');
@@ -851,14 +853,11 @@
                     if (item.type === 'video' && item.src) {
                         const coverTimer = setTimeout(() => {
                             if (!rootEl.isConnected) return;
-                            img.style.transition = 'opacity 1.8s ease';
-                            img.style.opacity = '0.35';
+                            img.style.opacity = '0';
                             video.src = item.src;
                             video.currentTime = 0;
                             video.classList.remove('hidden');
-                            video.style.transition = 'opacity 1.8s ease';
-                            video.style.opacity = '0';
-                            requestAnimationFrame(() => { video.style.opacity = '1'; });
+                            video.style.opacity = '1';
                             video.play().catch(() => {});
                             const playTimer = setTimeout(() => {
                                 clearVideo();
@@ -880,14 +879,11 @@
                 if (first.type === 'video' && first.src) {
                     const coverTimer = setTimeout(() => {
                         if (!rootEl.isConnected) return;
-                        img.style.transition = 'opacity 1.8s ease';
-                        img.style.opacity = '0.35';
+                        img.style.opacity = '0';
                         video.src = first.src;
                         video.currentTime = 0;
                         video.classList.remove('hidden');
-                        video.style.transition = 'opacity 1.8s ease';
-                        video.style.opacity = '0';
-                        requestAnimationFrame(() => { video.style.opacity = '1'; });
+                        video.style.opacity = '1';
                         video.play().catch(() => {});
                         const playTimer = setTimeout(() => {
                             clearVideo();
