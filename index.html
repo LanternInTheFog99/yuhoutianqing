@@ -243,6 +243,11 @@
                     <span class="hidden md:inline">tag库</span>
                 </button>
 
+                <button onclick="exportOfflineSnapshot()" title="导出当前数据为 GitHub 离线快照" class="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-medium border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 flex items-center gap-1 transition-all">
+                    <i class="fa-solid fa-download text-emerald-600"></i>
+                    <span class="hidden md:inline">导出离线数据</span>
+                </button>
+
                 <button id="shareCollabBtn" onclick="openShareModal()" title="仅编辑模式可使用" class="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-medium border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 flex items-center gap-1 transition-all shadow-sm">
                     <i class="fa-solid fa-share-nodes text-indigo-600"></i>
                     <span class="hidden md:inline">分享协同</span>
@@ -1048,6 +1053,34 @@
             }
         }
 
+        // 导出 GitHub 离线数据快照：与当前网页运行时数据保持同一结构。
+        window.exportOfflineSnapshot = function() {
+            try {
+                const snapshot = {
+                    version: 1,
+                    updatedAt: new Date().toISOString(),
+                    events: Array.isArray(window.events) ? window.events : [],
+                    connections: Array.isArray(window.connections) ? window.connections : [],
+                    tags: Array.isArray(window.availableTags) ? window.availableTags : [],
+                    bgm: Array.isArray(window.bgmPlaylist) ? window.bgmPlaylist : []
+                };
+
+                const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'snapshot.json';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                window.showToast('离线数据已导出为 snapshot.json', 'success');
+            } catch (e) {
+                console.error('离线数据导出失败:', e);
+                window.showToast('离线数据导出失败', 'error');
+            }
+        };
+
         function initializeLocalFallback(reason = '已就绪') {
             if (isInitialLoadDone) return;
             isInitialLoadDone = true;
@@ -1056,10 +1089,69 @@
             updateSyncStatus('offline', reason);
         }
 
+        // 读取 GitHub 仓库中随网页一起部署的离线快照。
+        // localStorage 中某一项已经存在时，以用户浏览器里的最近一次数据为准；
+        // 只有缺少对应数据时，才使用 snapshot.json 作为兜底。
+        async function loadBundledSnapshot() {
+            const localKeys = {
+                events: 'yuhoutianqing_events',
+                connections: 'yuhoutianqing_connections',
+                tags: 'yuhoutianqing_tags',
+                bgm: 'yuhoutianqing_bgm'
+            };
+
+            const hasLocal = Object.fromEntries(
+                Object.entries(localKeys).map(([key, storageKey]) => [key, localStorage.getItem(storageKey) !== null])
+            );
+
+            // 如果四类数据都已经有本地缓存，就不需要再请求快照。
+            if (Object.values(hasLocal).every(Boolean)) {
+                loadLocalData();
+                window.renderEvents();
+                return false;
+            }
+
+            try {
+                const response = await fetch('data/snapshot.json', { cache: 'no-store' });
+                if (!response.ok) throw new Error(`snapshot HTTP ${response.status}`);
+                const snapshot = await response.json();
+
+                if (!hasLocal.events && Array.isArray(snapshot.events)) {
+                    window.events = snapshot.events;
+                }
+                if (!hasLocal.connections && Array.isArray(snapshot.connections)) {
+                    window.connections = snapshot.connections;
+                }
+                if (!hasLocal.tags && Array.isArray(snapshot.tags)) {
+                    window.availableTags = snapshot.tags;
+                }
+                if (!hasLocal.bgm && Array.isArray(snapshot.bgm)) {
+                    window.bgmPlaylist = snapshot.bgm.filter(song => /^https?:\/\//i.test(song?.url || ''));
+                }
+
+                // 快照只作为兜底，不覆盖浏览器已有缓存。
+                window.renderEvents();
+                window.renderSvgConnections();
+                window.renderTagModalList();
+                window.renderBgmPlaylist();
+                return true;
+            } catch (err) {
+                console.warn('GitHub 离线快照读取失败:', err);
+                loadLocalData();
+                window.renderEvents();
+                return false;
+            }
+        }
+
         async function initAppAndCloudSync() {
             window.updateLockButtonUI();
             initBgmAudioPlayer();
             initScrollEdges();
+
+            // 先让网页立即拥有一份可用数据，再尝试连接 Firebase。
+            await loadBundledSnapshot();
+            isInitialLoadDone = true;
+            updateSyncStatus('offline', '离线数据已就绪');
 
             window.addEventListener('offline', () => {
                 updateSyncStatus('offline', '网络已断开');
@@ -1071,14 +1163,13 @@
             });
 
             const syncTimeout = setTimeout(() => {
-                if (!isInitialLoadDone) {
-                    initializeLocalFallback('已就绪');
+                if (!window.isCloudSynced) {
+                    updateSyncStatus('offline', '离线数据已就绪');
                 }
             }, 2500);
 
             if (!firebaseConfig || !auth || !db) {
                 clearTimeout(syncTimeout);
-                initializeLocalFallback('已就绪');
                 return;
             }
 
@@ -1092,7 +1183,7 @@
                 }
             } catch (err) {
                 clearTimeout(syncTimeout);
-                initializeLocalFallback('已就绪');
+                updateSyncStatus('offline', '离线数据已就绪');
                 return;
             }
 
@@ -1100,7 +1191,7 @@
                 setupRealtimeListeners(syncTimeout);
             } else {
                 clearTimeout(syncTimeout);
-                initializeLocalFallback('已就绪');
+                updateSyncStatus('offline', '离线数据已就绪');
             }
         }
 
@@ -1141,7 +1232,7 @@
                     updateSyncStatus('synced', '已同步云端');
                 }, (err) => {
                     if (syncTimeout) clearTimeout(syncTimeout);
-                    initializeLocalFallback('已就绪');
+                    updateSyncStatus('offline', '离线数据已就绪');
                 });
 
                 onSnapshot(connCol, (snapshot) => {
@@ -1169,7 +1260,7 @@
                 }, (err) => {});
             } catch (err) {
                 if (syncTimeout) clearTimeout(syncTimeout);
-                initializeLocalFallback('已就绪');
+                updateSyncStatus('offline', '离线数据已就绪');
             }
         }
 
