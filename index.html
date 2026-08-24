@@ -128,7 +128,6 @@
             z-index: 40;
             cursor: pointer;
             transition: background 0.2s ease;
-            /* 仅作视觉提示，真正判定在 container 的 mousemove 里，避免被节点抢走事件 */
             pointer-events: none;
         }
         .scroll-edge-left {
@@ -186,14 +185,13 @@
             margin-bottom: 0 !important;
             width: 130px;
             max-width: 130px;
-            pointer-events: auto; /* 可点击打开，但不扩大圆点热区 */
+            pointer-events: auto;
         }
         .timeline-node-container .node-hit-area {
             pointer-events: auto;
         }
 
         /* ========== 悬停重组（rearrange）相关样式 ========== */
-        /* 重组激活时，默认隐藏所有节点，仅显示参与重组的节点 */
         #timelineContainer.rearrange-active .timeline-node-container {
             visibility: hidden;
             pointer-events: none;
@@ -202,16 +200,13 @@
             visibility: visible;
             pointer-events: auto;
         }
-        /* 重组时禁用节点过渡动画（直接到位，无"拉取"动画） */
         #timelineContainer.rearrange-active .timeline-node-container,
         #timelineContainer.rearrange-active .timeline-node-container.rearrange-visible {
             transition: none !important;
         }
-        /* 重组时保留主时间轴线（锚点不动，轴线仍有参考意义） */
         #timelineContainer.rearrange-active #timelineMainAxis {
             opacity: 1;
         }
-        /* 重组时高亮锚点 A */
         #timelineContainer.rearrange-active .timeline-node-container.rearrange-anchor .timeline-dot,
         #timelineContainer.rearrange-active .timeline-node-container.rearrange-anchor .merged-dots-container {
             box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.25);
@@ -771,19 +766,18 @@
         window.zoomLevel = 3;
         window.edgeScrollSpeed = (function() {
             const v = Number(localStorage.getItem('yuhoutianqing_edgeScrollSpeed'));
-            // 统一到 1–20 慢速档；旧版大数值做压缩迁移
             if (!v || isNaN(v)) return 5;
             if (v > 20) return Math.max(1, Math.min(20, Math.round(v / 6)));
             return Math.max(1, Math.min(20, v));
         })();
         window.activeHoverIntervals = {};
-        window.activeTagFilter = null; // 兼容旧逻辑，实际使用下面两个
-        window.tagFilterMode = 'include'; // 'include' | 'exclude'
-        window.tagFilterMatch = 'any'; // 'any' | 'all'
-        window.tagFilterSelected = []; // 已生效的 tag 列表
+        window.activeTagFilter = null;
+        window.tagFilterMode = 'include';
+        window.tagFilterMatch = 'any';
+        window.tagFilterSelected = [];
         window.tagFilterDraftMode = 'include';
         window.tagFilterDraftMatch = 'any';
-        window.tagFilterDraftSelected = []; // 弹窗内草稿
+        window.tagFilterDraftSelected = [];
         window.PREVIEW_SLIDE_MS = 1400;
 
         window.getEventPreviewSrcs = function(ev, preferCollection) {
@@ -801,7 +795,6 @@
                     }
                 });
             }
-            // 视频封面与图片一起参与时间线悬停预览；没有封面的视频则不加入，避免显示空白。
             if (ev.videos && ev.videos.length > 0) {
                 ev.videos.forEach(v => {
                     const c = typeof v === 'object' ? v.cover : null;
@@ -1051,7 +1044,6 @@
             initBgmAudioPlayer();
             initScrollEdges();
 
-            // 监听浏览器网络状态：离线时把状态改为"离线"，恢复在线后若已加载完数据则视为已就绪
             window.addEventListener('offline', () => {
                 updateSyncStatus('offline', '网络已断开');
             });
@@ -1129,11 +1121,8 @@
                     window.events = snapshot.docs.map(doc => ({ id: isNaN(doc.id) ? doc.id : Number(doc.id), ...doc.data() }));
                     saveLocalData();
                     window.renderEvents();
-                    // 仅当确实从云端取到数据时才标"已同步云端"，避免代理/网络失败时
-                    // 空快照（本地缓存或无数据）被误报为同步成功。
                     updateSyncStatus('synced', '已同步云端');
                 }, (err) => {
-                    // 监听建立失败（如 ERR_PROXY_CONNECTION_FAILED / 网络不可达）时回退本地
                     if (syncTimeout) clearTimeout(syncTimeout);
                     initializeLocalFallback('已就绪');
                 });
@@ -1142,7 +1131,7 @@
                     window.connections = snapshot.docs.map(doc => ({ id: isNaN(doc.id) ? doc.id : Number(doc.id), ...doc.data() }));
                     saveLocalData();
                     window.renderSvgConnections();
-                }, (err) => { /* 连接异常已在 events 监听中统一兜底 */ });
+                }, (err) => { });
 
                 onSnapshot(tagsCol, (snapshot) => {
                     if (!snapshot.empty) {
@@ -1228,19 +1217,16 @@
             } catch (e) {}
         };
 
-        // 背景音乐及视频互斥逻辑
         function initBgmAudioPlayer() {
             const audio = document.getElementById('globalBgmAudio');
             if (!audio) return;
 
-            // 设置初始音量
             audio.volume = window.bgmVolume;
 
             audio.onended = () => {
                 playRandomBgm();
             };
 
-            // 全局监听所有视频播放状态，实现有声视频播放时自动暂停，停止后恢复播放
             document.addEventListener('play', (e) => {
                 if (e.target && e.target.tagName === 'VIDEO') {
                     if (!e.target.muted) {
@@ -1265,7 +1251,6 @@
             }, true);
         }
 
-        // 边缘自动滚动速度调节（1–20 档，约 档位×0.18 px/帧，整体明显偏慢）
         window.setEdgeScrollSpeed = function(val) {
             const speed = Math.max(1, Math.min(20, parseInt(val, 10) || 5));
             window.edgeScrollSpeed = speed;
@@ -1276,7 +1261,6 @@
             if (label) label.innerText = String(speed);
         };
 
-        // 边缘自动滚动：基于 container 内 mousemove 判定左右热区，不依赖叠加层抢事件
         function initScrollEdges() {
             const leftEdge = document.getElementById('scrollEdgeLeft');
             const rightEdge = document.getElementById('scrollEdgeRight');
@@ -1286,7 +1270,7 @@
 
             window.setEdgeScrollSpeed(window.edgeScrollSpeed);
 
-            const EDGE_PX = 48; // 左右热区宽度（与 wrapper 上的视觉热区保持一致）
+            const EDGE_PX = 48;
 
             let isScrollingLeft = false;
             let isScrollingRight = false;
@@ -1296,7 +1280,6 @@
             let isEdgeScrolling = false;
             let lastScrollTs = 0;
 
-            // 全局：当前指针是否在边缘热区（供节点 mouseenter 抑制悬停连线）
             window._pointerInEdgeZone = false;
 
             function clearForceHover() {
@@ -1340,7 +1323,6 @@
                     window.startPreviewSlideshow(node);
                 }
                 lastForceHoverNode = node;
-                // 边缘自动滑动期间不拉出关联节点预览
                 if (!isEdgeScrolling) {
                     const dateStr2 = node.getAttribute('data-date');
                     if (dateStr2) {
@@ -1443,25 +1425,19 @@
                 container.style.scrollBehavior = 'auto';
                 if (isScrollingLeft) container.scrollLeft -= step;
                 if (isScrollingRight) container.scrollLeft += step;
-                // 边缘滚动只负责滚动，不再根据滚动位置强制悬停节点。
-                // 正常节点 hover 仍由浏览器 :hover / 原有 mouseenter 逻辑负责。
                 animationId = requestAnimationFrame(smoothScroll);
             }
 
             function startEdgeScroll(direction) {
                 if (!window.isLocked) return;
-                // 同一方向已经在滚动时，不要每个 mousemove 都重复初始化；
-                // 重复初始化会干扰 requestAnimationFrame 的连续滚动。
                 if ((direction === 'left' && isScrollingLeft) ||
                     (direction === 'right' && isScrollingRight)) {
                     return;
                 }
-                // 清掉贴边节点的悬停连线/重组
                 if (typeof window.exitRearrange === 'function') window.exitRearrange();
                 if (typeof window.clearRelatedConnectionPreviews === 'function') {
                     window.clearRelatedConnectionPreviews(null);
                 }
-                // 去掉所有节点上的临时高亮
                 document.querySelectorAll('.timeline-node-container').forEach(n => {
                     n.classList.remove('force-hover', 'conn-related-preview');
                 });
@@ -1498,10 +1474,7 @@
                     return;
                 }
                 const cr = container.getBoundingClientRect();
-                // 热区视觉上属于 wrapper，因此用 wrapper 的左右边界计算，
-                // 避免 timelineContainer 自身的左右 padding 造成左右热区错位。
                 const wr = wrapper ? wrapper.getBoundingClientRect() : cr;
-                // 指针必须在时间线内容的垂直范围内
                 if (clientY < cr.top || clientY > cr.bottom) {
                     if (isEdgeScrolling || window._pointerInEdgeZone) stopEdgeScroll();
                     return;
@@ -1520,7 +1493,6 @@
                 }
             }
 
-            // 主判定：在 container 上监听指针（节点无法抢走）
             container.addEventListener('mousemove', (e) => {
                 updateEdgeFromPointer(e.clientX, e.clientY);
             }, { passive: true });
@@ -1529,15 +1501,12 @@
                 stopEdgeScroll();
             });
 
-            // wrapper 只负责离开整个视觉区域时停止；实际 mousemove 只在 container 上监听，
-            // 避免两套监听反复重置左右滚动状态。
             if (wrapper) {
                 wrapper.addEventListener('mouseleave', () => {
                     stopEdgeScroll();
                 });
             }
 
-            // 兼容：若仍点到旧热区元素也启动（pointer-events 已 none，基本不会）
             if (leftEdge) {
                 leftEdge.addEventListener('mouseenter', () => startEdgeScroll('left'));
                 leftEdge.addEventListener('mouseleave', () => {
@@ -1563,7 +1532,6 @@
 
         window.openMusicModal = function() {
             window.renderBgmPlaylist();
-            // 同步音量滑块
             const slider = document.getElementById('bgmVolumeSlider');
             if (slider) slider.value = window.bgmVolume;
             const label = document.getElementById('bgmVolumeLabel');
@@ -1876,7 +1844,6 @@
             if (inputContainer) {
                 inputContainer.style.display = window.isLocked ? 'none' : 'flex';
             }
-            // 打开时用当前已生效筛选初始化草稿
             window.tagFilterDraftMode = window.tagFilterMode || 'include';
             window.tagFilterDraftMatch = window.tagFilterMatch || 'any';
             window.tagFilterDraftSelected = Array.isArray(window.tagFilterSelected) ? window.tagFilterSelected.slice() : [];
@@ -1952,7 +1919,6 @@
             window.tagFilterMode = window.tagFilterDraftMode === 'exclude' ? 'exclude' : 'include';
             window.tagFilterMatch = window.tagFilterDraftMatch === 'all' ? 'all' : 'any';
             window.tagFilterSelected = (window.tagFilterDraftSelected || []).slice();
-            // 兼容旧字段
             window.activeTagFilter = window.tagFilterSelected.length === 1 ? window.tagFilterSelected[0] : null;
             window.closeTagModal();
             window.renderEvents();
@@ -1969,7 +1935,6 @@
         };
 
         window.updateTagFilterBadge = function() {
-            // 在 tag 按钮旁显示当前筛选状态（若有）
             let badge = document.getElementById('tagFilterBadge');
             const btn = document.querySelector('button[onclick="openTagModal()"]');
             if (!btn) return;
@@ -2131,13 +2096,12 @@
             window.renderTimelineView(filtered);
         };
 
-                window.getFilteredEvents = function() {
+        window.getFilteredEvents = function() {
             let list = window.events.slice();
             const selected = window.tagFilterSelected || [];
             const matchAll = window.tagFilterMatch === 'all';
             if (selected.length > 0) {
                 if (window.tagFilterMode === 'exclude') {
-                    // 排除：any=有任一即隐藏；all=同时拥有全部才隐藏
                     list = list.filter(e => {
                         const tags = e.tags || [];
                         if (matchAll) {
@@ -2146,7 +2110,6 @@
                         return !selected.some(t => tags.includes(t));
                     });
                 } else {
-                    // 包含：any=有任一即显示；all=必须全部都有
                     list = list.filter(e => {
                         const tags = e.tags || [];
                         if (matchAll) {
@@ -2171,7 +2134,6 @@
         };
 
         window.handleSearch = function() {
-            // 输入搜索时清除 tag 点选筛选，避免叠加空白
             if ((document.getElementById('searchInput')?.value || '').trim()) {
                 window.activeTagFilter = null;
                 window.tagFilterSelected = [];
@@ -2193,13 +2155,11 @@
             }
             const cr = container.getBoundingClientRect();
             const fr = first.getBoundingClientRect();
-            // 把第一个匹配节点滚到靠近左侧可见区
             container.scrollLeft += (fr.left - cr.left - 48);
             if (container.scrollLeft < 0) container.scrollLeft = 0;
         };
 
         window.filterByTag = function(tag) {
-            // 兼容：单击切换草稿中的选中，需点确定才生效；若已是唯一生效项则清除
             if (!tag) return;
             if (window.tagFilterSelected.length === 1 && window.tagFilterSelected[0] === tag && window.tagFilterMode === 'include') {
                 window.clearTagFilter();
@@ -2261,7 +2221,6 @@
         window.renderTimelineView = function(eventList = window.events) {
             const track = document.getElementById('timelineNodesTrack');
             if (!track) return;
-            // 清空节点，但保留主时间轴线（挂在 track 内部才能随内容完整延伸）
             track.innerHTML = '';
             const axisEl = document.createElement('div');
             axisEl.id = 'timelineMainAxis';
@@ -2288,7 +2247,11 @@
             const gapPx = Math.round(150 * scale);
             const dotMajorSize = Math.round(20 * scale);
             const dotMinorSize = Math.round(12 * scale);
-            const fontSizeTitle = Math.max(10, Math.round(13 * scale));
+            // 日期文字大小随密度缩放，防止低密度时糊在一起
+            const fontSizeTitle = Math.max(8, Math.round(13 * scale));
+            const fontSizeDate = Math.max(7, Math.round(10 * scale));
+            // 标题区域宽度也随密度缩放，避免文字溢出重叠
+            const titleAreaWidth = Math.max(80, Math.round(130 * Math.min(1.2, Math.max(0.65, scale))));
             const previewWidth = Math.round(160 * Math.min(1.2, Math.max(0.7, scale)));
             const previewImgHeight = Math.round(100 * Math.min(1.2, Math.max(0.7, scale)));
 
@@ -2303,7 +2266,6 @@
                     displayTitle = `${prefix}等${items.length}件事`;
                 }
 
-                // 取事件预览图：集合优先用 collection 正方形，否则 outer/封面
                 function getEventTileSrc(ev, preferCollection) {
                     const list = window.getEventPreviewSrcs(ev, preferCollection);
                     return list.length ? list[0] : null;
@@ -2313,7 +2275,6 @@
                 const itemPreviewMediaLists = items.map(ev => window.getEventPreviewMedia(ev, isMerged));
                 const itemPreviewSrcLists = itemPreviewMediaLists.map(list => list.map(m => m.cover || m.src).filter(Boolean));
 
-                // 生成统一的 identifier
                 let dotId;
                 if (isMerged) {
                     dotId = `merged-${dateStr.replace(/[^a-zA-Z0-9]/g, '_')}`;
@@ -2321,7 +2282,6 @@
                     dotId = String(firstEvent.id);
                 }
 
-                // 合并节点：N 个等大正方形拼满，外框刚好等于网格（无黑边空隙）
                 let tooltipInnerHtml = '';
                 let tooltipStyle = `width: ${previewWidth}px; height: ${previewImgHeight}px;`;
                 if (isMerged) {
@@ -2331,7 +2291,6 @@
                     const cell = Math.max(20, Math.floor(Math.min(previewWidth / cols, previewImgHeight / rows)));
                     const gridW = cell * cols;
                     const gridH = cell * rows;
-                    // 外框尺寸 = 网格尺寸，不再留未填充黑边
                     tooltipStyle = `width: ${gridW}px; height: ${gridH}px;`;
                     const tiles = items.map((ev, tileIdx) => {
                         const srcs = itemPreviewSrcLists[tileIdx] || [];
@@ -2361,17 +2320,17 @@
                 nodeContainer.style.width = `${gapPx}px`;
                 nodeContainer.setAttribute('data-date', dateStr);
 
-                                                const hitW = Math.max(40, Math.min(52, Math.round(gapPx * 0.2)));
+                const hitW = Math.max(40, Math.min(52, Math.round(gapPx * 0.2)));
                 nodeContainer.innerHTML = `
                     <div class="timeline-hover-tooltip absolute bottom-full mb-3 z-30 bg-slate-900 rounded-xl border border-slate-700 overflow-hidden pointer-events-none shadow-xl" style="${tooltipStyle}">
                         ${tooltipInnerHtml}
                     </div>
 
-                    <div onclick="handleGroupClick('${dateStr.replace(/'/g, "\\'")}')" class="node-title-area text-center mb-3 max-w-[130px] select-none">
+                    <div onclick="handleGroupClick('${dateStr.replace(/'/g, "\\'")}')" class="node-title-area text-center mb-3 select-none" style="width:${titleAreaWidth}px; max-width:${titleAreaWidth}px;">
                         <span class="block font-medium ${hasMajor ? 'text-indigo-900 font-bold' : 'text-slate-700'} line-clamp-1" style="font-size: ${fontSizeTitle}px;">
                             ${displayTitle}
                         </span>
-                        <span class="block text-[10px] text-slate-400 font-mono mt-0.5">
+                        <span class="block text-slate-400 font-mono mt-0.5" style="font-size: ${fontSizeDate}px;">
                             ${dateStr}
                         </span>
                     </div>
@@ -2390,7 +2349,6 @@
                     </div>
                 `;
 
-
                 nodeContainer.querySelectorAll('.preview-slide-img').forEach(img => {
                     const tileIdx = parseInt(img.getAttribute('data-tile-idx') || '0', 10);
                     let media = itemPreviewMediaLists[tileIdx] || [];
@@ -2405,11 +2363,9 @@
                 });
 
                 nodeContainer.addEventListener('mouseenter', (ev) => {
-                    // 若仍处于他人触发的重组中，先退出（离开锚点即应恢复）
                     if (rearrangeState.active && rearrangeState.anchorNode !== nodeContainer) {
                         window.exitRearrange();
                     }
-                    // 贴边或正在边缘滚动时：不进入悬停连线/重组
                     if (window.isLocked && (
                         window._pointerInEdgeZone
                         || (typeof window.isPointerInTimelineEdgeZone === 'function'
@@ -2419,7 +2375,6 @@
                     }
                     items.forEach(e => window.highlightConnectionsForEvent(e.id, true));
                     window.startPreviewSlideshow(nodeContainer);
-                    // 仅浏览模式触发重组 / 关联预览拉动；编辑模式保持静态便于操作
                     if (!window.isLocked) return;
                     const rearranged = window.tryRearrangeOnHover(nodeContainer, items.map(e => e.id));
                     if (!rearranged) {
@@ -2428,17 +2383,13 @@
                 });
 
                 nodeContainer.addEventListener('mouseleave', () => {
-                    // 只要离开悬停锚点，立即退出重组并恢复原状
                     items.forEach(e => window.highlightConnectionsForEvent(e.id, false));
                     window.stopPreviewSlideshow(nodeContainer, true);
                     if (rearrangeState.active && rearrangeState.anchorNode === nodeContainer) {
                         window.exitRearrange();
                     } else if (!rearrangeState.active) {
                         window.clearRelatedConnectionPreviews(nodeContainer);
-                    } else {
-                        // 离开的是重组中的非锚点：不额外处理（锚点 leave 已负责退出）
                     }
-                    // 非重组时也清掉关联预览
                     if (!rearrangeState.active) {
                         window.clearRelatedConnectionPreviews(nodeContainer);
                     }
@@ -2452,7 +2403,6 @@
                 const track = document.getElementById('timelineNodesTrack');
                 const container = document.getElementById('timelineContainer');
                 if (axisLine && track) {
-                    // 主轴线挂在 track 内部，强制铺满整个内容宽度，滚动后也不会断开
                     const fullW = Math.max(track.scrollWidth, track.offsetWidth, container ? container.scrollWidth : 0);
                     axisLine.style.left = '0';
                     axisLine.style.right = 'auto';
@@ -2466,7 +2416,6 @@
                             : String(groupEntries[0][1][0].id);
                         const dotEl = firstNode.querySelector('#timeline-dot-' + firstDotId) || firstNode.querySelector('[id^="timeline-dot-"]');
                         if (dotEl) {
-                            // 相对 track 计算垂直位置，保证轴线始终穿过节点圆点
                             const dotRect = dotEl.getBoundingClientRect();
                             const trackRect = track.getBoundingClientRect();
                             const dotCenterY = (dotRect.top + dotRect.height / 2) - trackRect.top;
@@ -2887,7 +2836,6 @@
                 return { x: px, y: py, angle };
             }
 
-            // 重组模式下：仅渲染锚点事件与直接连线事件之间的连线（不画间接连线）
             let connList = window.connections;
             if (rearrangeState.active && rearrangeState.anchorEventIds.length) {
                 const anchorSet = new Set(rearrangeState.anchorEventIds.map(String));
@@ -2895,7 +2843,6 @@
                 const allowedSet = new Set([...anchorSet, ...relatedSet]);
                 connList = window.connections.filter(c => {
                     const s = String(c.sourceId), t = String(c.targetId);
-                    // 仅保留两端都在"锚点+直接连线"集合内，且至少一端是锚点的连线
                     return allowedSet.has(s) && allowedSet.has(t) && (anchorSet.has(s) || anchorSet.has(t));
                 });
             }
@@ -2904,10 +2851,8 @@
                 const sEvent = window.events.find(e => String(e.id) === String(conn.sourceId));
                 const tEvent = window.events.find(e => String(e.id) === String(conn.targetId));
                 
-                // 修正：根据事件是否被合并来查找对应的 dot 元素
                 let sourceDot = document.getElementById(`timeline-dot-${conn.sourceId}`);
                 if (!sourceDot && sEvent) {
-                    // 尝试查找合并节点的 dot
                     const mergedId = `merged-${sEvent.date.replace(/[^a-zA-Z0-9]/g, '_')}`;
                     sourceDot = document.getElementById(`timeline-dot-${mergedId}`);
                 }
@@ -2973,7 +2918,6 @@
                     g.appendChild(textEl);
                 }
 
-                // 重组模式下连线默认需要可见（否则 opacity:0 看不到）
                 if (rearrangeState.active) {
                     g.classList.add('active-line');
                 }
@@ -3022,39 +2966,30 @@
         };
 
         // ==================== 悬停重组（Hover Rearrange）====================
-        // 状态
         let rearrangeState = {
             active: false,
             anchorNode: null,
             anchorEventIds: [],
-            visibleNodes: [],   // 当前参与重组的节点 DOM（含锚点，按时间升序）
+            visibleNodes: [],
             originalScrollLeft: 0,
         };
 
-        // 边缘自动滑动期间为 true，用于抑制重组触发
         let _rearrangeEdgeScrolling = false;
 
-        // 供 initScrollEdges 设置边缘滚动状态
         window.setRearrangeEdgeScrolling = function(val) {
             _rearrangeEdgeScrolling = !!val;
-            // 边缘滚动开始时若正处于重组，先退出
             if (_rearrangeEdgeScrolling && rearrangeState.active) {
                 window.exitRearrange();
             }
         };
 
-        // 工具：获取某节点的时间（日期）用于排序
         function _nodeDateKey(node) {
             const dateStr = node.getAttribute('data-date') || '';
-            // 支持 "YYYY-MM-DD至YYYY-MM-DD" 取起始日期排序
             const start = dateStr.split('至')[0];
             const t = Date.parse(start);
             return isNaN(t) ? 0 : t;
         }
 
-        // 工具：节点是否在当前视口内（timelineContainer 可视区）
-        // 判定节点是否「足够在屏内」：中心点在视口内，且至少约一半宽度可见。
-        // 仅露出一点边的节点视为屏外，应触发重组。
         function _isNodeInViewport(node, container) {
             const cr = container.getBoundingClientRect();
             const nr = node.getBoundingClientRect();
@@ -3064,23 +2999,14 @@
             const visibleW = Math.max(0, visibleRight - visibleLeft);
             const centerX = nr.left + nr.width / 2;
             const centerInView = centerX >= cr.left && centerX <= cr.right;
-            // 中心在视口内且可见宽度 >= 50% 才算「在屏内」
             return centerInView && (visibleW / nodeW) >= 0.5;
         }
 
-        // 计算当前密度下的节点间距（与正常状态一致）
         function _getCurrentGapPx() {
             const scale = window.getZoomScale ? window.getZoomScale() : 1;
             return Math.round(150 * scale);
         }
 
-        // 尝试在悬停时触发重组。返回 true 表示已触发重组，false 表示不触发。
-        // 布局规则：
-        // 1) 锚点 A 像素位置与 scroll 不变
-        // 2) 比 A 早的节点优先放左边，比 A 晚的优先放右边
-        // 3) 某侧槽位不足时，多余节点溢到对侧；同侧多个节点按时间早→晚从左到右
-        // 4) 优先侧名额有限时，保留「原时间轴上距 A 更远」的节点在优先侧
-        // 指针是否处于时间线左右边缘热区
         window.isPointerInTimelineEdgeZone = function(clientX) {
             if (window._pointerInEdgeZone) return true;
             const container = document.getElementById('timelineContainer');
@@ -3092,7 +3018,6 @@
 
         window.tryRearrangeOnHover = function(anchorNode, anchorEventIds) {
             if (!anchorNode || !anchorEventIds || !anchorEventIds.length) return false;
-            // 仅浏览模式可触发重组，编辑模式不打断操作
             if (!window.isLocked) return false;
             if (_rearrangeEdgeScrolling) return false;
             if (rearrangeState.active && rearrangeState.anchorNode === anchorNode) return true;
@@ -3130,13 +3055,11 @@
             const viewLeft = container.scrollLeft + pad;
             const viewRight = container.scrollLeft + viewportW - pad;
 
-            // 两侧可容纳的槽位数（相对锚点，不移动锚点）
             let leftSlots = Math.max(0, Math.floor((anchorLocalX - viewLeft) / gap));
             let rightSlots = Math.max(0, Math.floor((viewRight - (anchorLocalX + nodeW)) / gap));
 
             const anchorTime = _nodeDateKey(anchorNode);
 
-            // 记录原位置，用于「距离」比较
             function nodeLocalX(node) {
                 const r = node.getBoundingClientRect();
                 return r.left - containerRect.left + container.scrollLeft;
@@ -3148,10 +3071,9 @@
             uniqRelated.forEach(n => {
                 const t = _nodeDateKey(n);
                 if (t < anchorTime) leftCandidates.push(n);
-                else rightCandidates.push(n); // 同时刻归右侧
+                else rightCandidates.push(n);
             });
 
-            // 从优先侧挑选：槽位不足时保留距锚点更远的
             function pickForPreferredSide(candidates, slots) {
                 if (candidates.length <= slots) {
                     return {
@@ -3162,7 +3084,7 @@
                 const ranked = candidates.slice().sort((a, b) => {
                     const da = Math.abs(nodeLocalX(a) - anchorOrigX);
                     const db = Math.abs(nodeLocalX(b) - anchorOrigX);
-                    if (db !== da) return db - da; // 远的优先留在本侧
+                    if (db !== da) return db - da;
                     return _nodeDateKey(a) - _nodeDateKey(b);
                 });
                 const stay = ranked.slice(0, slots).sort((a, b) => _nodeDateKey(a) - _nodeDateKey(b));
@@ -3173,18 +3095,14 @@
             const leftPick = pickForPreferredSide(leftCandidates, leftSlots);
             const rightPick = pickForPreferredSide(rightCandidates, rightSlots);
 
-            // 对侧溢出并入后，同侧再按时间排序（左→右 = 早→晚）
             let finalLeft = leftPick.stay.concat(rightPick.overflow)
                 .sort((a, b) => _nodeDateKey(a) - _nodeDateKey(b));
             let finalRight = rightPick.stay.concat(leftPick.overflow)
                 .sort((a, b) => _nodeDateKey(a) - _nodeDateKey(b));
 
-            // 若溢出后某一侧仍超出槽位，继续把多出的挤到对侧（极端窄屏）
             while (finalLeft.length > leftSlots && leftSlots >= 0) {
-                // 从左侧拿走时间最晚的（最靠近 A 的），丢到右侧开头
                 if (finalLeft.length === 0) break;
                 if (leftSlots === 0) {
-                    // 整侧搬到右边
                     finalRight = finalLeft.concat(finalRight)
                         .sort((a, b) => _nodeDateKey(a) - _nodeDateKey(b));
                     finalLeft = [];
@@ -3207,12 +3125,10 @@
                 finalLeft.sort((a, b) => _nodeDateKey(a) - _nodeDateKey(b));
             }
 
-            // 计算目标 X：左侧 earliest 在最左，最靠近 A 的是 finalLeft 最后一个
             const targetMap = new Map();
             targetMap.set(anchorNode, anchorLocalX);
             finalLeft.forEach((node, i) => {
-                // i=0 最左
-                const fromRight = finalLeft.length - i; // 距 A 的槽位数
+                const fromRight = finalLeft.length - i;
                 targetMap.set(node, anchorLocalX - fromRight * gap);
             });
             finalRight.forEach((node, i) => {
@@ -3253,7 +3169,6 @@
                 }
             });
 
-            // 预览图防重叠缩放（锚点 + 关联）
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
                     window.adjustOverlappingPreviews([anchorNode, ...uniqRelated]);
@@ -3267,7 +3182,6 @@
             return true;
         };
 
-        // 退出重组，恢复原始布局
         window.exitRearrange = function() {
             if (!rearrangeState.active) return;
             const container = document.getElementById('timelineContainer');
@@ -3281,7 +3195,6 @@
                     window.stopPreviewSlideshow(node, true);
                 }
                 node.style.transform = '';
-                // 恢复预览缩放
                 node.style.removeProperty('--preview-scale');
             });
 
@@ -3295,7 +3208,6 @@
             window.renderSvgConnections();
         };
 
-        // 检测多个预览气泡是否靠近/重叠；缩放到「刚好不重叠且留一点空隙」为止，尽量保持较大
         window.adjustOverlappingPreviews = function(nodes) {
             const list = (nodes || []).filter(Boolean);
             if (list.length < 2) {
@@ -3313,7 +3225,6 @@
                 }).filter(Boolean);
             }
 
-            // gapPx: 气泡之间至少保留的水平空隙
             function isTooClose(scale, gapPx) {
                 const rects = measureRects(scale);
                 if (rects.length < 2) return false;
@@ -3330,14 +3241,13 @@
                 return false;
             }
 
-            const minGap = 12; // 只要有一点空隙即可
-            const minScale = 0.72; // 不要缩得太小
+            const minGap = 12;
+            const minScale = 0.72;
             if (!isTooClose(1, minGap)) {
                 list.forEach(n => n.style.setProperty('--preview-scale', '1'));
                 return;
             }
 
-            // 从 0.98 往下找第一个不冲突的较大比例（步进 0.03，偏大）
             let scale = 0.98;
             while (scale > minScale && isTooClose(scale, minGap)) {
                 scale = Math.round((scale - 0.03) * 100) / 100;
@@ -3345,13 +3255,6 @@
             const finalScale = Math.max(minScale, scale);
             list.forEach(n => n.style.setProperty('--preview-scale', String(finalScale)));
         };
-
-
-
-
-        // 重写 getConnectedEventIds 的"间接连线"问题已在重组布局中通过
-        // 仅使用 direct relatedIds（getConnectedEventIds 返回的直接关联）解决：
-        // 重组时不会把"连线节点的连线节点"纳入，因此不会出现 B-C 这类间接连线。
 
         window.showRelatedConnectionPreviews = function(eventIds, primaryNode) {
             window.clearRelatedConnectionPreviews(primaryNode);
@@ -3370,7 +3273,6 @@
             });
             if (relatedNodes.length) {
                 window.scrollToRevealRelatedNodes(primaryNode, relatedNodes);
-                // 近距离预览重叠时自动缩小
                 requestAnimationFrame(() => {
                     requestAnimationFrame(() => {
                         window.adjustOverlappingPreviews([primaryNode, ...relatedNodes].filter(Boolean));
@@ -3395,23 +3297,19 @@
             if (!container || !primaryNode) return;
             const cr = container.getBoundingClientRect();
             const pr = primaryNode.getBoundingClientRect();
-            // 只关心关联节点是否在视口外；绝不把主节点滚出指针下方（避免 mouseleave 闪烁）
             const pad = 40;
             let delta = 0;
             (relatedNodes || []).forEach(n => {
                 if (!n) return;
                 const r = n.getBoundingClientRect();
-                // 已有一部分可见则不滚动
                 if (r.right > cr.left + 8 && r.left < cr.right - 8) return;
                 if (r.left >= cr.right - pad) {
-                    // 在右侧屏外：向右滚，但保证 primary 仍留在视口内
                     const need = r.left - (cr.right - pad);
                     const maxShift = Math.max(0, pr.left - (cr.left + 48));
                     delta = Math.max(delta, Math.min(need, maxShift));
                 } else if (r.right <= cr.left + pad) {
-                    // 在左侧屏外
-                    const need = r.right - (cr.left + pad); // 负值
-                    const maxShift = Math.min(0, pr.right - (cr.right - 48)); // 负向上限
+                    const need = r.right - (cr.left + pad);
+                    const maxShift = Math.min(0, pr.right - (cr.right - 48));
                     delta = Math.min(delta, Math.max(need, maxShift));
                 }
             });
@@ -3749,6 +3647,36 @@
             window.renderSvgConnections();
         };
 
+        // ==================== 图片直链添加功能 ====================
+        window.addImageByUrl = function() {
+            const input = document.getElementById('imageUrlInput');
+            const url = input ? input.value.trim() : '';
+            if (!url) {
+                window.showToast('请输入图片链接', 'error');
+                return;
+            }
+            // 简单校验
+            if (!/^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|bmp|svg|avif|heic|heif)/i.test(url)) {
+                // 不一定有后缀，用 new URL 兜底
+                try {
+                    new URL(url);
+                } catch (e) {
+                    window.showToast('请输入有效的图片链接', 'error');
+                    return;
+                }
+            }
+            window.editingImageFiles.push({
+                original: url,
+                outer: url,
+                inner: url,
+                collection: url
+            });
+            if (input) input.value = '';
+            window.renderMicroPreviews();
+            window.showToast('图片链接已添加', 'success');
+        };
+
+        // ==================== 编辑模态框 ====================
         window.openEditModal = function(eventId = null) {
             if (!window.canEditNow()) {
                 window.showToast(window.isCloudSynced ? '当前处于浏览模式，请先解锁编辑模式' : '请先等待右上角显示“已同步云端”后再编辑', 'error');
@@ -3849,15 +3777,22 @@
                                 <span>提示：上传图片或视频文件最好不超过 1MB，避免页面卡顿或云端同步受阻。</span>
                             </div>
 
+                            <!-- 图片区域：本地上传 + 直链 -->
                             <div>
                                 <div class="border-2 border-dashed border-slate-300 rounded-xl p-3 text-center hover:bg-white transition-colors cursor-pointer" onclick="document.getElementById('editFileInput').click()">
                                     <i class="fa-solid fa-image text-xl text-indigo-500 mb-1 block"></i>
                                     <span class="text-xs text-slate-600 font-medium">点击添加图片</span>
                                     <input type="file" id="editFileInput" multiple accept="image/*" class="hidden" onchange="handleLocalImageUpload(event)">
                                 </div>
+                                <!-- 图片直链 -->
+                                <div class="flex gap-1.5 mt-2">
+                                    <input type="url" id="imageUrlInput" placeholder="或输入图片直链（https://...）" class="flex-grow px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:ring-1 focus:ring-indigo-500">
+                                    <button type="button" onclick="addImageByUrl()" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium shrink-0">添加</button>
+                                </div>
                                 <div id="imageMicroPreviews" class="flex flex-wrap gap-2 mt-2"></div>
                             </div>
 
+                            <!-- 视频区域 -->
                             <div class="space-y-2 pt-2 border-t border-slate-200">
                                 <span class="block text-[11px] font-bold text-slate-600">添加视频 (支持本地上传或直链网址)</span>
                                 <div class="flex flex-col gap-2">
@@ -3874,6 +3809,7 @@
                                 <div id="videoPreviewsContainer" class="space-y-1.5"></div>
                             </div>
 
+                            <!-- 网址链接 -->
                             <div class="space-y-2 pt-2 border-t border-slate-200">
                                 <span class="block text-[11px] font-bold text-slate-600">添加相关网址链接</span>
                                 <div class="flex gap-1.5">
@@ -3954,7 +3890,6 @@
             const files = Array.from(input.files || []);
             for (const f of files) {
                 try {
-                    // blob URL 用于播放更稳定；同时读 dataURL 便于持久化
                     const blobUrl = URL.createObjectURL(f);
                     const dataUrl = await new Promise((resolve, reject) => {
                         const reader = new FileReader();
@@ -4120,10 +4055,7 @@
         window._linkDragFrom = null;
 
         window.initLinkDragDrop = function(container) {
-            if (!container || container.dataset.dndBound === '1') {
-                // re-bind each render: clear flag and re-attach once via delegation on container
-            }
-            if (container.dataset.dndBound === '1') return;
+            if (!container || container.dataset.dndBound === '1') return;
             container.dataset.dndBound = '1';
 
             container.addEventListener('dragstart', (e) => {
@@ -4256,7 +4188,6 @@
             window.renderMicroPreviews();
         };
 
-        // 当前编辑事件所在日期是否已有多个事件（集合截选仅在此情况显示）
         window.currentEditDateIsMultiEvent = function() {
             let dateStr = '';
             const isRange = document.getElementById('isRangeToggle')?.checked;
@@ -4291,14 +4222,12 @@
                 const container = document.getElementById('cropContainer');
                 const cw = container.clientWidth;
                 const ch = container.clientHeight;
-                // 初始缩放：完整显示图片
                 const fit = Math.min(cw / cropState.naturalWidth, ch / cropState.naturalHeight) * 0.92;
                 cropState.scale = Math.max(0.15, Math.min(4, fit));
                 const dispW = cropState.naturalWidth * cropState.scale;
                 const dispH = cropState.naturalHeight * cropState.scale;
                 cropState.imgX = (cw - dispW) / 2;
                 cropState.imgY = (ch - dispH) / 2;
-                // 初始选框：居中，约占视口 55%
                 cropState.boxW = Math.min(cw * 0.55, dispW * 0.85, 320);
                 cropState.boxH = Math.min(ch * 0.55, dispH * 0.85, 240);
                 cropState.boxX = (cw - cropState.boxW) / 2;
@@ -4334,7 +4263,6 @@
             if (sliderText) sliderText.innerText = Math.round(cropState.scale * 100) + '%';
         }
 
-        // 缩放时以选框中心为锚点，保证选框与框内画面不跟着“整体挪动”
         window.handleImageScaleChange = function(val) {
             const newScale = Math.max(0.15, Math.min(4, parseFloat(val) || 1));
             const oldScale = cropState.scale || 1;
@@ -4342,7 +4270,6 @@
 
             const anchorX = cropState.boxX + cropState.boxW / 2;
             const anchorY = cropState.boxY + cropState.boxH / 2;
-            // 选框中心对应的原图像素
             const srcX = (anchorX - cropState.imgX) / oldScale;
             const srcY = (anchorY - cropState.imgY) / oldScale;
 
@@ -4358,7 +4285,7 @@
             if (!container || !box || container.dataset.cropInited === '1') return;
             container.dataset.cropInited = '1';
 
-            let mode = null; // 'pan' | 'moveBox' | 'resize'
+            let mode = null;
             let handle = null;
             let startX = 0, startY = 0;
             let origin = {};
@@ -4453,7 +4380,6 @@
                 return;
             }
 
-            // 选框 → 原图像素
             let sx = (cropState.boxX - cropState.imgX) / cropState.scale;
             let sy = (cropState.boxY - cropState.imgY) / cropState.scale;
             let sw = cropState.boxW / cropState.scale;
@@ -4466,7 +4392,6 @@
             sw = Math.max(1, sw);
             sh = Math.max(1, sh);
 
-            // 输出尺寸：保持选区比例，长边不超过 1200
             const maxSide = 1200;
             let outW = Math.round(sw);
             let outH = Math.round(sh);
@@ -4488,7 +4413,6 @@
                 const target = window.editingImageFiles[cropState.index];
                 if (!target) return;
 
-                // 
                 target.outer = croppedBase64;
                 target.inner = croppedBase64;
                 target.collection = croppedBase64;
