@@ -243,9 +243,9 @@
                     <span class="hidden md:inline">tag库</span>
                 </button>
 
-                <button onclick="exportOfflineSnapshot()" title="导出当前数据为 GitHub 离线快照" class="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-medium border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 flex items-center gap-1 transition-all">
-                    <i class="fa-solid fa-download text-emerald-600"></i>
-                    <span class="hidden md:inline">导出离线数据</span>
+                <!-- 仅管理员使用：隐蔽的离线快照导出入口。点击后需要独立密码。 -->
+                <button id="offlineExportBtn" onclick="requestOfflineSnapshotExport()" title="" aria-label="离线快照" class="fixed right-2 bottom-2 z-[80] w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-slate-400/25 hover:text-slate-500/80 hover:bg-slate-200/60 transition-all opacity-30 hover:opacity-100">
+                    <i class="fa-solid fa-download"></i>
                 </button>
 
                 <button id="shareCollabBtn" onclick="openShareModal()" title="仅编辑模式可使用" class="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-medium border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 flex items-center gap-1 transition-all shadow-sm">
@@ -1054,6 +1054,19 @@
         }
 
         // 导出 GitHub 离线数据快照：与当前网页运行时数据保持同一结构。
+        // 这是管理员专用入口，与“编辑模式”密码完全独立。
+        const OFFLINE_EXPORT_PASSWORD = 'K7v!2Qm#9Rz@4Lp';
+
+        window.requestOfflineSnapshotExport = function() {
+            const password = window.prompt('请输入离线数据导出密码：');
+            if (password === null) return;
+            if (password !== OFFLINE_EXPORT_PASSWORD) {
+                window.showToast('密码错误，无法导出离线数据', 'error');
+                return;
+            }
+            window.exportOfflineSnapshot();
+        };
+
         window.exportOfflineSnapshot = function() {
             try {
                 const snapshot = {
@@ -1112,7 +1125,8 @@
             }
 
             try {
-                const response = await fetch('data/snapshot.json', { cache: 'no-store' });
+                const snapshotUrl = new URL('data/snapshot.json', document.baseURI).href;
+                const response = await fetch(snapshotUrl, { cache: 'no-store' });
                 if (!response.ok) throw new Error(`snapshot HTTP ${response.status}`);
                 const snapshot = await response.json();
 
