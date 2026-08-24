@@ -689,11 +689,19 @@
             </div>
             <div id="helpChangelogPanel" class="hidden overflow-y-auto p-5 text-xs text-slate-600 leading-relaxed">
                 <div class="border border-green-300 rounded-xl p-4 bg-green-50">
-                    <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.24</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">本次更新</span></div>
-                    <div class="space-y-4 leading-7">
-                        <p>修复退出事件详情页后视频仍继续播放的问题，退出详情页后会自动停止视频。</p>
-                        <p>移除时间线视图右侧的“连线”按钮，连线管理统一放到节点编辑界面。</p>
-                        <p>视频附件支持填写和编辑标题。</p>
+                    <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.25</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">本次更新</span></div>
+                    <div class="space-y-3 leading-7">
+                        <p>优化同期事件集合的卡片堆叠效果，布局更紧凑</p>
+                        <p>修复非激活卡片预览图动效问题</p>
+                        <p>统一左右滑动响应速度</p>
+                    </div>
+                    <div class="border-t border-green-200 mt-3 pt-3 text-slate-500">
+                        <div class="flex items-center gap-2 mb-1"><span class="font-bold text-indigo-700">2026.08.24</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
+                        <div class="space-y-1 leading-7">
+                            <p>修复退出事件详情页后视频仍继续播放的问题，退出详情页后会自动停止视频。</p>
+                            <p>移除时间线视图右侧的"连线"按钮，连线管理统一放到节点编辑界面。</p>
+                            <p>视频附件支持填写和编辑标题。</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2247,10 +2255,8 @@
             const gapPx = Math.round(150 * scale);
             const dotMajorSize = Math.round(20 * scale);
             const dotMinorSize = Math.round(12 * scale);
-            // 日期文字大小随密度缩放，防止低密度时糊在一起
             const fontSizeTitle = Math.max(8, Math.round(13 * scale));
             const fontSizeDate = Math.max(7, Math.round(10 * scale));
-            // 标题区域宽度也随密度缩放，避免文字溢出重叠
             const titleAreaWidth = Math.max(80, Math.round(130 * Math.min(1.2, Math.max(0.65, scale))));
             const previewWidth = Math.round(160 * Math.min(1.2, Math.max(0.7, scale)));
             const previewImgHeight = Math.round(100 * Math.min(1.2, Math.max(0.7, scale)));
@@ -2437,6 +2443,7 @@
             }
         };
 
+        // ==================== 同期事件集合（Stack Manager） ====================
         window.openStackManagerModal = function(items) {
             let modal = document.getElementById('stackManagerModal');
             if (!modal) {
@@ -2461,7 +2468,7 @@
                         </button>
                     </div>
 
-                    <div id="stackCardsWrapper" class="relative w-full flex-grow flex items-center justify-center overflow-hidden my-auto" style="height: 400px;">
+                    <div id="stackCardsWrapper" class="relative w-full flex-grow flex items-center justify-center overflow-hidden my-auto" style="height: 420px; perspective: 800px;">
                         ${items.map((event, idx) => {
                             const slideMedia = window.getEventPreviewMedia(event, false);
                             const slideSrcs = slideMedia.map(m => m.cover || m.src).filter(Boolean);
@@ -2536,21 +2543,32 @@
             
             cards.forEach((card, idx) => {
                 const offset = idx - activeIndex;
-                const translateX = offset * 130; 
-                const scale = idx === activeIndex ? 1 : 0.78;
-                const opacity = idx === activeIndex ? 1 : 0.55;
+                // 更紧凑的堆叠：第二个露出约1/5，第三个几乎只露边
+                const translateX = offset * 68;
+                const scale = idx === activeIndex ? 1 : 0.85;
                 const zIndex = idx === activeIndex ? 30 : (20 - Math.abs(offset));
 
                 card.style.zIndex = zIndex;
                 card.style.transform = `translateX(${translateX}px) scale(${scale})`;
-                card.style.opacity = opacity;
+                card.style.opacity = 1;
                 card.style.pointerEvents = Math.abs(offset) <= 1 ? 'auto' : 'none';
             });
-        
+
+            // 只对激活的卡片启动预览轮播，非激活卡片完全停止
             cards.forEach((card, idx) => {
-                if (typeof window.startPreviewSlideshow !== 'function') return;
-                if (idx === activeIndex) window.startPreviewSlideshow(card);
-                else window.stopPreviewSlideshow(card, true);
+                if (typeof window.startPreviewSlideshow === 'function') {
+                    if (idx === activeIndex) {
+                        window.startPreviewSlideshow(card);
+                    } else {
+                        window.stopPreviewSlideshow(card, true);
+                        // 额外确保非激活卡片的视频被暂停并移除
+                        const videos = card.querySelectorAll('video');
+                        videos.forEach(v => { try { v.pause(); v.removeAttribute('src'); v.load(); } catch(_) {} });
+                        // 确保图片不播放动画
+                        const imgs = card.querySelectorAll('.preview-slide-img');
+                        imgs.forEach(img => { img.style.opacity = '1'; });
+                    }
+                }
             });
         }
 
@@ -2563,16 +2581,13 @@
             wrapper.onwheel = (e) => {
                 e.preventDefault();
                 const cards = wrapper.querySelectorAll('.stack-card');
-                if (e.deltaY > 0 || e.deltaX > 0) {
-                    if (currentActiveStackIndex < cards.length - 1) {
-                        currentActiveStackIndex++;
-                    }
-                } else {
-                    if (currentActiveStackIndex > 0) {
-                        currentActiveStackIndex--;
-                    }
+                // 使用统一的步长，左右速度一致
+                const delta = e.deltaY > 0 || e.deltaX > 0 ? 1 : -1;
+                const newIndex = Math.max(0, Math.min(cards.length - 1, currentActiveStackIndex + delta));
+                if (newIndex !== currentActiveStackIndex) {
+                    currentActiveStackIndex = newIndex;
+                    updateStackCardStyles(currentActiveStackIndex);
                 }
-                updateStackCardStyles(currentActiveStackIndex);
             };
 
             wrapper.ontouchstart = (e) => {
@@ -2586,13 +2601,14 @@
                     const touchEndX = e.changedTouches[0].clientX;
                     const diff = touchStartX - touchEndX;
                     const cards = wrapper.querySelectorAll('.stack-card');
-                    if (Math.abs(diff) > 30) {
-                        if (diff > 0 && currentActiveStackIndex < cards.length - 1) {
-                            currentActiveStackIndex++;
-                        } else if (diff < 0 && currentActiveStackIndex > 0) {
-                            currentActiveStackIndex--;
+                    const threshold = 25;
+                    if (Math.abs(diff) > threshold) {
+                        const delta = diff > 0 ? 1 : -1;
+                        const newIndex = Math.max(0, Math.min(cards.length - 1, currentActiveStackIndex + delta));
+                        if (newIndex !== currentActiveStackIndex) {
+                            currentActiveStackIndex = newIndex;
+                            updateStackCardStyles(currentActiveStackIndex);
                         }
-                        updateStackCardStyles(currentActiveStackIndex);
                     }
                 }
             };
@@ -3655,9 +3671,7 @@
                 window.showToast('请输入图片链接', 'error');
                 return;
             }
-            // 简单校验
             if (!/^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|bmp|svg|avif|heic|heif)/i.test(url)) {
-                // 不一定有后缀，用 new URL 兜底
                 try {
                     new URL(url);
                 } catch (e) {
