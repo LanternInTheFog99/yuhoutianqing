@@ -692,7 +692,6 @@
                     <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.25</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">本次更新</span></div>
                     <div class="space-y-3 leading-7">
                         <p>优化同期事件集合的卡片堆叠效果，布局更紧凑</p>
-                        <p>修复非激活卡片预览图动效问题</p>
                         <p>统一左右滑动响应速度</p>
                     </div>
                     <div class="border-t border-green-200 mt-3 pt-3 text-slate-500">
@@ -815,6 +814,10 @@
         window.startPreviewSlideshow = function(rootEl) {
             if (!rootEl) return;
             window.stopPreviewSlideshow(rootEl, false);
+            const runToken = (rootEl._previewRunToken || 0) + 1;
+            rootEl._previewRunToken = runToken;
+            rootEl._previewRunning = true;
+            const isStillRunning = () => rootEl.isConnected && rootEl._previewRunning === true && rootEl._previewRunToken === runToken;
             const imgs = Array.from(rootEl.querySelectorAll('.preview-slide-img'));
             if (!imgs.length) return;
             const timers = [];
@@ -845,15 +848,17 @@
                     img.classList.remove('hidden');
                 };
                 const next = () => {
-                    if (!rootEl.isConnected) return;
+                    if (!isStillRunning()) return;
                     idx = (idx + 1) % media.length;
                     const item = media[idx];
                     clearVideo();
+                    img.dataset.previewFrozen = '0';
+                    delete img.dataset.previewFrozenSource;
                     img.src = item.cover || item.src || '';
                     img.style.opacity = '1';
                     if (item.type === 'video' && item.src) {
                         const coverTimer = setTimeout(() => {
-                            if (!rootEl.isConnected) return;
+                            if (!isStillRunning()) return;
                             img.style.opacity = '0';
                             video.src = item.src;
                             video.currentTime = 0;
@@ -876,10 +881,12 @@
 
                 const first = media[0];
                 clearVideo();
+                img.dataset.previewFrozen = '0';
+                delete img.dataset.previewFrozenSource;
                 img.src = first.cover || first.src || '';
                 if (first.type === 'video' && first.src) {
                     const coverTimer = setTimeout(() => {
-                        if (!rootEl.isConnected) return;
+                        if (!isStillRunning()) return;
                         img.style.opacity = '0';
                         video.src = first.src;
                         video.currentTime = 0;
@@ -905,6 +912,8 @@
 
         window.stopPreviewSlideshow = function(rootEl, resetToFirst = true) {
             if (!rootEl) return;
+            rootEl._previewRunning = false;
+            rootEl._previewRunToken = (rootEl._previewRunToken || 0) + 1;
             if (rootEl._previewSlideTimers) {
                 rootEl._previewSlideTimers.forEach(clearTimeout);
                 rootEl._previewSlideTimers = null;
@@ -2540,34 +2549,66 @@
             const wrapper = document.getElementById('stackCardsWrapper');
             if (!wrapper) return;
             const cards = Array.from(wrapper.querySelectorAll('.stack-card'));
-            
+
+            const cardWidth = 220;
+            const inactiveScale = 0.85;
+            const inactiveWidth = cardWidth * inactiveScale;
+            const wrapperWidth = wrapper.clientWidth || 440;
+            const sideSafe = 26;
+            const edgeGap = 14;
+            const halfLimit = Math.max(0, wrapperWidth / 2 - cardWidth / 2 - sideSafe);
+
+            // 从近到远逐级减少露出量：第二张最多，第三张更少，之后只留下圆角边。
+            // 左右完全镜像，所以移动到中间任意事件时，两边的堆叠规律都不会变化。
+            const reveal = [58, 38, 24, 14, 9, 6];
+            const secondStep = reveal[0];
+
+            const getTranslateX = (offset) => {
+                if (offset === 0) return 0;
+                const dir = offset > 0 ? 1 : -1;
+                const distance = Math.abs(offset);
+                // 第一张未激活卡的露出量；之后每一张只比前一张少露一点。
+                // transform 的数值是卡片中心相对激活卡中心的距离。
+                let center = dir * (cardWidth / 2 - inactiveWidth / 2 + secondStep);
+                for (let level = 2; level <= distance; level++) {
+                    const previousVisible = reveal[Math.min(level - 2, reveal.length - 1)];
+                    const currentVisible = reveal[Math.min(level - 1, reveal.length - 1)];
+                    center += dir * (inactiveWidth - currentVisible);
+                    // 上式已经把前一张的右/左边缘作为下一张的基准；
+                    // previousVisible 只用于保证 currentVisible 不会突然增大。
+                    if (currentVisible > previousVisible) {
+                        center += dir * (currentVisible - previousVisible);
+                    }
+                }
+                if (halfLimit > 0) center = Math.max(-halfLimit, Math.min(halfLimit, center));
+                return center;
+            };
+
             cards.forEach((card, idx) => {
                 const offset = idx - activeIndex;
-                // 更紧凑的堆叠：第二个露出约1/5，第三个几乎只露边
-                const translateX = offset * 68;
-                const scale = idx === activeIndex ? 1 : 0.85;
-                const zIndex = idx === activeIndex ? 30 : (20 - Math.abs(offset));
+                const distance = Math.abs(offset);
+                const scale = idx === activeIndex ? 1 : inactiveScale;
+                const translateX = getTranslateX(offset);
+                const zIndex = idx === activeIndex ? 30 : Math.max(1, 20 - distance);
 
                 card.style.zIndex = zIndex;
                 card.style.transform = `translateX(${translateX}px) scale(${scale})`;
                 card.style.opacity = 1;
-                card.style.pointerEvents = Math.abs(offset) <= 1 ? 'auto' : 'none';
+                card.style.pointerEvents = distance <= 1 ? 'auto' : 'none';
             });
 
-            // 只对激活的卡片启动预览轮播，非激活卡片完全停止
+            // 只有中心激活卡片播放预览；所有其他卡片保持静态帧。
             cards.forEach((card, idx) => {
-                if (typeof window.startPreviewSlideshow === 'function') {
-                    if (idx === activeIndex) {
-                        window.startPreviewSlideshow(card);
-                    } else {
-                        window.stopPreviewSlideshow(card, true);
-                        // 额外确保非激活卡片的视频被暂停并移除
-                        const videos = card.querySelectorAll('video');
-                        videos.forEach(v => { try { v.pause(); v.removeAttribute('src'); v.load(); } catch(_) {} });
-                        // 确保图片不播放动画
-                        const imgs = card.querySelectorAll('.preview-slide-img');
-                        imgs.forEach(img => { img.style.opacity = '1'; });
-                    }
+                if (typeof window.startPreviewSlideshow !== 'function') return;
+                if (idx === activeIndex) {
+                    window.startPreviewSlideshow(card);
+                } else {
+                    // 先停止轮播但保留当前画面，再冻结当前帧。
+                    window.stopPreviewSlideshow(card, false);
+                    card.querySelectorAll('video').forEach(v => {
+                        try { v.pause(); v.removeAttribute('src'); v.load(); } catch (_) {}
+                    });
+                    card.querySelectorAll('.preview-slide-img').forEach(img => { img.style.opacity = '1'; });
                 }
             });
         }
