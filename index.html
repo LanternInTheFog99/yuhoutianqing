@@ -2700,7 +2700,7 @@
                 } else {
                     tooltipInnerHtml = `
                         <div class="p-3 flex flex-col gap-1.5">
-                            <div class="text-[10px] font-mono text-indigo-300">${dateStr}</div>
+                            <div class="text-[10px] font-mono text-indigo-300">${window.formatDisplayDate(dateStr)}</div>
                             <div class="text-xs font-semibold text-white leading-snug line-clamp-3">${displayTitle}</div>
                         </div>`;
                 }
@@ -2721,7 +2721,7 @@
                             ${displayTitle}
                         </span>
                         <span class="block text-slate-400 font-mono mt-0.5" style="font-size: ${fontSizeDate}px;">
-                            ${dateStr}
+                            ${window.formatDisplayDate(dateStr)}
                         </span>
                     </div>
 
@@ -2902,7 +2902,7 @@
                                     </div>
                                     <div class="p-3 flex flex-col flex-grow justify-between">
                                         <div>
-                                            <span class="text-[10px] font-mono text-indigo-600 font-semibold bg-indigo-50 px-2 py-0.5 rounded-full">${event.date}</span>
+                                            <span class="text-[10px] font-mono text-indigo-600 font-semibold bg-indigo-50 px-2 py-0.5 rounded-full">${window.formatDisplayDate(event.date)}</span>
                                             <h4 class="font-bold text-slate-800 text-sm mt-1.5 line-clamp-1">${event.title}</h4>
                                             <p class="text-[11px] text-slate-500 line-clamp-2 mt-1 leading-relaxed">${event.description || '暂无详细描述'}</p>
                                         </div>
@@ -3239,7 +3239,7 @@
             const eventOptions = window.events
                 .slice()
                 .sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.title).localeCompare(String(b.title)))
-                .map(e => `<option value="${String(e.id).replace(/"/g, '&quot;')}">${escapeHtml(e.date)} · ${escapeHtml(e.title || '未命名事件')}</option>`)
+                .map(e => `<option value="${String(e.id).replace(/"/g, '&quot;')}">${escapeHtml(window.formatDisplayDate(e.date))} · ${escapeHtml(e.title || '未命名事件')}</option>`)
                 .join('');
 
             const connectionRows = window.connections.map(conn => {
@@ -4060,7 +4060,7 @@
                     </button>
 
                     <div class="flex items-center gap-3 mb-3">
-                        <span class="text-xs font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full font-semibold">${event.date}</span>
+                        <span class="text-xs font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full font-semibold">${window.formatDisplayDate(event.date)}</span>
                         ${event.type === 'major' ? '<span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full">重大里程碑</span>' : ''}
                     </div>
 
@@ -4169,7 +4169,7 @@
                 .slice()
                 .sort((a,b) => String(a.date).localeCompare(String(b.date)) || String(a.title).localeCompare(String(b.title)));
             const options = others.map(e =>
-                `<option value="${String(e.id).replace(/"/g, '&quot;')}">${escapeHtml(e.date)} · ${escapeHtml(e.title || '未命名事件')}</option>`
+                `<option value="${String(e.id).replace(/"/g, '&quot;')}">${escapeHtml(window.formatDisplayDate(e.date))} · ${escapeHtml(e.title || '未命名事件')}</option>`
             ).join('');
             targetSelect.innerHTML = options
                 ? `<option value="">选择连接的事件</option>` + options
@@ -4292,6 +4292,7 @@
             }
             window.editingImageFiles.push({
                 original: url,
+                originalFull: url,
                 outer: url,
                 inner: url,
                 collection: url
@@ -4342,13 +4343,15 @@
 
             window.editingImageFiles = (event.images ? event.images : []).map(img => {
                 if (typeof img === 'string') {
-                    return { original: img, outer: img, inner: img, collection: img };
+                    return { original: img, originalFull: img, outer: img, inner: img, collection: img };
                 }
+                const full = img.originalFull || img.original;
                 return {
-                    original: img.original,
-                    outer: img.outer || img.original,
-                    inner: img.inner || img.original,
-                    collection: img.collection || img.outer || img.original
+                    original: full,
+                    originalFull: full,
+                    outer: img.outer || full,
+                    inner: img.inner || full,
+                    collection: img.collection || img.outer || full
                 };
             });
             window.editingEventId = event.id;
@@ -4521,7 +4524,7 @@
             const files = Array.from(e.target.files);
             for (const f of files) {
                 const base64 = await compressImage(f);
-                window.editingImageFiles.push({ original: base64, outer: base64, inner: base64, collection: base64 });
+                window.editingImageFiles.push({ original: base64, originalFull: base64, outer: base64, inner: base64, collection: base64 });
                 window.renderMicroPreviews();
             }
         };
@@ -4853,7 +4856,7 @@
             const targetImg = document.getElementById('cropTargetImg');
             if (!modal || !targetImg) return;
 
-            targetImg.src = imgObj.original || imgObj.outer || '';
+            targetImg.src = imgObj.originalFull || imgObj.original || imgObj.outer || '';
             modal.classList.remove('hidden');
             window.initCropInteractions();
 
@@ -5054,7 +5057,11 @@
                 const target = window.editingImageFiles[cropState.index];
                 if (!target) return;
 
-                target.original = croppedBase64;
+                // original/originalFull 永远保留完整原图，避免重复截选时基于上一次结果继续缩小。
+                if (!target.originalFull) {
+                    target.originalFull = target.original || target.outer || target.inner || target.collection || targetImg.src;
+                }
+                target.original = target.originalFull;
                 target.outer = croppedBase64;
                 target.inner = croppedBase64;
                 target.collection = croppedBase64;
@@ -5064,6 +5071,24 @@
             };
             imgObj.onerror = () => window.showToast("截选失败，请重试", "error");
             imgObj.src = targetImg.src;
+        };
+
+        // 仅用于外显：不完整日期使用中文年月格式，完整日期保持 YYYY-MM-DD。
+        // 数据内部仍保存标准化的 YYYY / YYYY-MM / YYYY-MM-DD，避免影响排序、分组与编辑。
+        window.formatDisplayDate = function(value) {
+            const v = String(value || '').trim().replace(/\//g, '-');
+            if (!v) return '';
+            const formatOne = (part) => {
+                const x = String(part || '').trim();
+                let m = x.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+                if (m) return `${m[1]}-${String(m[2]).padStart(2, '0')}-${String(m[3]).padStart(2, '0')}`;
+                m = x.match(/^(\d{4})-(\d{1,2})$/);
+                if (m) return `${m[1]}年${Number(m[2])}月`;
+                m = x.match(/^(\d{4})$/);
+                if (m) return `${m[1]}年`;
+                return x;
+            };
+            return v.includes('至') ? v.split('至').map(formatOne).join('至') : formatOne(v);
         };
 
         window.normalizePartialDate = function(value) {
