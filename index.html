@@ -561,7 +561,7 @@
     </div>
 
     <!-- Image Crop Modal -->
-    <div id="cropModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[80] hidden flex items-center justify-center p-2 sm:p-4">
+    <div id="cropModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[120] hidden flex items-center justify-center p-2 sm:p-4">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl max-w-3xl w-full p-4 sm:p-6 text-white flex flex-col items-center">
             <div class="flex items-center justify-between w-full pb-3 border-b border-slate-800 mb-3">
                 <h3 class="font-bold text-base flex items-center gap-2">
@@ -695,7 +695,13 @@
             </div>
             <div id="helpChangelogPanel" class="hidden overflow-y-auto p-5 text-xs text-slate-600 leading-relaxed">
                 <div class="border border-green-300 rounded-xl p-4 bg-green-50">
-                    <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.25</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">本次更新</span></div>
+                    <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.26</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">本次更新</span></div>
+                    <div class="space-y-3 leading-7">
+                        <p>增加日期和日期范围可以仅填写年份、年份与月份的功能</p>
+                        <p>增加编辑模式下新建事件保存后，会自动跳转到该事件所在位置的功能</p>
+                    </div>
+                    <div class="border-t border-green-200 mt-3 pt-3">
+                    <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.25</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
                     <div class="space-y-3 leading-7">
                         <p>优化同期事件集合的卡片堆叠效果，布局更紧凑</p>
                         <p>统一左右边缘滑动响应速度，并优化滑速曲线</p>
@@ -708,6 +714,7 @@
                         <p>修复事件预览中视频首次播放时长偏短的问题</p>
                         <p>修复无法访问云端 CDN 时页面空白的问题</p>
                         <p>修复同期事件集合中点击中心卡片无法进入事件详情的问题</p>
+                    </div>
                     </div>
                     <div class="border-t border-green-200 mt-3 pt-3 text-slate-500">
                         <div class="flex items-center gap-2 mb-1"><span class="font-bold text-indigo-700">2026.08.24</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
@@ -2407,6 +2414,19 @@
             document.getElementById('confirmSaveModal')?.classList.add('hidden');
         };
 
+        window.scrollTimelineToEvent = function(eventData) {
+            const container = document.getElementById('timelineContainer');
+            if (!container || !eventData) return;
+            const targetDate = String(eventData.date || '');
+            const node = Array.from(document.querySelectorAll('.timeline-node-container'))
+                .find(el => String(el.getAttribute('data-date') || '') === targetDate);
+            if (!node) return;
+            const cr = container.getBoundingClientRect();
+            const nr = node.getBoundingClientRect();
+            const targetScroll = container.scrollLeft + (nr.left + nr.width / 2) - (cr.left + cr.width / 2);
+            container.scrollTo({ left: Math.max(0, targetScroll), behavior: 'smooth' });
+        };
+
         window.confirmSaveEvent = async function() {
             if (window.pendingSaveData) {
                 const eventData = window.pendingSaveData;
@@ -2436,6 +2456,11 @@
                     window.closeEditModal();
                     window.showToast(isEdit ? "保存成功" : "新建事件成功", "success");
                     window.pendingSaveData = null;
+                    if (!isEdit) {
+                        requestAnimationFrame(() => {
+                            window.scrollTimelineToEvent(eventData);
+                        });
+                    }
                 } catch (err) {
                     if (savingModal) savingModal.classList.add('hidden');
                     window.showToast("保存失败，请重试", "error");
@@ -4361,8 +4386,8 @@
                             <div><label class="block text-xs font-bold text-slate-700 mb-1">事件名称 *</label><input type="text" id="editTitle" value="${event.title}" required placeholder="输入事件标题" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"></div>
                             <div class="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
                                 <div class="flex items-center justify-between"><label class="block text-xs font-bold text-slate-700">时间与日期范围 *</label><label class="cursor-pointer text-xs text-indigo-600 flex items-center gap-1 font-medium select-none"><input type="checkbox" id="isRangeToggle" ${isRangeDate ? 'checked' : ''} onchange="toggleDateRangeMode(this)"><span>启用日期范围</span></label></div>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="singleDateContainer" style="display: ${isRangeDate ? 'none' : 'grid'};"><div><span class="block text-[10px] text-slate-500 mb-0.5">具体日期</span><input type="date" id="editDate" value="${startDateVal}" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"></div></div>
-                                <div class="grid grid-cols-2 gap-2" id="rangeDateContainer" style="display: ${isRangeDate ? 'grid' : 'none'};"><div><span class="block text-[10px] text-slate-500 mb-0.5">开始日期</span><input type="date" id="editStartDate" value="${startDateVal}" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"></div><div><span class="block text-[10px] text-slate-500 mb-0.5">结束日期</span><input type="date" id="editEndDate" value="${endDateVal}" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"></div></div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="singleDateContainer" style="display: ${isRangeDate ? 'none' : 'grid'};"><div><span class="block text-[10px] text-slate-500 mb-0.5">具体日期</span><input type="text" id="editDate" value="${startDateVal}" inputmode="numeric" maxlength="10" placeholder="YYYY / YYYY-MM / YYYY-MM-DD" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"></div></div>
+                                <div class="grid grid-cols-2 gap-2" id="rangeDateContainer" style="display: ${isRangeDate ? 'grid' : 'none'};"><div><span class="block text-[10px] text-slate-500 mb-0.5">开始日期</span><input type="text" id="editStartDate" value="${startDateVal}" inputmode="numeric" maxlength="10" placeholder="YYYY / YYYY-MM / YYYY-MM-DD" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"></div><div><span class="block text-[10px] text-slate-500 mb-0.5">结束日期</span><input type="text" id="editEndDate" value="${endDateVal}" inputmode="numeric" maxlength="10" placeholder="YYYY / YYYY-MM / YYYY-MM-DD" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"></div></div>
                             </div>
                             <div><label class="block text-xs font-bold text-slate-700 mb-1">节点类型</label><select id="editType" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"><option value="minor" ${event.type === 'minor' ? 'selected' : ''}>普通事件</option><option value="major" ${event.type === 'major' ? 'selected' : ''}>重大里程碑</option></select></div>
                             <div><label class="block text-xs font-bold text-slate-700 mb-1">选择 tag (多选)</label><div class="flex flex-wrap gap-1.5 p-2 border border-slate-200 rounded-lg bg-slate-50 max-h-28 overflow-y-auto" id="editTagsList">${window.availableTags.length === 0 ? '<p class="text-xs text-slate-400 italic">暂无可用 tag</p>' : window.availableTags.map(t => { const checked = event.tags && event.tags.includes(t); return `<label class="cursor-pointer text-xs flex items-center gap-1.5 px-2 py-1 rounded border transition-colors ${checked ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-semibold' : 'bg-white border-slate-200 text-slate-600'}"><input type="checkbox" value="${t}" ${checked ? 'checked' : ''} class="hidden" onchange="toggleTagSelection(this)"><span># ${t}</span></label>`; }).join('')}</div></div>
@@ -5029,15 +5054,35 @@
                 const target = window.editingImageFiles[cropState.index];
                 if (!target) return;
 
+                target.original = croppedBase64;
                 target.outer = croppedBase64;
                 target.inner = croppedBase64;
                 target.collection = croppedBase64;
-                window.showToast("截选完成", "success");
+                window.showToast("截选完成并已应用", "success");
                 window.renderMicroPreviews();
                 window.closeCropModal();
             };
             imgObj.onerror = () => window.showToast("截选失败，请重试", "error");
             imgObj.src = targetImg.src;
+        };
+
+        window.normalizePartialDate = function(value) {
+            const v = String(value || '').trim().replace(/\//g, '-');
+            if (/^\d{4}$/.test(v)) return v;
+            if (/^\d{4}-\d{1,2}$/.test(v)) {
+                const [y, m] = v.split('-');
+                const month = Number(m);
+                if (month >= 1 && month <= 12) return `${y}-${String(month).padStart(2, '0')}`;
+            }
+            if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(v)) {
+                const [y, m, d] = v.split('-');
+                const month = Number(m), day = Number(d);
+                const maxDay = new Date(Number(y), month, 0).getDate();
+                if (month >= 1 && month <= 12 && day >= 1 && day <= maxDay) {
+                    return `${y}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                }
+            }
+            return '';
         };
 
         window.handlePreSaveEvent = function(e, idRaw, isEdit) {
@@ -5048,15 +5093,23 @@
             
             let date = '';
             if (isRange) {
-                const sDate = document.getElementById('editStartDate')?.value;
-                const eDate = document.getElementById('editEndDate')?.value;
+                const sDate = window.normalizePartialDate(document.getElementById('editStartDate')?.value);
+                const eDate = window.normalizePartialDate(document.getElementById('editEndDate')?.value);
                 if (!sDate || !eDate) {
-                    window.showToast("请填写完整的日期范围", "error");
+                    window.showToast("日期请填写为 YYYY、YYYY-MM 或 YYYY-MM-DD", "error");
+                    return;
+                }
+                if (sDate > eDate) {
+                    window.showToast("结束日期不能早于开始日期", "error");
                     return;
                 }
                 date = `${sDate}至${eDate}`;
             } else {
-                date = document.getElementById('editDate')?.value;
+                date = window.normalizePartialDate(document.getElementById('editDate')?.value);
+                if (!date) {
+                    window.showToast("日期请填写为 YYYY、YYYY-MM 或 YYYY-MM-DD", "error");
+                    return;
+                }
             }
 
             const type = document.getElementById('editType')?.value;
