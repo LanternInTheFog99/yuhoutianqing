@@ -517,7 +517,7 @@
     </div>
 
     <!-- Confirm Delete Modal -->
-    <div id="confirmModal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-md z-[70] hidden flex items-center justify-center p-4">
+    <div id="confirmModal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-md z-[110] hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center transform scale-100 transition-transform">
             <div class="w-12 h-12 rounded-full bg-rose-100 text-rose-500 flex items-center justify-center text-xl mx-auto mb-3">
                 <i class="fa-solid fa-triangle-exclamation"></i>
@@ -532,7 +532,7 @@
     </div>
 
     <!-- Confirm Save Modal -->
-    <div id="confirmSaveModal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-md z-[70] hidden flex items-center justify-center p-4">
+    <div id="confirmSaveModal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-md z-[110] hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center transform scale-100 transition-transform">
             <div class="w-12 h-12 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xl mx-auto mb-3">
                 <i class="fa-solid fa-circle-question"></i>
@@ -547,7 +547,7 @@
     </div>
 
     <!-- Saving Progress Modal -->
-    <div id="savingModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[75] hidden flex items-center justify-center p-4">
+    <div id="savingModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[115] hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center">
             <div class="w-14 h-14 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-2xl mx-auto mb-3">
                 <i class="fa-solid fa-spinner fa-spin"></i>
@@ -1386,6 +1386,10 @@
         window.saveEventToCloud = async function(eventData) {
             const index = window.events.findIndex(e => String(e.id) === String(eventData.id));
             if (index >= 0) {
+                // 若本次保存未携带 stackOrder，沿用原有顺序，防止拖拽排序被覆盖
+                if (!Number.isFinite(Number(eventData.stackOrder)) && Number.isFinite(Number(window.events[index].stackOrder))) {
+                    eventData.stackOrder = window.events[index].stackOrder;
+                }
                 window.events[index] = eventData;
             } else {
                 window.events.push(eventData);
@@ -2137,20 +2141,40 @@
             window.location.href = newUrl;
         };
 
+        // ---- 编辑来源管理 ----
+        window._editingFromStackDate = null;
+        window._isEditingFromStack = false;
+
         window.handleNewEventClick = function() {
             if (window.isLocked) {
                 window.showToast("当前处于浏览模式，请先解锁密码", "error");
                 window.openPwdModal();
             } else {
+                window._editingFromStackDate = null;
+                window._isEditingFromStack = false;
                 window.openEditModal();
             }
         };
 
         window.handleEventClick = function(eventId, fromStackDate = null) {
             const id = eventId;
+            
             if (window.isLocked) {
+                // 浏览模式：关闭集合，打开只读详情
+                const stackModal = document.getElementById('stackManagerModal');
+                if (stackModal && !stackModal.classList.contains('hidden')) {
+                    if (fromStackDate) {
+                        const items = window.events.filter(e => e.date === fromStackDate);
+                        const idx = items.findIndex(e => String(e.id) === String(id));
+                        if (idx >= 0) window._stackFocusIndex = idx;
+                    }
+                    stackModal.classList.add('hidden');
+                }
                 window.openReadOnlyFullscreen(id, fromStackDate);
             } else {
+                // 编辑模式：记录来源，打开编辑页（不关闭集合）
+                window._editingFromStackDate = fromStackDate || null;
+                window._isEditingFromStack = !!fromStackDate;
                 window.openEditModal(id);
             }
         };
@@ -2771,6 +2795,7 @@
         // ==================== 同期事件集合（Stack Manager） ====================
         window._stackFocusIndex = null;
         window._stackItems = [];
+        window._stackSaving = false;
 
         window.openStackManagerModal = function(items) {
             items = (items || []).slice().sort((a, b) => {
@@ -2895,6 +2920,8 @@
                 modal.classList.add('hidden');
             }
             window._stackFocusIndex = null;
+            window._editingFromStackDate = null;
+            window._isEditingFromStack = false;
         };
 
         window.closeStackManagerModalWithoutReset = function() {
@@ -2909,6 +2936,8 @@
                 });
                 modal.classList.add('hidden');
             }
+            window._editingFromStackDate = null;
+            window._isEditingFromStack = false;
         };
 
         function setStackSaving(saving) {
@@ -2985,11 +3014,16 @@
                 if (idx === activeIndex) {
                     window.startPreviewSlideshow(card);
                 } else {
-                    window.stopPreviewSlideshow(card, false);
+                    window.stopPreviewSlideshow(card, true);
                     card.querySelectorAll('video').forEach(v => {
                         try { v.pause(); v.removeAttribute('src'); v.load(); } catch (_) {}
                     });
-                    card.querySelectorAll('.preview-slide-img').forEach(img => { img.style.opacity = '1'; });
+                    card.querySelectorAll('.preview-slide-img').forEach(img => {
+                        img.style.opacity = '1';
+                        const media = img._slideMedia || [];
+                        const first = media[0];
+                        if (first) img.src = first.cover || first.src || '';
+                    });
                 }
             });
         }
@@ -3134,15 +3168,12 @@
             if (isNaN(cardIndex) || cardIndex < 0) return;
 
             if (cardIndex === currentActiveStackIndex) {
-                window._stackFocusIndex = currentActiveStackIndex;
                 const eventIdStr = String(eventId);
                 const fromDateStr = dateStr || '';
-                requestAnimationFrame(() => {
-                    window.handleEventClick(eventIdStr, fromDateStr);
-                    setTimeout(() => {
-                        window.closeStackManagerModalWithoutReset();
-                    }, 50);
-                });
+                window._stackFocusIndex = currentActiveStackIndex;
+                window._stackItems = window._stackItems || [];
+                // 编辑模式下不关闭集合，只打开编辑页（浮在集合上面）
+                window.handleEventClick(eventIdStr, fromDateStr);
             } else {
                 updateStackCardStyles(cardIndex);
             }
@@ -3859,7 +3890,12 @@
             }
         };
 
+        // ---- 浏览模式详情页 ----
         window.openReadOnlyFullscreen = function(eventId, fromStackDate = null) {
+            // 浏览模式：关闭集合
+            const stackModal = document.getElementById('stackManagerModal');
+            if (stackModal) stackModal.classList.add('hidden');
+            
             const event = window.findEventById ? window.findEventById(eventId) : window.events.find(e => String(e.id) === String(eventId));
             if (!event) return;
             eventId = event.id;
@@ -4013,21 +4049,14 @@
                 viewer.classList.add('hidden');
             }
             
+            // 浏览模式：退出只读详情后回到集合
             if (fromStackDate) {
                 const items = window.events.filter(e => e.date === fromStackDate);
-                items.sort((a, b) => {
-                    const oa = Number.isFinite(Number(a.stackOrder)) ? Number(a.stackOrder) : 1e9;
-                    const ob = Number.isFinite(Number(b.stackOrder)) ? Number(b.stackOrder) : 1e9;
-                    if (oa !== ob) return oa - ob;
-                    return String(a.title || '').localeCompare(String(b.title || ''), 'zh');
-                });
                 if (items.length > 1) {
-                    const focusIndex = window._stackFocusIndex;
-                    if (focusIndex !== null && focusIndex >= 0 && focusIndex < items.length) {
-                        window._stackFocusIndex = focusIndex;
-                    } else {
-                        window._stackFocusIndex = 0;
-                    }
+                    const focusIndex = (typeof window._stackFocusIndex === 'number' && window._stackFocusIndex >= 0 && window._stackFocusIndex < items.length)
+                        ? window._stackFocusIndex
+                        : 0;
+                    window._stackFocusIndex = focusIndex;
                     window.openStackManagerModal(items);
                 }
             }
@@ -4231,6 +4260,7 @@
 
         // ==================== 编辑模态框 ====================
         window.openEditModal = function(eventId = null) {
+            // 编辑模式下不关闭集合，只确保编辑页在最上层
             if (!window.canEditNow()) {
                 window.showToast(window.isCloudSynced ? '当前处于浏览模式，请先解锁编辑模式' : '请先等待右上角显示"已同步云端"后再编辑', 'error');
                 return;
@@ -4239,7 +4269,7 @@
             if (!modal) {
                 modal = document.createElement('div');
                 modal.id = 'editModal';
-                modal.className = "fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto";
+                modal.className = "fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-2 sm:p-4 overflow-y-auto";
                 document.body.appendChild(modal);
             }
 
@@ -4393,6 +4423,9 @@
             window.renderEditConnections();
             window.switchEditPage(1);
             modal.classList.remove('hidden');
+            
+            // 确保编辑页在集合之上（z-index更高）
+            modal.style.zIndex = '100';
         };
 
         window.switchEditPage = function(page) {
@@ -4419,9 +4452,18 @@
             }
         };
 
+        // ---- 关闭编辑页 ----
         window.closeEditModal = function() {
-            document.getElementById('editModal')?.classList.add('hidden');
-            window.editingConnections = []; window.editingConnectionsDirty = false; window.editingConnectionDraftEventId = null;
+            const editModal = document.getElementById('editModal');
+            if (editModal) editModal.classList.add('hidden');
+            window.editingConnections = []; 
+            window.editingConnectionsDirty = false; 
+            window.editingConnectionDraftEventId = null;
+            
+            // 编辑模式下不重新打开集合，因为集合本来就没关闭
+            // 只需要清除来源标记
+            window._editingFromStackDate = null;
+            window._isEditingFromStack = false;
         };
 
         window.toggleTagSelection = function(checkbox) {
@@ -5009,6 +5051,12 @@
                 return;
             }
 
+            // 保留同期集合中的拖拽顺序，避免编辑保存后顺序被重置
+            const existingEv = window.events.find(e => String(e.id) === String(id));
+            const preservedStackOrder = (existingEv && Number.isFinite(Number(existingEv.stackOrder)))
+                ? Number(existingEv.stackOrder)
+                : undefined;
+
             window.pendingSaveData = {
                 id: id,
                 title: title,
@@ -5028,6 +5076,9 @@
                 connections: [...window.editingConnections],
                 _isEdit: isEdit
             };
+            if (preservedStackOrder !== undefined) {
+                window.pendingSaveData.stackOrder = preservedStackOrder;
+            }
 
             document.getElementById('confirmSaveModal')?.classList.remove('hidden');
         };
