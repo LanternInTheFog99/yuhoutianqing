@@ -2156,6 +2156,15 @@
             }
         };
 
+        window.sortStackItems = function(items) {
+            return (items || []).slice().sort((a, b) => {
+                const oa = Number.isFinite(Number(a.stackOrder)) ? Number(a.stackOrder) : 1e9;
+                const ob = Number.isFinite(Number(b.stackOrder)) ? Number(b.stackOrder) : 1e9;
+                if (oa !== ob) return oa - ob;
+                return String(a.title || '').localeCompare(String(b.title || ''), 'zh');
+            });
+        };
+
         window.handleEventClick = function(eventId, fromStackDate = null) {
             const id = eventId;
             
@@ -2164,7 +2173,14 @@
                 const stackModal = document.getElementById('stackManagerModal');
                 if (stackModal && !stackModal.classList.contains('hidden')) {
                     if (fromStackDate) {
-                        const items = window.events.filter(e => e.date === fromStackDate);
+                        // 焦点下标必须与集合弹窗内排序一致（stackOrder），不能用 events 原始顺序
+                        let items;
+                        if (Array.isArray(window._stackItems) && window._stackItems.length
+                            && window._stackItems.every(e => e && e.date === fromStackDate)) {
+                            items = window._stackItems;
+                        } else {
+                            items = window.sortStackItems(window.events.filter(e => e.date === fromStackDate));
+                        }
                         const idx = items.findIndex(e => String(e.id) === String(id));
                         if (idx >= 0) window._stackFocusIndex = idx;
                     }
@@ -2798,7 +2814,7 @@
         window._stackSaving = false;
 
         window.openStackManagerModal = function(items) {
-            items = (items || []).slice().sort((a, b) => {
+            items = window.sortStackItems ? window.sortStackItems(items) : (items || []).slice().sort((a, b) => {
                 const oa = Number.isFinite(Number(a.stackOrder)) ? Number(a.stackOrder) : 1e9;
                 const ob = Number.isFinite(Number(b.stackOrder)) ? Number(b.stackOrder) : 1e9;
                 if (oa !== ob) return oa - ob;
@@ -4049,9 +4065,11 @@
                 viewer.classList.add('hidden');
             }
             
-            // 浏览模式：退出只读详情后回到集合
+            // 浏览模式：退出只读详情后回到集合（排序与集合弹窗一致，保留原中心卡片）
             if (fromStackDate) {
-                const items = window.events.filter(e => e.date === fromStackDate);
+                const items = window.sortStackItems
+                    ? window.sortStackItems(window.events.filter(e => e.date === fromStackDate))
+                    : window.events.filter(e => e.date === fromStackDate);
                 if (items.length > 1) {
                     const focusIndex = (typeof window._stackFocusIndex === 'number' && window._stackFocusIndex >= 0 && window._stackFocusIndex < items.length)
                         ? window._stackFocusIndex
