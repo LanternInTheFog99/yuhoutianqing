@@ -27,6 +27,12 @@
         ::-webkit-scrollbar-thumb:hover {
             background: rgba(107, 114, 128, 0.7);
         }
+        /* 时间线只保留底部横向条，去掉右侧竖向滚动条 */
+        #timelineContainer::-webkit-scrollbar:vertical {
+            width: 0 !important;
+            height: 0 !important;
+            display: none !important;
+        }
         
         .timeline-dot {
             transition: transform 0.2s ease, width 0.2s ease, height 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
@@ -331,7 +337,7 @@
                 <i class="fa-solid fa-chevron-right text-xs"></i>
             </button>
 
-            <div id="timelineContainer" onscroll="renderSvgConnections()" onwheel="handleTimelineWheel(event)" class="overflow-x-auto pt-32 sm:pt-36 pb-16 sm:pb-20 px-4 sm:px-12 flex items-center relative min-h-[420px] sm:min-h-[460px] custom-scrollbar">
+            <div id="timelineContainer" onscroll="renderSvgConnections()" onwheel="handleTimelineWheel(event)" class="overflow-x-auto overflow-y-hidden pt-32 sm:pt-36 pb-16 sm:pb-20 px-4 sm:px-12 flex items-center relative min-h-[420px] sm:min-h-[460px] custom-scrollbar">
                 <svg id="timelineSvgOverlay" class="absolute top-0 left-0 pointer-events-none z-[20] overflow-visible">
                     <g id="svgConnectionsGroup"></g>
                 </svg>
@@ -703,6 +709,7 @@
                         <p>增加离线模式，网络受限时自动加载预置数据包</p>
                         <p>增加未同步云端时自动退回浏览模式的功能，避免在离线状态下停留在编辑模式</p>
                         <p>修复离线模式下时间线右侧边缘自动滑动失效的问题</p>
+                        <p>在感谢名单里增加了一些小彩蛋</p>
                     </div>
                     <div class="border-t border-green-200 mt-3 pt-3 text-slate-500">
                         <div class="flex items-center gap-2 mb-1"><span class="font-bold text-indigo-700">2026.08.24</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
@@ -718,9 +725,24 @@
                 <div class="border border-rose-300 rounded-xl p-5 bg-rose-50">
                     <h4 class="text-base font-bold text-slate-800 mb-3 flex items-center gap-2"><span>感谢名单</span></h4>
                     <p class="text-slate-500 leading-6 mb-4">感谢所有帮助制作、测试和完善这个网页的人。</p>
-                    <div class="inline-block w-auto rounded-lg bg-white border border-slate-200 px-3 py-2 font-semibold text-slate-700 whitespace-nowrap">鱼猴癖</div>
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" onclick="openThanksNote('yuhoupi')" class="inline-flex items-center rounded-lg bg-white border border-slate-200 hover:border-rose-300 hover:bg-rose-50/80 px-3 py-2 font-semibold text-slate-700 whitespace-nowrap transition-colors shadow-sm">鱼猴癖</button>
+                        <button type="button" onclick="openThanksNote('xiaochuang')" class="inline-flex items-center rounded-lg bg-white border border-slate-200 hover:border-rose-300 hover:bg-rose-50/80 px-3 py-2 font-semibold text-slate-700 whitespace-nowrap transition-colors shadow-sm">所有被我小窗骚扰过的朋友们</button>
+                        <button type="button" onclick="openThanksNote('yuesao')" class="inline-flex items-center rounded-lg bg-white border border-slate-200 hover:border-rose-300 hover:bg-rose-50/80 px-3 py-2 font-semibold text-slate-700 whitespace-nowrap transition-colors shadow-sm">所有参与测试过beta版本的月嫂们</button>
+                    </div>
                 </div>
             </div>
+
+    <!-- 感谢名单评价弹窗：淡黄色小框，留白对齐感谢名单 -->
+    <div id="thanksNoteModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[95] hidden flex items-center justify-center p-4" onclick="if(event.target===this)closeThanksNote()">
+        <div class="border border-amber-300 rounded-xl p-5 bg-amber-50 max-w-md w-full relative shadow-sm">
+            <button type="button" onclick="closeThanksNote()" class="absolute top-3 right-3 text-slate-400 hover:text-amber-700/80 w-7 h-7 rounded-full flex items-center justify-center">
+                <i class="fa-solid fa-xmark text-sm"></i>
+            </button>
+            <h3 id="thanksNoteTitle" class="font-bold text-slate-800 text-base mb-3 pr-8"></h3>
+            <p id="thanksNoteBody" class="text-sm text-slate-600 leading-7 whitespace-pre-wrap"></p>
+        </div>
+    </div>
         </div>
     </div>
 
@@ -1490,43 +1512,50 @@
             }
 
             function updateHoverSyncedWithScroll() {
-                if (offscreenIndices.length === 0) {
+                const nodes = getOrderedNodes();
+                if (!nodes.length) {
                     clearForceHover();
                     return;
                 }
-                const nodes = getOrderedNodes();
                 const cr = container.getBoundingClientRect();
-                const pad = 4;
+                // 不改热区宽度，只推迟「开始播预览」：
+                // 圆点需越过热区内缘一段距离后才切换，避免大约只露 3/4 就被切走
+                const band = Math.max(40, EDGE_PX);
+                const idealX = isScrollingRight
+                    ? (cr.right - band * 1.9)
+                    : (cr.left + band * 1.9);
                 let best = null;
                 let bestScore = Infinity;
 
-                offscreenIndices.forEach((i) => {
-                    const node = nodes[i];
+                const candidateIdx = offscreenIndices.length
+                    ? offscreenIndices
+                    : nodes.map((_, i) => i);
+
+                const consider = (node) => {
                     if (!node || !node.isConnected) return;
                     const nr = node.getBoundingClientRect();
-                    if (!(nr.right > cr.left + pad && nr.left < cr.right - pad)) return;
                     const centerX = nr.left + nr.width / 2;
+                    // 圆点中心必须已进入视口
+                    if (centerX <= cr.left + 2 || centerX >= cr.right - 2) return;
                     if (isScrollingRight) {
-                        const score = cr.right - centerX;
-                        if (score >= 0 && score < bestScore) { bestScore = score; best = node; }
+                        // 仍落在右缘热区附近 → 再等；已经深入屏内 → 不再当作「刚进入」
+                        if (centerX > cr.right - band * 1.55) return;
+                        if (centerX < cr.right - band * 2.75) return;
                     } else if (isScrollingLeft) {
-                        const score = centerX - cr.left;
-                        if (score >= 0 && score < bestScore) { bestScore = score; best = node; }
+                        if (centerX < cr.left + band * 1.55) return;
+                        if (centerX > cr.left + band * 2.75) return;
+                    } else {
+                        return;
                     }
-                });
+                    const score = Math.abs(centerX - idealX);
+                    if (score < bestScore) {
+                        bestScore = score;
+                        best = node;
+                    }
+                };
 
-                if (!best) {
-                    const mid = cr.left + cr.width / 2;
-                    bestScore = Infinity;
-                    offscreenIndices.forEach((i) => {
-                        const node = nodes[i];
-                        if (!node || !node.isConnected) return;
-                        const nr = node.getBoundingClientRect();
-                        if (nr.right <= cr.left + pad || nr.left >= cr.right - pad) return;
-                        const dist = Math.abs(nr.left + nr.width / 2 - mid);
-                        if (dist < bestScore) { bestScore = dist; best = node; }
-                    });
-                }
+                candidateIdx.forEach((i) => consider(nodes[i]));
+                if (!best) nodes.forEach(consider);
 
                 if (best) applyHoverToNode(best);
                 else clearForceHover();
@@ -1585,6 +1614,8 @@
                     const maxScroll = Math.max(0, container.scrollWidth - container.clientWidth);
                     container.scrollLeft = Math.min(maxScroll, before + step);
                 }
+                // 与自动滑动平行：刚进入视口的节点播放预览，完全在屏内的不播
+                updateHoverSyncedWithScroll();
                 animationId = requestAnimationFrame(smoothScroll);
             }
 
@@ -4708,6 +4739,34 @@
             document.getElementById('confirmSaveModal')?.classList.remove('hidden');
         };
 
+        window.THANKS_NOTES = {
+            yuhoupi: {
+                title: '鱼猴癖',
+                body: '非常非常感谢这位朋友！从一开始就和我一起制作这个网页，不厌其烦地找到了一大堆的待修改的bug，客观上加速了雨后天晴正式版的成型速度，也填写了很多事件，勤劳的小蜜蜂一枚。雨后天晴有你了不起啊！伟大！ദ്ദി˶ｰ̀֊ｰ́ )✧'
+            },
+            xiaochuang: {
+                title: '所有被我小窗骚扰过的朋友们',
+                body: '感谢你们每次都不厌其烦地理睬我发出的有关这个小网页的碎碎念！我的分享欲得到大满足嘿嘿嘿。爱你萌！o(￣▽￣)o '
+            },
+            yuesao: {
+                title: '所有参与测试过beta版本的月嫂们',
+                body: '感谢你们答应我的小请求来测试这个网页！每个反馈都给我增加了很多信心。₍ᐢ..ᐢ₎ ༘♡'
+            }
+        };
+        window.openThanksNote = function(id) {
+            const note = window.THANKS_NOTES[id];
+            if (!note) return;
+            const modal = document.getElementById('thanksNoteModal');
+            const title = document.getElementById('thanksNoteTitle');
+            const body = document.getElementById('thanksNoteBody');
+            if (title) title.textContent = note.title;
+            if (body) body.textContent = note.body;
+            modal?.classList.remove('hidden');
+        };
+        window.closeThanksNote = function() {
+            document.getElementById('thanksNoteModal')?.classList.add('hidden');
+        };
+
         window.openHelpModal = function() { const modal = document.getElementById('helpModal'); if (!modal) return; switchHelpTab('usage'); modal.classList.remove('hidden'); };
         window.closeHelpModal = function() { document.getElementById('helpModal')?.classList.add('hidden'); };
         window.switchHelpTab = function(tab) {
@@ -4730,7 +4789,7 @@
                 b1?.classList.add('bg-white','text-indigo-700','border','border-b-0','border-slate-200');
             }
         };
-        document.addEventListener('keydown', e => { if (e.key === 'Escape') { const h=document.getElementById('helpModal'); if(h && !h.classList.contains('hidden')) closeHelpModal(); const v=document.getElementById('fullscreenViewer'); if(v && !v.classList.contains('hidden')) closeReadOnlyFullscreen(); } });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') { const tn=document.getElementById('thanksNoteModal'); if(tn && !tn.classList.contains('hidden')) { closeThanksNote(); return; } const h=document.getElementById('helpModal'); if(h && !h.classList.contains('hidden')) closeHelpModal(); const v=document.getElementById('fullscreenViewer'); if(v && !v.classList.contains('hidden')) closeReadOnlyFullscreen(); } });
 
         window.showToast = function(text, type = "info") {
             const toastBox = document.getElementById('toastBox');
