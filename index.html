@@ -1131,8 +1131,6 @@
             const PRELOAD_WAIT_MS = 60;          // 切换前最多等预加载多久，超时走黑屏
             const BLACK_FADE_MS = 150;           // 黑屏淡入/淡出
             const BLACK_HOLD_MS = 80;            // 纯黑停留
-            // 动图/视频 → 静态图：很短的淡出淡入，减轻割裂感
-            const SOFT_TO_STATIC_MS = 200;
 
             const isAnimatedImageItem = (item) => {
                 if (!item || item.type !== 'image') return false;
@@ -1462,39 +1460,12 @@
                     startHold();
                 };
 
-                const isHeavyMedia = (it) => !!(it && (it.type === 'video' || isAnimatedImageItem(it)));
-
-                // 动图/视频结束切到静态图：短淡出 → 换图 → 短淡入
-                const softToStaticTransition = async (item) => {
-                    enableSoftFade(img);
-                    enableSoftFade(video);
-                    img.style.opacity = '0';
-                    video.style.opacity = '0';
-                    await delayMs(SOFT_TO_STATIC_MS);
-                    if (!isStillRunning()) return;
-                    clearVideo();
-                    await applyImageItem(item, { hardHide: true });
-                    if (!isStillRunning()) return;
-                    stage.classList.remove('preview-stage-black');
-                    img.classList.remove('hidden');
-                    img.style.opacity = '0';
-                    enableSoftFade(img);
-                    await delayMs(16);
-                    if (!isStillRunning()) return;
-                    img.style.opacity = '1';
-                    await delayMs(SOFT_TO_STATIC_MS);
-                    disableSoftFade(img);
-                };
-
-                // 直切为主；预加载未就绪 → 黑屏兜底；动图/视频→静图 → 短淡变
-                const presentItem = async (item, after, isFirst, fromItem) => {
+                // 直切为主；预加载未在短时间内就绪 → 淡入淡出黑屏兜底
+                const presentItem = async (item, after, isFirst) => {
                     if (!isStillRunning()) return;
                     const gen = ++generation;
                     const ready = isFirst ? true : await waitPreloadOrTimeout(item, PRELOAD_WAIT_MS);
                     const useBlack = !isFirst && !ready;
-                    const softToStatic = !isFirst && !useBlack
-                        && isHeavyMedia(fromItem)
-                        && isStaticImageItem(item);
 
                     if (item.type === 'video' && item.src) {
                         await playVideoThen(item, after, gen, useBlack);
@@ -1507,10 +1478,8 @@
                         await applyImageItem(item, { hardHide: true });
                         if (!isStillRunning() || gen !== generation) return;
                         await softBlackRevealImage();
-                    } else if (softToStatic) {
-                        await softToStaticTransition(item);
-                        if (!isStillRunning() || gen !== generation) return;
                     } else {
+                        // 尽量保持上一帧直到新图就绪，再瞬间换上
                         await applyImageItem(item, { hardHide: false });
                         if (!isStillRunning() || gen !== generation) return;
                         showImageNow();
@@ -1526,13 +1495,12 @@
                     if (media.length <= 1) {
                         const only = media[0];
                         if (only && only.type === 'video' && only.src) {
-                            presentItem(only, () => { if (isStillRunning()) next(); }, false, only);
+                            presentItem(only, () => { if (isStillRunning()) next(); }, false);
                         }
                         return;
                     }
-                    const fromItem = media[idx];
                     idx = (idx + 1) % media.length;
-                    presentItem(media[idx], next, false, fromItem);
+                    presentItem(media[idx], next, false);
                 };
 
                 // 启动时多预热后面几张
@@ -1541,7 +1509,7 @@
                         preloadNextItem(media[i]);
                     }
                 }
-                presentItem(media[0], media.length > 1 ? next : null, true, null);
+                presentItem(media[0], media.length > 1 ? next : null, true);
             };
             imgs.forEach(schedule);
             rootEl._previewSlideTimers = timers;
