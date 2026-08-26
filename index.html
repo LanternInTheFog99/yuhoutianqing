@@ -220,11 +220,79 @@
         .media-drag-item.media-dragging { opacity: .45; transform: scale(.985); }
         .node-title-area.conn-label-overlap-dim { opacity: .28 !important; transition: opacity .2s ease; }
         .rich-color-choice.is-selected { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #6366f1 !important; transform: scale(1.08); }
-        #editDescription.rich-editor { min-height: 150px; white-space: pre-wrap; overflow-wrap: anywhere; }
+        #editDescription.rich-editor { min-height: 150px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.75; }
         #editDescription.rich-editor, #editDescription.rich-editor * {
             text-decoration-color: currentColor;
             text-decoration-thickness: from-font;
+            text-underline-offset: 0.18em;
+            border: none !important;
+            outline: none !important;
+            box-shadow: none !important;
         }
+        /* 编辑态：悬停显现文字半透明显示，便于定位与编辑 */
+        #editDescription.rich-editor [data-rich-reveal] {
+            opacity: 0.28 !important;
+            transition: opacity 0.18s ease;
+            border-bottom: 1px dotted rgba(99, 102, 241, 0.55) !important;
+            border-radius: 2px;
+        }
+        #editDescription.rich-editor [data-rich-reveal]:hover {
+            opacity: 1 !important;
+        }
+        /* 浏览详情：深色底上半透明文字继承浅色可见；悬停显现默认隐藏 */
+        .event-description-html {
+            color: #e2e8f0;
+            line-height: 1.75;
+        }
+        .event-description-html, .event-description-html * {
+            text-decoration-color: currentColor;
+            text-decoration-thickness: from-font;
+        }
+        .event-description-html [data-rich-reveal] {
+            opacity: 0 !important;
+            transition: opacity 0.2s ease;
+            border-bottom: 1px dotted rgba(148, 163, 184, 0.45);
+            cursor: default;
+        }
+        .event-description-html [data-rich-reveal]:hover {
+            opacity: 1 !important;
+        }
+        /* 时间线预览淡入淡出（同期集合卡片可关掉） */
+        .preview-slide-img, .preview-inline-video {
+            transition: opacity 0.28s ease;
+        }
+        .preview-no-crossfade .preview-slide-img,
+        .preview-no-crossfade .preview-inline-video {
+            transition: none !important;
+        }
+        /* 滚轮滑动方向提示 */
+        #timelineWheelHint {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.92);
+            z-index: 55;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s ease, transform 0.15s ease;
+            width: 56px;
+            height: 56px;
+            border-radius: 9999px;
+            background: rgba(15, 23, 42, 0.72);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 0 10px 25px -8px rgba(15, 23, 42, 0.45);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 22px;
+        }
+        #timelineWheelHint.is-visible {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+        #timelineWheelHint.is-left i { transform: translateX(-1px); }
+        #timelineWheelHint.is-right i { transform: translateX(1px); }
 </style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
@@ -342,6 +410,10 @@
             <button onclick="scrollTimeline(300)" class="hidden md:flex absolute right-2 top-1/2 -translate-y-1/2 z-50 bg-white/95 hover:bg-white shadow-lg rounded-full w-9 h-9 border border-slate-200 items-center justify-center text-slate-700 hover:text-indigo-600 transition-all">
                 <i class="fa-solid fa-chevron-right text-xs"></i>
             </button>
+
+            <div id="timelineWheelHint" aria-hidden="true" title="滚轮滑动方向">
+                <i class="fa-solid fa-arrow-right"></i>
+            </div>
 
             <div id="timelineContainer" onscroll="renderSvgConnections()" onwheel="handleTimelineWheel(event)" class="overflow-x-auto overflow-y-hidden pt-32 sm:pt-36 pb-16 sm:pb-20 px-4 sm:px-12 flex items-center relative min-h-[420px] sm:min-h-[460px] custom-scrollbar">
                 <svg id="timelineSvgOverlay" class="absolute top-0 left-0 pointer-events-none z-[20] overflow-visible">
@@ -710,21 +782,25 @@
                     <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.27</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">本次更新</span></div>
 
                     <div class="space-y-3 leading-7 mb-3">
-                        <p>增加了事件详情页查看大图时视频播放状态自动处理的功能</p>
-                        <p>优化了了日期和日期范围输入的功能</p>
-                        <p>优化了时间线边缘自动滑动的功能</p>
-                        <p>修复了添加图片后时间线预览图无法显示的问题</p>
-                        <p>修复了动图截选功能相关的问题</p>
+                        <p>增加了详细描述中「悬停显现」文字的功能</p>
+                        <p>增加了时间线预览轮播中淡入淡出过渡的功能</p>
+                        <p>增加了下划线与删除线随当前字体颜色同步变化的功能</p>
+                        <p>修复了浏览模式详情页中非 100% 透明度文字看不见的问题</p>
+                        <p>修复了详细描述分段后出现异常白边、自动换行时删除线位置偏低的问题</p>
+                        <p>移除了时间线预览播放视频前先展示封面的功能</p>
                     </div>
                     <div class="border-t border-green-200 pt-3">
                     <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.26</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
                     <div class="space-y-3 leading-7">
-                        <p>增加了图片、视频拖拽排序的的功能</p>
+                        <p>增加了事件详情页查看大图时视频播放状态自动处理的功能</p>
+                        <p>优化了日期和日期范围输入的功能</p>
+                        <p>优化了时间线边缘自动滑动的功能</p>
+                        <p>修复了添加图片后时间线预览图无法显示的问题</p>
+                        <p>修复了动图截选功能相关的问题</p>
+                        <p>增加了图片、视频拖拽排序的功能</p>
                         <p>增加了视频预览时长独立调整的功能</p>
                         <p>增加了编辑界面填写文字区域中文字格式、字号、颜色与透明度的编辑功能</p>
                         <p>优化了时间线悬停预览时节点文字显示的功能</p>
-                    
-
                         <p>增加了日期和日期范围仅填写年份、年份与月份的功能</p>
                         <p>增加了编辑模式下新建事件保存后自动跳转到该事件所在位置的功能</p>
                     </div>
@@ -1026,7 +1102,9 @@
         window.startPreviewSlideshow = function(rootEl, opts) {
             if (!rootEl) return;
             const calm = !!(opts && opts.calm);
-            if (rootEl._previewRunning && rootEl._previewCalm === calm && rootEl._previewRunToken) {
+            // 同期事件集合等场景：图与图之间不做淡入淡出
+            const noCrossfade = !!(opts && opts.noCrossfade);
+            if (rootEl._previewRunning && rootEl._previewCalm === calm && rootEl._previewNoCrossfade === noCrossfade && rootEl._previewRunToken) {
                 return;
             }
             window.stopPreviewSlideshow(rootEl, false);
@@ -1034,12 +1112,16 @@
             rootEl._previewRunToken = runToken;
             rootEl._previewRunning = true;
             rootEl._previewCalm = calm;
+            rootEl._previewNoCrossfade = noCrossfade;
+            if (noCrossfade) rootEl.classList.add('preview-no-crossfade');
+            else rootEl.classList.remove('preview-no-crossfade');
             const isStillRunning = () => rootEl.isConnected && rootEl._previewRunning === true && rootEl._previewRunToken === runToken;
             const imgs = Array.from(rootEl.querySelectorAll('.preview-slide-img'));
             if (!imgs.length) return;
             const timers = [];
             const videoEls = [];
-            const imageHold = calm ? 4200 : 2000;
+            // 静态图停留：略加长一点点（非 calm 原 2000 → 2400）
+            const imageHold = calm ? 4200 : 2200;
             const videoCoverHold = calm ? 1600 : 1100;
             const defaultVideoHold = calm ? 5000 : 4000;
             // 浏览器没有「GIF 单次循环结束」事件，只能用帧延迟估算；黑屏固定时长，避免首次加载把间隙拉长。
@@ -1125,8 +1207,10 @@
                 };
 
                 const enterBlack = () => {
-                    clearVideo();
+                    // 先淡出当前画面，再落到黑底，避免硬切
                     img.style.opacity = '0';
+                    video.style.opacity = '0';
+                    clearVideo();
                     img.classList.add('hidden');
                     stage.style.backgroundColor = '#000';
                 };
@@ -1211,51 +1295,51 @@
                 const revealImage = () => {
                     exitBlack();
                     img.classList.remove('hidden');
-                    img.style.opacity = '1';
+                    // 先保持 0，下一帧再淡入，触发 CSS transition
+                    img.style.opacity = '0';
+                    requestAnimationFrame(() => {
+                        if (!isStillRunning()) return;
+                        img.style.opacity = '1';
+                    });
                 };
 
+                // 时间线预览：黑屏后直接播视频，不再先展示封面（封面仅用于详情页）。
                 const playVideoThen = (item, after, gen) => {
                     clearVideo();
                     img.dataset.previewFrozen = '0';
                     delete img.dataset.previewFrozenSource;
-                    img.src = item.cover || item.src || '';
-                    try { window.applyPreviewImageStyle(img, item); } catch (_) {}
-                    img.style.opacity = '1';
-                    img.classList.remove('hidden');
+                    img.style.opacity = '0';
+                    img.classList.add('hidden');
                     exitBlack();
-                    const coverTimer = setTimeout(() => {
-                        if (!isStillRunning() || gen !== generation) return;
-                        if (!item.src) {
-                            if (after) after();
-                            return;
-                        }
-                        img.style.opacity = '0';
-                        img.classList.add('hidden');
-                        video.src = item.src;
-                        try { video.currentTime = 0; } catch (_) {}
-                        video.classList.remove('hidden');
+                    if (!item.src) {
+                        if (after) after();
+                        return;
+                    }
+                    video.src = item.src;
+                    try { video.currentTime = 0; } catch (_) {}
+                    video.classList.remove('hidden');
+                    video.style.opacity = '0';
+                    let holdStarted = false;
+                    const startHold = () => {
+                        if (holdStarted || !isStillRunning() || gen !== generation) return;
+                        holdStarted = true;
                         video.style.opacity = '1';
-                        let holdStarted = false;
-                        const startHold = () => {
-                            if (holdStarted || !isStillRunning() || gen !== generation) return;
-                            holdStarted = true;
-                            video.play().catch(() => {});
-                            const playMs = Math.max(window.VIDEO_PREVIEW_MIN_SEC, Math.min(window.VIDEO_PREVIEW_MAX_SEC, Number(item.previewDuration) || (defaultVideoHold / 1000))) * 1000;
+                        video.play().catch(() => {});
+                        const playMs = Math.max(window.VIDEO_PREVIEW_MIN_SEC, Math.min(window.VIDEO_PREVIEW_MAX_SEC, Number(item.previewDuration) || (defaultVideoHold / 1000))) * 1000;
+                        timers.push(setTimeout(() => {
+                            if (!isStillRunning() || gen !== generation) return;
+                            // 结束时淡出再进入下一轮
+                            video.style.opacity = '0';
                             timers.push(setTimeout(() => {
                                 if (!isStillRunning() || gen !== generation) return;
                                 if (after) after();
-                                else {
-                                    clearVideo();
-                                    img.classList.remove('hidden');
-                                    img.style.opacity = '1';
-                                }
-                            }, playMs));
-                        };
-                        video.addEventListener('canplay', startHold, { once: true });
-                        try { video.load(); } catch (_) {}
-                        timers.push(setTimeout(startHold, 1200));
-                    }, videoCoverHold);
-                    timers.push(coverTimer);
+                                else clearVideo();
+                            }, 220));
+                        }, playMs));
+                    };
+                    video.addEventListener('canplay', startHold, { once: true });
+                    try { video.load(); } catch (_) {}
+                    timers.push(setTimeout(startHold, 1200));
                 };
 
                 // 统一入口：显示某一项并在「真正可见」后开始计时。
@@ -1284,10 +1368,21 @@
                         if (!isStillRunning() || gen !== generation) return;
                         revealImage();
                     } else {
-                        // 首张或静态→静态：无黑屏，直接准备并显示。
+                        // 首张或静态→静态：无黑屏；非同期集合时短暂淡出再淡入。
+                        if (!noCrossfade && (idx !== 0 || gen > 1)) {
+                            img.style.opacity = '0';
+                            await delayMs(180);
+                            if (!isStillRunning() || gen !== generation) return;
+                        }
                         await prepareImageHidden(item);
                         if (!isStillRunning() || gen !== generation) return;
-                        revealImage();
+                        if (noCrossfade) {
+                            exitBlack();
+                            img.classList.remove('hidden');
+                            img.style.opacity = '1';
+                        } else {
+                            revealImage();
+                        }
                     }
                     if (!isStillRunning() || gen !== generation) return;
                     // 计时从「可见」这一刻开始，与动图实际起播对齐。
@@ -1326,6 +1421,8 @@
             if (!rootEl) return;
             rootEl._previewRunning = false;
             rootEl._previewCalm = false;
+            rootEl._previewNoCrossfade = false;
+            rootEl.classList.remove('preview-no-crossfade');
             rootEl._previewRunToken = (rootEl._previewRunToken || 0) + 1;
             if (rootEl._previewSlideTimers) {
                 rootEl._previewSlideTimers.forEach(clearTimeout);
@@ -2991,13 +3088,39 @@
             window.setZoom(newZoom);
         };
 
+        window._timelineWheelHintTimer = null;
+        window.showTimelineWheelHint = function(direction) {
+            const hint = document.getElementById('timelineWheelHint');
+            if (!hint) return;
+            const icon = hint.querySelector('i');
+            hint.classList.remove('is-left', 'is-right');
+            if (direction === 'left') {
+                hint.classList.add('is-left');
+                if (icon) icon.className = 'fa-solid fa-arrow-left';
+            } else {
+                hint.classList.add('is-right');
+                if (icon) icon.className = 'fa-solid fa-arrow-right';
+            }
+            hint.classList.add('is-visible');
+            if (window._timelineWheelHintTimer) clearTimeout(window._timelineWheelHintTimer);
+            window._timelineWheelHintTimer = setTimeout(() => {
+                hint.classList.remove('is-visible', 'is-left', 'is-right');
+            }, 420);
+        };
+
         window.handleTimelineWheel = function(e) {
             if (e.ctrlKey || e.altKey) {
                 e.preventDefault();
                 window.changeZoom(e.deltaY < 0 ? 1 : -1);
             } else {
+                e.preventDefault();
                 const container = document.getElementById('timelineContainer');
-                if (container) container.scrollLeft += e.deltaY;
+                if (!container) return;
+                // 纵向滚轮映射为横向滑动；deltaY>0 增大 scrollLeft → 时间线向右（更晚）
+                const delta = e.deltaY !== 0 ? e.deltaY : e.deltaX;
+                if (!delta) return;
+                container.scrollLeft += delta;
+                window.showTimelineWheelHint(delta > 0 ? 'right' : 'left');
             }
         };
 
@@ -3450,7 +3573,8 @@
             cards.forEach((card, idx) => {
                 if (typeof window.startPreviewSlideshow !== 'function') return;
                 if (idx === activeIndex) {
-                    window.startPreviewSlideshow(card);
+                    // 同期集合卡片内轮播：图与图之间不做淡入淡出
+                    window.startPreviewSlideshow(card, { noCrossfade: true });
                 } else {
                     window.stopPreviewSlideshow(card, true);
                     card.querySelectorAll('video').forEach(v => {
@@ -4495,7 +4619,7 @@
 
                     <div class="border-t border-slate-800 pt-6 mb-6">
                         <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">事件经过与描述</h4>
-                        <p class="text-sm sm:text-base text-slate-200 leading-relaxed whitespace-pre-wrap">${event.description || '无详细描述'}</p>
+                        <div class="event-description-html text-sm sm:text-base leading-relaxed whitespace-pre-wrap">${window.prepareDescriptionForView ? window.prepareDescriptionForView(event.description) : (event.description || '无详细描述')}</div>
                     </div>
 
                     ${connHtml}
@@ -4944,6 +5068,7 @@
                                         <button type="button" onmousedown="event.preventDefault(); richRememberSelection()" onclick="richExec('italic')" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 italic w-7 h-7" title="斜体">I</button>
                                         <button type="button" onmousedown="event.preventDefault(); richRememberSelection()" onclick="richExec('underline')" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 underline w-7 h-7" title="下划线">U</button>
                                         <button type="button" onmousedown="event.preventDefault(); richRememberSelection()" onclick="richExec('strikeThrough')" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 line-through w-7 h-7" title="删除线">S</button>
+                                        <button type="button" onmousedown="event.preventDefault(); richRememberSelection()" onclick="richToggleReveal()" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 px-1.5 h-7 text-[10px] font-semibold" title="悬停显现：选中文字后仅在鼠标悬停时显示">悬停</button>
                                         <select onmousedown="richRememberSelection()" onchange="richSetFontSize(this.value)" class="h-7 rounded-md border border-slate-200 bg-white text-[11px] text-slate-700" title="字号">
                                             <option value="">字号</option>
                                             ${['8px','9px','10px','11px','12px','13px','14px','16px','18px','20px','24px','28px','32px'].map(v=>`<option value="${v}">${v}</option>`).join('')}
@@ -5171,9 +5296,60 @@
             if (/<(?:b|strong|i|em|u|s|strike|span|div|p|br|font)\b/i.test(raw)) return raw;
             return window.escapeHtml(raw).replace(/\r?\n/g, '<br>');
         };
+        // 浏览详情：把编辑器默认深色字映射到浅色，保证半透明文字在深色底可见；保留作者显式设定的彩色。
+        window.prepareDescriptionForView = function(value) {
+            const raw = String(value || '').trim();
+            if (!raw) return '无详细描述';
+            try {
+                const wrap = document.createElement('div');
+                wrap.innerHTML = raw;
+                const isNearBlack = (c) => {
+                    if (!c) return false;
+                    const s = String(c).trim().toLowerCase();
+                    if (s === '#000' || s === '#000000' || s === 'black' || s === 'rgb(0, 0, 0)') return true;
+                    const m = s.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+                    if (m) {
+                        let h = m[1];
+                        if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+                        const r = parseInt(h.slice(0,2),16), g = parseInt(h.slice(2,4),16), b = parseInt(h.slice(4,6),16);
+                        return r < 40 && g < 40 && b < 50;
+                    }
+                    const rgb = s.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+                    if (rgb) return Number(rgb[1]) < 40 && Number(rgb[2]) < 40 && Number(rgb[3]) < 50;
+                    return false;
+                };
+                wrap.querySelectorAll('*').forEach((el) => {
+                    if (el.nodeType !== 1) return;
+                    // 清理编辑器残留的边框/轮廓
+                    el.style.border = '';
+                    el.style.outline = '';
+                    el.style.boxShadow = '';
+                    const sc = el.style.color || el.getAttribute('color') || '';
+                    if (isNearBlack(sc)) {
+                        el.style.color = '';
+                        el.removeAttribute('color');
+                    }
+                    // 装饰线跟随文字颜色
+                    el.style.textDecorationColor = 'currentColor';
+                });
+                return wrap.innerHTML || '无详细描述';
+            } catch (_) {
+                return raw;
+            }
+        };
         window.getEditorDescriptionHtml = function() {
             const e = document.getElementById('editDescription');
-            return e ? e.innerHTML.trim().replace(/^<br>+|<br>+$/g, '').trim() : '';
+            if (!e) return '';
+            // 保存前去掉因分段产生的异常边框样式
+            e.querySelectorAll('*').forEach((el) => {
+                if (el.nodeType !== 1) return;
+                if (el.style) {
+                    el.style.border = '';
+                    el.style.outline = '';
+                    el.style.boxShadow = '';
+                }
+            });
+            return e.innerHTML.trim().replace(/^<br>+|<br>+$/g, '').trim();
         };
         window.richSelectionRange = null;
         window.richOpacitySpan = null;
@@ -5196,6 +5372,28 @@
                 sel.removeAllRanges(); sel.addRange(r); e.focus(); return true;
             }catch(_){return false;}
         };
+        // 让下划线/删除线立刻跟随当前选区文字颜色，无需再点一次颜色。
+        window.richSyncDecorationColor = function() {
+            const e = document.getElementById('editDescription');
+            const sel = window.getSelection();
+            if (!e || !sel || !sel.rangeCount) return;
+            const range = sel.getRangeAt(0);
+            const apply = (el) => {
+                if (!el || el.nodeType !== 1 || !e.contains(el)) return;
+                try {
+                    if (!range.intersectsNode(el)) return;
+                } catch (_) { return; }
+                const cs = window.getComputedStyle(el);
+                const dec = (cs.textDecorationLine || cs.textDecoration || '') + '';
+                if (/underline|line-through/i.test(dec) || el.tagName === 'U' || el.tagName === 'S' || el.tagName === 'STRIKE') {
+                    el.style.textDecorationColor = 'currentColor';
+                }
+            };
+            if (range.commonAncestorContainer.nodeType === 1) apply(range.commonAncestorContainer);
+            e.querySelectorAll('u,s,strike,[style*="underline"],[style*="line-through"]').forEach(apply);
+            // 选区内任意元素也同步
+            e.querySelectorAll('*').forEach(apply);
+        };
         window.richExec=function(cmd,val=null){
             const e=document.getElementById('editDescription'); if(!e)return;
             if(!window.richRestoreSelection()){
@@ -5203,6 +5401,9 @@
                 if(!sel||!sel.rangeCount||!e.contains(sel.anchorNode)) return;
             }
             try{document.execCommand(cmd,false,val);}catch(_){}
+            if (cmd === 'underline' || cmd === 'strikeThrough') {
+                window.richSyncDecorationColor();
+            }
             window.richRememberSelection();
         };
         window.richSetFontSize=function(px){
@@ -5217,20 +5418,8 @@
         window.richSetColor=function(v){
             if(!v) return;
             window.richExec('foreColor',v);
-            // 字体颜色变化后，保留原有下划线/中间线，并让装饰线始终跟随当前文字颜色。
-            const e=document.getElementById('editDescription');
-            const sel=window.getSelection();
-            if(e && sel && sel.rangeCount){
-                const range=sel.getRangeAt(0);
-                const applyDecorationColor=(el)=>{
-                    if(!el || el.nodeType!==1 || !e.contains(el)) return;
-                    try{
-                        if(range.intersectsNode(el)) el.style.textDecorationColor='currentColor';
-                    }catch(_){}
-                };
-                if(range.commonAncestorContainer.nodeType===1) applyDecorationColor(range.commonAncestorContainer);
-                e.querySelectorAll('*').forEach(applyDecorationColor);
-            }
+            // 字体颜色变化后，装饰线跟随 currentColor
+            window.richSyncDecorationColor();
             document.querySelectorAll('#richColorPalette .rich-color-choice').forEach(b=>{
                 const on=b.getAttribute('title')===v;
                 b.classList.toggle('is-selected',on);
@@ -5269,10 +5458,57 @@
             }
             sp.style.opacity=String(pct/100);
             sp.setAttribute('data-rich-opacity','1');
-            // 关键：即使透明度为 0，也始终保留可恢复的引用和选区
+            // 不强制深色，浏览态会继承浅色；若已有彩色则保留
             const nr=document.createRange(); nr.selectNodeContents(sp);
             const sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(nr);
             window.richSelectionRange=nr.cloneRange();
+        };
+        // 悬停显现：选中文字后切换；浏览态默认隐藏，悬停才显示。
+        window.richToggleReveal = function() {
+            const e = document.getElementById('editDescription');
+            if (!e) return;
+            if (!window.richRestoreSelection()) {
+                const sel = window.getSelection();
+                if (!sel || !sel.rangeCount || !e.contains(sel.anchorNode)) {
+                    window.showToast('请先选中需要设为悬停显现的文字', 'info');
+                    return;
+                }
+            }
+            const sel = window.getSelection();
+            if (!sel || !sel.rangeCount || sel.isCollapsed) {
+                window.showToast('请先选中需要设为悬停显现的文字', 'info');
+                return;
+            }
+            const range = sel.getRangeAt(0);
+            // 若选区已在 reveal 内，则取消
+            let node = range.commonAncestorContainer;
+            if (node.nodeType === 3) node = node.parentElement;
+            const existing = node && node.closest ? node.closest('[data-rich-reveal]') : null;
+            if (existing && e.contains(existing)) {
+                // 仅当选区基本覆盖该 span 时取消
+                existing.removeAttribute('data-rich-reveal');
+                if (!existing.getAttribute('style') && !existing.getAttribute('data-rich-opacity')) {
+                    existing.replaceWith(...Array.from(existing.childNodes));
+                }
+                window.richRememberSelection();
+                window.showToast('已取消悬停显现', 'success');
+                return;
+            }
+            const sp = document.createElement('span');
+            sp.setAttribute('data-rich-reveal', '1');
+            try {
+                range.surroundContents(sp);
+            } catch (_) {
+                const frag = range.extractContents();
+                sp.appendChild(frag);
+                range.insertNode(sp);
+            }
+            const nr = document.createRange();
+            nr.selectNodeContents(sp);
+            sel.removeAllRanges();
+            sel.addRange(nr);
+            window.richSelectionRange = nr.cloneRange();
+            window.showToast('已设为悬停显现', 'success');
         };
         window.richClearFormatting=function(){
             const e=document.getElementById('editDescription'); if(!e)return;
@@ -5281,14 +5517,26 @@
             e.querySelectorAll('span[data-rich-opacity]').forEach(x=>{
                 x.style.opacity='1';
                 x.removeAttribute('data-rich-opacity');
-                if(!x.getAttribute('style')) x.replaceWith(...Array.from(x.childNodes));
+                if(!x.getAttribute('style') && !x.getAttribute('data-rich-reveal')) x.replaceWith(...Array.from(x.childNodes));
+            });
+            e.querySelectorAll('span[data-rich-reveal]').forEach(x=>{
+                x.removeAttribute('data-rich-reveal');
+                if(!x.getAttribute('style') && !x.getAttribute('data-rich-opacity')) x.replaceWith(...Array.from(x.childNodes));
             });
             const r=document.getElementById('richOpacityRange'); if(r)r.value='100';
             const out=document.getElementById('richOpacityValue'); if(out)out.textContent='100%';
             window.richOpacitySpan=null;
             window.richRememberSelection();
         };
-        window.richEditorInput=function(){window.richRememberSelection();};
+        window.richEditorInput=function(){
+            window.richRememberSelection();
+            // 输入过程中清掉浏览器偶发塞进的边框样式
+            const e=document.getElementById('editDescription');
+            if(!e) return;
+            e.querySelectorAll('[style*="border"],[style*="outline"]').forEach((el)=>{
+                if(el.style){ el.style.border=''; el.style.outline=''; el.style.boxShadow=''; }
+            });
+        };
 
         // ==================== 媒体拖拽排序 ====================
         window.initMediaDragDrop=function(container,type){
