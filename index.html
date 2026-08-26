@@ -257,9 +257,9 @@
         .event-description-html [data-rich-reveal]:hover {
             opacity: 1 !important;
         }
-        /* 时间线预览淡入淡出（同期集合卡片可关掉） */
+        /* 时间线预览淡入淡出（合计约 500ms；同期集合关掉） */
         .preview-slide-img, .preview-inline-video {
-            transition: opacity 0.28s ease;
+            transition: opacity 0.25s ease;
         }
         .preview-no-crossfade .preview-slide-img,
         .preview-no-crossfade .preview-inline-video {
@@ -1124,8 +1124,9 @@
             const imageHold = calm ? 4200 : 2200;
             const videoCoverHold = calm ? 1600 : 1100;
             const defaultVideoHold = calm ? 5000 : 4000;
-            // 浏览器没有「GIF 单次循环结束」事件，只能用帧延迟估算；黑屏固定时长，避免首次加载把间隙拉长。
-            const BLACK_GAP_MS = 300;
+            // 统一淡入淡出合计 500ms（无黑屏）；淡出期间预加载下一项。同期集合 noCrossfade 不做淡变。
+            const FADE_OUT_MS = 250;
+            const FADE_IN_MS = 250;
             // 在估算时长结束前略提前切走，减少「播完又闪一下开头」；过大则会感觉被截断。
             const ANIMATED_EARLY_CUT_SEC = 0.08;
             // 动图解析失败时的稳定回退，避免每次落到不同默认值。
@@ -1138,11 +1139,6 @@
                 return /\.gif(?:[?#]|$)/i.test(src) || /^data:image\/gif/i.test(src);
             };
             const isStaticImageItem = (item) => item && item.type === 'image' && !isAnimatedImageItem(item);
-            const needsBlackGap = (fromItem, toItem) => {
-                if (!fromItem || !toItem) return false;
-                if (isStaticImageItem(fromItem) && isStaticImageItem(toItem)) return false;
-                return true;
-            };
 
             const schedule = (img) => {
                 const media = img._slideMedia || [];
@@ -1206,17 +1202,22 @@
                     video.style.opacity = '0';
                 };
 
-                const enterBlack = () => {
-                    // 先淡出当前画面，再落到黑底，避免硬切
+                // 淡出当前画面（不立刻 hidden，让 CSS transition 可见）；同期集合直接切。
+                const fadeOutCurrent = async () => {
+                    if (noCrossfade) {
+                        img.style.opacity = '0';
+                        video.style.opacity = '0';
+                        await delayMs(16);
+                        clearVideo();
+                        img.classList.add('hidden');
+                        return;
+                    }
                     img.style.opacity = '0';
                     video.style.opacity = '0';
+                    await delayMs(FADE_OUT_MS);
+                    if (!isStillRunning()) return;
                     clearVideo();
                     img.classList.add('hidden');
-                    stage.style.backgroundColor = '#000';
-                };
-
-                const exitBlack = () => {
-                    stage.style.backgroundColor = '';
                 };
 
                 const scheduleHold = (gen, holdSec, after) => {
@@ -1292,25 +1293,22 @@
                     }
                 };
 
-                const revealImage = () => {
-                    exitBlack();
+                const revealImage = async () => {
                     img.classList.remove('hidden');
-                    // 先保持 0，下一帧再淡入，触发 CSS transition
                     img.style.opacity = '0';
-                    requestAnimationFrame(() => {
-                        if (!isStillRunning()) return;
-                        img.style.opacity = '1';
-                    });
+                    await delayMs(16);
+                    if (!isStillRunning()) return;
+                    img.style.opacity = '1';
+                    if (!noCrossfade) await delayMs(FADE_IN_MS);
                 };
 
-                // 时间线预览：黑屏后直接播视频，不再先展示封面（封面仅用于详情页）。
-                const playVideoThen = (item, after, gen) => {
+                // 时间线预览：直接播视频，不先展示封面（封面仅用于详情页）。
+                const playVideoThen = async (item, after, gen, skipFadeIn) => {
                     clearVideo();
                     img.dataset.previewFrozen = '0';
                     delete img.dataset.previewFrozenSource;
                     img.style.opacity = '0';
                     img.classList.add('hidden');
-                    exitBlack();
                     if (!item.src) {
                         if (after) after();
                         return;
@@ -1323,69 +1321,75 @@
                     const startHold = () => {
                         if (holdStarted || !isStillRunning() || gen !== generation) return;
                         holdStarted = true;
-                        video.style.opacity = '1';
                         video.play().catch(() => {});
                         const playMs = Math.max(window.VIDEO_PREVIEW_MIN_SEC, Math.min(window.VIDEO_PREVIEW_MAX_SEC, Number(item.previewDuration) || (defaultVideoHold / 1000))) * 1000;
                         timers.push(setTimeout(() => {
                             if (!isStillRunning() || gen !== generation) return;
-                            // 结束时淡出再进入下一轮
-                            video.style.opacity = '0';
-                            timers.push(setTimeout(() => {
-                                if (!isStillRunning() || gen !== generation) return;
-                                if (after) after();
-                                else clearVideo();
-                            }, 220));
+                            // 结束交由下一轮统一淡出，避免重复闪一下
+                            if (after) after();
+                            else clearVideo();
                         }, playMs));
                     };
-                    video.addEventListener('canplay', startHold, { once: true });
-                    try { video.load(); } catch (_) {}
-                    timers.push(setTimeout(startHold, 1200));
+                    await new Promise((resolve) => {
+                        const onCanPlay = () => {
+                            video.removeEventListener('canplay', onCanPlay);
+                            resolve();
+                        };
+                        video.addEventListener('canplay', onCanPlay, { once: true });
+                        try { video.load(); } catch (_) {}
+                        timers.push(setTimeout(resolve, 1200));
+                    });
+                    if (!isStillRunning() || gen !== generation) return;
+                    if (!noCrossfade && !skipFadeIn) {
+                        video.style.opacity = '0';
+                        await delayMs(16);
+                        if (!isStillRunning() || gen !== generation) return;
+                        video.style.opacity = '1';
+                        await delayMs(FADE_IN_MS);
+                    } else {
+                        video.style.opacity = '1';
+                    }
+                    startHold();
                 };
 
-                // 统一入口：显示某一项并在「真正可见」后开始计时。
-                const presentItem = async (item, after, useBlack) => {
+                // 统一入口：非首张做 250ms 淡出（期间预加载）+ 250ms 淡入；首张直接显示。
+                const presentItem = async (item, after, doFade) => {
                     if (!isStillRunning()) return;
                     const gen = ++generation;
                     if (item.type === 'video' && item.src) {
-                        if (useBlack) {
-                            enterBlack();
-                            await delayMs(BLACK_GAP_MS);
+                        if (doFade) {
+                            // 淡出同时可开始预热视频 src（真正 load 在 playVideoThen）
+                            await fadeOutCurrent();
                             if (!isStillRunning() || gen !== generation) return;
                         }
-                        if (!isStillRunning() || gen !== generation) return;
-                        playVideoThen(item, after, gen);
+                        await playVideoThen(item, after, gen, !doFade);
                         return;
                     }
-                    if (useBlack) {
-                        enterBlack();
-                        // 黑屏固定时长；加载并行，但不把黑屏拖成「有时长有短」。
-                        const gap = delayMs(BLACK_GAP_MS);
+                    if (doFade) {
+                        // 淡出期间并行预热下一张图/动图
                         const prep = prepareImageHidden(item);
-                        await gap;
+                        await fadeOutCurrent();
                         if (!isStillRunning() || gen !== generation) return;
-                        // 黑屏结束后若仍未就绪，最多再等一小段，避免长时间黑屏；超时也揭示，由缓存承接。
-                        await Promise.race([prep, delayMs(120)]);
-                        if (!isStillRunning() || gen !== generation) return;
-                        revealImage();
-                    } else {
-                        // 首张或静态→静态：无黑屏；非同期集合时短暂淡出再淡入。
-                        if (!noCrossfade && (idx !== 0 || gen > 1)) {
-                            img.style.opacity = '0';
-                            await delayMs(180);
-                            if (!isStillRunning() || gen !== generation) return;
-                        }
-                        await prepareImageHidden(item);
+                        await Promise.race([prep, delayMs(80)]);
                         if (!isStillRunning() || gen !== generation) return;
                         if (noCrossfade) {
-                            exitBlack();
                             img.classList.remove('hidden');
                             img.style.opacity = '1';
                         } else {
-                            revealImage();
+                            await revealImage();
+                        }
+                    } else {
+                        await prepareImageHidden(item);
+                        if (!isStillRunning() || gen !== generation) return;
+                        if (noCrossfade) {
+                            img.classList.remove('hidden');
+                            img.style.opacity = '1';
+                        } else {
+                            // 首张也可轻柔淡入
+                            await revealImage();
                         }
                     }
                     if (!isStillRunning() || gen !== generation) return;
-                    // 计时从「可见」这一刻开始，与动图实际起播对齐。
                     const holdSec = await resolveImageHoldSec(item);
                     if (!isStillRunning() || gen !== generation || holdSec == null) return;
                     scheduleHold(gen, holdSec, after);
@@ -1401,14 +1405,12 @@
                         // 单张静图/动图：播完停留，不再循环。
                         return;
                     }
-                    const fromItem = media[idx];
                     idx = (idx + 1) % media.length;
                     const item = media[idx];
-                    const useBlack = needsBlackGap(fromItem, item);
-                    presentItem(item, next, useBlack);
+                    presentItem(item, next, true);
                 };
 
-                // 首张不加黑屏。
+                // 首张不做淡出（可有淡入）。
                 const first = media[0];
                 presentItem(first, media.length > 1 ? next : null, false);
             };
