@@ -257,13 +257,16 @@
         .event-description-html [data-rich-reveal]:hover {
             opacity: 1 !important;
         }
-        /* 时间线预览淡入淡出（合计约 500ms；同期集合关掉） */
+        /* 时间线预览：默认直切；黑屏兜底时才用短淡变 */
         .preview-slide-img, .preview-inline-video {
-            transition: opacity 0.25s ease;
+            transition: none;
         }
-        .preview-no-crossfade .preview-slide-img,
-        .preview-no-crossfade .preview-inline-video {
-            transition: none !important;
+        .preview-slide-img.preview-soft-fade,
+        .preview-inline-video.preview-soft-fade {
+            transition: opacity 0.15s ease;
+        }
+        .preview-stage-black {
+            background-color: #000 !important;
         }
         /* 滚轮滑动方向提示 */
         #timelineWheelHint {
@@ -1120,17 +1123,16 @@
             if (!imgs.length) return;
             const timers = [];
             const videoEls = [];
-            // 静态图停留：略加长一点点（非 calm 原 2000 → 2400）
             const imageHold = calm ? 4200 : 2200;
-            const videoCoverHold = calm ? 1600 : 1100;
             const defaultVideoHold = calm ? 5000 : 4000;
-            // 统一淡入淡出合计 500ms（无黑屏）；淡出期间预加载下一项。同期集合 noCrossfade 不做淡变。
-            const FADE_OUT_MS = 250;
-            const FADE_IN_MS = 250;
-            // 在估算时长结束前略提前切走，减少「播完又闪一下开头」；过大则会感觉被截断。
+            // 无淡入淡出直切；仅预加载未就绪时用短黑屏（含淡入淡出）兜底。
             const ANIMATED_EARLY_CUT_SEC = 0.08;
-            // 动图解析失败时的稳定回退，避免每次落到不同默认值。
             const ANIMATED_FALLBACK_SEC = 3;
+            const PRELOAD_WAIT_MS = 60;          // 切换前最多等预加载多久，超时走黑屏
+            const BLACK_FADE_MS = 150;           // 黑屏淡入/淡出
+            const BLACK_HOLD_MS = 80;            // 纯黑停留
+            // 动图/视频 → 静态图：很短的淡出淡入，减轻割裂感
+            const SOFT_TO_STATIC_MS = 200;
 
             const isAnimatedImageItem = (item) => {
                 if (!item || item.type !== 'image') return false;
@@ -1200,29 +1202,66 @@
                     try { video.load(); } catch (_) {}
                     video.classList.add('hidden');
                     video.style.opacity = '0';
+                    video.classList.remove('preview-soft-fade');
                 };
 
-                // 淡出当前画面（不立刻 hidden，让 CSS transition 可见）；同期集合直接切。
-                const fadeOutCurrent = async () => {
-                    if (noCrossfade) {
-                        img.style.opacity = '0';
-                        video.style.opacity = '0';
-                        await delayMs(16);
-                        clearVideo();
-                        img.classList.add('hidden');
-                        return;
-                    }
-                    img.style.opacity = '0';
-                    video.style.opacity = '0';
-                    await delayMs(FADE_OUT_MS);
-                    if (!isStillRunning()) return;
-                    clearVideo();
-                    img.classList.add('hidden');
+                // src -> Promise，当前项播放期间预热下一项
+                const preloadPromises = new Map();
+                const preloadKey = (item) => {
+                    if (!item) return '';
+                    if (item.type === 'video') return 'v:' + String(item.src || '');
+                    return 'i:' + String(item.src || item.cover || '');
+                };
+                const preloadNextItem = (item) => {
+                    if (!item) return Promise.resolve(true);
+                    const key = preloadKey(item);
+                    if (!key || key === 'v:' || key === 'i:') return Promise.resolve(true);
+                    if (preloadPromises.has(key)) return preloadPromises.get(key);
+                    const p = new Promise((resolve) => {
+                        try {
+                            if (item.type === 'video' && item.src) {
+                                const pre = document.createElement('video');
+                                pre.preload = 'auto';
+                                pre.muted = true;
+                                pre.playsInline = true;
+                                pre.src = item.src;
+                                const done = () => resolve(true);
+                                pre.addEventListener('canplaythrough', done, { once: true });
+                                pre.addEventListener('error', done, { once: true });
+                                try { pre.load(); } catch (_) { resolve(true); }
+                                timers.push(setTimeout(done, 8000));
+                            } else {
+                                const src = item.src || item.cover || '';
+                                if (!src || /^data:/i.test(src)) { resolve(true); return; }
+                                const pre = new Image();
+                                pre.onload = () => resolve(true);
+                                pre.onerror = () => resolve(false);
+                                pre.src = src;
+                            }
+                        } catch (_) {
+                            resolve(false);
+                        }
+                    });
+                    preloadPromises.set(key, p);
+                    return p;
+                };
+
+                const waitPreloadOrTimeout = async (item, ms) => {
+                    const p = preloadNextItem(item);
+                    let ready = false;
+                    await Promise.race([
+                        p.then((ok) => { ready = !!ok; }),
+                        delayMs(ms)
+                    ]);
+                    return ready;
                 };
 
                 const scheduleHold = (gen, holdSec, after) => {
                     if (!after || !isStillRunning() || gen !== generation) return;
                     const ms = Math.max(50, Math.round(holdSec * 1000));
+                    if (media.length > 1) {
+                        preloadNextItem(media[(idx + 1) % media.length]);
+                    }
                     timers.push(setTimeout(() => {
                         if (!isStillRunning() || gen !== generation) return;
                         after();
@@ -1239,34 +1278,79 @@
                     }
                     if (!isStillRunning()) return null;
                     if (Number.isFinite(duration) && duration > 0) {
-                        // 略提前切走，减少循环接缝闪一下；下限保证极短 GIF 仍能看见。
                         return Math.max(0.12, duration - ANIMATED_EARLY_CUT_SEC);
                     }
                     return ANIMATED_FALLBACK_SEC;
                 };
 
-                // 加载图片到节点：隐藏阶段可安全重启动图；可见后不再改 src。
-                const prepareImageHidden = async (item) => {
+                const enableSoftFade = (el) => { if (el) el.classList.add('preview-soft-fade'); };
+                const disableSoftFade = (el) => { if (el) el.classList.remove('preview-soft-fade'); };
+
+                // 预加载失败时：淡出 → 黑屏 → 再淡入新媒体
+                const softBlackCover = async () => {
+                    enableSoftFade(img);
+                    enableSoftFade(video);
+                    img.style.opacity = '0';
+                    video.style.opacity = '0';
+                    await delayMs(BLACK_FADE_MS);
+                    if (!isStillRunning()) return;
+                    clearVideo();
+                    img.classList.add('hidden');
+                    stage.classList.add('preview-stage-black');
+                    await delayMs(BLACK_HOLD_MS);
+                };
+
+                const softBlackRevealImage = async () => {
+                    stage.classList.remove('preview-stage-black');
+                    img.classList.remove('hidden');
+                    img.style.opacity = '0';
+                    enableSoftFade(img);
+                    await delayMs(16);
+                    if (!isStillRunning()) return;
+                    img.style.opacity = '1';
+                    await delayMs(BLACK_FADE_MS);
+                    disableSoftFade(img);
+                };
+
+                const softBlackRevealVideo = async () => {
+                    stage.classList.remove('preview-stage-black');
+                    video.classList.remove('hidden');
+                    video.style.opacity = '0';
+                    enableSoftFade(video);
+                    await delayMs(16);
+                    if (!isStillRunning()) return;
+                    video.style.opacity = '1';
+                    await delayMs(BLACK_FADE_MS);
+                    disableSoftFade(video);
+                };
+
+                // 装入图片。直切时尽量不先清空画面：静态图可保持可见换源；动图需短暂隐藏以重启。
+                const applyImageItem = async (item, { hardHide = false } = {}) => {
                     img.dataset.previewFrozen = '0';
                     delete img.dataset.previewFrozenSource;
                     const src = item.src || item.cover || '';
-                    clearVideo();
-                    img.style.opacity = '0';
-                    img.classList.add('hidden');
-                    if (!src) return;
+                    // 仅在确实要播视频时再清；图→图切换不清空，避免闪黑
+                    if (!video.classList.contains('hidden')) {
+                        clearVideo();
+                    } else {
+                        try { video.pause(); } catch (_) {}
+                    }
+                    if (!src) {
+                        img.classList.add('hidden');
+                        return;
+                    }
                     if (isAnimatedImageItem(item)) {
-                        // 仅在隐藏时重设 src，让动画从首帧开始；显示后绝不二次赋值，避免「播一下又跳回开头」。
+                        // 动图必须隐藏后重设 src，才能从首帧起播；预加载命中时 load 很快
+                        img.classList.add('hidden');
+                        img.style.opacity = '0';
                         const cur = img.getAttribute('src') || '';
-                        if (cur !== src) {
-                            img.src = src;
-                        } else {
-                            // 同源再次进入：用空图中断当前解码再赋回，全程保持 hidden。
+                        if (cur === src) {
                             try {
                                 img.removeAttribute('src');
                                 void img.offsetWidth;
                             } catch (_) {}
-                            img.src = src;
                         }
+                        img.src = src;
                         await new Promise((resolve) => {
                             const token = String(Date.now()) + Math.random();
                             img.dataset.previewLoadToken = token;
@@ -1281,51 +1365,79 @@
                             img.addEventListener('load', done);
                             img.addEventListener('error', done);
                             if (img.complete && img.naturalWidth > 0) {
-                                // 已缓存时 load 可能不再触发；给一个极短延迟让解码回到首帧。
                                 timers.push(setTimeout(done, 16));
                             }
+                            timers.push(setTimeout(done, 4000));
                         });
                         try { window.applyPreviewImageStyle(img, item); } catch (_) {}
-                        img.style.opacity = '0';
-                        img.classList.add('hidden');
-                    } else {
+                    } else if (hardHide) {
                         await window.setPreviewSlideImage(img, item, true);
+                    } else {
+                        // 静态图直切：保持可见换源，缓存命中时几乎无闪
+                        const cur = img.getAttribute('src') || '';
+                        img.classList.remove('hidden');
+                        disableSoftFade(img);
+                        if (cur !== src) {
+                            await new Promise((resolve) => {
+                                const token = String(Date.now()) + Math.random();
+                                img.dataset.previewLoadToken = token;
+                                const done = () => {
+                                    if (img.dataset.previewLoadToken !== token) return;
+                                    img.removeEventListener('load', done);
+                                    img.removeEventListener('error', done);
+                                    resolve();
+                                };
+                                img.addEventListener('load', done);
+                                img.addEventListener('error', done);
+                                img.src = src;
+                                if (img.complete && img.naturalWidth > 0) {
+                                    timers.push(setTimeout(done, 0));
+                                }
+                                timers.push(setTimeout(done, 4000));
+                            });
+                        }
+                        img.style.opacity = '1';
+                        try { window.applyPreviewImageStyle(img, item); } catch (_) {}
                     }
                 };
 
-                const revealImage = async () => {
+                const showImageNow = () => {
+                    stage.classList.remove('preview-stage-black');
                     img.classList.remove('hidden');
-                    img.style.opacity = '0';
-                    await delayMs(16);
-                    if (!isStillRunning()) return;
                     img.style.opacity = '1';
-                    if (!noCrossfade) await delayMs(FADE_IN_MS);
+                    disableSoftFade(img);
                 };
 
-                // 时间线预览：直接播视频，不先展示封面（封面仅用于详情页）。
-                const playVideoThen = async (item, after, gen, skipFadeIn) => {
-                    clearVideo();
+                // 视频：直切；未就绪则短黑屏后播。不先展示封面。
+                const playVideoThen = async (item, after, gen, useBlack) => {
                     img.dataset.previewFrozen = '0';
                     delete img.dataset.previewFrozenSource;
-                    img.style.opacity = '0';
-                    img.classList.add('hidden');
                     if (!item.src) {
                         if (after) after();
                         return;
                     }
+                    if (useBlack) {
+                        await softBlackCover();
+                        if (!isStillRunning() || gen !== generation) return;
+                    } else {
+                        // 直切：先藏图，再亮视频，尽量同一帧
+                        img.style.opacity = '0';
+                        img.classList.add('hidden');
+                        clearVideo();
+                    }
                     video.src = item.src;
                     try { video.currentTime = 0; } catch (_) {}
-                    video.classList.remove('hidden');
-                    video.style.opacity = '0';
                     let holdStarted = false;
                     const startHold = () => {
                         if (holdStarted || !isStillRunning() || gen !== generation) return;
                         holdStarted = true;
                         video.play().catch(() => {});
+                        if (media.length > 1) {
+                            preloadNextItem(media[(idx + 1) % media.length]);
+                        }
                         const playMs = Math.max(window.VIDEO_PREVIEW_MIN_SEC, Math.min(window.VIDEO_PREVIEW_MAX_SEC, Number(item.previewDuration) || (defaultVideoHold / 1000))) * 1000;
                         timers.push(setTimeout(() => {
                             if (!isStillRunning() || gen !== generation) return;
-                            // 结束交由下一轮统一淡出，避免重复闪一下
                             if (after) after();
                             else clearVideo();
                         }, playMs));
@@ -1340,54 +1452,68 @@
                         timers.push(setTimeout(resolve, 1200));
                     });
                     if (!isStillRunning() || gen !== generation) return;
-                    if (!noCrossfade && !skipFadeIn) {
-                        video.style.opacity = '0';
-                        await delayMs(16);
-                        if (!isStillRunning() || gen !== generation) return;
-                        video.style.opacity = '1';
-                        await delayMs(FADE_IN_MS);
+                    if (useBlack) {
+                        await softBlackRevealVideo();
                     } else {
+                        video.classList.remove('hidden');
                         video.style.opacity = '1';
+                        stage.classList.remove('preview-stage-black');
                     }
                     startHold();
                 };
 
-                // 统一入口：非首张做 250ms 淡出（期间预加载）+ 250ms 淡入；首张直接显示。
-                const presentItem = async (item, after, doFade) => {
+                const isHeavyMedia = (it) => !!(it && (it.type === 'video' || isAnimatedImageItem(it)));
+
+                // 动图/视频结束切到静态图：短淡出 → 换图 → 短淡入
+                const softToStaticTransition = async (item) => {
+                    enableSoftFade(img);
+                    enableSoftFade(video);
+                    img.style.opacity = '0';
+                    video.style.opacity = '0';
+                    await delayMs(SOFT_TO_STATIC_MS);
+                    if (!isStillRunning()) return;
+                    clearVideo();
+                    await applyImageItem(item, { hardHide: true });
+                    if (!isStillRunning()) return;
+                    stage.classList.remove('preview-stage-black');
+                    img.classList.remove('hidden');
+                    img.style.opacity = '0';
+                    enableSoftFade(img);
+                    await delayMs(16);
+                    if (!isStillRunning()) return;
+                    img.style.opacity = '1';
+                    await delayMs(SOFT_TO_STATIC_MS);
+                    disableSoftFade(img);
+                };
+
+                // 直切为主；预加载未就绪 → 黑屏兜底；动图/视频→静图 → 短淡变
+                const presentItem = async (item, after, isFirst, fromItem) => {
                     if (!isStillRunning()) return;
                     const gen = ++generation;
+                    const ready = isFirst ? true : await waitPreloadOrTimeout(item, PRELOAD_WAIT_MS);
+                    const useBlack = !isFirst && !ready;
+                    const softToStatic = !isFirst && !useBlack
+                        && isHeavyMedia(fromItem)
+                        && isStaticImageItem(item);
+
                     if (item.type === 'video' && item.src) {
-                        if (doFade) {
-                            // 淡出同时可开始预热视频 src（真正 load 在 playVideoThen）
-                            await fadeOutCurrent();
-                            if (!isStillRunning() || gen !== generation) return;
-                        }
-                        await playVideoThen(item, after, gen, !doFade);
+                        await playVideoThen(item, after, gen, useBlack);
                         return;
                     }
-                    if (doFade) {
-                        // 淡出期间并行预热下一张图/动图
-                        const prep = prepareImageHidden(item);
-                        await fadeOutCurrent();
+
+                    if (useBlack) {
+                        await softBlackCover();
                         if (!isStillRunning() || gen !== generation) return;
-                        await Promise.race([prep, delayMs(80)]);
+                        await applyImageItem(item, { hardHide: true });
                         if (!isStillRunning() || gen !== generation) return;
-                        if (noCrossfade) {
-                            img.classList.remove('hidden');
-                            img.style.opacity = '1';
-                        } else {
-                            await revealImage();
-                        }
+                        await softBlackRevealImage();
+                    } else if (softToStatic) {
+                        await softToStaticTransition(item);
+                        if (!isStillRunning() || gen !== generation) return;
                     } else {
-                        await prepareImageHidden(item);
+                        await applyImageItem(item, { hardHide: false });
                         if (!isStillRunning() || gen !== generation) return;
-                        if (noCrossfade) {
-                            img.classList.remove('hidden');
-                            img.style.opacity = '1';
-                        } else {
-                            // 首张也可轻柔淡入
-                            await revealImage();
-                        }
+                        showImageNow();
                     }
                     if (!isStillRunning() || gen !== generation) return;
                     const holdSec = await resolveImageHoldSec(item);
@@ -1400,19 +1526,22 @@
                     if (media.length <= 1) {
                         const only = media[0];
                         if (only && only.type === 'video' && only.src) {
-                            presentItem(only, () => { if (isStillRunning()) next(); }, true);
+                            presentItem(only, () => { if (isStillRunning()) next(); }, false, only);
                         }
-                        // 单张静图/动图：播完停留，不再循环。
                         return;
                     }
+                    const fromItem = media[idx];
                     idx = (idx + 1) % media.length;
-                    const item = media[idx];
-                    presentItem(item, next, true);
+                    presentItem(media[idx], next, false, fromItem);
                 };
 
-                // 首张不做淡出（可有淡入）。
-                const first = media[0];
-                presentItem(first, media.length > 1 ? next : null, false);
+                // 启动时多预热后面几张
+                if (media.length > 1) {
+                    for (let i = 1; i < Math.min(media.length, 4); i++) {
+                        preloadNextItem(media[i]);
+                    }
+                }
+                presentItem(media[0], media.length > 1 ? next : null, true, null);
             };
             imgs.forEach(schedule);
             rootEl._previewSlideTimers = timers;
@@ -1442,13 +1571,20 @@
             rootEl.querySelectorAll('.preview-slide-img').forEach(img => {
                 img.style.opacity = '1';
                 img.classList.remove('hidden');
+                img.classList.remove('preview-soft-fade');
                 const stage = img.parentElement;
-                if (stage) stage.style.backgroundColor = '';
+                if (stage) {
+                    stage.style.backgroundColor = '';
+                    stage.classList.remove('preview-stage-black');
+                }
                 if (resetToFirst) {
                     const media = img._slideMedia || [];
                     const first = media[0];
                     if (first) img.src = first.type === 'video' ? (first.cover || first.src || '') : (first.src || first.cover || '');
                 }
+            });
+            rootEl.querySelectorAll('.preview-inline-video').forEach(v => {
+                v.classList.remove('preview-soft-fade');
             });
         };
 
@@ -3209,7 +3345,7 @@
                         const src = srcs[0] || null;
                         const mediaJson = JSON.stringify(itemPreviewMediaLists[tileIdx] || []).replace(/"/g, '&quot;');
                         if (src) {
-                            return `<div class="overflow-hidden bg-slate-800 relative" style="width:${cell}px;height:${cell}px;"><img class="preview-slide-img w-full h-full object-cover transition-opacity duration-300" data-tile-idx="${tileIdx}" data-media-json="${mediaJson}" src="${src}" alt="" draggable="false"></div>`;
+                            return `<div class="overflow-hidden bg-slate-800 relative" style="width:${cell}px;height:${cell}px;"><img class="preview-slide-img w-full h-full object-cover" data-tile-idx="${tileIdx}" data-media-json="${mediaJson}" src="${src}" alt="" draggable="false"></div>`;
                         }
                         return `<div class="bg-slate-800 flex items-center justify-center" style="width:${cell}px;height:${cell}px;"><span class="text-[8px] text-slate-400 px-0.5 text-center leading-tight line-clamp-2">${(ev.title || '').slice(0, 8)}</span></div>`;
                     }).join('');
@@ -3218,7 +3354,7 @@
                     tooltipInnerHtml = `<div class="grid gap-0" style="grid-template-columns: repeat(${cols}, ${cell}px); width:${gridW}px; height:${gridH}px;">${tiles}${pads}</div>`;
                 } else if (firstImgSrc) {
                     const mediaJson = JSON.stringify(itemPreviewMediaLists[0] || []).replace(/"/g, '&quot;');
-                    tooltipInnerHtml = `<div class="relative w-full h-full"><img class="preview-slide-img w-full h-full object-cover transition-opacity duration-300" data-tile-idx="0" data-media-json="${mediaJson}" src="${firstImgSrc}" alt=""></div>`;
+                    tooltipInnerHtml = `<div class="relative w-full h-full"><img class="preview-slide-img w-full h-full object-cover" data-tile-idx="0" data-media-json="${mediaJson}" src="${firstImgSrc}" alt=""></div>`;
                 } else {
                     tooltipInnerHtml = `
                         <div class="p-3 flex flex-col gap-1.5">
