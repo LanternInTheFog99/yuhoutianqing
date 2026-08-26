@@ -221,6 +221,10 @@
         .node-title-area.conn-label-overlap-dim { opacity: .28 !important; transition: opacity .2s ease; }
         .rich-color-choice.is-selected { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #6366f1 !important; transform: scale(1.08); }
         #editDescription.rich-editor { min-height: 150px; white-space: pre-wrap; overflow-wrap: anywhere; }
+        #editDescription.rich-editor, #editDescription.rich-editor * {
+            text-decoration-color: currentColor;
+            text-decoration-thickness: from-font;
+        }
 </style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
@@ -680,8 +684,8 @@
 
                 <div class="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 leading-6">
                     <div class="font-bold mb-1">小提示</div>
-                    <p>本网站目前分为两种模式：1.如果网络可以连接云端，右上角会显示"已同步云端"，此时内容将会实时更新，所有操作也都会同步到云端。<p>
-                    <p>2.如果网络受限、无法连接云端，网站会自动加载预先放置的数据包，右上角会显示"离线数据已就绪"，数据无法实时同步，但仍然可以正常浏览全部内容。<p>
+                    <p>本网站目前分为两种模式：1.如果网络可以连接云端，右上角会显示"已同步云端"，此时内容将会实时更新，所有操作也都会同步到云端。</p>
+                    <p>2.如果网络受限、无法连接云端，网站会自动加载预先放置的数据包，右上角会显示"离线数据已就绪"，数据无法实时同步，但仍然可以正常浏览全部内容。</p>
                     <p>数据包会不定期更新，以保证离线用户也能看到最新版本的内容。</p>
                 </div>
 
@@ -703,7 +707,17 @@
             </div>
             <div id="helpChangelogPanel" class="hidden overflow-y-auto p-5 text-xs text-slate-600 leading-relaxed">
                 <div class="border border-green-300 rounded-xl p-4 bg-green-50">
-                    <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.26</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">本次更新</span></div>
+                    <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.27</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">本次更新</span></div>
+
+                    <div class="space-y-3 leading-7 mb-3">
+                        <p>增加了事件详情页查看大图时视频播放状态自动处理的功能</p>
+                        <p>优化了了日期和日期范围输入的功能</p>
+                        <p>优化了时间线边缘自动滑动的功能</p>
+                        <p>修复了添加图片后时间线预览图无法显示的问题</p>
+                        <p>修复了动图截选功能相关的问题</p>
+                    </div>
+                    <div class="border-t border-green-200 pt-3">
+                    <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.26</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
                     <div class="space-y-3 leading-7">
                         <p>增加了图片、视频拖拽排序的的功能</p>
                         <p>增加了视频预览时长独立调整的功能</p>
@@ -738,6 +752,7 @@
                     </div>
                 </div>
             </div>
+            </div>
             <div id="helpThanksPanel" class="hidden overflow-y-auto p-5 text-xs text-slate-600 leading-relaxed">
                 <div class="border border-rose-300 rounded-xl p-5 bg-rose-50">
                     <h4 class="text-base font-bold text-slate-800 mb-3 flex items-center gap-2"><span>感谢名单</span></h4>
@@ -749,6 +764,8 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
 
     <!-- 感谢名单评价弹窗 -->
     <div id="thanksNoteModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[95] hidden flex items-center justify-center p-4" onclick="if(event.target===this)closeThanksNote()">
@@ -758,8 +775,6 @@
             </button>
             <h3 id="thanksNoteTitle" class="font-bold text-slate-800 text-base mb-3 pr-8"></h3>
             <p id="thanksNoteBody" class="text-sm text-slate-600 leading-7 whitespace-pre-wrap"></p>
-        </div>
-    </div>
         </div>
     </div>
 
@@ -877,8 +892,8 @@
                         if (imgObj) srcs.push(imgObj);
                     } else if (imgObj) {
                         let s = preferCollection
-                            ? (imgObj.collection || imgObj.outer || imgObj.original)
-                            : (imgObj.outer || imgObj.original || imgObj.collection);
+                            ? (imgObj.collection || imgObj.outer || imgObj.original || imgObj.originalFull)
+                            : (imgObj.outer || imgObj.original || imgObj.collection || imgObj.originalFull);
                         if (s) srcs.push(s);
                     }
                 });
@@ -890,6 +905,122 @@
                 });
             }
             return srcs;
+        };
+
+
+        // 预览媒体辅助：等待当前图片真正加载完成后再应用截选样式，避免上一张媒体的 naturalWidth/naturalHeight 被复用。
+        // keepHidden=true 时加载完成后仍保持隐藏，供黑屏过渡期间预热使用。
+        window.setPreviewSlideImage = function(img, item, keepHidden = false) {
+            return new Promise((resolve) => {
+                if (!img || !item) { resolve(); return; }
+                const src = item.src || item.cover || '';
+                const finish = () => {
+                    try { window.applyPreviewImageStyle(img, item); } catch (_) {}
+                    if (keepHidden) {
+                        img.style.opacity = '0';
+                        img.classList.add('hidden');
+                    } else {
+                        img.style.opacity = '1';
+                        img.classList.remove('hidden');
+                    }
+                    resolve();
+                };
+                img.style.opacity = '0';
+                if (!keepHidden) img.classList.remove('hidden');
+                if (!src) { finish(); return; }
+                const token = String(Date.now()) + Math.random();
+                img.dataset.previewLoadToken = token;
+                const done = () => {
+                    if (img.dataset.previewLoadToken !== token) return;
+                    img.removeEventListener('load', done);
+                    img.removeEventListener('error', done);
+                    finish();
+                };
+                img.addEventListener('load', done, { once: true });
+                img.addEventListener('error', done, { once: true });
+                // 同源再次赋值时部分浏览器不触发 load，也不重启动画；仅在 src 变化时赋值。
+                const prev = img.getAttribute('src') || '';
+                if (prev === src && img.complete && img.naturalWidth > 0) {
+                    done();
+                    return;
+                }
+                img.src = src;
+                if (img.complete && img.naturalWidth > 0) done();
+            });
+        };
+
+        // 读取 GIF 单次循环的实际时长（单位：秒）。结果按 URL 缓存；非 GIF 或读取失败时返回 null。
+        window._previewAnimatedDurationCache = window._previewAnimatedDurationCache || new Map();
+        window.getAnimatedImageDuration = async function(item) {
+            if (!item || item.type !== 'image') return null;
+            if (Number.isFinite(Number(item.duration)) && Number(item.duration) > 0) return Number(item.duration);
+            const src = String(item.src || '');
+            if (!src || !/\.gif(?:[?#]|$)/i.test(src) && !/^data:image\/gif/i.test(src)) return null;
+            const cache = window._previewAnimatedDurationCache;
+            if (cache.has(src)) return cache.get(src);
+            try {
+                const response = await fetch(src, { cache: 'force-cache' });
+                if (!response.ok) throw new Error('GIF fetch failed');
+                const buffer = await response.arrayBuffer();
+                const bytes = new Uint8Array(buffer);
+                if (bytes.length < 13 || String.fromCharCode(bytes[0],bytes[1],bytes[2]) !== 'GIF') throw new Error('Not GIF');
+                let pos = 13;
+                const width = bytes[6] | (bytes[7] << 8);
+                const height = bytes[8] | (bytes[9] << 8);
+                const packed = bytes[10];
+                if (packed & 0x80) pos += 3 * (2 ** ((packed & 7) + 1));
+                pos += 0; // background color + aspect ratio 已包含在固定头部
+                let totalCs = 0;
+                let sawFrame = false;
+                while (pos < bytes.length) {
+                    const block = bytes[pos++];
+                    if (block === 0x3B) break; // trailer
+                    if (block === 0x21) {
+                        if (pos >= bytes.length) break;
+                        const label = bytes[pos++];
+                        if (label === 0xF9) {
+                            if (pos >= bytes.length) break;
+                            const blockSize = bytes[pos++];
+                            if (blockSize >= 4 && pos + blockSize <= bytes.length) {
+                                // packed, delay low, delay high, transparent index
+                                // 浏览器对 delay < 2 通常按 10cs（100ms）处理，与真实播放对齐，避免切走偏晚出现“重复播一下”。
+                                let delay = bytes[pos + 1] | (bytes[pos + 2] << 8);
+                                if (delay < 2) delay = 10;
+                                totalCs += delay;
+                                sawFrame = true;
+                            }
+                            pos += blockSize;
+                            if (pos < bytes.length) pos++; // block terminator
+                        } else {
+                            while (pos < bytes.length) {
+                                const n = bytes[pos++];
+                                if (n === 0) break;
+                                pos += n;
+                            }
+                        }
+                    } else if (block === 0x2C) {
+                        if (pos + 9 > bytes.length) break;
+                        const imgPacked = bytes[pos + 8];
+                        pos += 9;
+                        if (imgPacked & 0x80) pos += 3 * (2 ** ((imgPacked & 7) + 1));
+                        if (pos >= bytes.length) break;
+                        pos++; // LZW minimum code size
+                        while (pos < bytes.length) {
+                            const n = bytes[pos++];
+                            if (n === 0) break;
+                            pos += n;
+                        }
+                    } else {
+                        break;
+                    }
+                }
+                // GIF 延迟单位为 1/100 秒。浏览器对 delay < 2 通常按 10（100ms）处理，否则会算短导致切走偏晚、看起来像重复播。
+                const duration = sawFrame && totalCs > 0 ? Math.max(0.05, totalCs / 100) : null;
+                if (duration) cache.set(src, duration);
+                return duration;
+            } catch (_) {
+                return null;
+            }
         };
 
         window.startPreviewSlideshow = function(rootEl, opts) {
@@ -911,11 +1042,31 @@
             const imageHold = calm ? 4200 : 2000;
             const videoCoverHold = calm ? 1600 : 1100;
             const defaultVideoHold = calm ? 5000 : 4000;
+            // 浏览器没有「GIF 单次循环结束」事件，只能用帧延迟估算；黑屏固定时长，避免首次加载把间隙拉长。
+            const BLACK_GAP_MS = 300;
+            // 在估算时长结束前略提前切走，减少「播完又闪一下开头」；过大则会感觉被截断。
+            const ANIMATED_EARLY_CUT_SEC = 0.08;
+            // 动图解析失败时的稳定回退，避免每次落到不同默认值。
+            const ANIMATED_FALLBACK_SEC = 3;
+
+            const isAnimatedImageItem = (item) => {
+                if (!item || item.type !== 'image') return false;
+                if (item.isAnimated) return true;
+                const src = String(item.src || item.cover || '');
+                return /\.gif(?:[?#]|$)/i.test(src) || /^data:image\/gif/i.test(src);
+            };
+            const isStaticImageItem = (item) => item && item.type === 'image' && !isAnimatedImageItem(item);
+            const needsBlackGap = (fromItem, toItem) => {
+                if (!fromItem || !toItem) return false;
+                if (isStaticImageItem(fromItem) && isStaticImageItem(toItem)) return false;
+                return true;
+            };
 
             const schedule = (img) => {
                 const media = img._slideMedia || [];
                 if (!media.length) return;
                 let idx = 0;
+                let generation = 0; // 防止上一次异步回调在切换后仍启动计时
                 const stage = img.parentElement || img;
                 let video = stage.querySelector(':scope > .preview-inline-video');
                 if (!video) {
@@ -931,6 +1082,37 @@
                 }
                 videoEls.push(video);
 
+                const delayMs = (ms) => new Promise((resolve) => {
+                    timers.push(setTimeout(resolve, Math.max(0, ms)));
+                });
+
+                const preloadMediaItem = (item) => {
+                    if (!item) return Promise.resolve();
+                    const urls = [];
+                    if (item.type === 'video') {
+                        if (item.cover) urls.push(item.cover);
+                    } else {
+                        const src = item.src || item.cover || '';
+                        if (src) urls.push(src);
+                    }
+                    if (!urls.length) return Promise.resolve();
+                    return Promise.all(urls.map((src) => new Promise((resolve) => {
+                        if (!src || /^data:/i.test(src)) { resolve(); return; }
+                        const im = new Image();
+                        im.onload = () => resolve();
+                        im.onerror = () => resolve();
+                        im.src = src;
+                    })));
+                };
+
+                // 启动时预热缓存；不在播放过程中反复 reset src，避免动图跳回首帧。
+                media.forEach((m) => {
+                    preloadMediaItem(m);
+                    if (isAnimatedImageItem(m)) {
+                        window.getAnimatedImageDuration(m).catch(() => {});
+                    }
+                });
+
                 const clearVideo = () => {
                     try { video.pause(); } catch (_) {}
                     video.onloadeddata = null;
@@ -939,40 +1121,135 @@
                     video.removeAttribute('src');
                     try { video.load(); } catch (_) {}
                     video.classList.add('hidden');
-                    img.classList.remove('hidden');
+                    video.style.opacity = '0';
                 };
 
-                const playVideoThen = (item, after) => {
+                const enterBlack = () => {
+                    clearVideo();
+                    img.style.opacity = '0';
+                    img.classList.add('hidden');
+                    stage.style.backgroundColor = '#000';
+                };
+
+                const exitBlack = () => {
+                    stage.style.backgroundColor = '';
+                };
+
+                const scheduleHold = (gen, holdSec, after) => {
+                    if (!after || !isStillRunning() || gen !== generation) return;
+                    const ms = Math.max(50, Math.round(holdSec * 1000));
+                    timers.push(setTimeout(() => {
+                        if (!isStillRunning() || gen !== generation) return;
+                        after();
+                    }, ms));
+                };
+
+                const resolveImageHoldSec = async (item) => {
+                    if (!isAnimatedImageItem(item)) return imageHold / 1000;
+                    let duration = null;
+                    try {
+                        duration = await window.getAnimatedImageDuration(item);
+                    } catch (_) {
+                        duration = null;
+                    }
+                    if (!isStillRunning()) return null;
+                    if (Number.isFinite(duration) && duration > 0) {
+                        // 略提前切走，减少循环接缝闪一下；下限保证极短 GIF 仍能看见。
+                        return Math.max(0.12, duration - ANIMATED_EARLY_CUT_SEC);
+                    }
+                    return ANIMATED_FALLBACK_SEC;
+                };
+
+                // 加载图片到节点：隐藏阶段可安全重启动图；可见后不再改 src。
+                const prepareImageHidden = async (item) => {
+                    img.dataset.previewFrozen = '0';
+                    delete img.dataset.previewFrozenSource;
+                    const src = item.src || item.cover || '';
+                    clearVideo();
+                    img.style.opacity = '0';
+                    img.classList.add('hidden');
+                    if (!src) return;
+                    if (isAnimatedImageItem(item)) {
+                        // 仅在隐藏时重设 src，让动画从首帧开始；显示后绝不二次赋值，避免「播一下又跳回开头」。
+                        const cur = img.getAttribute('src') || '';
+                        if (cur !== src) {
+                            img.src = src;
+                        } else {
+                            // 同源再次进入：用空图中断当前解码再赋回，全程保持 hidden。
+                            try {
+                                img.removeAttribute('src');
+                                void img.offsetWidth;
+                            } catch (_) {}
+                            img.src = src;
+                        }
+                        await new Promise((resolve) => {
+                            const token = String(Date.now()) + Math.random();
+                            img.dataset.previewLoadToken = token;
+                            let settled = false;
+                            const done = () => {
+                                if (settled || img.dataset.previewLoadToken !== token) return;
+                                settled = true;
+                                img.removeEventListener('load', done);
+                                img.removeEventListener('error', done);
+                                resolve();
+                            };
+                            img.addEventListener('load', done);
+                            img.addEventListener('error', done);
+                            if (img.complete && img.naturalWidth > 0) {
+                                // 已缓存时 load 可能不再触发；给一个极短延迟让解码回到首帧。
+                                timers.push(setTimeout(done, 16));
+                            }
+                        });
+                        try { window.applyPreviewImageStyle(img, item); } catch (_) {}
+                        img.style.opacity = '0';
+                        img.classList.add('hidden');
+                    } else {
+                        await window.setPreviewSlideImage(img, item, true);
+                    }
+                };
+
+                const revealImage = () => {
+                    exitBlack();
+                    img.classList.remove('hidden');
+                    img.style.opacity = '1';
+                };
+
+                const playVideoThen = (item, after, gen) => {
                     clearVideo();
                     img.dataset.previewFrozen = '0';
                     delete img.dataset.previewFrozenSource;
                     img.src = item.cover || item.src || '';
-                    window.applyPreviewImageStyle(img,item);
+                    try { window.applyPreviewImageStyle(img, item); } catch (_) {}
                     img.style.opacity = '1';
                     img.classList.remove('hidden');
+                    exitBlack();
                     const coverTimer = setTimeout(() => {
-                        if (!isStillRunning()) return;
+                        if (!isStillRunning() || gen !== generation) return;
                         if (!item.src) {
                             if (after) after();
                             return;
                         }
                         img.style.opacity = '0';
+                        img.classList.add('hidden');
                         video.src = item.src;
                         try { video.currentTime = 0; } catch (_) {}
                         video.classList.remove('hidden');
                         video.style.opacity = '1';
                         let holdStarted = false;
                         const startHold = () => {
-                            if (holdStarted || !isStillRunning()) return;
+                            if (holdStarted || !isStillRunning() || gen !== generation) return;
                             holdStarted = true;
                             video.play().catch(() => {});
-                            const playTimer = setTimeout(() => {
-                                if (!isStillRunning()) return;
-                                clearVideo();
-                                img.style.opacity = '1';
+                            const playMs = Math.max(window.VIDEO_PREVIEW_MIN_SEC, Math.min(window.VIDEO_PREVIEW_MAX_SEC, Number(item.previewDuration) || (defaultVideoHold / 1000))) * 1000;
+                            timers.push(setTimeout(() => {
+                                if (!isStillRunning() || gen !== generation) return;
                                 if (after) after();
-                            }, Math.max(window.VIDEO_PREVIEW_MIN_SEC, Math.min(window.VIDEO_PREVIEW_MAX_SEC, Number(item.previewDuration) || (defaultVideoHold / 1000))) * 1000);
-                            timers.push(playTimer);
+                                else {
+                                    clearVideo();
+                                    img.classList.remove('hidden');
+                                    img.style.opacity = '1';
+                                }
+                            }, playMs));
                         };
                         video.addEventListener('canplay', startHold, { once: true });
                         try { video.load(); } catch (_) {}
@@ -981,46 +1258,64 @@
                     timers.push(coverTimer);
                 };
 
+                // 统一入口：显示某一项并在「真正可见」后开始计时。
+                const presentItem = async (item, after, useBlack) => {
+                    if (!isStillRunning()) return;
+                    const gen = ++generation;
+                    if (item.type === 'video' && item.src) {
+                        if (useBlack) {
+                            enterBlack();
+                            await delayMs(BLACK_GAP_MS);
+                            if (!isStillRunning() || gen !== generation) return;
+                        }
+                        if (!isStillRunning() || gen !== generation) return;
+                        playVideoThen(item, after, gen);
+                        return;
+                    }
+                    if (useBlack) {
+                        enterBlack();
+                        // 黑屏固定时长；加载并行，但不把黑屏拖成「有时长有短」。
+                        const gap = delayMs(BLACK_GAP_MS);
+                        const prep = prepareImageHidden(item);
+                        await gap;
+                        if (!isStillRunning() || gen !== generation) return;
+                        // 黑屏结束后若仍未就绪，最多再等一小段，避免长时间黑屏；超时也揭示，由缓存承接。
+                        await Promise.race([prep, delayMs(120)]);
+                        if (!isStillRunning() || gen !== generation) return;
+                        revealImage();
+                    } else {
+                        // 首张或静态→静态：无黑屏，直接准备并显示。
+                        await prepareImageHidden(item);
+                        if (!isStillRunning() || gen !== generation) return;
+                        revealImage();
+                    }
+                    if (!isStillRunning() || gen !== generation) return;
+                    // 计时从「可见」这一刻开始，与动图实际起播对齐。
+                    const holdSec = await resolveImageHoldSec(item);
+                    if (!isStillRunning() || gen !== generation || holdSec == null) return;
+                    scheduleHold(gen, holdSec, after);
+                };
+
                 const next = () => {
                     if (!isStillRunning()) return;
                     if (media.length <= 1) {
                         const only = media[0];
                         if (only && only.type === 'video' && only.src) {
-                            playVideoThen(only, () => { if (isStillRunning()) next(); });
+                            presentItem(only, () => { if (isStillRunning()) next(); }, true);
                         }
+                        // 单张静图/动图：播完停留，不再循环。
                         return;
                     }
+                    const fromItem = media[idx];
                     idx = (idx + 1) % media.length;
                     const item = media[idx];
-                    if (item.type === 'video' && item.src) {
-                        playVideoThen(item, next);
-                    } else {
-                        clearVideo();
-                        img.dataset.previewFrozen = '0';
-                        delete img.dataset.previewFrozenSource;
-                        img.src = item.cover || item.src || '';
-                        img.style.opacity = '1';
-                        timers.push(setTimeout(next, imageHold));
-                    }
+                    const useBlack = needsBlackGap(fromItem, item);
+                    presentItem(item, next, useBlack);
                 };
 
+                // 首张不加黑屏。
                 const first = media[0];
-                if (first.type === 'video' && first.src) {
-                    playVideoThen(first, () => {
-                        if (!isStillRunning()) return;
-                        next();
-                    });
-                } else {
-                    clearVideo();
-                    img.dataset.previewFrozen = '0';
-                    delete img.dataset.previewFrozenSource;
-                    img.src = first.cover || first.src || '';
-                    window.applyPreviewImageStyle(img,first);
-                    img.style.opacity = '1';
-                    if (media.length > 1) {
-                        timers.push(setTimeout(next, imageHold));
-                    }
-                }
+                presentItem(first, media.length > 1 ? next : null, false);
             };
             imgs.forEach(schedule);
             rootEl._previewSlideTimers = timers;
@@ -1047,10 +1342,13 @@
             }
             rootEl.querySelectorAll('.preview-slide-img').forEach(img => {
                 img.style.opacity = '1';
+                img.classList.remove('hidden');
+                const stage = img.parentElement;
+                if (stage) stage.style.backgroundColor = '';
                 if (resetToFirst) {
                     const media = img._slideMedia || [];
                     const first = media[0];
-                    if (first) img.src = first.cover || first.src || '';
+                    if (first) img.src = first.type === 'video' ? (first.cover || first.src || '') : (first.src || first.cover || '');
                 }
             });
         };
@@ -1060,14 +1358,21 @@
             const c=item?.crop;
             const parent=img.parentElement;
             if(c&&c.sw&&c.sh&&c.naturalWidth&&c.naturalHeight&&parent){
+                // 动图截选不能把原图按父容器宽高百分比分别拉伸，否则会出现“变扁”。
+                // 用同一个缩放比例计算原图实际显示尺寸，保持原始宽高比，再通过 left/top 定位截选区域。
+                const pw=Math.max(1,parent.clientWidth||parent.offsetWidth||160);
+                const ph=Math.max(1,parent.clientHeight||parent.offsetHeight||100);
+                const scale=Math.max(pw/Number(c.sw),ph/Number(c.sh));
+                const renderedW=Number(c.naturalWidth)*scale;
+                const renderedH=Number(c.naturalHeight)*scale;
                 parent.classList.add('relative','overflow-hidden');
                 img.style.position='absolute';
-                img.style.width=(100*Number(c.naturalWidth)/Number(c.sw))+'%';
+                img.style.width=renderedW+'px';
+                img.style.height=renderedH+'px';
                 img.style.maxWidth='none';
-                img.style.height='auto';
-                img.style.left=(-100*Number(c.sx)/Number(c.sw))+'%';
-                img.style.top=(-100*Number(c.sy)/Number(c.sh))+'%';
-                img.style.objectFit='initial';
+                img.style.left=(-Number(c.sx)*scale)+'px';
+                img.style.top=(-Number(c.sy)*scale)+'px';
+                img.style.objectFit='fill';
             }else{
                 img.style.position='';img.style.width='';img.style.maxWidth='';img.style.height='';
                 img.style.left='';img.style.top='';img.style.objectFit='';
@@ -1082,10 +1387,13 @@
                     let src = '', crop = null;
                     if (typeof imgObj === 'string') src = imgObj;
                     else if (imgObj) {
-                        src = preferCollection ? (imgObj.collection || imgObj.outer || imgObj.original) : (imgObj.outer || imgObj.original || imgObj.collection);
-                        crop = imgObj.crop || null;
+                        src = preferCollection ? (imgObj.collection || imgObj.outer || imgObj.original || imgObj.originalFull) : (imgObj.outer || imgObj.original || imgObj.collection || imgObj.originalFull);
+                        const mediaId = String(imgObj.mediaId || '');
+                        const rawCrop = imgObj.crop;
+                        // crop 带有媒体身份时必须与当前媒体一致；否则视为无效，避免历史串图数据继续污染预览。
+                        crop = rawCrop && (!rawCrop.mediaId || !mediaId || String(rawCrop.mediaId) === mediaId) ? rawCrop : null;
                     }
-                    if (src) media.push({ type: 'image', src, cover: src, crop });
+                    if (src) media.push({ type: 'image', src, cover: src, crop: crop ? { ...crop } : null, mediaId: (typeof imgObj === 'object' && imgObj) ? String(imgObj.mediaId || '') : '' });
                 });
             }
             if (ev.videos && ev.videos.length > 0) {
@@ -1108,11 +1416,14 @@
 
         window.currentLightboxImages = [];
         window.currentLightboxIndex = 0;
+        window.lightboxPausedVideoStates = [];
 
         let activeVideoCropIndex = -1;
 
         let cropState = {
             index: -1,
+            mediaId: '',
+            openToken: 0,
             naturalWidth: 0,
             naturalHeight: 0,
             scale: 1,
@@ -1450,10 +1761,11 @@
                     if (typeof img === 'string') return img;
                     const full = img.originalFull || img.original || img.outer || img.inner || img.collection || '';
                     const out = { originalFull: full };
+                    if (img.mediaId) out.mediaId = String(img.mediaId);
                     if (img.outer && img.outer !== full) out.outer = img.outer;
                     if (img.inner && img.inner !== full && img.inner !== out.outer) out.inner = img.inner;
                     if (img.collection && img.collection !== full && img.collection !== out.outer && img.collection !== out.inner) out.collection = img.collection;
-                    if (img.crop) out.crop = { ...img.crop };
+                    if (img.crop) out.crop = { ...img.crop, mediaId: String(img.mediaId || '') };
                     if (img.isAnimated) out.isAnimated = true;
                     return out;
                 });
@@ -1658,7 +1970,7 @@
                     node.querySelectorAll('.preview-slide-img').forEach(img => {
                         const media = img._slideMedia || [];
                         const first = media[0];
-                        if (first) img.src = first.cover || first.src || '';
+                        if (first) img.src = first.type === 'video' ? (first.cover || first.src || '') : (first.src || first.cover || '');
                         img.style.opacity = '1';
                         img.classList.remove('hidden');
                     });
@@ -1790,23 +2102,20 @@
                 lastScrollTs = now;
                 const level = Math.max(1, Math.min(20, Number(window.edgeScrollSpeed) || 5));
                 const t = level / 20;
-                const pxPerFrame = 0.22 + Math.pow(t, 1.25) * 2.4;
-                scrollAccum += pxPerFrame * (dt / 16.67);
-                const step = Math.floor(scrollAccum);
-                if (step < 1) {
-                    animationId = requestAnimationFrame(smoothScroll);
-                    return;
-                }
-                scrollAccum -= step;
+                // 使用连续的时间积分而不是取整像素步进，避免低速时出现“走一下、顿一下”的卡顿。
+                const pxPerSecond = 18 + Math.pow(t, 1.35) * 260;
+                const delta = pxPerSecond * (dt / 1000);
                 container.style.scrollBehavior = 'auto';
                 const before = container.scrollLeft;
+                let next = before;
                 if (isScrollingLeft) {
-                    container.scrollLeft = Math.max(0, before - step);
+                    next = Math.max(0, before - delta);
                 } else if (isScrollingRight) {
                     const maxScroll = Math.max(0, container.scrollWidth - container.clientWidth);
-                    container.scrollLeft = Math.min(maxScroll, before + step);
+                    next = Math.min(maxScroll, before + delta);
                 }
-                updateHoverSyncedWithScroll();
+                container.scrollLeft = next;
+                if (Math.abs(next - before) > 0.01) updateHoverSyncedWithScroll();
                 animationId = requestAnimationFrame(smoothScroll);
             }
 
@@ -3151,7 +3460,7 @@
                         img.style.opacity = '1';
                         const media = img._slideMedia || [];
                         const first = media[0];
-                        if (first) img.src = first.cover || first.src || '';
+                        if (first) img.src = first.type === 'video' ? (first.cover || first.src || '') : (first.src || first.cover || '');
                     });
                 }
             });
@@ -4106,13 +4415,13 @@
 
             let imagesHtml = '';
             if (event.images && event.images.length > 0) {
-                const fullSrcList = event.images.map(imgObj => typeof imgObj === 'string' ? imgObj : imgObj.original);
+                const fullSrcList = event.images.map(imgObj => typeof imgObj === 'string' ? imgObj : (imgObj.originalFull || imgObj.original || imgObj.outer || imgObj.inner || imgObj.collection || ''));
                 imagesHtml = `
                     <div class="mb-6">
                         <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">事件配图</h4>
                         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
                             ${event.images.map((imgObj, idx) => {
-                                const thumbSrc = typeof imgObj === 'string' ? imgObj : (imgObj.inner || imgObj.original);
+                                const thumbSrc = typeof imgObj === 'string' ? imgObj : (imgObj.inner || imgObj.original || imgObj.originalFull || imgObj.outer || imgObj.collection);
                                 const listStr = JSON.stringify(fullSrcList).replace(/"/g, '&quot;');
                                 return `
                                     <div onclick="openLightbox(${listStr}, ${idx})" class="group relative aspect-[3/4] bg-slate-950 rounded-xl overflow-hidden border border-slate-800 cursor-pointer shadow-md hover:border-indigo-500 transition-all">
@@ -4220,7 +4529,20 @@
             window._stackDidDrag = false;
         };
 
+        window.pauseAllDetailVideosForLightbox = function() {
+            const detailViewer = document.getElementById('fullscreenViewer');
+            window.lightboxPausedVideoStates = [];
+            if (!detailViewer) return;
+            detailViewer.querySelectorAll('video').forEach((video, index) => {
+                if (!video || video.paused || video.ended) return;
+                window.lightboxPausedVideoStates.push({ video, index, currentTime: Number.isFinite(video.currentTime) ? video.currentTime : 0, wasPlaying: true });
+                try { video.pause(); } catch (_) {}
+            });
+        };
+
         window.openLightbox = function(imagesOrSrc, index = 0) {
+            // 打开大图前自动暂停事件详情页内正在播放的视频，避免大图覆盖后视频仍在后台播放。
+            window.pauseAllDetailVideosForLightbox();
             if (Array.isArray(imagesOrSrc)) {
                 window.currentLightboxImages = imagesOrSrc;
                 window.currentLightboxIndex = index;
@@ -4263,6 +4585,20 @@
 
         window.closeLightbox = function() {
             document.getElementById('lightboxModal')?.classList.add('hidden');
+            const states = Array.isArray(window.lightboxPausedVideoStates) ? window.lightboxPausedVideoStates.slice() : [];
+            window.lightboxPausedVideoStates = [];
+            states.forEach(state => {
+                const video = state && state.video;
+                if (!video || !video.isConnected || !state.wasPlaying) return;
+                const resume = () => {
+                    try {
+                        if (Number.isFinite(state.currentTime) && (!video.duration || state.currentTime < video.duration - 0.05)) video.currentTime = state.currentTime;
+                        video.play().catch(() => {});
+                    } catch (_) {}
+                };
+                if (video.readyState >= 1) resume();
+                else video.addEventListener('loadedmetadata', resume, { once: true });
+            });
         };
 
         window.getEditingConnectionsForEvent = function(eventId) {
@@ -4405,6 +4741,7 @@
                 }
             }
             window.editingImageFiles.push({
+                mediaId: 'img_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9),
                 original: url,
                 originalFull: url,
                 outer: url,
@@ -4458,10 +4795,14 @@
 
             window.editingImageFiles = (event.images ? event.images : []).map(img => {
                 if (typeof img === 'string') {
-                    return { original: img, originalFull: img, outer: img, inner: img, collection: img };
+                    return {
+                        mediaId: 'img_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9),
+                        original: img, originalFull: img, outer: img, inner: img, collection: img, crop: null
+                    };
                 }
-                const full = img.originalFull || img.original;
+                const full = img.originalFull || img.original || img.outer || img.inner || img.collection || '';
                 return {
+                    mediaId: img.mediaId || ('img_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9)),
                     original: full,
                     originalFull: full,
                     outer: img.outer || full,
@@ -4469,6 +4810,23 @@
                     collection: img.collection || img.outer || full,
                     isAnimated: !!img.isAnimated || /\.(gif|webp)(?:$|[?#])/i.test(full || ''),
                     crop: img.crop ? { ...img.crop } : null
+                };
+            });
+            // 每个媒体必须拥有唯一身份；历史数据如果曾错误复用了 mediaId，打开编辑时立即隔离。
+            // crop 也必须是当前媒体自己的独立对象，不能与同一事件的其他图片共享引用。
+            const usedMediaIds = new Set();
+            window.editingImageFiles = window.editingImageFiles.map((item, idx) => {
+                let mediaId = String(item.mediaId || '');
+                if (!mediaId || usedMediaIds.has(mediaId)) {
+                    mediaId = 'img_' + Date.now().toString(36) + '_' + idx + '_' + Math.random().toString(36).slice(2, 9);
+                }
+                usedMediaIds.add(mediaId);
+                return {
+                    ...item,
+                    mediaId,
+                    // 只有无身份的旧 crop 或明确属于当前媒体的 crop 才能保留。
+                    crop: item.crop && (!item.crop.mediaId || String(item.crop.mediaId) === mediaId)
+                        ? { ...item.crop, mediaId } : null
                 };
             });
             window.editingEventId = event.id;
@@ -4514,8 +4872,8 @@
                             <div><label class="block text-xs font-bold text-slate-700 mb-1">事件名称 *</label><input type="text" id="editTitle" value="${event.title}" required placeholder="输入事件标题" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"></div>
                             <div class="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
                                 <div class="flex items-center justify-between"><label class="block text-xs font-bold text-slate-700">时间与日期范围 *</label><label class="cursor-pointer text-xs text-indigo-600 flex items-center gap-1 font-medium select-none"><input type="checkbox" id="isRangeToggle" ${isRangeDate ? 'checked' : ''} onchange="toggleDateRangeMode(this)"><span>启用日期范围</span></label></div>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="singleDateContainer" style="display: ${isRangeDate ? 'none' : 'grid'};"><div><span class="block text-[10px] text-slate-500 mb-0.5">具体日期</span><input type="text" id="editDate" value="${startDateVal}" inputmode="numeric" maxlength="10" placeholder="YYYY / YYYY-MM / YYYY-MM-DD" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"></div></div>
-                                <div class="grid grid-cols-2 gap-2" id="rangeDateContainer" style="display: ${isRangeDate ? 'grid' : 'none'};"><div><span class="block text-[10px] text-slate-500 mb-0.5">开始日期</span><input type="text" id="editStartDate" value="${startDateVal}" inputmode="numeric" maxlength="10" placeholder="YYYY / YYYY-MM / YYYY-MM-DD" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"></div><div><span class="block text-[10px] text-slate-500 mb-0.5">结束日期</span><input type="text" id="editEndDate" value="${endDateVal}" inputmode="numeric" maxlength="10" placeholder="YYYY / YYYY-MM / YYYY-MM-DD" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"></div></div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="singleDateContainer" style="display: ${isRangeDate ? 'none' : 'grid'};"><div><span class="block text-[10px] text-slate-500 mb-0.5">具体日期</span><input type="text" id="editDate" value="${startDateVal}" inputmode="numeric" maxlength="10" placeholder="YY / YY-M / YY-M-D（也支持四位年份）" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"></div></div>
+                                <div class="grid grid-cols-2 gap-2" id="rangeDateContainer" style="display: ${isRangeDate ? 'grid' : 'none'};"><div><span class="block text-[10px] text-slate-500 mb-0.5">开始日期</span><input type="text" id="editStartDate" value="${startDateVal}" inputmode="numeric" maxlength="10" placeholder="YY / YY-M / YY-M-D（也支持四位年份）" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"></div><div><span class="block text-[10px] text-slate-500 mb-0.5">结束日期</span><input type="text" id="editEndDate" value="${endDateVal}" inputmode="numeric" maxlength="10" placeholder="YY / YY-M / YY-M-D（也支持四位年份）" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"></div></div>
                             </div>
                             <div><label class="block text-xs font-bold text-slate-700 mb-1">节点类型</label><select id="editType" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"><option value="minor" ${event.type === 'minor' ? 'selected' : ''}>普通事件</option><option value="major" ${event.type === 'major' ? 'selected' : ''}>重大里程碑</option></select></div>
                             <div><label class="block text-xs font-bold text-slate-700 mb-1">选择 tag (多选)</label><div class="flex flex-wrap gap-1.5 p-2 border border-slate-200 rounded-lg bg-slate-50 max-h-28 overflow-y-auto" id="editTagsList">${window.availableTags.length === 0 ? '<p class="text-xs text-slate-400 italic">暂无可用 tag</p>' : window.availableTags.map(t => { const checked = event.tags && event.tags.includes(t); return `<label class="cursor-pointer text-xs flex items-center gap-1.5 px-2 py-1 rounded border transition-colors ${checked ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-semibold' : 'bg-white border-slate-200 text-slate-600'}"><input type="checkbox" value="${t}" ${checked ? 'checked' : ''} class="hidden" onchange="toggleTagSelection(this)"><span># ${t}</span></label>`; }).join('')}</div></div>
@@ -4691,8 +5049,9 @@
                         ? await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=ev=>resolve(ev.target.result);r.onerror=reject;r.readAsDataURL(f);})
                         : await compressImage(f);
                     window.editingImageFiles.push({
+                        mediaId: 'img_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9),
                         original: base64, originalFull: base64, outer: base64, inner: base64, collection: base64,
-                        isAnimated: animated
+                        isAnimated: animated, crop: null
                     });
                     window.renderMicroPreviews();
                 } catch(err) { window.showToast('图片添加失败','error'); }
@@ -4858,6 +5217,20 @@
         window.richSetColor=function(v){
             if(!v) return;
             window.richExec('foreColor',v);
+            // 字体颜色变化后，保留原有下划线/中间线，并让装饰线始终跟随当前文字颜色。
+            const e=document.getElementById('editDescription');
+            const sel=window.getSelection();
+            if(e && sel && sel.rangeCount){
+                const range=sel.getRangeAt(0);
+                const applyDecorationColor=(el)=>{
+                    if(!el || el.nodeType!==1 || !e.contains(el)) return;
+                    try{
+                        if(range.intersectsNode(el)) el.style.textDecorationColor='currentColor';
+                    }catch(_){}
+                };
+                if(range.commonAncestorContainer.nodeType===1) applyDecorationColor(range.commonAncestorContainer);
+                e.querySelectorAll('*').forEach(applyDecorationColor);
+            }
             document.querySelectorAll('#richColorPalette .rich-color-choice').forEach(b=>{
                 const on=b.getAttribute('title')===v;
                 b.classList.toggle('is-selected',on);
@@ -5162,10 +5535,15 @@
             if (!src || !c || !c.sw || !c.sh || !c.naturalWidth || !c.naturalHeight) {
                 return `<img src="${window.escapeHtml(src)}" class="w-full h-full object-cover" draggable="false">`;
             }
-            const w = 100 * Number(c.naturalWidth) / Number(c.sw);
-            const left = -100 * Number(c.sx) / Number(c.sw);
-            const top = -100 * Number(c.sy) / Number(c.sh);
-            return `<div class="relative w-full h-full overflow-hidden bg-slate-900"><img src="${window.escapeHtml(src)}" class="absolute max-w-none h-auto" style="width:${w}%;left:${left}%;top:${top}%;" draggable="false"></div>`;
+            // 编辑缩略图同样按统一缩放比例计算，避免裁剪后的 GIF/WebP 被拉伸。
+            // 容器固定为 80×64，比例与时间线缩略图不同也不会改变原图比例。
+            const boxW=80, boxH=64;
+            const scale=Math.max(boxW/Number(c.sw),boxH/Number(c.sh));
+            const w=Number(c.naturalWidth)*scale;
+            const h=Number(c.naturalHeight)*scale;
+            const left=-Number(c.sx)*scale;
+            const top=-Number(c.sy)*scale;
+            return `<div class="relative w-full h-full overflow-hidden bg-slate-900"><img src="${window.escapeHtml(src)}" class="absolute max-w-none" style="width:${w}px;height:${h}px;left:${left}px;top:${top}px;" draggable="false"></div>`;
         };
 
         window.renderMicroPreviews = function() {
@@ -5205,19 +5583,30 @@
         };
 
         window.openCropModal = function(index) {
-            cropState.index = index;
             const imgObj = window.editingImageFiles[index];
             if (!imgObj) return;
+            const mediaId = String(imgObj.mediaId || '');
+            if (!mediaId) return;
+
+            cropState.index = index;
+            cropState.mediaId = mediaId;
+            cropState.openToken = (cropState.openToken || 0) + 1;
+            const openToken = cropState.openToken;
 
             const modal = document.getElementById('cropModal');
             const targetImg = document.getElementById('cropTargetImg');
             if (!modal || !targetImg) return;
 
+            targetImg.onload = null;
             targetImg.src = imgObj.originalFull || imgObj.original || imgObj.outer || '';
             modal.classList.remove('hidden');
             window.initCropInteractions();
 
             const setup = () => {
+                if (cropState.openToken !== openToken || cropState.mediaId !== mediaId) return;
+                const currentIndex = window.editingImageFiles.findIndex(item => String(item.mediaId || '') === mediaId);
+                if (currentIndex < 0) return;
+                cropState.index = currentIndex;
                 cropState.naturalWidth = targetImg.naturalWidth || 800;
                 cropState.naturalHeight = targetImg.naturalHeight || 600;
                 const container = document.getElementById('cropContainer');
@@ -5229,6 +5618,7 @@
                 const dispH = cropState.naturalHeight * cropState.scale;
                 cropState.imgX = (cw - dispW) / 2;
                 cropState.imgY = (ch - dispH) / 2;
+                // 每次重新进入截选器都恢复默认选框，不复用上一张媒体的选框。
                 cropState.boxW = Math.min(cw * 0.55, dispW * 0.85, 320);
                 cropState.boxH = Math.min(ch * 0.55, dispH * 0.85, 240);
                 cropState.boxX = (cw - cropState.boxW) / 2;
@@ -5370,6 +5760,11 @@
         };
 
         window.closeCropModal = function() {
+            cropState.openToken = (cropState.openToken || 0) + 1;
+            cropState.mediaId = '';
+            cropState.index = -1;
+            const targetImg = document.getElementById('cropTargetImg');
+            if (targetImg) targetImg.onload = null;
             document.getElementById('cropModal')?.classList.add('hidden');
         };
 
@@ -5402,18 +5797,27 @@
                 outH = Math.max(1, Math.round(outH * r));
             }
 
-            const target = window.editingImageFiles[cropState.index];
+            const targetIndex = window.editingImageFiles.findIndex(item => String(item.mediaId || '') === String(cropState.mediaId || ''));
+            const target = targetIndex >= 0 ? window.editingImageFiles[targetIndex] : null;
             if (!target) return;
+            cropState.index = targetIndex;
 
             // 动图不能用 canvas 导出，否则 GIF/WebP 动画会被压成静态图。
             // 对动图只保存裁剪窗口对应的原图坐标，显示时用 CSS 裁剪，从而继续保留动画。
             if (target.isAnimated) {
-                target.crop = { sx, sy, sw, sh, naturalWidth: cropState.naturalWidth, naturalHeight: cropState.naturalHeight };
-                target.original = target.originalFull || target.original || target.outer || target.inner || target.collection || targetImg.src;
-                target.originalFull = target.original;
-                target.outer = target.original;
-                target.inner = target.original;
-                target.collection = target.original;
+                // 动图只修改当前媒体对象自己的 crop 元数据，不改动其他动图，也不覆盖原始动画源。
+                target.mediaId = target.mediaId || ('img_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9));
+                target.crop = {
+                    sx, sy, sw, sh,
+                    naturalWidth: cropState.naturalWidth,
+                    naturalHeight: cropState.naturalHeight,
+                    mediaId: String(target.mediaId)
+                };
+                target.originalFull = target.originalFull || target.original || target.outer || target.inner || target.collection || targetImg.src;
+                target.original = target.originalFull;
+                target.outer = target.outer || target.originalFull;
+                target.inner = target.inner || target.originalFull;
+                target.collection = target.collection || target.originalFull;
                 window.showToast('截选完成并已应用', 'success');
                 window.renderMicroPreviews();
                 window.closeCropModal();
@@ -5464,22 +5868,27 @@
         };
 
         window.normalizePartialDate = function(value) {
-            const v = String(value || '').trim().replace(/\//g, '-');
-            if (/^\d{4}$/.test(v)) return v;
-            if (/^\d{4}-\d{1,2}$/.test(v)) {
-                const [y, m] = v.split('-');
-                const month = Number(m);
-                if (month >= 1 && month <= 12) return `${y}-${String(month).padStart(2, '0')}`;
+            let v = String(value || '').trim().replace(/\s+/g, '').replace(/[\/._]/g, '-');
+            if (!v) return '';
+            const parts = v.split('-').filter(Boolean);
+            if (parts.length === 1) {
+                if (/^\d{4}$/.test(parts[0])) return parts[0];
+                if (/^\d{2}$/.test(parts[0])) return '20' + parts[0];
+                return '';
             }
-            if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(v)) {
-                const [y, m, d] = v.split('-');
-                const month = Number(m), day = Number(d);
-                const maxDay = new Date(Number(y), month, 0).getDate();
-                if (month >= 1 && month <= 12 && day >= 1 && day <= maxDay) {
-                    return `${y}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                }
-            }
-            return '';
+            if (parts.length !== 2 && parts.length !== 3) return '';
+            const rawYear = parts[0];
+            let year = '';
+            if (/^\d{4}$/.test(rawYear)) year = rawYear;
+            else if (/^\d{2}$/.test(rawYear)) year = '20' + rawYear;
+            else return '';
+            const month = Number(parts[1]);
+            if (!Number.isInteger(month) || month < 1 || month > 12) return '';
+            if (parts.length === 2) return `${year}-${String(month).padStart(2, '0')}`;
+            const day = Number(parts[2]);
+            const maxDay = new Date(Number(year), month, 0).getDate();
+            if (!Number.isInteger(day) || day < 1 || day > maxDay) return '';
+            return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         };
 
         window.handlePreSaveEvent = function(e, idRaw, isEdit) {
@@ -5493,7 +5902,7 @@
                 const sDate = window.normalizePartialDate(document.getElementById('editStartDate')?.value);
                 const eDate = window.normalizePartialDate(document.getElementById('editEndDate')?.value);
                 if (!sDate || !eDate) {
-                    window.showToast("日期请填写为 YYYY、YYYY-MM 或 YYYY-MM-DD", "error");
+                    window.showToast("日期请填写为 YY、YY-M、YY-M-D，也支持四位年份", "error");
                     return;
                 }
                 if (sDate > eDate) {
@@ -5504,7 +5913,7 @@
             } else {
                 date = window.normalizePartialDate(document.getElementById('editDate')?.value);
                 if (!date) {
-                    window.showToast("日期请填写为 YYYY、YYYY-MM 或 YYYY-MM-DD", "error");
+                    window.showToast("日期请填写为 YY、YY-M、YY-M-D，也支持四位年份", "error");
                     return;
                 }
             }
@@ -5532,7 +5941,12 @@
                 type: type,
                 description: description,
                 tags: selectedTags,
-                images: window.editingImageFiles.map(img => ({ ...img, isAnimated: !!img.isAnimated, crop: img.crop ? { ...img.crop } : undefined })),
+                images: window.editingImageFiles.map(img => ({
+                    ...img,
+                    mediaId: img.mediaId || ('img_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9)),
+                    isAnimated: !!img.isAnimated,
+                    crop: img.crop ? { ...img.crop, mediaId: String(img.mediaId || '') } : undefined
+                })),
                 videos: window.editingVideos.map(v => ({
                     url: v.url,
                     cover: v.cover || '',
@@ -5583,24 +5997,30 @@
         window.openHelpModal = function() { const modal = document.getElementById('helpModal'); if (!modal) return; switchHelpTab('usage'); modal.classList.remove('hidden'); };
         window.closeHelpModal = function() { document.getElementById('helpModal')?.classList.add('hidden'); };
         window.switchHelpTab = function(tab) {
-            const usage = document.getElementById('helpUsagePanel');
-            const changelog = document.getElementById('helpChangelogPanel');
-            const thanks = document.getElementById('helpThanksPanel');
-            const b1 = document.getElementById('helpTabUsage');
-            const b2 = document.getElementById('helpTabChangelog');
-            const b3 = document.getElementById('helpTabThanks');
-            [usage, changelog, thanks].forEach(el => el?.classList.add('hidden'));
-            [b1, b2, b3].forEach(el => el?.classList.remove('bg-white','text-indigo-700','border','border-b-0','border-slate-200'));
-            if (tab === 'changelog') {
-                changelog?.classList.remove('hidden');
-                b2?.classList.add('bg-white','text-indigo-700','border','border-b-0','border-slate-200');
-            } else if (tab === 'thanks') {
-                thanks?.classList.remove('hidden');
-                b3?.classList.add('bg-white','text-indigo-700','border','border-b-0','border-slate-200');
-            } else {
-                usage?.classList.remove('hidden');
-                b1?.classList.add('bg-white','text-indigo-700','border','border-b-0','border-slate-200');
+            const panels = {
+                usage: document.getElementById('helpUsagePanel'),
+                changelog: document.getElementById('helpChangelogPanel'),
+                thanks: document.getElementById('helpThanksPanel')
+            };
+            const buttons = {
+                usage: document.getElementById('helpTabUsage'),
+                changelog: document.getElementById('helpTabChangelog'),
+                thanks: document.getElementById('helpTabThanks')
+            };
+            const active = panels[tab] ? tab : 'usage';
+            Object.values(panels).forEach(el => {
+                if (!el) return;
+                el.classList.add('hidden');
+                el.style.removeProperty('display');
+            });
+            Object.values(buttons).forEach(el => el?.classList.remove('bg-white','text-indigo-700','border','border-b-0','border-slate-200'));
+            const panel = panels[active];
+            const button = buttons[active];
+            if (panel) {
+                panel.classList.remove('hidden');
+                panel.style.removeProperty('display');
             }
+            button?.classList.add('bg-white','text-indigo-700','border','border-b-0','border-slate-200');
         };
         document.addEventListener('keydown', e => { if (e.key === 'Escape') { const tn=document.getElementById('thanksNoteModal'); if(tn && !tn.classList.contains('hidden')) { closeThanksNote(); return; } const h=document.getElementById('helpModal'); if(h && !h.classList.contains('hidden')) closeHelpModal(); const v=document.getElementById('fullscreenViewer'); if(v && !v.classList.contains('hidden')) closeReadOnlyFullscreen(); } });
 
