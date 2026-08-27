@@ -2092,9 +2092,11 @@
             let pointerY = null;
             let direction = 0;
             let rafId = 0;
-            let previousTs = 0;
+            let motionStartTs = 0;
+            let motionStartScroll = 0;
 
             window._pointerInEdgeZone = false;
+            window._edgeAutoScrollActive = false;
 
             function speedPxPerSecond() {
                 const level = Math.max(1, Math.min(20, Number(window.edgeScrollSpeed) || 5));
@@ -2113,6 +2115,7 @@
 
             function paintEdgeState(dir) {
                 window._pointerInEdgeZone = dir !== 0;
+                window._edgeAutoScrollActive = dir !== 0;
                 if (leftEdge) leftEdge.classList.toggle('edge-active', dir < 0);
                 if (rightEdge) rightEdge.classList.toggle('edge-active', dir > 0);
             }
@@ -2141,12 +2144,15 @@
                 for (const node of nodes) {
                     const nr = node.getBoundingClientRect();
                     const center = nr.left + nr.width / 2;
+                    const previewInset = EDGE_PX + 18;
                     if (dir < 0) {
-                        const d = Math.abs(center - (cr.left + 36));
-                        if (center <= cr.right && d < best) { best = d; candidate = node; }
+                        const targetX = cr.left + previewInset;
+                        const d = Math.abs(center - targetX);
+                        if (center >= targetX && center <= cr.right && d < best) { best = d; candidate = node; }
                     } else {
-                        const d = Math.abs(center - (cr.right - 36));
-                        if (center >= cr.left && d < best) { best = d; candidate = node; }
+                        const targetX = cr.right - previewInset;
+                        const d = Math.abs(center - targetX);
+                        if (center <= targetX && center >= cr.left && d < best) { best = d; candidate = node; }
                     }
                 }
                 if (candidate === edgePreviewNode) return;
@@ -2161,7 +2167,8 @@
 
             function stopLoop() {
                 direction = 0;
-                previousTs = 0;
+                motionStartTs = 0;
+                motionStartScroll = container.scrollLeft;
                 paintEdgeState(0);
                 clearEdgePreview();
                 window.setRearrangeEdgeScrolling(false);
@@ -2177,27 +2184,24 @@
                     return;
                 }
 
-                if (nextDirection !== direction) {
+                if (nextDirection !== direction || !motionStartTs) {
                     direction = nextDirection;
-                    previousTs = ts;
+                    motionStartTs = ts;
+                    motionStartScroll = container.scrollLeft;
                     paintEdgeState(direction);
                     window.setRearrangeEdgeScrolling(true);
                     container.style.scrollBehavior = 'auto';
                 }
 
+                const maxScroll = Math.max(0, container.scrollWidth - container.clientWidth);
+                const elapsedSeconds = Math.max(0, ts - motionStartTs) / 1000;
+                const target = Math.max(0, Math.min(maxScroll, motionStartScroll + direction * speedPxPerSecond() * elapsedSeconds));
+                container.scrollLeft = target;
                 updateEdgePreview(direction);
-                const elapsed = previousTs ? Math.min(40, Math.max(0, ts - previousTs)) : 0;
-                previousTs = ts;
 
-                if (elapsed > 0) {
-                    const maxScroll = Math.max(0, container.scrollWidth - container.clientWidth);
-                    const delta = speedPxPerSecond() * (elapsed / 1000);
-                    const target = Math.max(0, Math.min(maxScroll, container.scrollLeft + direction * delta));
-                    container.scrollLeft = target;
-                    if ((direction < 0 && target <= 0) || (direction > 0 && target >= maxScroll)) {
-                        stopLoop();
-                        return;
-                    }
+                if ((direction < 0 && target <= 0) || (direction > 0 && target >= maxScroll)) {
+                    stopLoop();
+                    return;
                 }
 
                 rafId = requestAnimationFrame(frame);
@@ -2210,9 +2214,10 @@
                     if (rafId) stopLoop();
                     return;
                 }
-                direction = nextDirection;
                 if (!rafId) {
-                    previousTs = 0;
+                    direction = nextDirection;
+                    motionStartTs = 0;
+                    motionStartScroll = container.scrollLeft;
                     if (typeof window.exitRearrange === 'function') window.exitRearrange();
                     rafId = requestAnimationFrame(frame);
                 }
@@ -2807,6 +2812,7 @@
         };
 
         window.scrollTimelineToEvent = function(eventData) {
+            if (window._edgeAutoScrollActive || window._pointerInEdgeZone) return;
             const container = document.getElementById('timelineContainer');
             if (!container || !eventData) return;
             const targetDate = String(eventData.date || '');
@@ -2926,6 +2932,7 @@
         };
 
         window.scrollTimelineToFirstNode = function() {
+            if (window._edgeAutoScrollActive || window._pointerInEdgeZone) return;
             const container = document.getElementById('timelineContainer');
             const first = document.querySelector('.timeline-node-container');
             if (!container || !first) {
@@ -4344,6 +4351,7 @@
         };
 
         window.scrollToRevealRelatedNodes = function(primaryNode, relatedNodes) {
+            if (window._edgeAutoScrollActive || window._pointerInEdgeZone) return;
             const container = document.getElementById('timelineContainer');
             if (!container || !primaryNode) return;
             const cr = container.getBoundingClientRect();
