@@ -488,6 +488,11 @@
             </div>
         </div>
 
+        <div id="offlineDataMismatchNotice" class="hidden mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-[11px] sm:text-xs leading-5 text-amber-800 shadow-sm">
+            <i class="fa-solid fa-triangle-exclamation mr-1.5 text-amber-500"></i>
+            检测到当前浏览数据与离线数据不一致。请清除浏览器缓存或网站数据后重新打开页面；不同浏览器的操作方式有所不同，可自行搜索对应方法。
+        </div>
+
         <div id="emptyState" class="hidden flex-col items-center justify-center py-20 text-center">
             <div class="w-16 h-16 bg-slate-200 text-slate-400 rounded-full flex items-center justify-center text-2xl mb-4">
                 <i class="fa-solid fa-folder-open"></i>
@@ -1737,6 +1742,55 @@
             }
         };
 
+        window._bundledOfflineSnapshot = null;
+        window._syncStatusType = 'offline';
+
+        window.offlineDataCanonicalString = function(value) {
+            const normalize = (v) => {
+                if (Array.isArray(v)) return v.map(normalize);
+                if (v && typeof v === 'object') {
+                    const out = {};
+                    Object.keys(v).sort().forEach(k => {
+                        if (k === 'blobUrl') return;
+                        out[k] = normalize(v[k]);
+                    });
+                    return out;
+                }
+                return v;
+            };
+            try { return JSON.stringify(normalize(value)); } catch (_) { return ''; }
+        };
+
+        window.hasOfflineSnapshotMismatch = function() {
+            const snapshot = window._bundledOfflineSnapshot;
+            if (!snapshot) return false;
+            const current = {
+                events: Array.isArray(window.events) ? window.events : [],
+                connections: Array.isArray(window.connections) ? window.connections : [],
+                tags: Array.isArray(window.availableTags) ? window.availableTags : [],
+                bgm: Array.isArray(window.bgmPlaylist) ? window.bgmPlaylist : []
+            };
+            const bundled = {
+                events: Array.isArray(snapshot.events) ? snapshot.events : [],
+                connections: Array.isArray(snapshot.connections) ? snapshot.connections : [],
+                tags: Array.isArray(snapshot.tags) ? snapshot.tags : [],
+                bgm: Array.isArray(snapshot.bgm) ? snapshot.bgm.filter(song => /^https?:\/\//i.test(song?.url || '')) : []
+            };
+            return ['events','connections','tags','bgm'].some(key =>
+                window.offlineDataCanonicalString(current[key]) !== window.offlineDataCanonicalString(bundled[key])
+            );
+        };
+
+        window.updateOfflineDataMismatchNotice = function() {
+            const notice = document.getElementById('offlineDataMismatchNotice');
+            if (!notice) return;
+            const shouldShow =
+                !!window.isLocked &&
+                window._syncStatusType === 'offline' &&
+                window.hasOfflineSnapshotMismatch();
+            notice.classList.toggle('hidden', !shouldShow);
+        };
+
         async function loadBundledSnapshot() {
             const localKeys = {
                 events: 'yuhoutianqing_events',
@@ -1757,6 +1811,7 @@
                 const response = await fetch(snapshotUrl, { cache: 'no-store' });
                 if (!response.ok) throw new Error(`snapshot HTTP ${response.status}`);
                 const snapshot = await response.json();
+                window._bundledOfflineSnapshot = snapshot;
 
                 if (useBundledFallback) {
                     if (Array.isArray(snapshot.events)) window.events = snapshot.events;
@@ -1769,6 +1824,7 @@
                 window.renderSvgConnections();
                 window.renderTagModalList();
                 window.renderBgmPlaylist();
+                window.updateOfflineDataMismatchNotice?.();
                 return useBundledFallback;
             } catch (err) {
                 console.warn('GitHub 离线快照读取失败:', err);
@@ -1850,6 +1906,7 @@
         }
 
         function updateSyncStatus(type, text) {
+            window._syncStatusType = type;
             if (type === 'synced') {
                 window.isCloudSynced = true;
             } else if (type === 'offline' || type === 'error') {
@@ -1871,6 +1928,7 @@
                 dot.className = "w-2 h-2 rounded-full bg-rose-500";
             }
             if (typeof window.updateLockButtonUI === 'function') window.updateLockButtonUI();
+            window.updateOfflineDataMismatchNotice?.();
         }
 
         function setupRealtimeListeners(syncTimeout) {
@@ -2512,6 +2570,7 @@
                 lockBtn.className = "flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs font-medium transition-all shadow-sm border bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100";
                 lockBtn.innerHTML = `<i class="fa-solid fa-lock-open text-emerald-600"></i><span class="hidden sm:inline">编辑模式</span><span class="sm:hidden">编辑</span>`;
             }
+            window.updateOfflineDataMismatchNotice?.();
         };
 
         window.toggleLockState = function() {
@@ -5959,16 +6018,59 @@
                 });
             };
 
+            let readPinchActive=false;
+            // 手机浏览模式：双指缩放画布。仅只读浏览状态启用，不改动编辑器或电脑端现有滚轮操作。
+            if(window.isLocked && (navigator.maxTouchPoints||0)>0){
+                viewport.style.touchAction='none';
+                let pinch=null;
+                const touchDistance=(a,b)=>Math.hypot(b.clientX-a.clientX,b.clientY-a.clientY);
+                const touchCenter=(a,b)=>{
+                    const vr=viewport.getBoundingClientRect();
+                    return {
+                        x:(a.clientX+b.clientX)/2-vr.left,
+                        y:(a.clientY+b.clientY)/2-vr.top
+                    };
+                };
+                viewport.addEventListener('touchstart',e=>{
+                    if(e.touches.length!==2)return;
+                    const center=touchCenter(e.touches[0],e.touches[1]);
+                    readPinchActive=true;
+                    pinch={
+                        startDistance:Math.max(1,touchDistance(e.touches[0],e.touches[1])),
+                        startZoom:zoom,
+                        anchorX:center.x,
+                        anchorY:center.y
+                    };
+                    e.preventDefault();
+                },{passive:false});
+                viewport.addEventListener('touchmove',e=>{
+                    if(!pinch||e.touches.length!==2)return;
+                    const distance=Math.max(1,touchDistance(e.touches[0],e.touches[1]));
+                    const center=touchCenter(e.touches[0],e.touches[1]);
+                    const next=pinch.startZoom*(distance/pinch.startDistance);
+                    applyZoom(next,center.x,center.y);
+                    e.preventDefault();
+                },{passive:false});
+                const endPinch=e=>{
+                    if(!pinch)return;
+                    if(e.touches && e.touches.length>=2)return;
+                    pinch=null;
+                    readPinchActive=false;
+                };
+                viewport.addEventListener('touchend',endPinch,{passive:true});
+                viewport.addEventListener('touchcancel',endPinch,{passive:true});
+            }
+
             // 浏览模式：按住鼠标左键直接拖动画布。拖动超过阈值后会抑制这次点击，避免拖拽媒体时误打开大图。
             viewport.style.cursor='grab';
             let readPan=null,readPanMoved=false,suppressReadClickUntil=0;
             viewport.addEventListener('pointerdown',e=>{
-                if(e.button!==0||e.target.closest('button,input,select,textarea,a,.deep-video-controls'))return;
+                if(readPinchActive||e.button!==0||e.target.closest('button,input,select,textarea,a,.deep-video-controls'))return;
                 readPan={id:e.pointerId,x:e.clientX,y:e.clientY,left:viewport.scrollLeft,top:viewport.scrollTop};readPanMoved=false;
                 viewport.setPointerCapture?.(e.pointerId);viewport.style.cursor='grabbing';
             });
             viewport.addEventListener('pointermove',e=>{
-                if(!readPan||readPan.id!==e.pointerId)return;
+                if(readPinchActive||!readPan||readPan.id!==e.pointerId)return;
                 const dx=e.clientX-readPan.x,dy=e.clientY-readPan.y;
                 if(Math.abs(dx)>3||Math.abs(dy)>3)readPanMoved=true;
                 if(readPanMoved){viewport.scrollLeft=readPan.left-dx;viewport.scrollTop=readPan.top-dy;e.preventDefault();}
