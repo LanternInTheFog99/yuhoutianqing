@@ -236,8 +236,8 @@
         #editDescription.rich-editor { min-height: 150px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.75; }
         #editDescription.rich-editor, #editDescription.rich-editor * {
             text-decoration-color: currentColor !important;
-            text-decoration-thickness: 0.06em;
-            text-underline-offset: 0.13em;
+            text-decoration-thickness: 0.06em !important;
+            text-underline-offset: 0.13em !important;
             text-decoration-skip-ink: auto;
             border: none !important;
             outline: none !important;
@@ -258,9 +258,12 @@
             color: #e2e8f0;
             line-height: 1.75;
         }
-        .event-description-html, .event-description-html * {
+        .event-description-html, .event-description-html *,
+        .stack-description-html, .stack-description-html * {
             text-decoration-color: currentColor !important;
-            text-decoration-thickness: from-font;
+            text-decoration-thickness: 0.06em !important;
+            text-underline-offset: 0.13em !important;
+            text-decoration-skip-ink: auto;
         }
         .event-description-html [data-rich-reveal] {
             opacity: 0 !important;
@@ -326,13 +329,14 @@
         .deep-canvas-text:not(.editing) .deep-text-content { user-select:none; -webkit-user-select:none; }
         .deep-canvas-text { user-select:text; line-height:1.35; text-decoration-skip-ink:auto; }
         .deep-canvas-text .deep-text-content { user-select:text; -webkit-user-select:text; cursor:text; line-height:1.35; text-decoration-skip-ink:auto; text-underline-offset:0.13em; text-decoration-thickness:0.06em; text-decoration-color:currentColor !important; width:100%; min-height:0; height:auto; white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word; overflow:visible; }
-        .deep-canvas-text { min-width:80px; min-height:0; padding:0; box-sizing:border-box; white-space:pre-wrap; overflow:visible; overflow-wrap:anywhere; outline:none; cursor:move; background:rgba(255,255,255,.10); border-radius:8px; } .deep-text-content[contenteditable="true"]{cursor:text;outline:none;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;width:100%;min-height:0;}
+        .deep-canvas-text { min-width:80px; min-height:0; padding:0; box-sizing:border-box; white-space:pre-wrap; overflow:visible; overflow-wrap:anywhere; outline:none; cursor:move; background:transparent; border-radius:8px; } .deep-text-content[contenteditable="true"]{cursor:text;outline:none;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;width:100%;min-height:0;}
         .deep-canvas-text.editing { outline:2px solid #3b82f6 !important; outline-offset:2px; cursor:text; } .deep-canvas-text.tool-visible { outline:2px solid #3b82f6 !important; outline-offset:2px; cursor:move; } .deep-canvas-text.editing .deep-text-content{cursor:text !important;}
         
         .deep-canvas-text.has-border { border-style:solid; border-width:2px; }
         .deep-canvas-media { overflow:hidden; border:2px solid rgba(99,102,241,.35); border-radius:12px; background:#e2e8f0; box-shadow:0 8px 20px rgba(15,23,42,.12); cursor:grab; }
         .deep-canvas-media img,.deep-canvas-media video { width:auto; height:auto; max-width:none; max-height:none; display:block; pointer-events:none; background:#e2e8f0; position:absolute; transform-origin:center center; }
         .deep-canvas-media > div { position:absolute; overflow:hidden; }
+        .deep-canvas-media > .deep-layer-controls { overflow:visible !important; }
         .deep-video-controls { left:clamp(3px,2.5%,8px); right:clamp(3px,2.5%,8px); bottom:clamp(3px,2.5%,8px); min-height:22px; z-index:35; display:flex; align-items:center; gap:clamp(3px,2vw,7px); padding:clamp(2px,1.6vw,5px) clamp(3px,2.2vw,8px); border-radius:clamp(5px,3vw,10px); background:rgba(15,23,42,.82); box-shadow:0 4px 14px rgba(15,23,42,.28); overflow:visible !important; pointer-events:auto; backdrop-filter:blur(5px); cursor:default; opacity:1; transform:translateY(0); transition:opacity .18s ease,transform .18s ease; }
         .deep-video-controls.is-hidden { opacity:0; transform:translateY(5px); pointer-events:none; }
         .deep-video-controls button { width:clamp(17px,9vw,24px); height:clamp(17px,9vw,24px); flex:0 0 clamp(17px,9vw,24px); border:0; border-radius:9999px; color:#fff; background:rgba(99,102,241,.95); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:clamp(7px,3.8vw,11px); }
@@ -341,7 +345,7 @@
         .deep-video-controls.is-compact .deep-video-time { display:none; }
         .deep-video-controls.is-tiny { gap:2px; padding:2px 3px; }
         .deep-video-controls.is-tiny input[type=range] { min-width:12px; }
-        .deep-connector-layer { position:absolute; inset:0; width:100%; height:100%; overflow:visible; pointer-events:none; z-index:12; }
+        .deep-connector-layer { position:absolute; inset:0; width:100%; height:100%; overflow:visible; pointer-events:none; z-index:20; }
         .deep-connector-path { fill:none; stroke:#6366f1; stroke-width:3; stroke-dasharray:8 6; stroke-linecap:round; pointer-events:stroke; cursor:pointer; filter:drop-shadow(0 2px 3px rgba(79,70,229,.18)); }
         .deep-connector-path:hover, .deep-connector-path.is-selected { stroke:#4f46e5; stroke-width:4; }
         .deep-connector-hit { fill:none; stroke:transparent; stroke-width:18; pointer-events:stroke; cursor:pointer; }
@@ -354,6 +358,15 @@
         .deep-h-se { right:-6px; bottom:-6px; cursor:nwse-resize; } .deep-h-s { left:50%; bottom:-6px; transform:translateX(-50%); cursor:ns-resize; }
         .deep-h-sw { left:-6px; bottom:-6px; cursor:nesw-resize; } .deep-h-w { left:-6px; top:50%; transform:translateY(-50%); cursor:ew-resize; }
         .deep-canvas-selected:not(.editing) .deep-canvas-handle { display:block; }
+        .deep-layer-controls { display:none; position:absolute; right:5px; top:5px; z-index:60; gap:4px; overflow:visible !important; pointer-events:auto; }
+        .deep-canvas-selected .deep-layer-controls { display:flex; }
+        .deep-draw-interaction-lock .deep-canvas-item,
+        .deep-draw-interaction-lock .deep-canvas-item * { pointer-events:none !important; }
+
+        .deep-text-mode-active .deep-canvas-text .deep-layer-controls { display:none !important; }
+        .deep-layer-btn { width:24px; height:24px; border-radius:7px; border:1px solid #a5b4fc; background:#fff; color:#4f46e5; display:flex; align-items:center; justify-content:center; font-size:10px; box-shadow:0 2px 7px rgba(15,23,42,.12); cursor:pointer; }
+        .deep-layer-btn:hover { background:#eef2ff; }
+
         .deep-canvas-text.editing .deep-canvas-handle, .deep-canvas-text.tool-visible .deep-canvas-handle { display:none; }
         .deep-canvas-link { display:flex; align-items:center; justify-content:center; padding:10px 14px; box-sizing:border-box; border:1px solid #c7d2fe; border-radius:12px; background:rgba(255,255,255,.96); color:#4338ca; box-shadow:0 4px 14px rgba(15,23,42,.10); overflow:hidden; }
         .deep-canvas-link .deep-link-inner { width:100%; min-width:0; display:flex; align-items:center; gap:9px; }
@@ -401,10 +414,40 @@
         .deep-draw-shape-switch::after { content:''; position:absolute; width:13px; height:13px; border-radius:9999px; background:#fff; left:2px; top:2px; box-shadow:0 1px 2px rgba(15,23,42,.25); transition:.16s ease; }
         #deepDrawShapeAssistBtn.active .deep-draw-shape-switch { background:#6366f1; }
         #deepDrawShapeAssistBtn.active .deep-draw-shape-switch::after { transform:translateX(13px); }
-        .deep-toolbar-expand { display:flex; align-items:center; gap:.375rem; overflow:hidden; max-width:0; opacity:0; transform:translateX(-8px); transition:max-width .28s ease,opacity .2s ease,transform .28s ease; white-space:nowrap; }
-        .deep-toolbar-expand.is-open { max-width:920px; opacity:1; transform:translateX(0); overflow:visible; }
+        .deep-toolbar-expand { display:none; }
+        .deep-toolbar-expand.is-open { display:flex; }
         .deep-canvas-toolbar { position:relative; z-index:80; overflow:visible !important; }
-        #deepTextTools, #deepTextTools > * { position:relative; }
+        #deepTextTools {
+            position:fixed !important;
+            z-index:390;
+            align-items:center;
+            align-content:flex-start;
+            flex-wrap:wrap;
+            gap:.375rem;
+            padding:7px;
+            background:rgba(255,255,255,.98);
+            border:1px solid #cbd5e1;
+            border-radius:10px;
+            box-shadow:0 8px 24px rgba(15,23,42,.16);
+            white-space:nowrap;
+            overflow:visible;
+            box-sizing:border-box;
+        }
+        #deepTextTools > * { position:relative; flex:0 0 auto; }
+        @supports selector(::highlight(deep-saved-selection)) {
+            ::highlight(deep-saved-selection) { background:Highlight; color:HighlightText; }
+        }
+        #deepTextTools { user-select:none; -webkit-user-select:none; }
+        #deepTextTools input,
+        #deepTextTools select,
+        #deepTextTools textarea { user-select:text !important; -webkit-user-select:text !important; }
+
+        #deepReadStage .deep-canvas-text,
+        #deepReadStage .deep-canvas-text .deep-text-content {
+            user-select:text !important;
+            -webkit-user-select:text !important;
+        }
+        #deepReadStage .deep-canvas-text .deep-text-content { cursor:text !important; }
         #deepTextColorPalette, #deepBorderColorPalette { z-index:500 !important; }
         #deepEraserCursor { position:fixed; left:0; top:0; border:1.5px solid rgba(79,70,229,.9); background:rgba(99,102,241,.08); border-radius:9999px; pointer-events:none; z-index:1000; transform:translate(-50%,-50%); box-shadow:0 0 0 1px rgba(255,255,255,.75) inset,0 1px 5px rgba(15,23,42,.16); display:none; }
         .deep-whisper-redacted {
@@ -423,6 +466,23 @@
         }
         .deep-whisper-redacted:hover { color:#64748b !important; background:transparent; }
         .deep-canvas-warning { max-width:560px; }
+
+        .deep-canvas-text .deep-text-content,
+        .deep-canvas-text .deep-text-content * {
+            line-height:1.35;
+            vertical-align:baseline;
+        }
+        .deep-canvas-text .deep-text-content {
+            overflow:visible !important;
+        }
+
+        .deep-text-content u,
+        .deep-text-content s,
+        .deep-text-content strike {
+            text-decoration-thickness:0.06em !important;
+            text-underline-offset:0.13em !important;
+            text-decoration-skip-ink:auto !important;
+        }
 </style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
@@ -4659,7 +4719,7 @@
         window.deepCanvasHasContent = function(st){ return !!(st && Array.isArray(st.items) && st.items.some(x=>x && ['text','media','draw','connector','link'].includes(x.type))); };
         window.deepDefaultState = function(type,obj){
             const src=window.deepGetSrc(type,obj);
-            return {version:3,width:2600,height:1600,items:[{id:'seed_'+Date.now().toString(36),type:'media',x:160,y:120,w:520,h:340,src:src,mediaKind:type==='video'?'video':'image',seed:true}],sourceType:type,source:src};
+            return {version:3,width:2600,height:1600,items:[{id:'seed_'+Date.now().toString(36),type:'media',x:160,y:120,w:520,h:340,src:src,mediaKind:type==='video'?'video':'image',layer:0,seed:true}],sourceType:type,source:src};
         };
         window.deepEnsureModal = function(){
             let m=document.getElementById('deepDescriptionModal'); if(m)return m;
@@ -4680,8 +4740,10 @@
                     <button type="button" onclick="deepOpenCanvasSize()" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs" title="调整深入描述画布宽度与高度"><i class="fa-solid fa-maximize mr-1"></i>画布大小</button>
                     <button type="button" onclick="deepAddMedia()" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs"><i class="fa-solid fa-photo-film mr-1"></i>插入媒体</button>
                     <button type="button" onclick="deepAddUrl()" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs" title="在画布中放置可点击的网址"><i class="fa-solid fa-globe mr-1"></i>网址</button>
+                    <button type="button" onclick="deepToggleTextTool()" id="deepTextToolBtn" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs"><i class="fa-solid fa-font mr-1"></i>文字</button>
                     <button type="button" onclick="deepToggleConnectMode()" id="deepConnectBtn" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs" title="建立联结；选中已有箭头后可直接拖动箭头调整弯曲"><i class="fa-solid fa-link mr-1"></i>联结</button>
-                    <div class="relative"><button type="button" onclick="deepToggleDraw()" id="deepDrawBtn" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs"><i class="fa-solid fa-pencil mr-1"></i>画笔</button><div id="deepDrawPanel" class="hidden absolute left-0 top-9 z-[270] w-72 p-3 bg-white border border-slate-200 rounded-xl shadow-xl"><div class="text-[10px] font-semibold text-slate-500 mb-2">画笔设置</div><div class="flex items-center justify-center gap-3 mb-2"><button type="button" id="deepDrawModePen" onclick="deepSetDrawSubtool('pen')" class="deep-draw-mode-btn active" title="画笔"><i class="fa-solid fa-pencil"></i></button><button type="button" id="deepDrawModeEraser" onclick="deepSetDrawSubtool('eraser')" class="deep-draw-mode-btn" title="橡皮擦"><i class="fa-solid fa-eraser"></i></button><button type="button" id="deepDrawModeSelect" onclick="deepSetDrawSubtool('select')" class="deep-draw-mode-btn" title="选中移动"><i class="fa-solid fa-arrow-pointer"></i></button></div><div id="deepDrawSelectHint" class="hidden mb-3 rounded-lg bg-slate-50 border border-slate-200 px-2.5 py-2 text-[10px] leading-5 text-slate-500">单击选择一整笔，再次拖动可移动。圈选可移动局部内容。</div><label id="deepDrawSharedSizeRow" class="text-[10px] text-slate-500 flex items-center gap-2 mb-3"><span id="deepDrawSharedSizeLabel">画笔大小</span><input id="deepDrawSharedSize" type="range" min="1" max="24" step="1" value="4" oninput="deepSetSharedDrawSize(this.value)" class="flex-1"><span id="deepDrawSharedSizeValue" class="w-7 text-right font-mono">4</span></label><button type="button" id="deepDrawShapeAssistBtn" onclick="deepToggleDrawShapeAssist()" class="mb-3 px-1.5 py-1 rounded-md text-[10px] font-semibold text-slate-600 flex items-center gap-1.5"><span class="deep-draw-shape-switch"></span><span>图形矫正</span></button><div id="deepDrawPenOptions"><div class="text-[10px] text-slate-500 mb-2 flex items-center gap-2"><span>颜色</span><span id="deepDrawColorSwatch" class="inline-block w-4 h-4 rounded-full border border-slate-200" style="background:#334155"></span></div><div id="deepDrawColorPalette"><div class="grid grid-cols-7 gap-2">${['#0f172a','#334155','#64748b','#dc2626','#ea580c','#f59e0b','#16a34a','#059669','#0284c7','#2563eb','#4f46e5','#7c3aed','#db2777','#ffffff'].map(c=>`<button type="button" onclick="deepPickDrawColor('${c}')" class="w-6 h-6 rounded-full border border-slate-200 deep-color-choice" style="background:${c}" title="${c}"></button>`).join('')}</div><div class="flex items-center gap-2 mt-3 pt-2 border-t"><span class="text-[10px] text-slate-500">自定义</span><input id="deepDrawCustomColor" type="color" value="#334155" onchange="deepPickDrawColor(this.value)" class="w-7 h-7 p-0 border-0"><button type="button" onclick="deepApplyDrawCustomColor()" class="ml-auto px-2 py-1 rounded bg-indigo-600 text-white text-[10px]">使用</button></div></div></div></div></div>
+                    <div class="relative"><button type="button" onclick="deepToggleDraw()" id="deepDrawBtn" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs"><i class="fa-solid fa-pencil mr-1"></i>画笔</button><div id="deepDrawPanel" class="hidden absolute left-1/2 -translate-x-1/2 top-9 z-[270] w-72 p-3 bg-white border border-slate-200 rounded-xl shadow-xl"><div class="text-[10px] font-semibold text-slate-500 mb-2">画笔设置</div><div class="flex items-center justify-center gap-3 mb-2"><button type="button" id="deepDrawModePen" onclick="deepSetDrawSubtool('pen')" class="deep-draw-mode-btn active" title="画笔"><i class="fa-solid fa-pencil"></i></button><button type="button" id="deepDrawModeEraser" onclick="deepSetDrawSubtool('eraser')" class="deep-draw-mode-btn" title="橡皮擦"><i class="fa-solid fa-eraser"></i></button><button type="button" id="deepDrawModeSelect" onclick="deepSetDrawSubtool('select')" class="deep-draw-mode-btn" title="选中移动"><i class="fa-solid fa-arrow-pointer"></i></button></div><div id="deepDrawSelectHint" class="hidden mb-3 rounded-lg bg-slate-50 border border-slate-200 px-2.5 py-2 text-[10px] leading-5 text-slate-500">单击选择一整笔，再次拖动可移动。圈选可移动局部内容。</div><label id="deepDrawSharedSizeRow" class="text-[10px] text-slate-500 flex items-center gap-2 mb-3"><span id="deepDrawSharedSizeLabel">画笔大小</span><input id="deepDrawSharedSize" type="range" min="1" max="24" step="1" value="4" oninput="deepSetSharedDrawSize(this.value)" class="flex-1"><span id="deepDrawSharedSizeValue" class="w-7 text-right font-mono">4</span></label><button type="button" id="deepDrawShapeAssistBtn" onclick="deepToggleDrawShapeAssist()" class="mb-3 px-1.5 py-1 rounded-md text-[10px] font-semibold text-slate-600 flex items-center gap-1.5"><span class="deep-draw-shape-switch"></span><span>图形矫正</span></button><div id="deepDrawPenOptions"><div class="text-[10px] text-slate-500 mb-2 flex items-center gap-2"><span>颜色</span><span id="deepDrawColorSwatch" class="inline-block w-4 h-4 rounded-full border border-slate-200" style="background:#334155"></span><span class="text-[9px] text-slate-400">点击下方颜色即可更改</span></div><div id="deepDrawColorPalette"><div class="grid grid-cols-7 gap-2">${['#0f172a','#334155','#64748b','#dc2626','#ea580c','#f59e0b','#16a34a','#059669','#0284c7','#2563eb','#4f46e5','#7c3aed','#db2777','#ffffff'].map(c=>`<button type="button" onclick="deepPickDrawColor('${c}',true)" class="w-6 h-6 rounded-full border border-slate-200 deep-color-choice" style="background:${c}" title="${c}"></button>`).join('')}</div><div class="flex items-center gap-2 mt-3 pt-2 border-t"><span class="text-[10px] text-slate-500">自定义</span><input id="deepDrawCustomColor" type="color" value="#334155" class="w-7 h-7 p-0 border-0"><button type="button" onclick="deepApplyDrawCustomColor()" class="ml-auto px-2 py-1 rounded bg-indigo-600 text-white text-[10px]">使用</button></div></div></div></div></div>
+                    <div id="deepTextTools" class="deep-toolbar-expand">
                     <div class="relative">
                         <button id="deepBorderToolBtn" type="button" disabled onclick="deepOpenColorPalette('border')" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs opacity-40 cursor-not-allowed">
                             <span id="deepBorderColorSwatch" class="inline-block w-3 h-3 rounded-sm mr-1 align-[-1px] border-2" style="border-color:#3b82f6"></span>文字框边框
@@ -4693,18 +4755,16 @@
                             <button type="button" id="deepBorderToggleBtn" onclick="deepApplyTextStyle('borderToggle')" class="mt-3 w-full px-2 py-1.5 rounded-lg border text-[10px] transition-all">显示边框：关</button>
                         </div>
                     </div>
-                    <button type="button" onclick="deepToggleTextTool()" id="deepTextToolBtn" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs"><i class="fa-solid fa-font mr-1"></i>文字</button>
-                    <div id="deepTextTools" class="deep-toolbar-expand">
-                    <label class="text-[10px] text-slate-500 flex items-center gap-1">字号<select id="deepFontSize" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onchange="deepSetFontSizeControl(this.value)" class="deep-selection-text-control h-7 border rounded-md bg-white"><option value="">常用</option><option value="10">10</option><option value="12">12</option><option value="14">14</option><option value="16">16</option><option value="18" selected>18（默认大小）</option><option value="20">20</option><option value="24">24</option><option value="28">28</option><option value="32">32</option><option value="36">36</option><option value="40">40</option><option value="48">48</option><option value="56">56</option><option value="64">64</option><option value="72">72</option></select><input id="deepFontSizeCustom" disabled data-deep-text-control data-deep-selection-only type="number" min="6" max="240" step="0.1" value="18" onmousedown="deepRememberTextSelection(event)" onchange="deepSetFontSizeControl(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}" class="deep-selection-text-control h-7 w-16 border rounded-md bg-white px-1.5 font-mono text-[10px]" title="实际字号，可输入任意数值"><span class="font-mono text-[10px] text-slate-400">px</span></label>
+                    <label class="text-[10px] text-slate-500 flex items-center gap-1">字号<select id="deepFontSize" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onchange="deepSetFontSizeControl(this.value)" class="deep-selection-text-control h-7 border rounded-md bg-white"><option value="">常用</option><option value="10">10</option><option value="12">12</option><option value="14">14</option><option value="16">16</option><option value="18" selected>18（默认大小）</option><option value="20">20</option><option value="24">24</option><option value="28">28</option><option value="32">32</option><option value="36">36</option><option value="40">40</option><option value="48">48</option><option value="56">56</option><option value="64">64</option><option value="72">72</option></select><input id="deepFontSizeCustom" disabled data-deep-text-control data-deep-selection-only type="number" min="6" max="240" step="0.1" value="18" class="deep-selection-text-control h-7 w-16 border rounded-md bg-white px-1.5 font-mono text-[10px]" title="实际字号，可输入任意数值" oninput="deepPreviewFontSizeControl(this.value)" onchange="deepCommitFontSizeControl(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"><span class="font-mono text-[10px] text-slate-400">px</span></label>
                     <button id="deepBoldBtn" type="button" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('bold')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs font-bold">B</button>
                     <button id="deepItalicBtn" type="button" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('italic')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs italic">I</button>
                     <button id="deepUnderlineBtn" type="button" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('underline')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs underline">U</button>
                     <button id="deepStrikeBtn" type="button" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('strike')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs line-through">S</button>
-                    <button id="deepAlignLeftBtn" type="button" disabled data-deep-text-control data-deep-selection-only onclick="deepApplyTextStyle('align','left')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs" title="左对齐"><i class="fa-solid fa-align-left"></i></button>
-                    <button id="deepAlignCenterBtn" type="button" disabled data-deep-text-control data-deep-selection-only onclick="deepApplyTextStyle('align','center')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs" title="居中"><i class="fa-solid fa-align-center"></i></button>
-                    <button id="deepAlignRightBtn" type="button" disabled data-deep-text-control data-deep-selection-only onclick="deepApplyTextStyle('align','right')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs" title="右对齐"><i class="fa-solid fa-align-right"></i></button>
+                    <button id="deepAlignLeftBtn" type="button" disabled data-deep-text-control data-deep-selection-only class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs" title="左对齐" onclick="deepApplyTextStyle('align','left')"><i class="fa-solid fa-align-left"></i></button>
+                    <button id="deepAlignCenterBtn" type="button" disabled data-deep-text-control data-deep-selection-only class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs" title="居中" onclick="deepApplyTextStyle('align','center')"><i class="fa-solid fa-align-center"></i></button>
+                    <button id="deepAlignRightBtn" type="button" disabled data-deep-text-control data-deep-selection-only class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs" title="右对齐" onclick="deepApplyTextStyle('align','right')"><i class="fa-solid fa-align-right"></i></button>
                     <div class="relative"><button id="deepTextColorBtn" type="button" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onclick="deepOpenColorPalette('text')" class="deep-selection-text-control px-2.5 py-1.5 bg-white border rounded-lg text-xs"><span id="deepTextColorSwatch" class="inline-block w-3 h-3 rounded-full mr-1 align-[-1px]" style="background:#334155"></span>文字颜色</button><div id="deepTextColorPalette" class="hidden absolute left-0 top-9 z-[260] w-64 p-3 bg-white border border-slate-200 rounded-xl shadow-xl"><div class="text-[10px] font-semibold text-slate-500 mb-2">固定色 / 自定义</div><div class="grid grid-cols-7 gap-2">${['#0f172a','#334155','#64748b','#dc2626','#ea580c','#f59e0b','#16a34a','#059669','#0284c7','#2563eb','#4f46e5','#7c3aed','#db2777','#ffffff'].map(c=>`<button type="button" onclick="deepPickColor('text','${c}')" class="w-6 h-6 rounded-full border border-slate-200 deep-color-choice" style="background:${c}" title="${c}"></button>`).join('')}</div><div class="flex items-center gap-2 mt-3 pt-2 border-t"><span class="text-[10px] text-slate-500">自定义</span><input id="deepTextCustomColor" type="color" value="#334155" onchange="deepPickColor('text',this.value)" class="w-7 h-7 p-0 border-0"><button type="button" onclick="deepPickColor('text',document.getElementById('deepTextCustomColor').value)" class="ml-auto px-2 py-1 rounded bg-indigo-600 text-white text-[10px]">使用</button></div></div></div>
-                    <label class="text-[10px] text-slate-500 flex items-center gap-1">透明度<input id="deepTextOpacity" data-deep-text-control data-deep-selection-only type="range" min="0" max="100" value="100" disabled onmousedown="deepRememberTextSelection(event)" oninput="deepApplyTextStyle('opacity',this.value)" class="deep-selection-text-control w-16"><span id="deepTextOpacityValue" class="w-5 text-right font-mono text-slate-400">—</span></label>
+                    <label class="text-[10px] text-slate-500 flex items-center gap-1">透明度<input id="deepTextOpacity" data-deep-text-control data-deep-selection-only type="range" min="0" max="100" value="100" disabled oninput="deepApplyTextStyle('opacity',this.value)" class="deep-selection-text-control w-16"><span id="deepTextOpacityValue" class="w-5 text-right font-mono text-slate-400">—</span></label>
                     </div>
                     <button type="button" onclick="deepDeleteSelected()" class="ml-auto px-2.5 py-1.5 bg-rose-50 border border-rose-200 text-rose-600 rounded-lg text-xs">删除选中</button>
                 </div>
@@ -4737,6 +4797,7 @@
             const m=window.deepEnsureModal();
             window.deepCanvasTarget={type,index};
             window.deepCanvasState=window.deepClone(obj.deepDescription)||window.deepDefaultState(type,obj);
+            window.deepCanvasState.items=(window.deepCanvasState.items||[]).map(x=>{if(x&&['media','text','link'].includes(x.type)){const n=Number(x.layer);x.layer=Number.isFinite(n)?Math.max(-1,n):0;}return x;});
             window.deepCanvasState.items=(window.deepCanvasState.items||[]).filter(x=>x.type!=='arrow');
             window.deepCanvasState.items.forEach(x=>{if(x.type==='connector'){x.curve=Number(x.curve)||0;x.direction=x.direction||'forward';}});
             window.deepCanvasUndo=[]; window.deepCanvasRedo=[]; window.deepCanvasSelected=null; window.deepCanvasDrawing=false; window.deepCanvasErasing=false; window.deepCanvasSelecting=false; window.deepDrawToolsActive=false; window.deepDrawSubtool='pen'; window.deepDrawSelection=[]; window.deepDrawSelectionLasso=[]; window.deepDrawColor='#334155'; window.deepDrawSize=4; window.deepDrawShapeAssist=false; window.deepEraserSize=24; window.deepZoom=1; window.deepConnectMode=false; window.deepConnectPending=[];
@@ -4790,18 +4851,66 @@
                 window.showToast(clean.enabled?'深入描述已保存并启用':'深入描述已保存，当前未启用','success');
             }
         };
-        window.deepIsNearTextToolbar=function(clientX,clientY){
-            if(!window.deepTextTool)return false;
+        window.deepPositionTextTools=function(){
             const tools=document.getElementById('deepTextTools');
-            if(!tools||!tools.classList.contains('is-open'))return false;
-            const r=tools.getBoundingClientRect();
-            const padX=34,padTop=18,padBottom=58;
-            return clientX>=r.left-padX&&clientX<=r.right+padX&&clientY>=r.top-padTop&&clientY<=r.bottom+padBottom;
+            if(!tools)return;
+            const item=window.deepCanvasState?.items?.find(x=>x.id===window.deepCanvasSelected&&x.type==='text');
+            const el=item?document.querySelector(`[data-deep-id="${CSS.escape(item.id)}"]`):null;
+            const show=!!(window.deepTextTool&&item&&el);
+            tools.classList.toggle('is-open',show);
+            if(!show){tools.style.visibility='hidden';return;}
+            const r=el.getBoundingClientRect();
+            const width=Math.max(110,Math.min(r.width,Math.min(760,window.innerWidth-16)));
+            tools.style.width=width+'px';
+            tools.style.maxWidth=(window.innerWidth-16)+'px';
+            const h=tools.offsetHeight||42;
+            const left=Math.max(8,Math.min(window.innerWidth-width-8,r.left+(r.width-width)/2));
+            let top=r.top-h-8;
+            if(top<8)top=Math.min(window.innerHeight-h-8,r.bottom+8);
+            tools.style.left=left+'px';
+            tools.style.top=Math.max(8,top)+'px';
+            tools.style.visibility='visible';
         };
         window.deepSetTextToolsExpanded=function(open){
             const tools=document.getElementById('deepTextTools');
-            if(tools) tools.classList.toggle('is-open',!!open);
+            if(!tools)return;
+            if(!open){tools.classList.remove('is-open');tools.style.visibility='hidden';return;}
+            window.deepPositionTextTools();
         };
+        if(!window._deepTextToolbarSelectionGuardBound){
+            window._deepTextToolbarSelectionGuardBound=true;
+            const inTextToolbar=e=>!!(window.deepTextTool&&e.target?.closest?.('#deepTextTools'));
+            const isControl=e=>!!e.target?.closest?.('button,input,select,textarea,label,[data-deep-text-control]');
+            document.addEventListener('pointerdown',e=>{
+                if(!inTextToolbar(e))return;
+                window.deepCaptureTextSelectionSnapshot?.();
+                if(isControl(e))requestAnimationFrame(()=>window.deepSyncSavedSelectionHighlight?.(true));
+                if(!isControl(e)){e.preventDefault();e.stopPropagation();}
+            },true);
+            document.addEventListener('mousedown',e=>{
+                if(!inTextToolbar(e)||isControl(e))return;
+                e.preventDefault();e.stopPropagation();
+            },true);
+            document.addEventListener('click',e=>{
+                if(!inTextToolbar(e)||isControl(e))return;
+                e.preventDefault();e.stopPropagation();
+            },true);
+        }
+
+        if(!window._deepTextSelectionHighlightFocusBound){
+            window._deepTextSelectionHighlightFocusBound=true;
+            document.addEventListener('focusin',e=>{
+                if(e.target?.closest?.('#deepTextTools'))requestAnimationFrame(()=>window.deepSyncSavedSelectionHighlight?.(true));
+            },true);
+            document.addEventListener('focusout',e=>{
+                if(!e.target?.closest?.('#deepTextTools'))return;
+                requestAnimationFrame(()=>{
+                    if(document.activeElement?.closest?.('#deepTextTools'))window.deepSyncSavedSelectionHighlight?.(true);
+                    else window.deepClearSavedSelectionHighlight?.();
+                });
+            },true);
+        }
+
         window.deepToggleTextTool = function(){
             window.deepDeactivateDrawTools?.(); window.deepConnectMode=false; window.deepConnectPending=[]; document.getElementById('deepConnectBtn')?.classList.remove('active');
             window.deepTextTool=!window.deepTextTool;
@@ -4819,7 +4928,7 @@
             const st=document.getElementById('deepCanvasStage');
             if(x===null||y===null){ const w=window.deepCanvasState.width||2600, h=window.deepCanvasState.height||1600; x=Math.max(40,w/2-180); y=Math.max(40,h/2-35); }
             deepPushUndo(); const id='text_'+Date.now().toString(36);
-            const item={id,type:'text',x,y,w:360,h:54,text:'',html:'',fontSize:18,color:'#334155',opacity:1,bold:false,italic:false,underline:false,strike:false,border:false,borderColor:'#3b82f6',textAlign:'left',_preferredFontSize:18,editing:true};
+            const item={id,type:'text',x,y,w:360,h:54,text:'',html:'',layer:0,fontSize:18,color:'#334155',opacity:1,bold:false,italic:false,underline:false,strike:false,border:false,borderColor:'#3b82f6',textAlign:'left',_preferredFontSize:18,editing:true};
             window.deepCanvasState.items.push(item); window.deepCanvasSelected=id; window.renderDeepCanvas();
             requestAnimationFrame(()=>{ const el=document.querySelector(`[data-deep-id="${CSS.escape(id)}"] .deep-text-content`); if(el){el.contentEditable='true';window.deepBindTextAutoFit(item,el);el.focus();requestAnimationFrame(()=>window.deepFitTypingBox(item,el));} });
         };
@@ -4898,13 +5007,15 @@
                 </div></div>
                 <div id="deepHelpChangelogPanel" class="hidden overflow-y-auto p-5 text-xs text-slate-600 leading-relaxed">
                     <div class="border border-green-300 rounded-xl p-4 bg-green-50">
-                        <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.02</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">本次更新</span></div>
+                        <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.03</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">本次更新</span></div>
                         <div class="space-y-2 leading-7 mb-3">
-                            <p>优化了文字编辑的功能</p>
-                            <p>优化了文字框与边框设置的功能</p>
-                            <p>优化了视频播放及预览的功能</p>
-                            <p>增加了视频封面、媒体加载提示与网址区域的功能</p>
+                            <p>增加了图层管理的功能</p>
+                            <p>优化了文字工具界面的功能</p>
+                            <p>优化了无边框文字框显示的功能</p>
+                            <p>增加了浏览模式中文字选择的功能</p>
+                            <p>优化了画笔模式下区域交互的功能</p>
                         </div>
+                        <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.02</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>优化了文字编辑的功能</p><p>优化了文字框与边框设置的功能</p><p>优化了视频播放及预览的功能</p><p>增加了视频封面、媒体加载提示与网址区域的功能</p></div></div>
                         <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.01</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>优化了画笔图形矫正的功能</p><p>增加了画笔笔迹选中与移动的功能</p><p>优化了画笔工具界面的功能</p><p>优化了媒体截选区域显示的功能</p></div></div>
                         <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.30</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>优化了媒体截选的功能</p><p>优化了画笔功能</p><p>增加了画笔中橡皮擦的功能</p></div></div>
                         <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.29</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>优化了文字工具的功能</p></div></div>
@@ -5009,7 +5120,7 @@
                 const w=Math.max(80,Math.round(nw0*ratio)), h=Math.max(60,Math.round(nh0*ratio));
                 const canvasW=window.deepCanvasState.width||2600,canvasH=window.deepCanvasState.height||1600;
                 const x=Math.max(20,Math.min(canvasW-w-20,120)), y=Math.max(20,Math.min(canvasH-h-20,120));
-                deepPushUndo(); window.deepCanvasState.items.push({id:'media_'+Date.now().toString(36),type:'media',x,y,w,h,src,mediaKind:kind}); window.renderDeepCanvas(); window.deepSetMediaLoading?.(false);
+                deepPushUndo(); window.deepCanvasState.items.push({id:'media_'+Date.now().toString(36),type:'media',x,y,w,h,src,mediaKind:kind,layer:0}); window.renderDeepCanvas(); window.deepSetMediaLoading?.(false);
             };
             if(useLocal){ const input=document.createElement('input'); input.type='file'; input.accept='image/*,video/*'; input.onchange=()=>{const f=input.files?.[0];if(!f)return;if(f.size>1024*1024){window.showToast('深入描述画布中的本地媒体不能超过 1MB','error');return;}window.deepSetMediaLoading?.(true,'正在读取并加载本地媒体…');const r=new FileReader();r.onerror=()=>{window.deepSetMediaLoading?.(false);window.showToast?.('本地媒体读取失败','error');};r.onload=()=>{const src=r.result,kind=f.type.startsWith('video/')?'video':'image'; if(kind==='image'){const im=new Image();im.onload=()=>addBySrc(src,kind,im.naturalWidth,im.naturalHeight);im.src=src;}else{const v=document.createElement('video');v.preload='metadata';v.onloadedmetadata=()=>addBySrc(src,kind,v.videoWidth,v.videoHeight);v.onerror=()=>addBySrc(src,kind,640,360);v.src=src;}};r.readAsDataURL(f);}; input.click(); return; }
             const val=await window.deepMediaUrlDialog(); if(!val)return; try{new URL(val);}catch(_){window.showToast('请输入有效的媒体直链','error');return;}
@@ -5094,7 +5205,7 @@
             x=Math.max(20,Math.min(Math.max(20,cw-w-20),x));
             y=Math.max(20,Math.min(Math.max(20,ch-h-20),y));
             window.deepCanvasState.items.push({
-                id:'link_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7),type:'link',url:data.url,label:data.label||data.url,x,y,w,h
+                id:'link_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7),type:'link',url:data.url,label:data.label||data.url,x,y,w,h,layer:0
             });
             window.deepCanvasSelected=window.deepCanvasState.items[window.deepCanvasState.items.length-1].id;
             window.renderDeepCanvas();
@@ -5168,7 +5279,7 @@
             }
             document.getElementById('deepDrawShapeAssistBtn')?.classList.toggle('active',!!window.deepDrawShapeAssist);
             document.getElementById('deepDrawBtn')?.classList.toggle('active',active);
-            const st=document.getElementById('deepCanvasStage');if(st){st.style.cursor=!active?'default':mode==='pen'?'crosshair':mode==='eraser'?'none':'default';}
+            const st=document.getElementById('deepCanvasStage');if(st){st.classList.toggle('deep-draw-interaction-lock',active);st.style.cursor=!active?'default':mode==='pen'?'crosshair':mode==='eraser'?'none':'default';}
         };
         window.deepSetDrawSubtool=function(mode){
             if(!['pen','eraser','select'].includes(mode))mode='pen';
@@ -5336,39 +5447,15 @@
             const current=kind==='draw'?(window.deepDrawColor||'#334155'):(()=>{const it=window.deepCanvasState?.items?.find(x=>x.id===window.deepCanvasSelected);return kind==='text'?(it?.color||'#334155'):(it?.borderColor||'#3b82f6');})();
             p.querySelectorAll('.deep-color-choice').forEach(b=>{if((b.getAttribute('title')||'').toLowerCase()===String(current).toLowerCase())b.classList.add('is-picked');});
         };
-        window.deepPickDrawColor=function(val){
+        window.deepPickDrawColor=function(val,closePanel=false){
             window.deepDrawColor=val; const sw=document.getElementById('deepDrawColorSwatch'); if(sw)sw.style.background=val;
             const p=document.getElementById('deepDrawColorPalette'); p?.querySelectorAll('.deep-color-choice').forEach(b=>b.classList.toggle('is-picked',(b.getAttribute('title')||'').toLowerCase()===String(val).toLowerCase()));
             const custom=document.getElementById('deepDrawCustomColor'); if(custom)custom.value=val; window.showToast?.('画笔颜色已设置','success');
+            if(closePanel)document.getElementById('deepDrawPanel')?.classList.add('hidden');
         };
         window.deepApplyDrawCustomColor=function(){
             const custom=document.getElementById('deepDrawCustomColor'); window.deepPickDrawColor(custom?.value||window.deepDrawColor||'#334155'); document.getElementById('deepDrawPanel')?.classList.add('hidden');
         };
-        window.deepSelectionFontTooltip=function(){
-            let tip=document.getElementById('deepSelectionFontTooltip');
-            if(!tip){tip=document.createElement('div');tip.id='deepSelectionFontTooltip';tip.className='fixed z-[500] hidden px-2 py-1 rounded-md bg-slate-900/90 text-white text-[10px] font-semibold pointer-events-none shadow-lg';document.body.appendChild(tip);}
-            return tip;
-        };
-        window.deepHideSelectionFontTooltip=function(){document.getElementById('deepSelectionFontTooltip')?.classList.add('hidden');};
-        window.deepUpdateSelectionFontTooltip=function(e,contentEl,item){
-            const tip=window.deepSelectionFontTooltip();
-            if(!window.deepTextTool||!item?.editing){tip.classList.add('hidden');return;}
-            const sel=window.getSelection?.();
-            if(!sel||!sel.rangeCount||sel.isCollapsed){tip.classList.add('hidden');return;}
-            const range=sel.getRangeAt(0);
-            if(!contentEl.contains(range.startContainer)||!contentEl.contains(range.endContainer)){tip.classList.add('hidden');return;}
-            const x=e.clientX,y=e.clientY;
-            const over=[...range.getClientRects()].some(r=>x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom);
-            if(!over){tip.classList.add('hidden');return;}
-            let node=null;
-            if(document.caretPositionFromPoint){const p=document.caretPositionFromPoint(x,y);node=p?.offsetNode||null;}
-            else if(document.caretRangeFromPoint){node=document.caretRangeFromPoint(x,y)?.startContainer||null;}
-            const el=(node?.nodeType===1?node:node?.parentElement)||contentEl;
-            const px=Math.round((parseFloat(getComputedStyle(el).fontSize)||Number(item.fontSize)||18)*10)/10;
-            tip.textContent='实际字号 '+px+'px';
-            tip.style.left=(x+12)+'px';tip.style.top=(y-28)+'px';tip.classList.remove('hidden');
-        };
-        
         window.splitElementAroundChild=function(parent,child){
             if(!parent||!child||child.parentNode!==parent)return parent;
             const before=[];let n=parent.firstChild;
@@ -5418,16 +5505,33 @@
                 let {node,start,end}=parts[i];
                 if(end<node.nodeValue.length)node.splitText(end);
                 if(start>0)node=node.splitText(start);
-                let holder=node.parentElement?.closest?.('['+attr+']');
-                if(holder&&root.contains(holder)){
-                    window.isolateAncestorAroundNode(holder,node);
-                }else{
-                    holder=document.createElement('span');holder.setAttribute(attr,'1');node.parentNode.insertBefore(holder,node);holder.appendChild(node);
+
+                // Neutralize any previous opacity wrappers only around this exact text slice.
+                // This prevents repeated range-input events from multiplying opacity values.
+                let p=node.parentElement;
+                while(p&&p!==root&&root.contains(p)){
+                    const next=p.parentElement;
+                    if(p.hasAttribute?.(attr)){
+                        window.isolateAncestorAroundNode(p,node);
+                        p.removeAttribute(attr);
+                        p.style.removeProperty('opacity');
+                    }
+                    p=next;
                 }
-                holder.setAttribute(attr,'1');holder.style.opacity=String(value);made.unshift(holder);
+
+                const holder=document.createElement('span');
+                holder.setAttribute(attr,'1');
+                holder.style.opacity=String(value);
+                node.parentNode.insertBefore(holder,node);holder.appendChild(node);
+                made.unshift(holder);
             }
             const nr=document.createRange();
-            try{nr.setStart(made[0],0);nr.setEnd(made[made.length-1],made[made.length-1].childNodes.length);sel.removeAllRanges();sel.addRange(nr);return nr.cloneRange();}catch(_){return null;}
+            try{
+                nr.setStart(made[0],0);
+                nr.setEnd(made[made.length-1],made[made.length-1].childNodes.length);
+                if(!document.activeElement?.closest?.('#deepTextTools')){sel.removeAllRanges();sel.addRange(nr);}
+                return nr.cloneRange();
+            }catch(_){return null;}
         };
 
         window.applyExactFontSizeToSelection=function(root,range,px){
@@ -5454,6 +5558,13 @@
             }
             if(!parts.length)return null;
 
+            const isDecoration=(el)=>{
+                if(!el||el===root||!root.contains(el))return false;
+                const tag=(el.tagName||'').toLowerCase();
+                const line=(el.style?.textDecorationLine||el.style?.textDecoration||'').toLowerCase();
+                return tag==='u'||tag==='s'||tag==='strike'||/underline|line-through/.test(line);
+            };
+
             // Format from end to start so text-node splits don't invalidate later offsets.
             const made=[];
             for(let i=parts.length-1;i>=0;i--){
@@ -5470,12 +5581,37 @@
                     span=wrap;
                 }
                 span.style.fontSize=size+'px';
-                const deco=window.findDecorationAncestor?.(node,root);
-                if(deco){window.isolateAncestorAroundNode?.(deco,node);deco.style.fontSize=size+'px';deco.style.textDecorationThickness='0.06em';deco.style.textUnderlineOffset='0.13em';deco.style.textDecorationSkipInk='none';}
+                const decorations=[];
+                const exactSizeAncestors=[];
+                let el=node.parentElement;
+                while(el&&el!==root&&root.contains(el)){
+                    if(isDecoration(el))decorations.push(el);
+                    if(el.dataset?.exactFontSize==='1')exactSizeAncestors.push(el);
+                    el=el.parentElement;
+                }
+                exactSizeAncestors.forEach(sizeWrap=>{
+                    window.isolateAncestorAroundNode?.(sizeWrap,node);
+                    sizeWrap.style.fontSize=size+'px';
+                });
+
+                decorations.forEach(deco=>{
+                    // isolateAncestorAroundNode keeps the selected branch in the original
+                    // decoration element and clones before/after siblings, so unrelated text
+                    // retains its original size/style.
+                    window.isolateAncestorAroundNode?.(deco,node);
+                    deco.style.setProperty('font-size',size+'px','important');
+                    deco.style.setProperty('text-decoration-thickness','0.06em','important');
+                    deco.style.setProperty('text-underline-offset','0.13em','important');
+                    deco.style.setProperty('text-decoration-skip-ink','auto','important');
+
+                    // Read the selected text's actual current color after the DOM split.
+                    const color=getComputedStyle(node.parentElement||node).color;
+                    if(color)deco.style.setProperty('text-decoration-color',color,'important');
+                });
+
                 made.unshift(span);
             }
 
-            // Strip only the legacy size attribute left by the old browser fontSize command.
             root.querySelectorAll('font[size]').forEach(f=>f.removeAttribute('size'));
 
             const nr=document.createRange();
@@ -5483,8 +5619,10 @@
                 const first=made[0],last=made[made.length-1];
                 nr.setStart(first,0);
                 nr.setEnd(last,last.childNodes.length);
-                sel.removeAllRanges();
-                sel.addRange(nr);
+                if(!document.activeElement?.closest?.('#deepTextTools')){
+                    sel.removeAllRanges();
+                    sel.addRange(nr);
+                }
                 return nr.cloneRange();
             }catch(_){
                 return null;
@@ -5588,9 +5726,13 @@
             const it=window.deepCanvasState?.items?.find(x=>x.id===window.deepCanvasSelected);
             const content=it?.type==='text'?document.querySelector(`[data-deep-id="${CSS.escape(it.id)}"] .deep-text-content`):null;
             const sel=window.getSelection?.();
-            if(!content||!sel?.rangeCount){slider.disabled=true;slider.value='100';out.textContent='—';window.deepTextOpacitySpan=null;return;}
-            const r=sel.getRangeAt(0);
-            if(r.collapsed||!content.contains(r.commonAncestorContainer)){slider.disabled=true;slider.value='100';out.textContent='—';window.deepTextOpacitySpan=null;return;}
+            let r=null;
+            if(content&&sel?.rangeCount){
+                const live=sel.getRangeAt(0);
+                if(!live.collapsed&&content.contains(live.commonAncestorContainer))r=live;
+            }
+            if(!r&&content)r=window.deepRangeFromTextSelectionSnapshot?.(content);
+            if(!content||!r){slider.disabled=true;slider.value='100';out.textContent='—';window.deepTextOpacitySpan=null;return;}
             const os=window.deepGetSelectionOpacity?.(r,content);
             if(!os?.valid){slider.disabled=true;slider.value='100';out.textContent='—';window.deepTextOpacitySpan=null;return;}
             slider.disabled=false;slider.value=String(os.pct);out.textContent=os.mixed?'混合':os.pct+'%';window.deepTextOpacitySpan=os.span;
@@ -5682,28 +5824,140 @@
             requestAnimationFrame(()=>window.deepAutoFitTextItem?.(item,content));
         };
 
+        window.deepCaptureTextSelectionSnapshot=function(){
+            const sel=window.getSelection?.();
+            const it=window.deepCanvasState?.items?.find(x=>x.id===window.deepCanvasSelected);
+            if(!sel?.rangeCount||!it||it.type!=='text')return false;
+            const root=document.querySelector(`[data-deep-id="${CSS.escape(it.id)}"] .deep-text-content`);
+            if(!root)return false;
+            const r=sel.getRangeAt(0);
+            if(r.collapsed||!root.contains(r.commonAncestorContainer))return false;
+            const offsetAt=(container,offset)=>{
+                const q=document.createRange();
+                q.selectNodeContents(root);
+                try{q.setEnd(container,offset);}catch(_){return null;}
+                return q.toString().length;
+            };
+            const a=offsetAt(r.startContainer,r.startOffset),b=offsetAt(r.endContainer,r.endOffset);
+            if(a===null||b===null||a===b)return false;
+            window.deepSavedTextSelectionSnapshot={itemId:it.id,start:Math.min(a,b),end:Math.max(a,b)};
+            window.deepSavedTextRange=r.cloneRange();
+            window.deepSavedTextId=it.id;
+            window.deepSyncSavedSelectionHighlight?.();
+            return true;
+        };
+        window.deepRangeFromTextSelectionSnapshot=function(root){
+            const snap=window.deepSavedTextSelectionSnapshot;
+            if(!root||!snap||snap.start===snap.end)return null;
+            const pointAt=offset=>{
+                const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
+                let remain=Math.max(0,Number(offset)||0),node,last=null;
+                while((node=walker.nextNode())){
+                    last=node;
+                    const len=node.nodeValue?.length||0;
+                    if(remain<=len)return [node,remain];
+                    remain-=len;
+                }
+                return last?[last,last.nodeValue?.length||0]:[root,root.childNodes.length];
+            };
+            const [sc,so]=pointAt(snap.start),[ec,eo]=pointAt(snap.end);
+            if(!sc||!ec)return null;
+            const r=document.createRange();
+            try{r.setStart(sc,so);r.setEnd(ec,eo);}catch(_){return null;}
+            return r.collapsed?null:r;
+        };
+        window.deepSyncSavedSelectionHighlight=function(force=false){
+            try{
+                if(!window.CSS?.highlights||typeof Highlight==='undefined')return false;
+                const snap=window.deepSavedTextSelectionSnapshot;
+                const toolbarFocused=!!document.activeElement?.closest?.('#deepTextTools');
+                if(!snap||(!force&&!toolbarFocused)){
+                    CSS.highlights.delete('deep-saved-selection');
+                    return false;
+                }
+                const it=window.deepCanvasState?.items?.find(x=>x.id===snap.itemId&&x.type==='text');
+                const root=it?document.querySelector(`[data-deep-id="${CSS.escape(it.id)}"] .deep-text-content`):null;
+                const r=window.deepRangeFromTextSelectionSnapshot?.(root);
+                if(!r){CSS.highlights.delete('deep-saved-selection');return false;}
+                CSS.highlights.set('deep-saved-selection',new Highlight(r));
+                return true;
+            }catch(_){return false;}
+        };
+        window.deepClearSavedSelectionHighlight=function(){try{CSS?.highlights?.delete?.('deep-saved-selection');}catch(_){}};
         window.deepRememberTextSelection=function(e){
-            const sel=window.getSelection?.(),it=window.deepCanvasState?.items?.find(x=>x.id===window.deepCanvasSelected);
-            if(!sel?.rangeCount||!it||it.type!=='text'){window.deepSavedTextRange=null;window.deepSavedTextId=null;window.deepSyncSelectionOnlyTextControls?.(false);window.deepSyncOpacityControl?.();return;}
-            const content=document.querySelector(`[data-deep-id="${CSS.escape(it.id)}"] .deep-text-content`),r=sel.getRangeAt(0);
-            if(!content||r.collapsed||!content.contains(r.commonAncestorContainer)){window.deepSavedTextRange=null;window.deepSavedTextId=null;document.getElementById('deepTextColorPalette')?.classList.add('hidden');window.deepSyncSelectionOnlyTextControls?.(false);window.deepSyncOpacityControl?.();window.deepSyncSelectedFormatFeedback?.();return;}
-            window.deepSavedTextRange=r.cloneRange();window.deepSavedTextId=it.id;window.deepSyncSelectionOnlyTextControls?.(true);window.deepSyncFontSizeControls?.(it);window.deepSyncOpacityControl?.();window.deepSyncSelectedFormatFeedback?.();
+            if(e?.target?.closest?.('#deepTextTools'))return !!window.deepSavedTextSelectionSnapshot;
+            if(window.deepCaptureTextSelectionSnapshot?.()){
+                const it=window.deepCanvasState?.items?.find(x=>x.id===window.deepCanvasSelected);
+                window.deepSyncSelectionOnlyTextControls?.(true);
+                window.deepSyncFontSizeControls?.(it);
+                window.deepSyncOpacityControl?.();
+                window.deepSyncSelectedFormatFeedback?.();
+                return true;
+            }
+            if(document.activeElement?.closest?.('#deepTextTools')&&window.deepSavedTextSelectionSnapshot)return true;
+            window.deepSavedTextRange=null;window.deepSavedTextId=null;window.deepSavedTextSelectionSnapshot=null;
+            window.deepClearSavedSelectionHighlight?.();
+            document.getElementById('deepTextColorPalette')?.classList.add('hidden');
+            window.deepSyncSelectionOnlyTextControls?.(false);
+            window.deepSyncOpacityControl?.();
+            window.deepSyncSelectedFormatFeedback?.();
+            return false;
         };
         window.deepRestoreTextSelection=function(){
-            const sel=window.getSelection?.(); if(!sel||!window.deepSavedTextRange)return false; try{sel.removeAllRanges();sel.addRange(window.deepSavedTextRange);return true;}catch(_){return false;}
+            const snap=window.deepSavedTextSelectionSnapshot;
+            const it=window.deepCanvasState?.items?.find(x=>x.id===(snap?.itemId||window.deepSavedTextId||window.deepCanvasSelected));
+            const root=it?.type==='text'?document.querySelector(`[data-deep-id="${CSS.escape(it.id)}"] .deep-text-content`):null;
+            const r=window.deepRangeFromTextSelectionSnapshot?.(root);
+            const sel=window.getSelection?.();
+            if(!sel||!r)return false;
+            try{
+                sel.removeAllRanges();sel.addRange(r);
+                window.deepSavedTextRange=r.cloneRange();window.deepSavedTextId=it.id;
+                return true;
+            }catch(_){return false;}
         };
         if(!window._deepOpacitySelectionBound){
             window._deepOpacitySelectionBound=true;
-            const sync=()=>{if(window.deepTextTool)requestAnimationFrame(()=>window.deepRememberTextSelection?.());};
+            const sync=()=>{if(!window.deepTextTool)return;if(document.activeElement?.closest?.('#deepTextTools'))return;requestAnimationFrame(()=>{if(document.activeElement?.closest?.('#deepTextTools'))return;window.deepRememberTextSelection?.();});};
             document.addEventListener('selectionchange',sync);
             document.addEventListener('pointerup',e=>{if(e.target?.closest?.('.deep-text-content'))sync();},true);
             document.addEventListener('keyup',e=>{if(e.target?.closest?.('.deep-text-content'))sync();},true);
             document.addEventListener('click',e=>{if(e.target?.closest?.('.deep-text-content'))sync();},true);
         }
         
+        if(!window._deepTextOutsideSelectionBound){
+            window._deepTextOutsideSelectionBound=true;
+            document.addEventListener('pointerup',()=>{
+                if(!window.deepTextSelectionDragActive)return;
+                window.deepTextSelectionDragActive=false;
+                window.deepSuppressBlankTextClickUntil=Date.now()+350;
+                requestAnimationFrame(()=>window.deepRememberTextSelection?.());
+            },true);
+        }
+
+        window.deepSyncDecorationGeometry=function(root){
+            if(!root)return;
+            root.querySelectorAll('u,s,strike,[style*="underline"],[style*="line-through"]').forEach(el=>{
+                const walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);
+                let n,maxSize=0,firstColor='';
+                while((n=walker.nextNode())){
+                    if(!(n.nodeValue||'').length)continue;
+                    const p=n.parentElement;if(!p)continue;
+                    const cs=getComputedStyle(p);
+                    const fs=parseFloat(cs.fontSize);
+                    if(Number.isFinite(fs))maxSize=Math.max(maxSize,fs);
+                    if(!firstColor)firstColor=cs.color||'';
+                }
+                if(maxSize>0)el.style.setProperty('font-size',maxSize+'px','important');
+                el.style.setProperty('text-decoration-thickness','0.06em','important');
+                el.style.setProperty('text-underline-offset','0.13em','important');
+                el.style.setProperty('text-decoration-color',firstColor||'currentColor','important');
+                el.style.setProperty('text-decoration-skip-ink','auto','important');
+            });
+        };
         window.deepSyncDecorationColor=function(root){
             if(!root)return;
-            root.querySelectorAll('u,s,strike,[style*="underline"],[style*="line-through"]').forEach(node=>node.style.setProperty('text-decoration-color','currentColor','important'));
+            window.deepSyncDecorationGeometry?.(root);
         };
         window.deepPickColor=function(kind,val){
             if(kind==='text'&&!window.deepTextTool){ window.showToast?.('请先进入文字模式','info'); return; }
@@ -5727,12 +5981,15 @@
             let size=Math.max(6,Math.min(240,Number(item.fontSize)||18)),mixed=false;
             const content=document.querySelector(`[data-deep-id="${CSS.escape(item.id)}"] .deep-text-content`);
             const sel=window.getSelection?.();
+            let r=null;
             if(content&&sel?.rangeCount){
-                const r=sel.getRangeAt(0);
-                if(!r.collapsed&&content.contains(r.commonAncestorContainer)){
-                    const state=window.getUniformSelectedFontSizeReadOnly?.(content,r);
-                    if(state?.valid){mixed=!!state.mixed;if(!mixed&&Number.isFinite(state.size))size=state.size;}
-                }
+                const live=sel.getRangeAt(0);
+                if(!live.collapsed&&content.contains(live.commonAncestorContainer))r=live;
+            }
+            if(!r&&content)r=window.deepRangeFromTextSelectionSnapshot?.(content);
+            if(r){
+                const state=window.getUniformSelectedFontSizeReadOnly?.(content,r);
+                if(state?.valid){mixed=!!state.mixed;if(!mixed&&Number.isFinite(state.size))size=state.size;}
             }
             const custom=document.getElementById('deepFontSizeCustom');
             if(custom&&document.activeElement!==custom)custom.value=mixed?'':(Math.round(size*10)/10).toString();
@@ -5745,17 +6002,33 @@
                 }
             }
         };
-        window.deepSetFontSizeControl=function(value){
-            const n=Number(value),it=window.deepCanvasState?.items?.find(x=>x.id===window.deepCanvasSelected);
-            if(!Number.isFinite(n)||n<6||n>240){window.showToast?.('字号请输入 6–240 之间的数值','info');window.deepSyncFontSizeControls(it);return;}
+        window.deepApplyLockedFontSize=function(value,{silentInvalid=false}={}){
+            const raw=String(value??'').trim();
+            if(!raw)return false;
+            const n=Number(raw),it=window.deepCanvasState?.items?.find(x=>x.id===window.deepCanvasSelected);
+            if(!Number.isFinite(n)||n<6||n>240){
+                if(!silentInvalid)window.showToast?.('字号请输入 6–240 之间的数值','info');
+                return false;
+            }
             const content=it?.type==='text'?document.querySelector(`[data-deep-id="${CSS.escape(it.id)}"] .deep-text-content`):null;
-            window.deepRestoreTextSelection();
-            const sel=window.getSelection?.();
-            if(!content||!sel?.rangeCount||sel.isCollapsed||!content.contains(sel.getRangeAt(0).commonAncestorContainer)){window.deepSyncFontSizeControls(it);return;}
+            const locked=window.deepRangeFromTextSelectionSnapshot?.(content);
+            if(!content||!locked)return false;
+            window.deepSavedTextRange=locked.cloneRange();window.deepSavedTextId=it.id;
             window.deepApplyTextStyle('fontSize',Math.round(n*10)/10);
-            window.deepSyncFontSizeControls(it);
+            return true;
         };
-        
+        window.deepPreviewFontSizeControl=function(value){
+            // Empty/partial input is allowed while typing; do not reset the field.
+            window.deepApplyLockedFontSize?.(value,{silentInvalid:true});
+        };
+        window.deepCommitFontSizeControl=function(value){
+            const it=window.deepCanvasState?.items?.find(x=>x.id===window.deepCanvasSelected);
+            if(!window.deepApplyLockedFontSize?.(value,{silentInvalid:false}))window.deepSyncFontSizeControls?.(it);
+        };
+        window.deepSetFontSizeControl=function(value){
+            window.deepCommitFontSizeControl?.(value);
+        };
+
         window.deepApplyCanonicalTextBoxStyle=function(contentEl,{editing=false,height=null}={}){
             if(!contentEl)return;
             contentEl.style.width='100%';
@@ -5829,15 +6102,42 @@
         };
         window.deepAutoFitTextItem=function(item,contentEl){
             if(!item||item.type!=='text'||!contentEl)return false;
-            const host=contentEl.closest('.deep-canvas-text');if(!host)return false;
-            const w=Math.max(60,Number(item.w)||parseFloat(host.style.width)||180);
-            window.deepApplyCanonicalTextBoxStyle(contentEl,{editing:!!item.editing});
-            contentEl.style.height='auto';contentEl.style.maxHeight='none';contentEl.style.overflow='visible';
-            const cs=getComputedStyle(contentEl),rootSize=parseFloat(cs.fontSize)||Number(item.fontSize)||18;
-            const needed=Math.max(Math.ceil(rootSize*1.35+12),Math.ceil(contentEl.scrollHeight||contentEl.getBoundingClientRect().height||0));
-            item.w=w;item.h=needed;host.style.width=w+'px';host.style.height=needed+'px';
-            window.deepApplyCanonicalTextBoxStyle(contentEl,{editing:!!item.editing,height:needed});
-            return true;
+            if(item._manualResizing)return false;
+
+            const box=contentEl.closest?.('.deep-canvas-text');
+            const oldH=Math.max(0,Number(item.h)||0);
+
+            // Canonical inner spacing stays symmetric: 6px top/bottom, 8px left/right.
+            contentEl.style.boxSizing='border-box';
+            contentEl.style.width='100%';
+            contentEl.style.height='auto';
+            contentEl.style.minHeight='0';
+            contentEl.style.padding='6px 8px';
+            contentEl.style.overflow='visible';
+
+            // Measure only the rendered text content. Do not reuse any previous large-font box height.
+            let visualBottom=0;
+            try{
+                const r=document.createRange();
+                r.selectNodeContents(contentEl);
+                const rects=[...r.getClientRects()];
+                if(rects.length){
+                    const cr=contentEl.getBoundingClientRect();
+                    visualBottom=Math.max(...rects.map(x=>x.bottom-cr.top));
+                }
+            }catch(_){}
+
+            const scroll=Math.ceil(contentEl.scrollHeight||0);
+            // scrollHeight already includes the symmetric padding.
+            const needed=Math.max(18,Math.ceil(Math.max(scroll,visualBottom+6)));
+            const nextH=Math.max(18,needed);
+
+            item.h=nextH;
+            if(box){
+                box.style.height=nextH+'px';
+                contentEl.style.height=nextH+'px';
+            }
+            return Math.abs(oldH-nextH)>0.5;
         };
 
         window.deepFitTypingBox=function(item,contentEl){
@@ -5931,24 +6231,30 @@
             if(!it||it.type!=='text'){window.showToast?.('请先选中文字框','info');return;}
             window.deepConnectMode=false;window.deepConnectPending=[];
             const editingEl=document.querySelector(`[data-deep-id="${CSS.escape(it.id)}"] .deep-text-content`);
-            if(!window.deepSavedTextRange)return;
-            window.deepRestoreTextSelection();
+            if(!editingEl)return;
             const sel=window.getSelection?.();
-            if(!editingEl||!sel?.rangeCount)return;
-            let range=sel.getRangeAt(0);
-            if(range.collapsed||!editingEl.contains(range.commonAncestorContainer))return;
+            let range=null;
+            if(kind==='opacity'||kind==='fontSize'||kind==='align'){
+                range=window.deepRangeFromTextSelectionSnapshot?.(editingEl);
+            }else{
+                if(!window.deepSavedTextRange)return;
+                window.deepRestoreTextSelection();
+                if(!sel?.rangeCount)return;
+                range=sel.getRangeAt(0);
+            }
+            if(!range||range.collapsed||!editingEl.contains(range.commonAncestorContainer))return;
             if(kind==='opacity'){
                 const slider=document.getElementById('deepTextOpacity');if(slider?.disabled)return;
                 const pct=Math.max(0,Math.min(100,Number(val)||0));
                 const fixed=window.applyExactOpacityToSelection?.(editingEl,range,'data-deep-text-opacity',pct);if(!fixed)return;
-                range=fixed;window.deepSavedTextRange=fixed.cloneRange();window.deepSavedTextId=it.id;window.deepTextOpacitySpan=null;
+                range=fixed;window.deepSavedTextRange=fixed.cloneRange();window.deepSavedTextId=it.id;window.deepSyncDecorationGeometry?.(editingEl);window.deepTextOpacitySpan=null;window.deepSyncSavedSelectionHighlight?.();
             }else if(['bold','italic','underline','strike'].includes(kind)){
                 const cmd={bold:'bold',italic:'italic',underline:'underline',strike:'strikeThrough'}[kind];
                 try{document.execCommand(cmd,false,null);}catch(_){}
                 window.deepSyncDecorationColor?.(editingEl);
                 if(sel.rangeCount)window.deepSavedTextRange=sel.getRangeAt(0).cloneRange();window.deepSavedTextId=it.id;
             }else if(kind==='color'){
-                try{document.execCommand('styleWithCSS',false,true);document.execCommand('foreColor',false,val);}catch(_){}
+                try{document.execCommand('styleWithCSS',false,true);document.execCommand('foreColor',false,val);window.deepSyncDecorationGeometry?.(editingEl);}catch(_){}
                 if(sel.rangeCount)window.deepSavedTextRange=sel.getRangeAt(0).cloneRange();window.deepSavedTextId=it.id;
             }else if(kind==='fontSize'){
                 const px=Math.max(6,Math.min(240,Number(val)||18));
@@ -5957,11 +6263,19 @@
                 // an invisible tall strut above smaller selected text and creates fake top space.
                 let wholeText=false;
                 try{
-                    const before=document.createRange(),after=document.createRange();
-                    before.selectNodeContents(editingEl);before.setEnd(range.startContainer,range.startOffset);
-                    after.selectNodeContents(editingEl);after.setStart(range.endContainer,range.endOffset);
-                    wholeText=!before.toString().trim()&&!after.toString().trim();
-                    before.detach?.();after.detach?.();
+                    const snap=window.deepSavedTextSelectionSnapshot;
+                    const raw=String(editingEl.textContent||'');
+                    if(snap&&snap.itemId===it.id){
+                        const before=raw.slice(0,Math.max(0,snap.start));
+                        const after=raw.slice(Math.max(0,snap.end));
+                        wholeText=!before.replace(/[\s\u200B\uFEFF]/g,'')&&!after.replace(/[\s\u200B\uFEFF]/g,'');
+                    }else{
+                        const before=document.createRange(),after=document.createRange();
+                        before.selectNodeContents(editingEl);before.setEnd(range.startContainer,range.startOffset);
+                        after.selectNodeContents(editingEl);after.setStart(range.endContainer,range.endOffset);
+                        wholeText=!before.toString().replace(/[\s\u200B\uFEFF]/g,'')&&!after.toString().replace(/[\s\u200B\uFEFF]/g,'');
+                        before.detach?.();after.detach?.();
+                    }
                 }catch(_){}
                 const fixed=window.applyExactFontSizeToSelection?.(editingEl,range,px);
                 if(!fixed)return;
@@ -5974,15 +6288,54 @@
                     if(host){host.style.fontSize=px+'px';host.dataset.fontSize=String(px);}
                 }
                 window.deepSavedTextRange=fixed.cloneRange();window.deepSavedTextId=it.id;
-                requestAnimationFrame(()=>window.deepAutoFitTextItem?.(it,editingEl));
+                requestAnimationFrame(()=>{window.deepAutoFitTextItem?.(it,editingEl);window.deepSyncSavedSelectionHighlight?.();window.deepPositionTextTools?.();});
             }else if(kind==='align'){
                 if(!['left','center','right'].includes(val))return;
-                const wrap=document.createElement('span');wrap.style.display='block';wrap.style.width='100%';wrap.style.textAlign=val;
-                try{range.surroundContents(wrap);}catch(_){const frag=range.extractContents();wrap.appendChild(frag);range.insertNode(wrap);}
-                const nr=document.createRange();nr.selectNodeContents(wrap);sel.removeAllRanges();sel.addRange(nr);
-                window.deepSavedTextRange=nr.cloneRange();window.deepSavedTextId=it.id;
+
+                // Clean up legacy alignment wrappers created by the previous implementation.
+                // Those wrappers were display:block;width:100%, which could force selected text
+                // onto a new line and permanently inflate the text box.
+                editingEl.querySelectorAll('span').forEach(sp=>{
+                    if(sp.style.display==='block'&&sp.style.width==='100%'&&sp.style.textAlign){
+                        sp.replaceWith(...sp.childNodes);
+                    }
+                });
+                editingEl.normalize();
+
+                // Rebuild the exact original character selection after the cleanup.
+                const locked=window.deepRangeFromTextSelectionSnapshot?.(editingEl);
+                if(!locked)return;
+
+                // Let contenteditable's paragraph alignment command align the containing line/
+                // paragraph. Do not extract, surround, or reinsert the selected characters.
+                try{
+                    const liveSel=window.getSelection?.();
+                    if(!liveSel)return;
+                    liveSel.removeAllRanges();
+                    liveSel.addRange(locked);
+                    const cmd=val==='center'?'justifyCenter':val==='right'?'justifyRight':'justifyLeft';
+                    document.execCommand(cmd,false,null);
+
+                    // Keep a stable character-offset target for repeated left/center/right clicks.
+                    window.deepCaptureTextSelectionSnapshot?.();
+                    const rebuilt=window.deepRangeFromTextSelectionSnapshot?.(editingEl);
+                    if(rebuilt){
+                        window.deepSavedTextRange=rebuilt.cloneRange();
+                        window.deepSavedTextId=it.id;
+                    }
+                }catch(_){return;}
+
+                it.html=editingEl.innerHTML;
+                it.text=editingEl.innerText||'';
+                window.deepSyncSelectedFormatFeedback?.();
+                window.deepSyncFontSizeControls?.(it);
+                window.deepSyncOpacityControl?.();
+                requestAnimationFrame(()=>{
+                    window.deepAutoFitTextItem?.(it,editingEl);
+                });
+                return;
             }else{return;}
-            it.html=editingEl.innerHTML;it.text=editingEl.innerText||'';
+            window.deepSyncDecorationGeometry?.(editingEl);it.html=editingEl.innerHTML;it.text=editingEl.innerText||'';
             window.deepSyncFontSizeControls?.(it);window.deepSyncOpacityControl?.();window.deepSyncSelectedFormatFeedback?.();
         };
 
@@ -6002,6 +6355,32 @@
             requestAnimationFrame(()=>{const t=document.querySelector(`[data-deep-id="${CSS.escape(item.id)}"] .deep-text-content`); if(!t)return; t.contentEditable='true';window.deepFitTypingBox(item,t);t.focus();requestAnimationFrame(()=>window.deepFitTypingBox(item,t));});
         };
         
+        window.deepMoveSelectedLayer=function(direction){
+            const state=window.deepCanvasState,id=window.deepCanvasSelected;
+            if(!state||!id)return;
+            const item=state.items.find(x=>x&&x.id===id&&['media','text','link'].includes(x.type));
+            if(!item)return;
+            const minLayer=-1;
+            const current=Math.max(minLayer,Number.isFinite(Number(item.layer))?Number(item.layer):0);
+            const next=direction==='up'?current+1:Math.max(minLayer,current-1);
+            if(next===current){window.showToast?.('已经是最低图层','info');return;}
+            deepPushUndo();
+            item.layer=next;
+            item._suppressTextEditUntil=Date.now()+500;
+            window.renderDeepCanvas();
+        };
+        window.deepAddLayerControls=function(el,item){
+            if(!el||!item||!['media','text','link'].includes(item.type))return;
+            const wrap=document.createElement('div');
+            wrap.className='deep-layer-controls';
+            wrap.innerHTML=`<button type="button" class="deep-layer-btn" title="上移一层"><i class="fa-solid fa-arrow-up"></i></button><button type="button" class="deep-layer-btn" title="下移一层"><i class="fa-solid fa-arrow-down"></i></button>`;
+            const block=e=>{e.preventDefault();e.stopPropagation();item._suppressTextEditUntil=Date.now()+500;};
+            ['pointerdown','pointerup','mousedown','mouseup','dblclick'].forEach(type=>wrap.addEventListener(type,block));
+            const buttons=wrap.querySelectorAll('button');
+            buttons[0]?.addEventListener('click',e=>{block(e);window.deepMoveSelectedLayer('up');});
+            buttons[1]?.addEventListener('click',e=>{block(e);window.deepMoveSelectedLayer('down');});
+            el.appendChild(wrap);
+        };
         window.deepAddResizeHandles=function(el,item){
             if(item.type==='draw' || item.type==='connector')return;
             ['nw','n','ne','e','se','s','sw','w'].forEach(pos=>{const h=document.createElement('div');h.className='deep-canvas-handle deep-h-'+pos;h.dataset.handle=pos;el.appendChild(h);h.addEventListener('pointerdown',e=>{
@@ -6059,12 +6438,13 @@
             let sx=0,sy=0,ox=0,oy=0,drag=false,before=null,moved=false,pointerStartedAt=0;
             el.addEventListener('pointerdown',e=>{
                 pointerStartedAt=Date.now();el._deepLongPress=false;
+                if(window.deepDrawToolsActive){e.preventDefault();e.stopPropagation();return;}
                 if(item.type==='media' && e.target.closest?.('.deep-video-cover-play,.deep-video-controls,video')){
                     e.stopPropagation();
                     return;
                 }
                 if(window.deepConnectMode){e.preventDefault();e.stopPropagation();el._deepConnectPicked=true;window.deepHandleConnectPick(item);return;}
-                if(window.deepCanvasDrawing || window.deepCanvasErasing || window.deepCanvasSelecting || e.target.closest('.deep-canvas-handle')) return;
+                if(window.deepCanvasDrawing || window.deepCanvasErasing || window.deepCanvasSelecting || e.target.closest('.deep-canvas-handle,.deep-layer-controls')) return;
                 if(item.type==='text' && e.target.closest('.deep-text-content') && item.editing) return;
                 e.stopPropagation();
                 if(window.deepCanvasSelected!==item.id){ window.deepCanvasSelected=item.id; window.deepSetDrawing(false); window.renderDeepCanvas(); return; }
@@ -6072,26 +6452,30 @@
                 before=window.deepClone(window.deepCanvasState); moved=false; window.deepCanvasSelected=item.id; window.deepSetDrawing(false); sx=e.clientX;sy=e.clientY;ox=item.x;oy=item.y;drag=true;el.setPointerCapture?.(e.pointerId);
             });
             el.addEventListener('pointermove',e=>{if(!drag)return;const z=window.deepZoom||1;if(Math.abs(e.clientX-sx)>2||Math.abs(e.clientY-sy)>2)moved=true;item.x=Math.max(0,ox+(e.clientX-sx)/z);item.y=Math.max(0,oy+(e.clientY-sy)/z);window.renderDeepCanvas(false);});
-            el.addEventListener('pointerup',()=>{if(pointerStartedAt&&Date.now()-pointerStartedAt>420)el._deepLongPress=true;if(!drag)return;drag=false;if(moved)el._deepSuppressCropUntil=Date.now()+500;if(before&&moved){window.deepCanvasUndo.push(before);if(window.deepCanvasUndo.length>40)window.deepCanvasUndo.shift();window.deepCanvasRedo=[];}before=null;});
+            el.addEventListener('pointerup',()=>{if(pointerStartedAt&&Date.now()-pointerStartedAt>420)el._deepLongPress=true;if(!drag)return;drag=false;if(moved){el._deepSuppressCropUntil=Date.now()+500;if(item.type==='text')item._suppressTextEditUntil=Date.now()+750;}if(before&&moved){window.deepCanvasUndo.push(before);if(window.deepCanvasUndo.length>40)window.deepCanvasUndo.shift();window.deepCanvasRedo=[];}before=null;});
             if(item.type==='text'){
                 const t=el.querySelector('.deep-text-content');
-                t?.addEventListener('pointerdown',e=>{ if(item.editing){ e.stopPropagation(); } });
+                t?.addEventListener('pointerdown',e=>{
+                    if(item.editing){
+                        window.deepTextSelectionDragActive=true;
+                        window.deepTextSelectionDragItemId=item.id;
+                        e.stopPropagation();
+                    }
+                });
                 t?.addEventListener('dblclick',e=>{
                     e.preventDefault(); e.stopPropagation();
-                    if(item.type==='text' && !item.editing && window.deepCanvasSelected===item.id){ window.deepStartTextEdit(item,el); }
+                    if(Date.now()<(Number(item._suppressTextEditUntil)||0)||moved)return; if(item.type==='text' && !item.editing && window.deepCanvasSelected===item.id){ window.deepStartTextEdit(item,el); }
                 });
                 el.addEventListener('dblclick',e=>{
                     e.preventDefault(); e.stopPropagation();
-                    if(item.type==='text' && !item.editing && window.deepCanvasSelected===item.id){ window.deepStartTextEdit(item,el); }
+                    if(Date.now()<(Number(item._suppressTextEditUntil)||0)||moved)return; if(item.type==='text' && !item.editing && window.deepCanvasSelected===item.id){ window.deepStartTextEdit(item,el); }
                 });
-                t?.addEventListener('input',()=>{item.text=t.innerText||'';item.html=t.innerHTML||window.deepEsc(item.text);window.deepFitTypingBox(item,t);window.deepHideSelectionFontTooltip();window.deepSyncOpacityControl?.();});
+                t?.addEventListener('input',()=>{item.text=t.innerText||'';item.html=t.innerHTML||window.deepEsc(item.text);window.deepFitTypingBox(item,t);window.deepSyncOpacityControl?.();});
                 t?.addEventListener('mouseup',()=>window.deepRememberTextSelection?.());
                 t?.addEventListener('keyup',()=>window.deepRememberTextSelection?.());
-                t?.addEventListener('mousemove',e=>window.deepUpdateSelectionFontTooltip(e,t,item));
-                t?.addEventListener('mouseleave',()=>window.deepHideSelectionFontTooltip());
-                t?.addEventListener('pointerdown',()=>window.deepHideSelectionFontTooltip());
-                t?.addEventListener('blur',()=>{window.deepHideSelectionFontTooltip(); if(item.editing){ item.text=t.innerText||''; item.html=t.innerHTML||window.deepEsc(item.text); } });
+                t?.addEventListener('blur',()=>{ if(item.editing){ item.text=t.innerText||''; item.html=t.innerHTML||window.deepEsc(item.text); } });
             }
+            window.deepAddLayerControls(el,item);
             window.deepAddResizeHandles(el,item);
         };
         window.deepFormatVideoTime=function(sec){
@@ -6197,7 +6581,7 @@
                 const hit=document.createElementNS('http://www.w3.org/2000/svg','path');hit.setAttribute('d',g.path);hit.setAttribute('class','deep-connector-hit');
                 const path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d',g.path);path.setAttribute('class','deep-connector-path'+(conn.id===window.deepCanvasSelected?' is-selected':''));path.setAttribute('marker-end','url(#deepArrowHead)');
                 const selectAndDrag=(e)=>{
-                    if(window.deepCanvasDrawing||window.deepCanvasErasing||window.deepCanvasSelecting)return;
+                    if(window.deepDrawToolsActive||window.deepCanvasDrawing||window.deepCanvasErasing||window.deepCanvasSelecting)return;
                     e.preventDefault();e.stopPropagation();window.deepConnectMode=false;window.deepConnectPending=[];document.getElementById('deepConnectBtn')?.classList.remove('active');window.deepCanvasSelected=conn.id;window.deepUpdateConnectorControls();window.deepUpdateConnectors();
                     if(e.button!==undefined&&e.button!==0)return;
                     const z=window.deepZoom||1,startX=e.clientX,startY=e.clientY,startCurve=Number(conn.curve)||0,before=window.deepClone(window.deepCanvasState);let moved=false;
@@ -6273,23 +6657,26 @@
 
         window.renderDeepCanvas=function(rebuild=true){
             const st=document.getElementById('deepCanvasStage'); if(!st||!window.deepCanvasState)return;
+            st.classList.toggle('deep-text-mode-active',!!window.deepTextTool); st.classList.toggle('deep-draw-interaction-lock',!!window.deepDrawToolsActive);
             window.deepUpdateTextToolControls?.();
             window.deepSyncOpacityControl?.();
             if(rebuild){st.innerHTML='';st.style.width=(window.deepCanvasState.width||2200)+'px';st.style.height=(window.deepCanvasState.height||1400)+'px';}
-            else {window.deepCanvasState.items.forEach(it=>{const el=st.querySelector(`[data-deep-id="${CSS.escape(it.id)}"]`);if(el){el.style.left=it.x+'px';el.style.top=it.y+'px';el.style.width=it.w+'px';el.style.height=it.h+'px';if(it.type==='text'){const fs=Math.max(6,Math.min(240,Number(it.fontSize)||18));el.style.fontSize=fs+'px';el.dataset.fontSize=(Math.round(fs*10)/10).toString();const tc=el.querySelector('.deep-text-content');if(tc){window.deepApplyCanonicalTextBoxStyle(tc,{editing:!!it.editing,height:it.h});tc.style.fontSize=fs+'px';tc.style.textAlign=it.textAlign||'left';}}}}); const selectedText=window.deepCanvasState.items.find(x=>x.id===window.deepCanvasSelected&&x.type==='text');if(selectedText)window.deepSyncFontSizeControls(selectedText); window.deepRenderDrawPaths?.(); window.deepUpdateConnectors(); window.deepUpdateTextToolControls?.(); window.deepSyncOpacityControl?.(); return;}
+            else {window.deepCanvasState.items.forEach(it=>{const el=st.querySelector(`[data-deep-id="${CSS.escape(it.id)}"]`);if(el){el.style.left=it.x+'px';el.style.top=it.y+'px';el.style.width=it.w+'px';el.style.height=it.h+'px';if(it.type==='text'){const fs=Math.max(6,Math.min(240,Number(it.fontSize)||18));el.style.fontSize=fs+'px';el.dataset.fontSize=(Math.round(fs*10)/10).toString();const tc=el.querySelector('.deep-text-content');if(tc){window.deepApplyCanonicalTextBoxStyle(tc,{editing:!!it.editing,height:it.h});tc.style.fontSize=fs+'px';tc.style.textAlign=it.textAlign||'left';}}}}); const selectedText=window.deepCanvasState.items.find(x=>x.id===window.deepCanvasSelected&&x.type==='text');if(selectedText)window.deepSyncFontSizeControls(selectedText); window.deepRenderDrawPaths?.(); window.deepUpdateConnectors(); window.deepUpdateTextToolControls?.(); window.deepSyncOpacityControl?.(); window.deepPositionTextTools?.(); return;}
             window.deepUpdateConnectors();
             window.deepCanvasState.items.forEach(item=>{
                 if(item.type==='draw')return;
-                const el=document.createElement('div'); el.className='deep-canvas-item '+(item.type==='media'?'deep-canvas-media ':'')+(item.type==='text'?'deep-canvas-text ':'')+(item.type==='link'?'deep-canvas-link ':'')+(item.id===window.deepCanvasSelected?' deep-canvas-selected ':'')+(item.type==='text' && (window.deepTextTool||item.editing)?' tool-visible':''); el.dataset.deepId=item.id; el.style.left=item.x+'px';el.style.top=item.y+'px';el.style.width=item.w+'px';el.style.height=item.h+'px'; if(window.deepConnectPending?.includes(item.id))el.classList.add('deep-connect-pending');
-                if(item.type==='text'){el.classList.toggle('has-border',!!item.border);el.classList.toggle('editing',!!item.editing);el.dataset.fontSize=(Math.round((Number(item.fontSize)||18)*10)/10).toString();el.style.borderColor=item.borderColor||'#3b82f6';el.style.fontSize=(item.fontSize||18)+'px';el.style.color=item.color||'#334155';el.style.textAlign=item.textAlign||'left';el.style.opacity='1';el.style.fontWeight=item.bold?'700':'400';el.style.fontStyle=item.italic?'italic':'normal';el.style.textDecoration='none';el.innerHTML=`<div class="deep-text-content">${item.html||window.deepEsc(item.text||'')}</div>`; const tc=el.querySelector('.deep-text-content'); if(tc) tc.contentEditable=item.editing?'true':'false'; if(tc){window.deepApplyCanonicalTextBoxStyle(tc,{editing:!!item.editing,height:item.h});tc.style.fontSize=(item.fontSize||18)+'px';tc.style.opacity=item.opacity??1;tc.style.textAlign=item.textAlign||'left';tc.style.textDecoration=[item.underline?'underline':'',item.strike?'line-through':''].filter(Boolean).join(' ')||'none';tc.style.textUnderlineOffset='0.13em';tc.style.textDecorationThickness='0.06em';tc.style.textDecorationColor='currentColor';tc.style.textDecorationSkipInk='none';;requestAnimationFrame(()=>{const live=document.querySelector(`[data-deep-id="${CSS.escape(item.id)}"] .deep-text-content`);if(live){window.deepAutoFitTextItem(item,live);if(item.editing)window.deepBindTextAutoFit(item,live);}});}}
+                const el=document.createElement('div'); el.className='deep-canvas-item '+(item.type==='media'?'deep-canvas-media ':'')+(item.type==='text'?'deep-canvas-text ':'')+(item.type==='link'?'deep-canvas-link ':'')+(item.id===window.deepCanvasSelected?' deep-canvas-selected ':'')+(item.type==='text' && (window.deepTextTool||item.editing)?' tool-visible':''); el.dataset.deepId=item.id; el.style.left=item.x+'px';el.style.top=item.y+'px';el.style.width=item.w+'px';el.style.height=item.h+'px'; if(['media','text','link'].includes(item.type))el.style.zIndex=String(20+(Number(item.layer)||0)); if(window.deepConnectPending?.includes(item.id))el.classList.add('deep-connect-pending');
+                if(item.type==='text'){el.classList.toggle('has-border',!!item.border);el.classList.toggle('editing',!!item.editing);el.dataset.fontSize=(Math.round((Number(item.fontSize)||18)*10)/10).toString();el.style.borderColor=item.borderColor||'#3b82f6';el.style.fontSize=(item.fontSize||18)+'px';el.style.color=item.color||'#334155';el.style.textAlign=item.textAlign||'left';el.style.opacity='1';el.style.fontWeight=item.bold?'700':'400';el.style.fontStyle=item.italic?'italic':'normal';el.style.textDecoration='none';el.innerHTML=`<div class="deep-text-content">${item.html||window.deepEsc(item.text||'')}</div>`; const tc=el.querySelector('.deep-text-content'); if(tc) tc.contentEditable=item.editing?'true':'false'; if(tc){window.deepApplyCanonicalTextBoxStyle(tc,{editing:!!item.editing,height:item.h});tc.style.fontSize=(item.fontSize||18)+'px';tc.style.opacity=item.opacity??1;tc.style.textAlign=item.textAlign||'left';tc.style.textDecoration=[item.underline?'underline':'',item.strike?'line-through':''].filter(Boolean).join(' ')||'none';tc.style.textUnderlineOffset='0.13em';tc.style.textDecorationThickness='0.06em';tc.style.textDecorationColor='currentColor';tc.style.textDecorationSkipInk='none';;requestAnimationFrame(()=>{const live=document.querySelector(`[data-deep-id="${CSS.escape(item.id)}"] .deep-text-content`);if(live){if(!item._manualResizing)window.deepAutoFitTextItem(item,live);if(item.editing)window.deepBindTextAutoFit(item,live);}});}}
                 else if(item.type==='media'){const c=item.crop||{scale:1,offsetX:0,offsetY:0,stretchX:1,stretchY:1};if(item.mediaKind==='video'){el.innerHTML='';window.deepRenderVideoCover(el,item,false);}else{el.innerHTML=`<img src="${window.deepEsc(item.src)}" alt="深入描述媒体">`;const md=el.firstElementChild;const applyMedia=()=>{if(!md)return;const scale=Math.max(0.01,Number(c.scale)||1);md.style.width='auto';md.style.height='auto';md.style.left='50%';md.style.top='50%';const stretchX=Math.max(.85,Math.min(1.15,Number(c.stretchX)||1)),stretchY=Math.max(.85,Math.min(1.15,Number(c.stretchY)||1));md.style.transform=`translate(-50%,-50%) translate(${Number(c.offsetX)||0}px,${Number(c.offsetY)||0}px) scale(${scale}) scale(${stretchX},${stretchY})`;};if(md.complete)applyMedia();else md.addEventListener('load',applyMedia,{once:true});}}else if(item.type==='link'){const safeUrl=window.deepEsc(item.url||'');const safeLabel=window.deepEsc(item.label||item.url||'网址');el.innerHTML=`<div class="deep-link-inner"><span class="deep-link-icon"><i class="fa-solid fa-globe"></i></span><span class="deep-link-copy"><span class="deep-link-label">${safeLabel}</span><span class="deep-link-url">${safeUrl}</span></span><i class="fa-solid fa-arrow-up-right-from-square text-[11px] text-slate-400"></i></div>`;el.title='双击编辑网址';}else if(item.type==='connector'){ el.remove(); return; }
-                st.appendChild(el); window.deepBindItem(el,item); el.addEventListener('click',e=>{e.stopPropagation(); if(el._deepConnectPicked){el._deepConnectPicked=false;return;} if(window.deepConnectMode){window.deepHandleConnectPick(item);return;} window.deepCanvasSelected=item.id; window.deepUpdateConnectorControls(); window.deepSyncBorderToggle?.(); if(item.type==='text' && window.deepTextTool) window.renderDeepCanvas(false);});
+                st.appendChild(el); window.deepBindItem(el,item); el.addEventListener('click',e=>{e.stopPropagation(); if(el._deepConnectPicked){el._deepConnectPicked=false;return;} if(window.deepConnectMode){window.deepHandleConnectPick(item);return;} window.deepCanvasSelected=item.id; window.deepUpdateConnectorControls(); window.deepSyncBorderToggle?.(); if(item.type==='text' && window.deepTextTool) window.renderDeepCanvas(false); else window.deepPositionTextTools?.();});
                 if(item.type==='media'){ el.addEventListener('dblclick',e=>{ e.preventDefault(); e.stopPropagation(); if(Date.now() < (el._deepSuppressCropUntil||0)) return; window.deepCanvasSelected=item.id; window.deepCropSelected(); }); }
-                if(item.type==='link'){ el.addEventListener('dblclick',e=>{ e.preventDefault(); e.stopPropagation(); window.deepCanvasSelected=item.id; window.deepEditUrl(item); }); }
+                if(item.type==='link'){ el.addEventListener('dblclick',e=>{ e.preventDefault(); e.stopPropagation(); if(window.deepDrawToolsActive)return; window.deepCanvasSelected=item.id; window.deepEditUrl(item); }); }
             });
             window.deepRenderDrawPaths();
             window.deepUpdateConnectors();
             const selectedText=window.deepCanvasState.items.find(x=>x.id===window.deepCanvasSelected&&x.type==='text');if(selectedText)window.deepSyncFontSizeControls(selectedText);
+            window.deepPositionTextTools?.();
+           
             let blankClickTimer=null;
             st.ondblclick=function(e){
                 if(blankClickTimer){clearTimeout(blankClickTimer);blankClickTimer=null;}
@@ -6304,13 +6691,15 @@
                 if(!window.deepTextTool && itemEl?.classList.contains('deep-canvas-media') && itemEl.classList.contains('deep-canvas-selected')){ if(Date.now() < (itemEl._deepSuppressCropUntil||0)) return; const id=itemEl.dataset.deepId; if(id){window.deepCanvasSelected=id;window.deepCropSelected();} }
             };
             st.onclick=function(e){
-                if(window.deepCanvasDrawing||window.deepCanvasErasing||window.deepCanvasSelecting) return;
+                if(window.deepDrawToolsActive||window.deepCanvasDrawing||window.deepCanvasErasing||window.deepCanvasSelecting) return;
                 if(e.target!==st) return;
-                if(window.deepTextTool&&window.deepIsNearTextToolbar?.(e.clientX,e.clientY)){
-                    if(blankClickTimer){clearTimeout(blankClickTimer);blankClickTimer=null;}
+                if(window.deepTextTool && Date.now()<(Number(window.deepSuppressBlankTextClickUntil)||0)){
+                    window.deepSuppressBlankTextClickUntil=0;
+                    window.deepRememberTextSelection?.();
                     return;
                 }
                 window.deepCanvasSelected=null;
+               
                 window.deepCanvasState.items.forEach(x=>x.editing=false);
                 if(window.deepTextTool){
                     if(blankClickTimer) clearTimeout(blankClickTimer);
@@ -6792,6 +7181,7 @@
                 el.style.top=(Number(item.y)||0)+'px';
                 el.style.width=(Number(item.w)||0)+'px';
                 el.style.height=(Number(item.h)||0)+'px';
+                if(['media','text','link'].includes(item.type))el.style.zIndex=String(20+(Number(item.layer)||0));
 
                 if(item.type==='text'){
                     el.className+=' deep-canvas-text';
@@ -6943,7 +7333,7 @@
             viewport.style.cursor='grab';
             let readPan=null,readPanMoved=false,suppressReadClickUntil=0;
             viewport.addEventListener('pointerdown',e=>{
-                if(readPinchActive||e.button!==0||e.target.closest('button,input,select,textarea,a,.deep-video-controls'))return;
+                if(readPinchActive||e.button!==0||e.target.closest('button,input,select,textarea,a,.deep-video-controls,.deep-text-content'))return;
                 readPan={id:e.pointerId,x:e.clientX,y:e.clientY,left:viewport.scrollLeft,top:viewport.scrollTop};readPanMoved=false;
                 // Do not capture immediately: a simple click on media must still reach the media element.
                 viewport.style.cursor='grabbing';
@@ -7923,6 +8313,7 @@
         window.getEditorDescriptionHtml = function() {
             const e = document.getElementById('editDescription');
             if (!e) return '';
+            window.richSyncDecorationGeometry?.();
             e.querySelectorAll('*').forEach((el) => {
                 if (el.nodeType !== 1) return;
                 if (el.style) {
@@ -8082,25 +8473,42 @@
                 sel.removeAllRanges(); sel.addRange(r); e.focus(); return true;
             }catch(_){return false;}
         };
+        window.richSyncDecorationGeometry=function(){
+            const root=document.getElementById('editDescription');
+            if(!root)return;
+            const nodes=root.querySelectorAll('u,s,strike,[style*="underline"],[style*="line-through"]');
+            nodes.forEach(el=>{
+                const walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);
+                let n,maxSize=0,firstColor='';
+                while((n=walker.nextNode())){
+                    if(!(n.nodeValue||'').length)continue;
+                    const p=n.parentElement;if(!p)continue;
+                    const cs=getComputedStyle(p);
+                    const fs=parseFloat(cs.fontSize);
+                    if(Number.isFinite(fs))maxSize=Math.max(maxSize,fs);
+                    if(!firstColor)firstColor=cs.color||'';
+                }
+                if(maxSize>0)el.style.setProperty('font-size',maxSize+'px','important');
+                el.style.setProperty('text-decoration-thickness','0.06em','important');
+                el.style.setProperty('text-underline-offset','0.13em','important');
+                el.style.setProperty('text-decoration-color',firstColor||'currentColor','important');
+                el.style.setProperty('text-decoration-skip-ink','auto','important');
+            });
+        };
         window.richSyncDecorationColor = function() {
-            const e = document.getElementById('editDescription');
-            const sel = window.getSelection();
-            if (!e || !sel || !sel.rangeCount) return;
-            const range = sel.getRangeAt(0);
-            const apply = (el) => {
-                if (!el || el.nodeType !== 1 || !e.contains(el)) return;
-                try {
-                    if (!range.intersectsNode(el)) return;
-                } catch (_) { return; }
-                const cs = window.getComputedStyle(el);
-                const dec = (cs.textDecorationLine || cs.textDecoration || '') + '';
-                if (/underline|line-through/i.test(dec) || el.tagName === 'U' || el.tagName === 'S' || el.tagName === 'STRIKE') {
-                    el.style.textDecorationColor = 'currentColor';
+            const e=document.getElementById('editDescription');if(!e)return;
+            const apply=(el)=>{
+                if(!el||el.nodeType!==1)return;
+                const deco=String(getComputedStyle(el).textDecorationLine||el.style.textDecorationLine||el.style.textDecoration||'');
+                if(el.matches?.('u,s,strike')||deco.includes('underline')||deco.includes('line-through')){
+                    el.style.setProperty('text-decoration-color','currentColor','important');
+                    el.style.setProperty('text-decoration-thickness','0.06em','important');
+                    el.style.setProperty('text-underline-offset','0.13em','important');
+                    el.style.setProperty('text-decoration-skip-ink','auto','important');
                 }
             };
-            if (range.commonAncestorContainer.nodeType === 1) apply(range.commonAncestorContainer);
-            e.querySelectorAll('u,s,strike,[style*="underline"],[style*="line-through"]').forEach(apply);
-            e.querySelectorAll('*').forEach(apply);
+            apply(e);e.querySelectorAll('*').forEach(apply);
+            window.richSyncDecorationGeometry?.();
         };
         window.richExec=function(cmd,val=null){
             const e=document.getElementById('editDescription');if(!e||!window.richRestoreSelection())return;
@@ -8123,6 +8531,7 @@
             const fixed=window.applyExactFontSizeToSelection?.(e,r,n);
             if(!fixed)return;
             window.richSelectionRange=fixed.cloneRange();
+            window.richSyncDecorationGeometry?.();
             const custom=document.getElementById('richFontSizeCustom');
             if(custom)custom.value=String(Math.round(n*10)/10);
             window.richRememberSelection();
