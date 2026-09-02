@@ -218,6 +218,21 @@
         .media-drag-item.media-dragging { opacity: .45; transform: scale(.985); }
         .node-title-area.conn-label-overlap-dim { opacity: .28 !important; transition: opacity .2s ease; }
         .rich-color-choice.is-selected { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #6366f1 !important; transform: scale(1.08); }
+
+        .selected-text-format-active {
+            background: #eef2ff !important;
+            border-color: #818cf8 !important;
+            color: #4338ca !important;
+            box-shadow: inset 0 0 0 1px rgba(99,102,241,.12);
+        }
+
+        #richBoldBtn:disabled,#richItalicBtn:disabled,#richUnderlineBtn:disabled,#richStrikeBtn:disabled,#richRevealBtn:disabled,#richFontSizePreset:disabled,#richColorBtn:disabled,#richClearFormattingBtn:disabled,
+        .deep-selection-text-control:disabled { opacity:.4; cursor:not-allowed; }
+
+#richOpacityRange:disabled {
+            opacity: .55 !important;
+            cursor: not-allowed !important;
+        }
         #editDescription.rich-editor { min-height: 150px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.75; }
         #editDescription.rich-editor, #editDescription.rich-editor * {
             text-decoration-color: currentColor !important;
@@ -253,6 +268,14 @@
             cursor: default;
         }
         .event-description-html [data-rich-reveal]:hover {
+            opacity: 1 !important;
+        }
+        .stack-description-html [data-rich-reveal] {
+            opacity: 0 !important;
+            transition: opacity 0.2s ease;
+            border-bottom: 1px dotted rgba(100, 116, 139, 0.45);
+        }
+        .stack-description-html [data-rich-reveal]:hover {
             opacity: 1 !important;
         }
         
@@ -333,6 +356,34 @@
         .deep-canvas-text.editing .deep-canvas-handle, .deep-canvas-text.tool-visible .deep-canvas-handle { display:none; }
 
         .deep-color-choice.is-picked { box-shadow:0 0 0 2px #fff,0 0 0 4px #4f46e5 !important; transform:scale(1.12); position:relative; z-index:2; } .deep-color-choice.is-picked::after{content:'✓';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;text-shadow:0 1px 2px #000;font-size:12px;font-weight:800;} .deep-color-choice[title='#ffffff'].is-picked::after{color:#111;text-shadow:none;}
+#deepTextOpacity:disabled {
+            opacity:.55;
+            cursor:not-allowed;
+        }
+        .deep-video-cover-layer {
+            position:absolute; inset:0; overflow:hidden; background:#0f172a;
+        }
+        .deep-video-cover-layer > img {
+            width:100% !important; height:100% !important; inset:0 !important;
+            max-width:none !important; max-height:none !important;
+            object-fit:cover; position:absolute !important; transform:none !important;
+            background:#0f172a;
+        }
+        .deep-video-cover-placeholder {
+            position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+            background:linear-gradient(135deg,#1e293b,#0f172a); color:#cbd5e1; font-size:12px;
+        }
+        .deep-video-cover-play {
+            position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+            width:46px; height:46px; border-radius:9999px; border:1px solid rgba(255,255,255,.3);
+            background:rgba(15,23,42,.78); color:#fff; display:flex; align-items:center; justify-content:center;
+            z-index:34; cursor:pointer; pointer-events:auto; box-shadow:0 6px 18px rgba(0,0,0,.25);
+        }
+        .deep-video-cover-edit {
+            position:absolute; right:8px; top:8px; z-index:36; pointer-events:auto;
+            padding:5px 8px; border-radius:8px; border:1px solid rgba(255,255,255,.35);
+            background:rgba(15,23,42,.78); color:#fff; font-size:10px; font-weight:700;
+        }
         .deep-canvas-toolbar button.active { background:#e0e7ff; color:#4338ca; border-color:#a5b4fc; }
         .deep-draw-mode-btn { width:34px; height:34px; border-radius:9999px; display:inline-flex; align-items:center; justify-content:center; border:1px solid #cbd5e1; background:#fff; color:#64748b; transition:.15s ease; }
         .deep-draw-mode-btn.active { background:#eef2ff; color:#4338ca; border-color:#818cf8; box-shadow:0 0 0 2px rgba(99,102,241,.10); }
@@ -850,19 +901,21 @@
             </div>
             <div id="helpChangelogPanel" class="hidden overflow-y-auto p-5 text-xs text-slate-600 leading-relaxed">
                 <div class="border border-green-300 rounded-xl p-4 bg-green-50">
-                    <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.01</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">本次更新</span></div>
+                    <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.02</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">本次更新</span></div>
                     <div class="space-y-2 leading-7 mb-3">
-                        <p>优化了画笔图形矫正的识别效果</p>
-                        <p>增加了画笔笔迹选中与移动功能</p>
-                        <p>优化了画笔工具的操作界面</p>
-                        <p>优化了深入描述媒体截选区域的显示效果</p>
+                        <p>优化了详细描述与深入描述中文字样式设置及透明度调整的功能</p>
+                        <p>优化了同期事件集合中详细描述预览与编辑后实时更新的功能</p>
+                        <p>增加了深入描述中视频封面截选与封面显示的功能</p>
+                        <p>修复了深入描述编辑模式下视频无法播放的问题</p>
+                        <p>增加了移动端仅能使用浏览模式的功能</p>
                     </div>
-                    <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.30</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>优化了事件详情页功能</p><p>增加了大图快捷切换的功能</p><p>修复了感谢名单无法显示的问题</p><p>优化了深入描述截选功能</p><p>优化了画笔功能</p><p>增加了橡皮擦的功能</p><p>优化了使用说明功能</p></div></div>
-                    <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.29</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>修复了网址二次编辑窗口层级异常的问题</p><p>优化了深入描述文字工具功能</p></div></div>
-                    <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.27</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>增加了深入描述的功能</p><p>增加了详细描述悬停显现的功能</p><p>优化了时间线预览功能</p><p>优化了详细描述文字样式功能</p><p>修复了浏览模式详情页文字显示异常的问题</p><p>移除了时间线预览播放视频前展示封面的功能</p></div></div>
-                    <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.26</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>增加了事件详情页大图查看时视频状态处理的功能</p><p>优化了日期输入功能</p><p>优化了时间线边缘自动滑动功能</p><p>修复了添加图片后时间线预览图无法显示的问题</p><p>增加了媒体拖拽排序的功能</p><p>增加了视频预览时长独立调整的功能</p></div></div>
-                    <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.25</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>优化了同期事件集合功能</p><p>优化了时间线边缘滑动功能</p><p>增加了离线模式自动加载预置数据包的功能</p><p>修复了离线模式时间线边缘滑动失效的问题</p><p>修复了事件预览与集合卡片显示异常的问题</p><p>修复了云端 CDN 受限时页面空白的问题</p></div></div>
-                    <div class="border-t border-green-200 pt-3 text-slate-500"><div class="flex items-center gap-2 mb-1"><span class="font-bold text-indigo-700">2026.08.24</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-1 leading-7"><p>修复了退出事件详情页后视频仍继续播放的问题</p><p>移除了时间线视图右侧连线按钮的功能</p><p>增加了视频附件标题编辑的功能</p></div></div>
+                    <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.01</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>优化了画笔图形矫正的功能</p><p>增加了画笔笔迹选中与移动的功能</p><p>优化了画笔工具界面的功能</p><p>优化了深入描述中媒体截选区域显示的功能</p></div></div>
+                    <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.30</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>优化了事件详情页功能</p><p>增加了事件详情页中大图快捷切换的功能</p><p>修复了感谢名单无法显示的问题</p><p>优化了深入描述中媒体截选的功能</p><p>优化了画笔功能</p><p>增加了画笔中橡皮擦的功能</p><p>优化了使用说明功能</p></div></div>
+                    <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.29</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>修复了网址二次编辑窗口层级异常的问题</p><p>优化了深入描述中文字工具的功能</p></div></div>
+                    <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.27</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>增加了深入描述功能</p><p>增加了详细描述中文字悬停显现的功能</p><p>优化了时间线预览功能</p><p>优化了详细描述中文字样式设置的功能</p><p>修复了浏览模式详情页文字显示异常的问题</p><p>移除了时间线预览中播放视频前展示封面的功能</p></div></div>
+                    <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.26</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>增加了事件详情页大图查看时视频状态处理的功能</p><p>优化了日期输入功能</p><p>优化了时间线边缘自动滑动的功能</p><p>修复了添加图片后时间线预览图无法显示的问题</p><p>增加了媒体拖拽排序的功能</p><p>增加了视频预览时长独立调整的功能</p></div></div>
+                    <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.25</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>优化了同期事件集合功能</p><p>优化了时间线边缘滑动的功能</p><p>增加了离线模式中自动加载预置数据包的功能</p><p>修复了离线模式下时间线边缘滑动失效的问题</p><p>修复了事件预览与同期事件集合卡片显示异常的问题</p><p>修复了云端 CDN 受限时页面空白的问题</p></div></div>
+                    <div class="border-t border-green-200 pt-3 text-slate-500"><div class="flex items-center gap-2 mb-1"><span class="font-bold text-indigo-700">2026.08.24</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-1 leading-7"><p>修复了退出事件详情页后视频仍继续播放的问题</p><p>移除了时间线视图中右侧连线按钮的功能</p><p>增加了视频附件中标题编辑的功能</p></div></div>
                 </div>
             </div>
             <div id="helpThanksPanel" class="hidden overflow-y-auto p-5 text-xs text-slate-600 leading-relaxed">
@@ -953,10 +1006,28 @@
         window.lastVideoPlayingState = false;
         window.bgmVolume = 0.7;
         
+        window.isMobileEditingDevice = function() {
+            const ua=navigator.userAgent||'';
+            const touchPoints=navigator.maxTouchPoints||0;
+            const uaMobile=!!navigator.userAgentData?.mobile;
+            const appleTouchDesktop=/Macintosh/i.test(ua)&&touchPoints>1;
+            const phoneTabletUA=/Android|iPhone|iPad|iPod|Mobile|Tablet|Silk|Kindle/i.test(ua);
+            const coarsePrimary=touchPoints>0 && !!window.matchMedia?.('(pointer: coarse)')?.matches;
+            const noFinePointer=touchPoints>0 && !!window.matchMedia?.('(any-pointer: coarse)')?.matches && !window.matchMedia?.('(any-pointer: fine)')?.matches;
+            return uaMobile||phoneTabletUA||appleTouchDesktop||coarsePrimary||noFinePointer;
+        };
+        window.forceMobileBrowseMode = function() {
+            if(!window.isMobileEditingDevice())return false;
+            window.isLocked=true;
+            try{localStorage.setItem('yuhoutianqing_isLocked','true');}catch(_){}
+            document.documentElement.setAttribute('data-mobile-browse-only','true');
+            return true;
+        };
         window.isLocked = localStorage.getItem('yuhoutianqing_isLocked') === 'false' ? false : true;
+        window.forceMobileBrowseMode();
         window.isCloudSynced = false;
         try { localStorage.removeItem('yuhoutianqing_pending_events'); } catch (_) {}
-        window.canEditNow = function() { return !window.isLocked && window.isCloudSynced; };
+        window.canEditNow = function() { return !window.isMobileEditingDevice() && !window.isLocked && window.isCloudSynced; };
         
         if (!localStorage.getItem('yuhoutianqing_lockPassword')) {
             localStorage.setItem('yuhoutianqing_lockPassword', 'tingyu1938');
@@ -2547,9 +2618,10 @@
         }
 
         window.updateLockButtonUI = function() {
+            const mobileBrowseOnly=!!window.forceMobileBrowseMode?.();
             const lockBtn = document.getElementById('lockToggleBtn');
             const shareBtn = document.getElementById('shareCollabBtn');
-            const shareEnabled = !window.isLocked && window.isCloudSynced;
+            const shareEnabled = !mobileBrowseOnly && !window.isLocked && window.isCloudSynced;
             if (shareBtn) {
                 shareBtn.disabled = !shareEnabled;
                 shareBtn.className = shareEnabled
@@ -2557,15 +2629,23 @@
                     : "px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-medium border border-slate-200 bg-slate-100 text-slate-400 flex items-center gap-1 transition-all shadow-sm cursor-not-allowed";
             }
             if (!lockBtn) return;
-            if (!window.isCloudSynced) {
+            if (mobileBrowseOnly) {
+                lockBtn.className = "flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs font-medium transition-all shadow-sm border bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-80";
+                lockBtn.innerHTML = `<i class="fa-solid fa-lock text-slate-400"></i><span class="hidden sm:inline">浏览模式</span><span class="sm:hidden">浏览</span>`;
+                lockBtn.title = "移动端固定为浏览模式，编辑模式仅限电脑端";
+                lockBtn.disabled = true;
+            } else if (!window.isCloudSynced) {
+                lockBtn.title = "";
                 lockBtn.className = "flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs font-medium transition-all shadow-sm border bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed";
                 lockBtn.innerHTML = `<i class="fa-solid fa-cloud-arrow-down text-slate-400"></i><span class="hidden sm:inline">等待同步</span><span class="sm:hidden">同步中</span>`;
                 lockBtn.disabled = true;
             } else if (window.isLocked) {
+                lockBtn.title = "";
                 lockBtn.disabled = false;
                 lockBtn.className = "flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs font-medium transition-all shadow-sm border bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100";
                 lockBtn.innerHTML = `<i class="fa-solid fa-lock text-amber-600"></i><span class="hidden sm:inline">浏览模式</span><span class="sm:hidden">浏览</span>`;
             } else {
+                lockBtn.title = "";
                 lockBtn.disabled = false;
                 lockBtn.className = "flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs font-medium transition-all shadow-sm border bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100";
                 lockBtn.innerHTML = `<i class="fa-solid fa-lock-open text-emerald-600"></i><span class="hidden sm:inline">编辑模式</span><span class="sm:hidden">编辑</span>`;
@@ -2573,7 +2653,24 @@
             window.updateOfflineDataMismatchNotice?.();
         };
 
+        if(!window._mobileBrowseForceBound){
+            window._mobileBrowseForceBound=true;
+            const enforceMobileBrowse=()=>{
+                if(window.forceMobileBrowseMode?.()){
+                    window.isLocked=true;
+                    try{localStorage.setItem('yuhoutianqing_isLocked','true');}catch(_){}
+                    window.updateLockButtonUI?.();
+                }
+            };
+            if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',enforceMobileBrowse,{once:true});
+            else enforceMobileBrowse();
+            window.addEventListener('pageshow',enforceMobileBrowse);
+            window.addEventListener('focus',enforceMobileBrowse);
+            window.addEventListener('resize',enforceMobileBrowse);
+        }
+
         window.toggleLockState = function() {
+            if (window.forceMobileBrowseMode?.()) { window.updateLockButtonUI?.(); return; }
             if (!window.isCloudSynced) {
                 window.showToast('请先等待右上角显示"已同步云端"', 'error');
                 return;
@@ -2589,6 +2686,7 @@
         };
 
         window.openPwdModal = function() {
+            if (window.forceMobileBrowseMode?.()) { window.updateLockButtonUI?.(); return; }
             const pwdInput = document.getElementById('unlockPwdInput');
             if (pwdInput) pwdInput.value = '';
             document.getElementById('pwdModal')?.classList.remove('hidden');
@@ -2600,6 +2698,11 @@
         };
 
         window.submitUnlockPassword = function() {
+            if (window.forceMobileBrowseMode?.()) {
+                window.closePwdModal();
+                window.updateLockButtonUI?.();
+                return;
+            }
             if (!window.isCloudSynced) {
                 window.showToast('请先等待右上角显示"已同步云端"后再进入编辑模式', 'error');
                 return;
@@ -3436,7 +3539,7 @@
                                         <div>
                                             <span class="text-[10px] font-mono text-indigo-600 font-semibold bg-indigo-50 px-2 py-0.5 rounded-full">${window.formatDisplayDate(event.date)}</span>
                                             <h4 class="font-bold text-slate-800 text-sm mt-1.5 line-clamp-1">${event.title}</h4>
-                                            <p class="text-[11px] text-slate-500 line-clamp-2 mt-1 leading-relaxed">${event.description || '暂无详细描述'}</p>
+                                            <div class="stack-description-html text-[11px] text-slate-500 line-clamp-2 mt-1 leading-relaxed">${window.getDescriptionFirstParagraphHtml(event.description)}</div>
                                         </div>
                                         <div class="text-[10px] text-indigo-600 font-medium flex items-center gap-1 pt-2 border-t border-slate-100">
                                             <i class="fa-solid fa-arrow-pointer"></i> 点击进入详情
@@ -4536,17 +4639,17 @@
                     <div class="relative"><button type="button" onclick="deepToggleDraw()" id="deepDrawBtn" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs"><i class="fa-solid fa-pencil mr-1"></i>画笔</button><div id="deepDrawPanel" class="hidden absolute left-0 top-9 z-[270] w-72 p-3 bg-white border border-slate-200 rounded-xl shadow-xl"><div class="text-[10px] font-semibold text-slate-500 mb-2">画笔设置</div><div class="flex items-center justify-center gap-3 mb-2"><button type="button" id="deepDrawModePen" onclick="deepSetDrawSubtool('pen')" class="deep-draw-mode-btn active" title="画笔"><i class="fa-solid fa-pencil"></i></button><button type="button" id="deepDrawModeEraser" onclick="deepSetDrawSubtool('eraser')" class="deep-draw-mode-btn" title="橡皮擦"><i class="fa-solid fa-eraser"></i></button><button type="button" id="deepDrawModeSelect" onclick="deepSetDrawSubtool('select')" class="deep-draw-mode-btn" title="选中移动"><i class="fa-solid fa-arrow-pointer"></i></button></div><div id="deepDrawSelectHint" class="hidden mb-3 rounded-lg bg-slate-50 border border-slate-200 px-2.5 py-2 text-[10px] leading-5 text-slate-500">单击选择一整笔，再次拖动可移动。圈选可移动局部内容。</div><label id="deepDrawSharedSizeRow" class="text-[10px] text-slate-500 flex items-center gap-2 mb-3"><span id="deepDrawSharedSizeLabel">画笔大小</span><input id="deepDrawSharedSize" type="range" min="1" max="24" step="1" value="4" oninput="deepSetSharedDrawSize(this.value)" class="flex-1"><span id="deepDrawSharedSizeValue" class="w-7 text-right font-mono">4</span></label><button type="button" id="deepDrawShapeAssistBtn" onclick="deepToggleDrawShapeAssist()" class="mb-3 px-1.5 py-1 rounded-md text-[10px] font-semibold text-slate-600 flex items-center gap-1.5"><span class="deep-draw-shape-switch"></span><span>图形矫正</span></button><div id="deepDrawPenOptions"><div class="text-[10px] text-slate-500 mb-2 flex items-center gap-2"><span>颜色</span><span id="deepDrawColorSwatch" class="inline-block w-4 h-4 rounded-full border border-slate-200" style="background:#334155"></span></div><div id="deepDrawColorPalette"><div class="grid grid-cols-7 gap-2">${['#0f172a','#334155','#64748b','#dc2626','#ea580c','#f59e0b','#16a34a','#059669','#0284c7','#2563eb','#4f46e5','#7c3aed','#db2777','#ffffff'].map(c=>`<button type="button" onclick="deepPickDrawColor('${c}')" class="w-6 h-6 rounded-full border border-slate-200 deep-color-choice" style="background:${c}" title="${c}"></button>`).join('')}</div><div class="flex items-center gap-2 mt-3 pt-2 border-t"><span class="text-[10px] text-slate-500">自定义</span><input id="deepDrawCustomColor" type="color" value="#334155" onchange="deepPickDrawColor(this.value)" class="w-7 h-7 p-0 border-0"><button type="button" onclick="deepApplyDrawCustomColor()" class="ml-auto px-2 py-1 rounded bg-indigo-600 text-white text-[10px]">使用</button></div></div></div></div></div>
                     <button type="button" onclick="deepToggleTextTool()" id="deepTextToolBtn" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs"><i class="fa-solid fa-font mr-1"></i>文字</button>
                     <div id="deepTextTools" class="deep-toolbar-expand">
-                    <label class="text-[10px] text-slate-500 flex items-center gap-1">字号<select id="deepFontSize" data-deep-text-control onmousedown="deepRememberTextSelection(event)" onchange="deepSetFontSizeControl(this.value)" class="h-7 border rounded-md bg-white"><option value="">常用</option><option value="10">10</option><option value="12">12</option><option value="14">14</option><option value="16">16</option><option value="18" selected>18（默认大小）</option><option value="20">20</option><option value="24">24</option><option value="28">28</option><option value="32">32</option><option value="36">36</option><option value="40">40</option><option value="48">48</option><option value="56">56</option><option value="64">64</option><option value="72">72</option></select><input id="deepFontSizeCustom" data-deep-text-control type="number" min="6" max="240" step="0.1" value="18" onmousedown="deepRememberTextSelection(event)" onchange="deepSetFontSizeControl(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}" class="h-7 w-16 border rounded-md bg-white px-1.5 font-mono text-[10px]" title="实际字号，可输入任意数值"><span class="font-mono text-[10px] text-slate-400">px</span></label>
-                    <button type="button" data-deep-text-control onmousedown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('bold')" class="px-2 py-1 bg-white border rounded text-xs font-bold">B</button>
-                    <button type="button" data-deep-text-control onmousedown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('italic')" class="px-2 py-1 bg-white border rounded text-xs italic">I</button>
-                    <button type="button" data-deep-text-control onmousedown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('underline')" class="px-2 py-1 bg-white border rounded text-xs underline">U</button>
-                    <button type="button" data-deep-text-control onmousedown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('strike')" class="px-2 py-1 bg-white border rounded text-xs line-through">S</button>
-                    <button type="button" data-deep-text-control onclick="deepApplyTextStyle('align','left')" class="px-2 py-1 bg-white border rounded text-xs" title="左对齐"><i class="fa-solid fa-align-left"></i></button>
-                    <button type="button" data-deep-text-control onclick="deepApplyTextStyle('align','center')" class="px-2 py-1 bg-white border rounded text-xs" title="居中"><i class="fa-solid fa-align-center"></i></button>
-                    <button type="button" data-deep-text-control onclick="deepApplyTextStyle('align','right')" class="px-2 py-1 bg-white border rounded text-xs" title="右对齐"><i class="fa-solid fa-align-right"></i></button>
-                    <div class="relative"><button type="button" data-deep-text-control onmousedown="deepRememberTextSelection(event)" onclick="deepOpenColorPalette('text')" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs"><span id="deepTextColorSwatch" class="inline-block w-3 h-3 rounded-full mr-1 align-[-1px]" style="background:#334155"></span>文字颜色</button><div id="deepTextColorPalette" class="hidden absolute left-0 top-9 z-[260] w-64 p-3 bg-white border border-slate-200 rounded-xl shadow-xl"><div class="text-[10px] font-semibold text-slate-500 mb-2">固定色 / 自定义</div><div class="grid grid-cols-7 gap-2">${['#0f172a','#334155','#64748b','#dc2626','#ea580c','#f59e0b','#16a34a','#059669','#0284c7','#2563eb','#4f46e5','#7c3aed','#db2777','#ffffff'].map(c=>`<button type="button" onclick="deepPickColor('text','${c}')" class="w-6 h-6 rounded-full border border-slate-200 deep-color-choice" style="background:${c}" title="${c}"></button>`).join('')}</div><div class="flex items-center gap-2 mt-3 pt-2 border-t"><span class="text-[10px] text-slate-500">自定义</span><input id="deepTextCustomColor" type="color" value="#334155" onchange="deepPickColor('text',this.value)" class="w-7 h-7 p-0 border-0"><button type="button" onclick="deepPickColor('text',document.getElementById('deepTextCustomColor').value)" class="ml-auto px-2 py-1 rounded bg-indigo-600 text-white text-[10px]">使用</button></div></div></div>
+                    <label class="text-[10px] text-slate-500 flex items-center gap-1">字号<select id="deepFontSize" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onchange="deepSetFontSizeControl(this.value)" class="deep-selection-text-control h-7 border rounded-md bg-white"><option value="">常用</option><option value="10">10</option><option value="12">12</option><option value="14">14</option><option value="16">16</option><option value="18" selected>18（默认大小）</option><option value="20">20</option><option value="24">24</option><option value="28">28</option><option value="32">32</option><option value="36">36</option><option value="40">40</option><option value="48">48</option><option value="56">56</option><option value="64">64</option><option value="72">72</option></select><input id="deepFontSizeCustom" disabled data-deep-text-control data-deep-selection-only type="number" min="6" max="240" step="0.1" value="18" onmousedown="deepRememberTextSelection(event)" onchange="deepSetFontSizeControl(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}" class="deep-selection-text-control h-7 w-16 border rounded-md bg-white px-1.5 font-mono text-[10px]" title="实际字号，可输入任意数值"><span class="font-mono text-[10px] text-slate-400">px</span></label>
+                    <button id="deepBoldBtn" type="button" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('bold')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs font-bold">B</button>
+                    <button id="deepItalicBtn" type="button" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('italic')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs italic">I</button>
+                    <button id="deepUnderlineBtn" type="button" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('underline')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs underline">U</button>
+                    <button id="deepStrikeBtn" type="button" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('strike')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs line-through">S</button>
+                    <button id="deepAlignLeftBtn" type="button" disabled data-deep-text-control data-deep-selection-only onclick="deepApplyTextStyle('align','left')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs" title="左对齐"><i class="fa-solid fa-align-left"></i></button>
+                    <button id="deepAlignCenterBtn" type="button" disabled data-deep-text-control data-deep-selection-only onclick="deepApplyTextStyle('align','center')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs" title="居中"><i class="fa-solid fa-align-center"></i></button>
+                    <button id="deepAlignRightBtn" type="button" disabled data-deep-text-control data-deep-selection-only onclick="deepApplyTextStyle('align','right')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs" title="右对齐"><i class="fa-solid fa-align-right"></i></button>
+                    <div class="relative"><button id="deepTextColorBtn" type="button" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onclick="deepOpenColorPalette('text')" class="deep-selection-text-control px-2.5 py-1.5 bg-white border rounded-lg text-xs"><span id="deepTextColorSwatch" class="inline-block w-3 h-3 rounded-full mr-1 align-[-1px]" style="background:#334155"></span>文字颜色</button><div id="deepTextColorPalette" class="hidden absolute left-0 top-9 z-[260] w-64 p-3 bg-white border border-slate-200 rounded-xl shadow-xl"><div class="text-[10px] font-semibold text-slate-500 mb-2">固定色 / 自定义</div><div class="grid grid-cols-7 gap-2">${['#0f172a','#334155','#64748b','#dc2626','#ea580c','#f59e0b','#16a34a','#059669','#0284c7','#2563eb','#4f46e5','#7c3aed','#db2777','#ffffff'].map(c=>`<button type="button" onclick="deepPickColor('text','${c}')" class="w-6 h-6 rounded-full border border-slate-200 deep-color-choice" style="background:${c}" title="${c}"></button>`).join('')}</div><div class="flex items-center gap-2 mt-3 pt-2 border-t"><span class="text-[10px] text-slate-500">自定义</span><input id="deepTextCustomColor" type="color" value="#334155" onchange="deepPickColor('text',this.value)" class="w-7 h-7 p-0 border-0"><button type="button" onclick="deepPickColor('text',document.getElementById('deepTextCustomColor').value)" class="ml-auto px-2 py-1 rounded bg-indigo-600 text-white text-[10px]">使用</button></div></div></div>
                     <div class="relative"><button type="button" data-deep-text-control onmousedown="deepRememberTextSelection(event)" onclick="deepOpenColorPalette('border')" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs"><span id="deepBorderColorSwatch" class="inline-block w-3 h-3 rounded-sm mr-1 align-[-1px] border-2" style="border-color:#3b82f6"></span>文字框边框</button><div id="deepBorderColorPalette" class="hidden absolute left-0 top-9 z-[260] w-64 p-3 bg-white border border-slate-200 rounded-xl shadow-xl"><div class="text-[10px] font-semibold text-slate-500 mb-2">边框固定色 / 自定义</div><div class="grid grid-cols-7 gap-2">${['#0f172a','#334155','#64748b','#dc2626','#ea580c','#f59e0b','#16a34a','#059669','#0284c7','#2563eb','#4f46e5','#7c3aed','#db2777','#ffffff'].map(c=>`<button type="button" onclick="deepPickColor('border','${c}')" class="w-6 h-6 rounded-full border border-slate-200 deep-color-choice" style="background:${c}" title="${c}"></button>`).join('')}</div><div class="flex items-center gap-2 mt-3 pt-2 border-t"><span class="text-[10px] text-slate-500">自定义</span><input id="deepBorderCustomColor" type="color" value="#3b82f6" onchange="deepPickColor('border',this.value)" class="w-7 h-7 p-0 border-0"><button type="button" onclick="deepPickColor('border',document.getElementById('deepBorderCustomColor').value)" class="ml-auto px-2 py-1 rounded bg-indigo-600 text-white text-[10px]">使用</button></div><button type="button" id="deepBorderToggleBtn" onclick="deepApplyTextStyle('borderToggle')" class="mt-3 w-full px-2 py-1.5 rounded-lg border text-[10px] transition-all">显示边框：关</button></div></div>
-                    <label class="text-[10px] text-slate-500 flex items-center gap-1">透明度<input id="deepTextOpacity" data-deep-text-control type="range" min="0" max="100" value="100" oninput="deepApplyTextStyle('opacity',this.value)" class="w-16"></label>
+                    <label class="text-[10px] text-slate-500 flex items-center gap-1">透明度<input id="deepTextOpacity" data-deep-text-control data-deep-selection-only type="range" min="0" max="100" value="100" disabled onmousedown="deepRememberTextSelection(event)" oninput="deepApplyTextStyle('opacity',this.value)" class="deep-selection-text-control w-16"><span id="deepTextOpacityValue" class="w-5 text-right font-mono text-slate-400">—</span></label>
                     </div>
                     <button type="button" onclick="deepDeleteSelected()" class="ml-auto px-2.5 py-1.5 bg-rose-50 border border-rose-200 text-rose-600 rounded-lg text-xs">删除选中</button>
                 </div>
@@ -4606,6 +4709,14 @@
             const clean=window.deepClone(st); clean.version=Math.max(3,Number(clean.version)||3); clean.width=Math.max(800,Number(clean.width)||2600); clean.height=Math.max(600,Number(clean.height)||1600); clean.items=(clean.items||[]).filter(x=>x.type!=='arrow').map(x=>{delete x._curveUndo;return x;}); clean.enabled=true; obj.deepDescription=window.deepCanvasHasContent(clean)?clean:null;
             if(t.type==='image')window.renderMicroPreviews();else window.renderVideoPreviews();
             window.closeDeepDescriptionEditor(); window.showToast(obj.deepDescription?'深入描述已保存并启用':'画布为空，已视为未添加深入描述','success');
+        };
+        window.deepIsNearTextToolbar=function(clientX,clientY){
+            if(!window.deepTextTool)return false;
+            const tools=document.getElementById('deepTextTools');
+            if(!tools||!tools.classList.contains('is-open'))return false;
+            const r=tools.getBoundingClientRect();
+            const padX=34,padTop=18,padBottom=58;
+            return clientX>=r.left-padX&&clientX<=r.right+padX&&clientY>=r.top-padTop&&clientY<=r.bottom+padBottom;
         };
         window.deepSetTextToolsExpanded=function(open){
             const tools=document.getElementById('deepTextTools');
@@ -4948,6 +5059,7 @@
             });
         };
         window.deepOpenColorPalette=function(kind){
+            if(kind==='text'&&!window.deepSavedTextRange)return;
             if((kind==='text'||kind==='border') && !window.deepTextTool) return;
             const id='deep'+(kind==='text'?'Text':kind==='border'?'Border':'Draw')+'ColorPalette';
             const p=document.getElementById(id); if(!p)return;
@@ -4991,15 +5103,215 @@
             tip.textContent='实际字号 '+px+'px';
             tip.style.left=(x+12)+'px';tip.style.top=(y-28)+'px';tip.classList.remove('hidden');
         };
+        
+        window.getSelectedTextNodesReadOnly=function(root,range){
+            if(!root||!range||range.collapsed)return [];
+            const nodes=[],walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
+            let node;
+            while((node=walker.nextNode())){
+                const raw=node.nodeValue||'';
+                if(!raw.length)continue;
+                let hit=false;
+                try{hit=range.intersectsNode(node);}catch(_){hit=false;}
+                if(!hit)continue;
+                let from=0,to=raw.length;
+                if(range.startContainer===node)from=Math.max(0,Math.min(raw.length,range.startOffset));
+                if(range.endContainer===node)to=Math.max(0,Math.min(raw.length,range.endOffset));
+                if(to<=from)continue;
+                // Ignore structural whitespace/newline-only text nodes. They must not
+                // decide font-size or style feedback for the visible selected text.
+                if(!raw.slice(from,to).replace(/[\s\u200B\uFEFF]/g,''))continue;
+                nodes.push(node);
+            }
+            return nodes;
+        };
+        window.getTextNodeFormatReadOnly=function(node,root,kind){
+            if(!node||!root)return false;
+            let el=node.nodeType===1?node:node.parentElement;
+            while(el&&root.contains(el)){
+                const tag=(el.tagName||'').toLowerCase();
+                const cs=getComputedStyle(el);
+                if(kind==='bold'){
+                    const n=parseInt(cs.fontWeight,10);
+                    if(tag==='b'||tag==='strong'||cs.fontWeight==='bold'||(Number.isFinite(n)&&n>=600))return true;
+                }else if(kind==='italic'){
+                    if(tag==='i'||tag==='em'||cs.fontStyle==='italic'||cs.fontStyle==='oblique')return true;
+                }else if(kind==='underline'){
+                    const d=((cs.textDecorationLine||'')+' '+(cs.textDecoration||'')).toLowerCase();
+                    if(tag==='u'||d.includes('underline'))return true;
+                }else if(kind==='strike'){
+                    const d=((cs.textDecorationLine||'')+' '+(cs.textDecoration||'')).toLowerCase();
+                    if(tag==='s'||tag==='strike'||tag==='del'||d.includes('line-through'))return true;
+                }
+                if(el===root)break;
+                el=el.parentElement;
+            }
+            return false;
+        };
+        window.getUniformSelectedFontSizeReadOnly=function(root,range){
+            const nodes=window.getSelectedTextNodesReadOnly?.(root,range)||[];
+            if(!nodes.length)return {valid:false,mixed:false,size:null};
+            const sizes=nodes.map(n=>parseFloat(getComputedStyle(n.parentElement||root).fontSize)).filter(Number.isFinite);
+            if(!sizes.length)return {valid:false,mixed:false,size:null};
+            const first=sizes[0],mixed=sizes.some(v=>Math.abs(v-first)>.05);
+            return {valid:true,mixed,size:mixed?null:first};
+        };
+        window.syncSelectedFormatFeedbackReadOnly=function(root,range,prefix){
+            const map=[
+                [prefix+'BoldBtn','bold'],
+                [prefix+'ItalicBtn','italic'],
+                [prefix+'UnderlineBtn','underline'],
+                [prefix+'StrikeBtn','strike']
+            ];
+            const nodes=window.getSelectedTextNodesReadOnly?.(root,range)||[];
+            map.forEach(([id,kind])=>{
+                const b=document.getElementById(id);if(!b)return;
+                const active=!!(nodes.length&&nodes.every(n=>window.getTextNodeFormatReadOnly(n,root,kind)));
+                b.classList.toggle('selected-text-format-active',active);
+                b.setAttribute('aria-pressed',active?'true':'false');
+            });
+        };
+        window.clearSelectedFormatFeedback=function(prefix){
+            ['BoldBtn','ItalicBtn','UnderlineBtn','StrikeBtn'].forEach(s=>{
+                const b=document.getElementById(prefix+s);if(!b)return;
+                b.classList.remove('selected-text-format-active');b.setAttribute('aria-pressed','false');
+            });
+        };
+
+        window.deepGetSelectionOpacity=function(range,content){
+            if(!range||range.collapsed||!content)return {valid:false,pct:100,mixed:false,span:null};
+            const vals=[],spans=[],walker=document.createTreeWalker(content,NodeFilter.SHOW_TEXT);
+            let node;
+            while((node=walker.nextNode())){
+                if(!(node.nodeValue||'').length)continue;
+                try{if(!range.intersectsNode(node))continue;}catch(_){continue;}
+                const parent=node.parentElement;
+                const sp=parent?.closest?.('[data-deep-text-opacity]');
+                const owned=sp&&content.contains(sp)?sp:null;
+                const op=owned?Math.max(0,Math.min(1,parseFloat(getComputedStyle(owned).opacity)||0)):1;
+                vals.push(Math.round(op*100));spans.push(owned);
+            }
+            if(!vals.length)return {valid:false,pct:100,mixed:false,span:null};
+            const first=vals[0],mixed=vals.some(v=>v!==first),same=spans.every(s=>s===spans[0]);
+            return {valid:true,pct:first,mixed,span:(!mixed&&same)?spans[0]:null};
+        };
+        window.deepSyncOpacityControl=function(){
+            const slider=document.getElementById('deepTextOpacity'),out=document.getElementById('deepTextOpacityValue');
+            if(!slider||!out)return;
+            const it=window.deepCanvasState?.items?.find(x=>x.id===window.deepCanvasSelected);
+            const content=it?.type==='text'?document.querySelector(`[data-deep-id="${CSS.escape(it.id)}"] .deep-text-content`):null;
+            const sel=window.getSelection?.();
+            if(!content||!sel?.rangeCount){slider.disabled=true;slider.value='100';out.textContent='—';window.deepTextOpacitySpan=null;return;}
+            const r=sel.getRangeAt(0);
+            if(r.collapsed||!content.contains(r.commonAncestorContainer)){slider.disabled=true;slider.value='100';out.textContent='—';window.deepTextOpacitySpan=null;return;}
+            const os=window.deepGetSelectionOpacity?.(r,content);
+            if(!os?.valid){slider.disabled=true;slider.value='100';out.textContent='—';window.deepTextOpacitySpan=null;return;}
+            slider.disabled=false;slider.value=String(os.pct);out.textContent=os.mixed?'混合':os.pct+'%';window.deepTextOpacitySpan=os.span;
+        };
+        
+        window.deepGetSelectedAlignmentReadOnly=function(root,range){
+            const nodes=window.getSelectedTextNodesReadOnly?.(root,range)||[];
+            if(!nodes.length)return {valid:false,mixed:false,align:null};
+            const vals=nodes.map(node=>{
+                let el=node.parentElement||root;
+                while(el&&root.contains(el)){
+                    const explicit=(el.style?.textAlign||'').toLowerCase();
+                    if(explicit)return explicit==='start'?'left':explicit==='end'?'right':explicit;
+                    if(el===root)break;
+                    el=el.parentElement;
+                }
+                const computed=(getComputedStyle(node.parentElement||root).textAlign||'left').toLowerCase();
+                return computed==='start'?'left':computed==='end'?'right':computed;
+            });
+            const first=vals[0]||'left',mixed=vals.some(v=>v!==first);
+            return {valid:true,mixed,align:mixed?null:first};
+        };
+        window.deepSyncSelectedFormatFeedback=function(){
+            const it=window.deepCanvasState?.items?.find(x=>x.id===window.deepCanvasSelected);
+            const content=it?.type==='text'?document.querySelector(`[data-deep-id="${CSS.escape(it.id)}"] .deep-text-content`):null;
+            const sel=window.getSelection?.();
+            const clearAlign=()=>{
+                ['deepAlignLeftBtn','deepAlignCenterBtn','deepAlignRightBtn'].forEach(id=>{
+                    const b=document.getElementById(id);if(!b)return;
+                    b.classList.remove('selected-text-format-active');b.setAttribute('aria-pressed','false');
+                });
+            };
+            if(!content||!sel?.rangeCount){window.clearSelectedFormatFeedback?.('deep');clearAlign();return;}
+            const r=sel.getRangeAt(0);
+            if(r.collapsed||!content.contains(r.commonAncestorContainer)){window.clearSelectedFormatFeedback?.('deep');clearAlign();return;}
+            window.syncSelectedFormatFeedbackReadOnly?.(content,r,'deep');
+            clearAlign();
+            const state=window.deepGetSelectedAlignmentReadOnly?.(content,r);
+            const ids={left:'deepAlignLeftBtn',center:'deepAlignCenterBtn',right:'deepAlignRightBtn'};
+            if(state?.valid&&!state.mixed&&ids[state.align]){
+                const b=document.getElementById(ids[state.align]);b?.classList.add('selected-text-format-active');b?.setAttribute('aria-pressed','true');
+            }
+            window.deepSyncFontSizeControls?.(it);
+        };
+                window.deepSyncSelectionOnlyTextControls=function(hasSelection){
+            document.querySelectorAll('#deepTextTools [data-deep-selection-only]').forEach(el=>{el.disabled=!hasSelection;el.setAttribute('aria-disabled',hasSelection?'false':'true');});
+            if(!hasSelection){
+                const p=document.getElementById('deepFontSize');if(p)p.value='';
+                const c=document.getElementById('deepFontSizeCustom');if(c&&document.activeElement!==c)c.value='18';
+                const o=document.getElementById('deepTextOpacityValue');if(o)o.textContent='—';
+                window.clearSelectedFormatFeedback?.('deep');
+                ['deepAlignLeftBtn','deepAlignCenterBtn','deepAlignRightBtn'].forEach(id=>document.getElementById(id)?.classList.remove('selected-text-format-active'));
+            }
+        };
+        window.deepGetTopLevelTextLine=function(root,node){
+            if(!root||!node)return null;
+            let el=node.nodeType===1?node:node.parentElement;
+            while(el&&el.parentElement&&el.parentElement!==root)el=el.parentElement;
+            return el&&el!==root?el:null;
+        };
+        window.deepHandleTextEditorKeydown=function(event,item,content){
+            if(!event||event.key!=='Enter'||event.defaultPrevented||event.isComposing||!item||!content)return;
+            const sel=window.getSelection?.();if(!sel?.rangeCount)return;
+            const r=sel.getRangeAt(0);
+            if(!r.collapsed||!content.contains(r.commonAncestorContainer))return;
+            const line=window.deepGetTopLevelTextLine(content,r.startContainer);
+            const scope=line||content;
+            const tail=document.createRange();
+            try{tail.selectNodeContents(scope);tail.setStart(r.startContainer,r.startOffset);}catch(_){return;}
+            if((tail.toString()||'').replace(/[\u200B\uFEFF]/g,'').length!==0)return;
+
+            event.preventDefault();
+            const fresh=document.createElement('div');
+            fresh.style.fontSize='18px';
+            fresh.style.fontWeight='400';
+            fresh.style.fontStyle='normal';
+            fresh.style.textDecoration='none';
+            fresh.style.color='#334155';
+            fresh.style.textAlign='left';
+            fresh.innerHTML='<br>';
+            if(line)line.after(fresh);else content.appendChild(fresh);
+            const nr=document.createRange();nr.selectNodeContents(fresh);nr.collapse(true);
+            try{sel.removeAllRanges();sel.addRange(nr);}catch(_){}
+            window.deepSavedTextRange=null;window.deepSavedTextId=null;window.deepTextOpacitySpan=null;
+            item.html=content.innerHTML;item.text=content.innerText||'';
+            window.deepSyncSelectionOnlyTextControls?.(false);
+            window.deepSyncOpacityControl?.();window.deepSyncSelectedFormatFeedback?.();
+            requestAnimationFrame(()=>window.deepAutoFitTextItem?.(item,content));
+        };
+
         window.deepRememberTextSelection=function(e){
-            const sel=window.getSelection?.(); if(!sel||!sel.rangeCount)return;
-            const it=window.deepCanvasState?.items?.find(x=>x.id===window.deepCanvasSelected); if(!it||it.type!=='text')return;
-            const content=document.querySelector(`[data-deep-id="${CSS.escape(it.id)}"] .deep-text-content`),range=sel.getRangeAt(0);
-            if(content && content.contains(range.startContainer)){window.deepSavedTextRange=range.cloneRange();window.deepSavedTextId=it.id;window.deepSyncFontSizeControls(it);}
+            const sel=window.getSelection?.(),it=window.deepCanvasState?.items?.find(x=>x.id===window.deepCanvasSelected);
+            if(!sel?.rangeCount||!it||it.type!=='text'){window.deepSavedTextRange=null;window.deepSavedTextId=null;window.deepSyncSelectionOnlyTextControls?.(false);window.deepSyncOpacityControl?.();return;}
+            const content=document.querySelector(`[data-deep-id="${CSS.escape(it.id)}"] .deep-text-content`),r=sel.getRangeAt(0);
+            if(!content||r.collapsed||!content.contains(r.commonAncestorContainer)){window.deepSavedTextRange=null;window.deepSavedTextId=null;window.deepSyncSelectionOnlyTextControls?.(false);window.deepSyncOpacityControl?.();window.deepSyncSelectedFormatFeedback?.();return;}
+            window.deepSavedTextRange=r.cloneRange();window.deepSavedTextId=it.id;window.deepSyncSelectionOnlyTextControls?.(true);window.deepSyncFontSizeControls?.(it);window.deepSyncOpacityControl?.();window.deepSyncSelectedFormatFeedback?.();
         };
         window.deepRestoreTextSelection=function(){
             const sel=window.getSelection?.(); if(!sel||!window.deepSavedTextRange)return false; try{sel.removeAllRanges();sel.addRange(window.deepSavedTextRange);return true;}catch(_){return false;}
         };
+        if(!window._deepOpacitySelectionBound){
+            window._deepOpacitySelectionBound=true;
+            const sync=()=>{if(window.deepTextTool)requestAnimationFrame(()=>window.deepRememberTextSelection?.());};
+            document.addEventListener('selectionchange',sync);
+            document.addEventListener('pointerup',e=>{if(e.target?.closest?.('.deep-text-content'))sync();},true);
+            document.addEventListener('keyup',e=>{if(e.target?.closest?.('.deep-text-content'))sync();},true);
+            document.addEventListener('click',e=>{if(e.target?.closest?.('.deep-text-content'))sync();},true);
+        }
         window.deepCollapseTextSelection=function(contentEl){
             const sel=window.getSelection?.();if(!sel)return;
             try{if(sel.rangeCount){const r=sel.getRangeAt(0).cloneRange();r.collapse(false);sel.removeAllRanges();sel.addRange(r);}else sel.removeAllRanges();}catch(_){try{sel.removeAllRanges();}catch(__){}}
@@ -5012,34 +5324,48 @@
         };
         window.deepPickColor=function(kind,val){
             if(!window.deepTextTool){ window.showToast?.('请先进入文字模式','info'); return; }
-            window.deepRestoreTextSelection();
-            window.deepApplyTextStyle(kind==='text'?'color':'borderColor',val);
+            const ok=kind!=='text'||(window.deepRestoreTextSelection()&&!window.getSelection?.()?.isCollapsed);
+            if(ok)window.deepApplyTextStyle(kind==='text'?'color':'borderColor',val);
             const p=document.getElementById('deep'+(kind==='text'?'Text':'Border')+'ColorPalette');
             const custom=document.getElementById(kind==='text'?'deepTextCustomColor':'deepBorderCustomColor'); if(custom)custom.value=val;
             const sw=document.getElementById(kind==='text'?'deepTextColorSwatch':'deepBorderColorSwatch'); if(sw){ if(kind==='text') sw.style.background=val; else sw.style.borderColor=val; }
             p?.querySelectorAll('.deep-color-choice').forEach(b=>b.classList.remove('is-picked'));
             p?.classList.add('hidden');
             const label=kind==='text'?'文字颜色':'文字框边框颜色';
-            window.showToast?.(label+'已设置：'+val,'success');
+            if(ok)window.showToast?.(label+'已设置：'+val,'success');
         };
         window.deepSyncFontSizeControls=function(item){
             if(!item||item.type!=='text')return;
-            const size=Math.max(6,Math.min(240,Number(item.fontSize)||18));
+            let size=Math.max(6,Math.min(240,Number(item.fontSize)||18)),mixed=false;
+            const content=document.querySelector(`[data-deep-id="${CSS.escape(item.id)}"] .deep-text-content`);
+            const sel=window.getSelection?.();
+            if(content&&sel?.rangeCount){
+                const r=sel.getRangeAt(0);
+                if(!r.collapsed&&content.contains(r.commonAncestorContainer)){
+                    const state=window.getUniformSelectedFontSizeReadOnly?.(content,r);
+                    if(state?.valid){mixed=!!state.mixed;if(!mixed&&Number.isFinite(state.size))size=state.size;}
+                }
+            }
             const custom=document.getElementById('deepFontSizeCustom');
-            if(custom && document.activeElement!==custom) custom.value=(Math.round(size*10)/10).toString();
+            if(custom&&document.activeElement!==custom)custom.value=mixed?'':(Math.round(size*10)/10).toString();
             const preset=document.getElementById('deepFontSize');
             if(preset){
-                const exact=[...preset.options].some(o=>o.value && Math.abs(Number(o.value)-size)<0.05);
-                preset.value=exact?String(Math.round(size)):'';
+                if(mixed){preset.value='';}
+                else{
+                    const exact=[...preset.options].some(o=>o.value&&Math.abs(Number(o.value)-size)<0.05);
+                    preset.value=exact?String(Math.round(size)):'';
+                }
             }
         };
         window.deepSetFontSizeControl=function(value){
-            const n=Number(value);
-            if(!Number.isFinite(n)||n<6||n>240){window.showToast?.('字号请输入 6–240 之间的数值','info');window.deepSyncFontSizeControls(window.deepCanvasState?.items?.find(x=>x.id===window.deepCanvasSelected));return;}
-            const rounded=Math.round(n*10)/10;
-            const custom=document.getElementById('deepFontSizeCustom');if(custom)custom.value=String(rounded);
-            window.deepApplyTextStyle('fontSize',rounded);
-            window.deepSyncFontSizeControls(window.deepCanvasState?.items?.find(x=>x.id===window.deepCanvasSelected));
+            const n=Number(value),it=window.deepCanvasState?.items?.find(x=>x.id===window.deepCanvasSelected);
+            if(!Number.isFinite(n)||n<6||n>240){window.showToast?.('字号请输入 6–240 之间的数值','info');window.deepSyncFontSizeControls(it);return;}
+            const content=it?.type==='text'?document.querySelector(`[data-deep-id="${CSS.escape(it.id)}"] .deep-text-content`):null;
+            window.deepRestoreTextSelection();
+            const sel=window.getSelection?.();
+            if(!content||!sel?.rangeCount||sel.isCollapsed||!content.contains(sel.getRangeAt(0).commonAncestorContainer)){window.deepSyncFontSizeControls(it);return;}
+            window.deepApplyTextStyle('fontSize',Math.round(n*10)/10);
+            window.deepSyncFontSizeControls(it);
         };
         window.deepMeasureTextOccupancy=function(contentEl){
             if(!contentEl)return {w:0,h:0};
@@ -5238,61 +5564,62 @@
         };
 
         window.deepApplyTextStyle = function(kind,val){
-            if(!window.deepTextTool){ window.showToast?.('请先进入文字模式','info'); return; }
-            const it=window.deepCanvasState?.items?.find(x=>x.id===window.deepCanvasSelected); if(!it||it.type!=='text'){ window.showToast?.('请先选中文字框','info'); return; }
-            window.deepConnectMode=false; window.deepConnectPending=[];  
+            if(!window.deepTextTool){window.showToast?.('请先进入文字模式','info');return;}
+            const it=window.deepCanvasState?.items?.find(x=>x.id===window.deepCanvasSelected);
+            if(!it||it.type!=='text'){window.showToast?.('请先选中文字框','info');return;}
+            window.deepConnectMode=false;window.deepConnectPending=[];
             const editingEl=document.querySelector(`[data-deep-id="${CSS.escape(it.id)}"] .deep-text-content`);
-            const restored=window.deepRestoreTextSelection(),sel=window.getSelection?.();
-            const inEditor=!!(restored&&editingEl&&sel?.anchorNode&&editingEl.contains(sel.anchorNode));
-            if(inEditor && ['bold','italic','underline','strike','color'].includes(kind)){
-                const collapsed=!!sel.isCollapsed,cmd={bold:'bold',italic:'italic',underline:'underline',strike:'strikeThrough',color:'foreColor'}[kind];
-                editingEl.focus();
-                if(kind==='color'){
-                    document.execCommand('styleWithCSS',false,true);
-                    if(collapsed){
-                        document.execCommand('foreColor',false,val);
-                        window.deepSavedTextRange=null;
-                        return;
-                    }
-                    const hadUnderline=document.queryCommandState('underline');
-                    const hadStrike=document.queryCommandState('strikeThrough');
-                    if(hadUnderline) document.execCommand('underline',false,null);
-                    if(hadStrike) document.execCommand('strikeThrough',false,null);
-                    document.execCommand('foreColor',false,val);
-                    if(hadUnderline) document.execCommand('underline',false,null);
-                    if(hadStrike) document.execCommand('strikeThrough',false,null);
-                } else {
-                    document.execCommand(cmd,false,null);
+            if(kind==='borderToggle'||kind==='borderColor'){
+                deepPushUndo();
+                if(kind==='borderToggle')it.border=!it.border;else it.borderColor=val;
+                window.renderDeepCanvas(false);return;
+            }
+            if(!window.deepSavedTextRange)return;
+            window.deepRestoreTextSelection();
+            const sel=window.getSelection?.();
+            if(!editingEl||!sel?.rangeCount)return;
+            let range=sel.getRangeAt(0);
+            if(range.collapsed||!editingEl.contains(range.commonAncestorContainer))return;
+            if(kind==='opacity'){
+                const slider=document.getElementById('deepTextOpacity');if(slider?.disabled)return;
+                const pct=Math.max(0,Math.min(100,Number(val)||0));
+                let sp=window.deepTextOpacitySpan;
+                if(!sp||!editingEl.contains(sp)){
+                    sp=document.createElement('span');sp.setAttribute('data-deep-text-opacity','1');
+                    try{range.surroundContents(sp);}catch(_){const frag=range.extractContents();sp.appendChild(frag);range.insertNode(sp);}
                 }
-                window.deepSyncDecorationColor(editingEl);
-                it.html=editingEl.innerHTML; it.text=editingEl.innerText||'';
-                if(kind==='color')window.deepCollapseTextSelection(editingEl); else window.deepSavedTextRange=null;
-                window.renderDeepCanvas(false); return;
-            }
-            deepPushUndo();
-            const oldFontSize=Number(it.fontSize)||18;
-            if(kind==='bold')it.bold=!it.bold; else if(kind==='italic')it.italic=!it.italic; else if(kind==='underline')it.underline=!it.underline; else if(kind==='strike')it.strike=!it.strike; else if(kind==='fontSize'){it.fontSize=Math.max(6,Math.min(240,Number(val)||18));it._preferredFontSize=it.fontSize;} else if(kind==='align')it.textAlign=['left','center','right'].includes(val)?val:'left'; else if(kind==='color')it.color=val; else if(kind==='opacity')it.opacity=Math.max(0,Math.min(1,Number(val)/100)); else if(kind==='borderToggle')it.border=!it.border; else if(kind==='borderColor')it.borderColor=val;
-            if(kind==='opacity'&&editingEl){editingEl.style.opacity=it.opacity;return;}
-            if(kind==='align'&&editingEl){editingEl.style.textAlign=it.textAlign;window.renderDeepCanvas(false);return;}
-            if(kind==='fontSize'&&editingEl){const host=editingEl.closest('.deep-canvas-text');if(host){host.style.fontSize=it.fontSize+'px';host.dataset.fontSize=(Math.round(it.fontSize*10)/10).toString();editingEl.style.fontSize=it.fontSize+'px';}window.deepFitBoxAfterManualFontChange(it,editingEl,oldFontSize);window.deepSyncFontSizeControls(it);window.renderDeepCanvas(false);return;}
-            window.renderDeepCanvas();
-            if(kind==='fontSize'){
-                requestAnimationFrame(()=>{const live=document.querySelector(`[data-deep-id="${CSS.escape(it.id)}"] .deep-text-content`);if(live){window.deepFitBoxAfterManualFontChange(it,live,oldFontSize);window.renderDeepCanvas(false);}});
-            }
-            if(kind==='borderToggle'){
-                const b=document.getElementById('deepBorderToggleBtn');
-                if(b){b.textContent=it.border?'显示边框：开':'显示边框：关'; b.classList.toggle('bg-indigo-50',!!it.border); b.classList.toggle('border-indigo-300',!!it.border); b.classList.toggle('text-indigo-700',!!it.border);}
-            }
+                sp.style.opacity=String(pct/100);
+                const nr=document.createRange();nr.selectNodeContents(sp);sel.removeAllRanges();sel.addRange(nr);
+                window.deepSavedTextRange=nr.cloneRange();window.deepSavedTextId=it.id;window.deepTextOpacitySpan=sp;
+            }else if(['bold','italic','underline','strike'].includes(kind)){
+                const cmd={bold:'bold',italic:'italic',underline:'underline',strike:'strikeThrough'}[kind];
+                try{document.execCommand(cmd,false,null);}catch(_){}
+                window.deepSyncDecorationColor?.(editingEl);
+                if(sel.rangeCount)window.deepSavedTextRange=sel.getRangeAt(0).cloneRange();window.deepSavedTextId=it.id;
+            }else if(kind==='color'){
+                try{document.execCommand('styleWithCSS',false,true);document.execCommand('foreColor',false,val);}catch(_){}
+                if(sel.rangeCount)window.deepSavedTextRange=sel.getRangeAt(0).cloneRange();window.deepSavedTextId=it.id;
+            }else if(kind==='fontSize'){
+                const px=Math.max(6,Math.min(240,Number(val)||18));
+                try{document.execCommand('styleWithCSS',false,true);document.execCommand('fontSize',false,'7');}catch(_){}
+                editingEl.querySelectorAll('font[size="7"]').forEach(n=>{n.removeAttribute('size');n.style.fontSize=px+'px';});
+                if(sel.rangeCount)window.deepSavedTextRange=sel.getRangeAt(0).cloneRange();window.deepSavedTextId=it.id;
+            }else if(kind==='align'){
+                if(!['left','center','right'].includes(val))return;
+                const wrap=document.createElement('span');wrap.style.display='block';wrap.style.width='100%';wrap.style.textAlign=val;
+                try{range.surroundContents(wrap);}catch(_){const frag=range.extractContents();wrap.appendChild(frag);range.insertNode(wrap);}
+                const nr=document.createRange();nr.selectNodeContents(wrap);sel.removeAllRanges();sel.addRange(nr);
+                window.deepSavedTextRange=nr.cloneRange();window.deepSavedTextId=it.id;
+            }else{return;}
+            it.html=editingEl.innerHTML;it.text=editingEl.innerText||'';
+            window.deepSyncFontSizeControls?.(it);window.deepSyncOpacityControl?.();window.deepSyncSelectedFormatFeedback?.();
         };
-        window.deepDeleteSelected=function(){ if(!window.deepCanvasSelected)return; const id=window.deepCanvasSelected; deepPushUndo(); const chosen=window.deepCanvasState.items.find(x=>x.id===id); window.deepCanvasState.items=window.deepCanvasState.items.filter(x=>x.id!==id && !(chosen?.type!=='connector' && x.type==='connector' && (x.sourceId===id||x.targetId===id))); window.deepCanvasSelected=null; window.deepUpdateConnectorControls(); window.renderDeepCanvas(); };
-        window.deepAutoFitTextItem=function(item,contentEl){
-            if(!item||item.type!=='text'||!contentEl)return false;
-            if(item.editing||window.deepTextTool)return window.deepFitTypingBox(item,contentEl);
-            return false;
-        };
+
         window.deepBindTextAutoFit=function(item,contentEl){
             if(!item||!contentEl||contentEl.dataset.autoFitBound)return;
             contentEl.dataset.autoFitBound='1';
+            contentEl.addEventListener('keydown',e=>window.deepHandleTextEditorKeydown?.(e,item,contentEl));
+            ['mouseup','keyup','click','touchend'].forEach(type=>contentEl.addEventListener(type,()=>requestAnimationFrame(()=>window.deepRememberTextSelection?.())));
             requestAnimationFrame(()=>window.deepAutoFitTextItem(item,contentEl));
         };
 
@@ -5364,6 +5691,10 @@
             let sx=0,sy=0,ox=0,oy=0,drag=false,before=null,moved=false,pointerStartedAt=0;
             el.addEventListener('pointerdown',e=>{
                 pointerStartedAt=Date.now();el._deepLongPress=false;
+                if(item.type==='media' && e.target.closest?.('.deep-video-cover-play,.deep-video-controls,video')){
+                    e.stopPropagation();
+                    return;
+                }
                 if(window.deepConnectMode){e.preventDefault();e.stopPropagation();el._deepConnectPicked=true;window.deepHandleConnectPick(item);return;}
                 if(window.deepCanvasDrawing || window.deepCanvasErasing || window.deepCanvasSelecting || e.target.closest('.deep-canvas-handle')) return;
                 if(item.type==='text' && e.target.closest('.deep-text-content') && item.editing) return;
@@ -5385,7 +5716,9 @@
                     e.preventDefault(); e.stopPropagation();
                     if(item.type==='text' && !item.editing && window.deepCanvasSelected===item.id){ window.deepStartTextEdit(item,el); }
                 });
-                t?.addEventListener('input',()=>{item.text=t.innerText||'';item.html=t.innerHTML||window.deepEsc(item.text);window.deepFitTypingBox(item,t);window.deepHideSelectionFontTooltip();});
+                t?.addEventListener('input',()=>{item.text=t.innerText||'';item.html=t.innerHTML||window.deepEsc(item.text);window.deepFitTypingBox(item,t);window.deepHideSelectionFontTooltip();window.deepSyncOpacityControl?.();});
+                t?.addEventListener('mouseup',()=>window.deepRememberTextSelection?.());
+                t?.addEventListener('keyup',()=>window.deepRememberTextSelection?.());
                 t?.addEventListener('mousemove',e=>window.deepUpdateSelectionFontTooltip(e,t,item));
                 t?.addEventListener('mouseleave',()=>window.deepHideSelectionFontTooltip());
                 t?.addEventListener('pointerdown',()=>window.deepHideSelectionFontTooltip());
@@ -5396,12 +5729,78 @@
         window.deepFormatVideoTime=function(sec){
             sec=Math.max(0,Number(sec)||0); const m=Math.floor(sec/60), s=Math.floor(sec%60); return m+':'+String(s).padStart(2,'0');
         };
+        window.deepOpenVideoCoverPicker=function(itemId){
+            const item=window.deepCanvasState?.items?.find(x=>x.id===itemId);
+            if(!item||item.type!=='media'||item.mediaKind!=='video')return;
+            let modal=document.getElementById('deepVideoCoverModal');
+            if(!modal){
+                modal=document.createElement('div');
+                modal.id='deepVideoCoverModal';
+                modal.className='fixed inset-0 z-[360] hidden bg-slate-950/85 backdrop-blur-sm p-3 sm:p-6 flex items-center justify-center';
+                document.body.appendChild(modal);
+            }
+            modal.innerHTML=`<div class="w-full max-w-3xl rounded-2xl bg-white shadow-2xl border border-slate-200 p-4 sm:p-5" onclick="event.stopPropagation()">
+                <div class="flex items-center justify-between mb-3"><div><div class="font-bold text-slate-800">截选视频封面</div><div class="text-[11px] text-slate-400 mt-1">播放或拖动到想要的画面，再截取当前帧。</div></div><button type="button" data-deep-cover-close class="w-8 h-8 rounded-full border text-slate-500"><i class="fa-solid fa-xmark"></i></button></div>
+                <video data-deep-cover-video src="${window.deepEsc(item.src)}" controls playsinline crossorigin="anonymous" class="w-full max-h-[62vh] rounded-xl bg-black object-contain"></video>
+                <div class="mt-4 flex justify-end gap-2"><button type="button" data-deep-cover-close class="px-4 py-2 border rounded-lg text-sm">取消</button><button type="button" data-deep-cover-capture class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold">截取当前帧做封面</button></div>
+            </div>`;
+            const close=()=>{const v=modal.querySelector('video');try{v?.pause();}catch(_){}modal.classList.add('hidden');modal.innerHTML='';};
+            modal.querySelectorAll('[data-deep-cover-close]').forEach(b=>b.onclick=close);
+            modal.onclick=e=>{if(e.target===modal)close();};
+            modal.querySelector('[data-deep-cover-capture]').onclick=()=>{
+                const v=modal.querySelector('[data-deep-cover-video]');
+                if(!v||!(v.videoWidth>0&&v.videoHeight>0)){window.showToast?.('视频画面尚未准备好','info');return;}
+                try{
+                    const maxW=1280,scale=Math.min(1,maxW/v.videoWidth);
+                    const c=document.createElement('canvas');c.width=Math.max(1,Math.round(v.videoWidth*scale));c.height=Math.max(1,Math.round(v.videoHeight*scale));
+                    const ctx=c.getContext('2d');ctx.drawImage(v,0,0,c.width,c.height);
+                    item.cover=c.toDataURL('image/jpeg',.84);
+                    deepPushUndo?.();
+                    window.renderDeepCanvas();
+                    window.showToast?.('视频封面已更新','success');
+                    close();
+                }catch(err){
+                    console.error('深入描述视频封面截取失败:',err);
+                    window.showToast?.('当前视频无法截取封面，请确认视频允许跨域读取后再试','error');
+                }
+            };
+            modal.classList.remove('hidden');
+        };
+        window.deepActivateVideoPlayer=function(host,item){
+            if(!host||!item||host.querySelector(':scope > video'))return;
+            const old=host.querySelector('.deep-video-cover-layer');old?.remove();
+            host.querySelector('.deep-video-cover-play')?.remove();
+            host.querySelector('.deep-video-cover-edit')?.remove();
+            const video=document.createElement('video');
+            video.src=item.src;video.playsInline=true;video.setAttribute('playsinline','');video.preload='metadata';
+            host.insertBefore(video,host.firstChild);
+            const c=item.crop||{scale:1,offsetX:0,offsetY:0,stretchX:1,stretchY:1};
+            const apply=()=>{const scale=Math.max(.01,Number(c.scale)||1),sx=Math.max(.85,Math.min(1.15,Number(c.stretchX)||1)),sy=Math.max(.85,Math.min(1.15,Number(c.stretchY)||1));video.style.width='auto';video.style.height='auto';video.style.left='50%';video.style.top='50%';video.style.transform=`translate(-50%,-50%) translate(${Number(c.offsetX)||0}px,${Number(c.offsetY)||0}px) scale(${scale}) scale(${sx},${sy})`;};
+            video.addEventListener('loadedmetadata',apply,{once:true});apply();
+            window.deepAttachVideoControls(host,video);
+            video.play().catch(()=>{});
+        };
+        window.deepRenderVideoCover=function(host,item,readOnly=false){
+            if(!host||!item)return;
+            const cover=document.createElement('div');cover.className='deep-video-cover-layer';
+            if(item.cover)cover.innerHTML=`<img src="${window.deepEsc(item.cover)}" alt="视频封面">`;
+            else cover.innerHTML=`<div class="deep-video-cover-placeholder"><span><i class="fa-solid fa-video mr-1"></i>视频</span></div>`;
+            host.appendChild(cover);
+            const play=document.createElement('button');play.type='button';play.className='deep-video-cover-play';play.innerHTML='<i class="fa-solid fa-play"></i>';play.title='播放视频';
+            play.addEventListener('pointerdown',e=>{e.stopPropagation();});
+            play.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();window.deepActivateVideoPlayer(host,item);});
+            host.appendChild(play);
+
+        };
+
         window.deepAttachVideoControls=function(host,video){
             if(!host||!video||host.querySelector(':scope > .deep-video-controls'))return;
             video.controls=false; video.playsInline=true; video.setAttribute('playsinline',''); video.preload='metadata';
             const controls=document.createElement('div'); controls.className='deep-video-controls is-hidden';
             controls.innerHTML=`<button type="button" class="deep-video-play" aria-label="播放/暂停"><i class="fa-solid fa-play"></i></button><input class="deep-video-progress" type="range" min="0" max="1000" step="1" value="0" aria-label="视频进度"><span class="deep-video-time">0:00</span>`;
             host.appendChild(controls);
+            controls.addEventListener('pointerdown',e=>e.stopPropagation());
+            video.addEventListener('pointerdown',e=>e.stopPropagation());
             const btn=controls.querySelector('.deep-video-play'), icon=btn?.querySelector('i'), range=controls.querySelector('.deep-video-progress'), time=controls.querySelector('.deep-video-time');
             const stop=e=>e.stopPropagation(); ['pointerdown','pointerup','click','dblclick'].forEach(type=>controls.addEventListener(type,stop));
             let hideTimer=null;
@@ -5541,14 +5940,15 @@
         window.renderDeepCanvas=function(rebuild=true){
             const st=document.getElementById('deepCanvasStage'); if(!st||!window.deepCanvasState)return;
             window.deepUpdateTextToolControls?.();
+            window.deepSyncOpacityControl?.();
             if(rebuild){st.innerHTML='';st.style.width=(window.deepCanvasState.width||2200)+'px';st.style.height=(window.deepCanvasState.height||1400)+'px';}
-            else {window.deepCanvasState.items.forEach(it=>{const el=st.querySelector(`[data-deep-id="${CSS.escape(it.id)}"]`);if(el){el.style.left=it.x+'px';el.style.top=it.y+'px';el.style.width=it.w+'px';el.style.height=it.h+'px';if(it.type==='text'){const fs=Math.max(6,Math.min(240,Number(it.fontSize)||18));el.style.fontSize=fs+'px';el.dataset.fontSize=(Math.round(fs*10)/10).toString();const tc=el.querySelector('.deep-text-content');if(tc){window.deepApplyCanonicalTextBoxStyle(tc,{editing:!!it.editing,height:it.h});tc.style.fontSize=fs+'px';tc.style.textAlign=it.textAlign||'left';}}}}); const selectedText=window.deepCanvasState.items.find(x=>x.id===window.deepCanvasSelected&&x.type==='text');if(selectedText)window.deepSyncFontSizeControls(selectedText); window.deepRenderDrawPaths?.(); window.deepUpdateConnectors(); window.deepUpdateTextToolControls?.(); return;}
+            else {window.deepCanvasState.items.forEach(it=>{const el=st.querySelector(`[data-deep-id="${CSS.escape(it.id)}"]`);if(el){el.style.left=it.x+'px';el.style.top=it.y+'px';el.style.width=it.w+'px';el.style.height=it.h+'px';if(it.type==='text'){const fs=Math.max(6,Math.min(240,Number(it.fontSize)||18));el.style.fontSize=fs+'px';el.dataset.fontSize=(Math.round(fs*10)/10).toString();const tc=el.querySelector('.deep-text-content');if(tc){window.deepApplyCanonicalTextBoxStyle(tc,{editing:!!it.editing,height:it.h});tc.style.fontSize=fs+'px';tc.style.textAlign=it.textAlign||'left';}}}}); const selectedText=window.deepCanvasState.items.find(x=>x.id===window.deepCanvasSelected&&x.type==='text');if(selectedText)window.deepSyncFontSizeControls(selectedText); window.deepRenderDrawPaths?.(); window.deepUpdateConnectors(); window.deepUpdateTextToolControls?.(); window.deepSyncOpacityControl?.(); return;}
             window.deepUpdateConnectors();
             window.deepCanvasState.items.forEach(item=>{
                 if(item.type==='draw')return;
                 const el=document.createElement('div'); el.className='deep-canvas-item '+(item.type==='media'?'deep-canvas-media ':'')+(item.type==='text'?'deep-canvas-text ':'')+(item.id===window.deepCanvasSelected?' deep-canvas-selected ':'')+(item.type==='text' && (window.deepTextTool||item.editing)?' tool-visible':''); el.dataset.deepId=item.id; el.style.left=item.x+'px';el.style.top=item.y+'px';el.style.width=item.w+'px';el.style.height=item.h+'px'; if(window.deepConnectPending?.includes(item.id))el.classList.add('deep-connect-pending');
                 if(item.type==='text'){el.classList.toggle('has-border',!!item.border);el.classList.toggle('editing',!!item.editing);el.dataset.fontSize=(Math.round((Number(item.fontSize)||18)*10)/10).toString();el.style.borderColor=item.borderColor||'#3b82f6';el.style.fontSize=(item.fontSize||18)+'px';el.style.color=item.color||'#334155';el.style.textAlign=item.textAlign||'left';el.style.opacity='1';el.style.fontWeight=item.bold?'700':'400';el.style.fontStyle=item.italic?'italic':'normal';el.style.textDecoration='none';el.innerHTML=`<div class="deep-text-content">${item.html||window.deepEsc(item.text||'')}</div>`; const tc=el.querySelector('.deep-text-content'); if(tc) tc.contentEditable=item.editing?'true':'false'; if(tc){window.deepApplyCanonicalTextBoxStyle(tc,{editing:!!item.editing,height:item.h});tc.style.fontSize=(item.fontSize||18)+'px';tc.style.opacity=item.opacity??1;tc.style.textAlign=item.textAlign||'left';tc.style.textDecoration=[item.underline?'underline':'',item.strike?'line-through':''].filter(Boolean).join(' ')||'none';tc.style.textUnderlineOffset='auto';tc.style.textDecorationThickness='from-font';tc.style.textDecorationColor='currentColor';tc.style.textDecorationSkipInk='auto';;requestAnimationFrame(()=>{const live=document.querySelector(`[data-deep-id="${CSS.escape(item.id)}"] .deep-text-content`);if(live){window.deepAutoFitTextItem(item,live);if(item.editing)window.deepBindTextAutoFit(item,live);}});}}
-                else if(item.type==='media'){const c=item.crop||{scale:1,offsetX:0,offsetY:0,stretchX:1,stretchY:1};const tag=item.mediaKind==='video'?'video':'img';const media=tag==='video'?`<video src="${window.deepEsc(item.src)}"></video>`:`<img src="${window.deepEsc(item.src)}" alt="深入描述媒体">`;el.innerHTML=media;const md=el.firstElementChild;const applyMedia=()=>{if(!md)return;const scale=Math.max(0.01,Number(c.scale)||1);md.style.width='auto';md.style.height='auto';md.style.left='50%';md.style.top='50%';const stretchX=Math.max(.85,Math.min(1.15,Number(c.stretchX)||1)),stretchY=Math.max(.85,Math.min(1.15,Number(c.stretchY)||1));md.style.transform=`translate(-50%,-50%) translate(${Number(c.offsetX)||0}px,${Number(c.offsetY)||0}px) scale(${scale}) scale(${stretchX},${stretchY})`;};if(md.complete||tag==='video')applyMedia();else md.addEventListener('load',applyMedia,{once:true});if(tag==='video')window.deepAttachVideoControls(el,md);}else if(item.type==='connector'){ el.remove(); return; }
+                else if(item.type==='media'){const c=item.crop||{scale:1,offsetX:0,offsetY:0,stretchX:1,stretchY:1};if(item.mediaKind==='video'){el.innerHTML='';window.deepRenderVideoCover(el,item,false);}else{el.innerHTML=`<img src="${window.deepEsc(item.src)}" alt="深入描述媒体">`;const md=el.firstElementChild;const applyMedia=()=>{if(!md)return;const scale=Math.max(0.01,Number(c.scale)||1);md.style.width='auto';md.style.height='auto';md.style.left='50%';md.style.top='50%';const stretchX=Math.max(.85,Math.min(1.15,Number(c.stretchX)||1)),stretchY=Math.max(.85,Math.min(1.15,Number(c.stretchY)||1));md.style.transform=`translate(-50%,-50%) translate(${Number(c.offsetX)||0}px,${Number(c.offsetY)||0}px) scale(${scale}) scale(${stretchX},${stretchY})`;};if(md.complete)applyMedia();else md.addEventListener('load',applyMedia,{once:true});}}else if(item.type==='connector'){ el.remove(); return; }
                 st.appendChild(el); window.deepBindItem(el,item); el.addEventListener('click',e=>{e.stopPropagation(); if(el._deepConnectPicked){el._deepConnectPicked=false;return;} if(window.deepConnectMode){window.deepHandleConnectPick(item);return;} window.deepCanvasSelected=item.id; window.deepUpdateConnectorControls(); if(item.type==='text' && window.deepTextTool) window.renderDeepCanvas(false);});
                 if(item.type==='media'){ el.addEventListener('dblclick',e=>{ e.preventDefault(); e.stopPropagation(); if(Date.now() < (el._deepSuppressCropUntil||0)) return; window.deepCanvasSelected=item.id; window.deepCropSelected(); }); }
             });
@@ -5571,6 +5971,10 @@
             st.onclick=function(e){
                 if(window.deepCanvasDrawing||window.deepCanvasErasing||window.deepCanvasSelecting) return;
                 if(e.target!==st) return;
+                if(window.deepTextTool&&window.deepIsNearTextToolbar?.(e.clientX,e.clientY)){
+                    if(blankClickTimer){clearTimeout(blankClickTimer);blankClickTimer=null;}
+                    return;
+                }
                 window.deepCanvasSelected=null;
                 window.deepCanvasState.items.forEach(x=>x.editing=false);
                 if(window.deepTextTool){
@@ -5676,7 +6080,15 @@
                 m.innerHTML=`<div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[96vh] p-4 sm:p-5 flex flex-col overflow-hidden">
                     <div class="flex items-center gap-2 mb-3 shrink-0"><b>截选媒体</b></div>
                     <div id="deepCropViewport" class="bg-white rounded-xl p-3 sm:p-4 overflow-hidden flex-1 min-h-[220px] relative border border-slate-200"><div id="deepCropPreviewWrap" class="absolute left-1/2 top-1/2 shrink-0 will-change-transform" style="transform:translate(-50%,-50%)"><div id="deepCropPreview" class="absolute left-0 top-0 overflow-hidden bg-black"></div><div id="deepCropFrameHandles" class="absolute inset-0 pointer-events-none"><span data-crop-frame-handle="nw" class="absolute w-3 h-3 rounded-sm bg-white border-2 border-indigo-500 pointer-events-auto cursor-nwse-resize" style="left:-6px;top:-6px"></span><span data-crop-frame-handle="n" class="absolute w-3 h-3 rounded-sm bg-white border-2 border-indigo-500 pointer-events-auto cursor-ns-resize" style="left:50%;top:-6px;transform:translateX(-50%)"></span><span data-crop-frame-handle="ne" class="absolute w-3 h-3 rounded-sm bg-white border-2 border-indigo-500 pointer-events-auto cursor-nesw-resize" style="right:-6px;top:-6px"></span><span data-crop-frame-handle="e" class="absolute w-3 h-3 rounded-sm bg-white border-2 border-indigo-500 pointer-events-auto cursor-ew-resize" style="right:-6px;top:50%;transform:translateY(-50%)"></span><span data-crop-frame-handle="se" class="absolute w-3 h-3 rounded-sm bg-white border-2 border-indigo-500 pointer-events-auto cursor-nwse-resize" style="right:-6px;bottom:-6px"></span><span data-crop-frame-handle="s" class="absolute w-3 h-3 rounded-sm bg-white border-2 border-indigo-500 pointer-events-auto cursor-ns-resize" style="left:50%;bottom:-6px;transform:translateX(-50%)"></span><span data-crop-frame-handle="sw" class="absolute w-3 h-3 rounded-sm bg-white border-2 border-indigo-500 pointer-events-auto cursor-nesw-resize" style="left:-6px;bottom:-6px"></span><span data-crop-frame-handle="w" class="absolute w-3 h-3 rounded-sm bg-white border-2 border-indigo-500 pointer-events-auto cursor-ew-resize" style="left:-6px;top:50%;transform:translateY(-50%)"></span></div></div></div>
-                    <div class="shrink-0 bg-white pt-3"><div class="flex items-center gap-3 text-xs"><span class="font-semibold shrink-0">内容缩放</span><input id="deepCropScale" type="range" min="0.01" max="20" step="0.01" class="flex-1 h-2 accent-indigo-600 cursor-pointer" /><input id="deepCropScaleNumber" type="number" min="1" max="2000" step="1" class="w-20 px-2 py-1 border rounded-md font-mono text-xs text-right" /><span id="deepCropScaleValue" class="w-14 text-right font-mono text-slate-600">100%</span></div><div class="flex justify-between gap-2 mt-4"><div class="flex gap-2"><button id="deepCropAutoFill" class="px-4 py-2 border border-indigo-200 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-semibold">自动填充</button><button id="deepCropUndoAutoFill" class="px-3 py-2 border border-slate-200 bg-white text-slate-500 rounded-lg text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed" disabled>取消填充</button></div><div class="flex gap-2"><button id="deepCropCancel" class="px-4 py-2 border rounded-lg text-sm">取消</button><button id="deepCropReset" class="px-4 py-2 border rounded-lg text-sm">恢复原图</button><button id="deepCropOk" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold">确定</button></div></div></div>
+                    <div class="shrink-0 bg-white pt-3">
+                        ${it.mediaKind==='video'?`<div id="deepCropVideoCoverControls" class="flex items-center gap-2 mb-3 text-xs">
+                            <button id="deepCropVideoPlay" type="button" class="w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50" title="播放/暂停"><i class="fa-solid fa-play"></i></button>
+                            <input id="deepCropVideoTime" type="range" min="0" max="1" step="0.01" value="0" class="flex-1 h-2 accent-indigo-600 cursor-pointer">
+                            <span id="deepCropVideoTimeLabel" class="w-24 text-right font-mono text-[10px] text-slate-500">0:00 / 0:00</span>
+                            <button id="deepCropSetCover" type="button" class="px-3 py-2 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 text-xs font-semibold hover:bg-indigo-100"><i class="fa-solid fa-image mr-1"></i>设为视频封面</button>
+                        </div>`:''}
+                        <div class="flex items-center gap-3 text-xs"><span class="font-semibold shrink-0">内容缩放</span><input id="deepCropScale" type="range" min="0.01" max="20" step="0.01" class="flex-1 h-2 accent-indigo-600 cursor-pointer" /><input id="deepCropScaleNumber" type="number" min="1" max="2000" step="1" class="w-20 px-2 py-1 border rounded-md font-mono text-xs text-right" /><span id="deepCropScaleValue" class="w-14 text-right font-mono text-slate-600">100%</span></div><div class="flex justify-between gap-2 mt-4"><div class="flex gap-2"><button id="deepCropAutoFill" class="px-4 py-2 border border-indigo-200 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-semibold">自动填充</button><button id="deepCropUndoAutoFill" class="px-3 py-2 border border-slate-200 bg-white text-slate-500 rounded-lg text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed" disabled>取消填充</button></div><div class="flex gap-2"><button id="deepCropCancel" class="px-4 py-2 border rounded-lg text-sm">取消</button><button id="deepCropReset" class="px-4 py-2 border rounded-lg text-sm">恢复原图</button><button id="deepCropOk" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold">确定</button></div></div>
+                    </div>
                 </div>`;document.body.appendChild(m);
             }
             const viewport=document.getElementById('deepCropViewport'),wrap=document.getElementById('deepCropPreviewWrap'),preview=document.getElementById('deepCropPreview');
@@ -5687,8 +6099,44 @@
             let lastAutoFill=null;
             const undoAutoFillBtn=document.getElementById('deepCropUndoAutoFill');
             const scaleInput=document.getElementById('deepCropScale'),scaleNumber=document.getElementById('deepCropScaleNumber'),scaleValue=document.getElementById('deepCropScaleValue');scaleInput.value=crop.scale.toFixed(2);if(scaleNumber)scaleNumber.value=String(Math.round(crop.scale*100));if(scaleValue)scaleValue.textContent=Math.round(crop.scale*100)+'%';
-            const tag=it.mediaKind==='video'?'video':'img';preview.innerHTML=`<${tag} id="deepCropMedia" src="${window.deepEsc(it.src)}" ${tag==='video'?'muted':''} style="position:absolute;left:50%;top:50%;width:auto;height:auto;max-width:none;max-height:none;transform-origin:center center;user-select:none;pointer-events:none;will-change:transform;"></${tag}>`;
+            const tag=it.mediaKind==='video'?'video':'img';preview.innerHTML=`<${tag} id="deepCropMedia" src="${window.deepEsc(it.src)}" ${tag==='video'?'muted playsinline preload="metadata" crossorigin="anonymous"':''} style="position:absolute;left:50%;top:50%;width:auto;height:auto;max-width:none;max-height:none;transform-origin:center center;user-select:none;pointer-events:none;will-change:transform;"></${tag}>`;
             const media=document.getElementById('deepCropMedia');let displayScale=1,raf=0,cropFrameReady=false,cropFrameLimit={minW:40,maxW:frame.w,minH:40,maxH:frame.h},cropResizeLocked=false,lockedDisplayScale=1,frameDragActive=false,lockedViewportHeight=0;
+            if(tag==='video'){
+                const playBtn=document.getElementById('deepCropVideoPlay');
+                const timeRange=document.getElementById('deepCropVideoTime');
+                const timeLabel=document.getElementById('deepCropVideoTimeLabel');
+                const setCoverBtn=document.getElementById('deepCropSetCover');
+                const fmt=sec=>{sec=Math.max(0,Number(sec)||0);const mm=Math.floor(sec/60),ss=Math.floor(sec%60);return mm+':'+String(ss).padStart(2,'0');};
+                const syncVideoUI=()=>{
+                    const dur=Number(media.duration)||0,cur=Number(media.currentTime)||0;
+                    if(timeRange){timeRange.max=String(Math.max(.01,dur||1));timeRange.value=String(Math.min(cur,dur||cur));}
+                    if(timeLabel)timeLabel.textContent=fmt(cur)+' / '+fmt(dur);
+                    if(playBtn)playBtn.innerHTML=media.paused?'<i class="fa-solid fa-play"></i>':'<i class="fa-solid fa-pause"></i>';
+                };
+                media.addEventListener('loadedmetadata',syncVideoUI);
+                media.addEventListener('timeupdate',syncVideoUI);
+                media.addEventListener('play',syncVideoUI);
+                media.addEventListener('pause',syncVideoUI);
+                if(playBtn)playBtn.onclick=()=>{if(media.paused)media.play().catch(()=>{});else media.pause();};
+                if(timeRange)timeRange.oninput=()=>{try{media.currentTime=Math.max(0,Math.min(Number(media.duration)||0,Number(timeRange.value)||0));}catch(_){}syncVideoUI();};
+                if(setCoverBtn)setCoverBtn.onclick=()=>{
+                    if(!(media.videoWidth>0&&media.videoHeight>0)){window.showToast?.('视频画面尚未准备好','info');return;}
+                    try{
+                        const maxW=1280,sc=Math.min(1,maxW/media.videoWidth);
+                        const c=document.createElement('canvas');
+                        c.width=Math.max(1,Math.round(media.videoWidth*sc));
+                        c.height=Math.max(1,Math.round(media.videoHeight*sc));
+                        c.getContext('2d').drawImage(media,0,0,c.width,c.height);
+                        deepPushUndo?.();
+                        it.cover=c.toDataURL('image/jpeg',.84);
+                        window.renderDeepCanvas();
+                        window.showToast?.('视频封面已更新','success');
+                    }catch(err){
+                        console.error('深入描述视频封面截取失败:',err);
+                        window.showToast?.('当前视频无法截取封面，请确认视频允许跨域读取后再试','error');
+                    }
+                };
+            }
             const fitFrame=()=>{
                 const modalRect=m.getBoundingClientRect();
                 const modalBody=viewport.parentElement;
@@ -5810,8 +6258,8 @@
             document.getElementById('deepCropReset').onclick=()=>{crop.scale=cropBase.scale;crop.offsetX=cropBase.offsetX;crop.offsetY=cropBase.offsetY;crop.stretchX=cropBase.stretchX;crop.stretchY=cropBase.stretchY;frame.w=frameBase.w;frame.h=frameBase.h;lastAutoFill=null;if(undoAutoFillBtn)undoAutoFillBtn.disabled=true;fitFrame();update();};
             document.getElementById('deepCropAutoFill').onclick=()=>{const mw=tag==='video'?Number(media.videoWidth):Number(media.naturalWidth),mh=tag==='video'?Number(media.videoHeight):Number(media.naturalHeight);if(!(mw>0&&mh>0)){window.showToast('媒体尚未加载完成','info');return;}lastAutoFill={stretchX:Number(crop.stretchX)||1,stretchY:Number(crop.stretchY)||1};const baseScale=Math.max(.01,Number(crop.scale)||1),needW=Math.max(1,frame.w)+2*Math.abs(crop.offsetX),needH=Math.max(1,frame.h)+2*Math.abs(crop.offsetY);const needStretchX=needW/Math.max(1,mw*baseScale),needStretchY=needH/Math.max(1,mh*baseScale);crop.stretchX=Math.max(1,Math.min(1.15,needStretchX));crop.stretchY=Math.max(1,Math.min(1.15,needStretchY));if(undoAutoFillBtn)undoAutoFillBtn.disabled=false;update();};
             if(undoAutoFillBtn)undoAutoFillBtn.onclick=()=>{if(!lastAutoFill)return;crop.stretchX=lastAutoFill.stretchX;crop.stretchY=lastAutoFill.stretchY;lastAutoFill=null;undoAutoFillBtn.disabled=true;update();};
-            document.getElementById('deepCropCancel').onclick=()=>{m.classList.add('hidden');m._deepCropRO?.disconnect?.();};
-            document.getElementById('deepCropOk').onclick=()=>{deepPushUndo();it.w=Math.max(40,Math.round(frame.w));it.h=Math.max(40,Math.round(frame.h));it.crop={scale:Number(crop.scale.toFixed(2)),offsetX:Math.round(crop.offsetX),offsetY:Math.round(crop.offsetY),stretchX:Number((crop.stretchX||1).toFixed(3)),stretchY:Number((crop.stretchY||1).toFixed(3))};m.classList.add('hidden');m._deepCropRO?.disconnect?.();window.renderDeepCanvas();};m.classList.remove('hidden');
+            document.getElementById('deepCropCancel').onclick=()=>{try{if(tag==='video')media.pause();}catch(_){}m.classList.add('hidden');m._deepCropRO?.disconnect?.();};
+            document.getElementById('deepCropOk').onclick=()=>{deepPushUndo();it.w=Math.max(40,Math.round(frame.w));it.h=Math.max(40,Math.round(frame.h));it.crop={scale:Number(crop.scale.toFixed(2)),offsetX:Math.round(crop.offsetX),offsetY:Math.round(crop.offsetY),stretchX:Number((crop.stretchX||1).toFixed(3)),stretchY:Number((crop.stretchY||1).toFixed(3))};try{if(tag==='video')media.pause();}catch(_){}m.classList.add('hidden');m._deepCropRO?.disconnect?.();window.renderDeepCanvas();};m.classList.remove('hidden');
         };
         window.closeDeepMediaPreview = function(){ const m=document.getElementById('deepMediaPreviewModal'); if(!m)return; m.querySelectorAll('video').forEach(video=>{try{video.pause();video.currentTime=0;}catch(_){}}); m.classList.add('hidden'); m.innerHTML=''; };
         window.openDeepMediaPreview = function(type,index,eventId){
@@ -5969,19 +6417,22 @@
                 }else if(item.type==='media'){
                     el.className+=' deep-canvas-media';
                     el.style.cursor='zoom-in';
-                    const tag=item.mediaKind==='video'?'video':'img';
-                    el.innerHTML=tag==='video'?`<video src="${window.deepEsc(item.src)}" playsinline preload="metadata"></video>`:`<img src="${window.deepEsc(item.src)}" alt="深入描述媒体">`;
-                    const md=el.firstElementChild;
                     const c=item.crop||{scale:1,offsetX:0,offsetY:0,stretchX:1,stretchY:1};
-                    const applyMedia=()=>{
-                        if(!md)return;
-                        const scale=Math.max(0.01,Number(c.scale)||1);
-                        md.style.width='auto'; md.style.height='auto'; md.style.left='50%'; md.style.top='50%';
-                        const stretchX=Math.max(.85,Math.min(1.15,Number(c.stretchX)||1)),stretchY=Math.max(.85,Math.min(1.15,Number(c.stretchY)||1));md.style.transform=`translate(-50%,-50%) translate(${Number(c.offsetX)||0}px,${Number(c.offsetY)||0}px) scale(${scale}) scale(${stretchX},${stretchY})`;
-                    };
-                    if(tag==='video'){ applyMedia(); window.deepAttachVideoControls(el,md); }
-                    else if(md.complete) applyMedia(); else md.addEventListener('load',applyMedia,{once:true});
-                    el.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();openLarge(item);});
+                    if(item.mediaKind==='video'){
+                        el.innerHTML='';
+                        window.deepRenderVideoCover(el,item,true);
+                    }else{
+                        el.innerHTML=`<img src="${window.deepEsc(item.src)}" alt="深入描述媒体">`;
+                        const md=el.firstElementChild;
+                        const applyMedia=()=>{
+                            if(!md)return;
+                            const scale=Math.max(0.01,Number(c.scale)||1);
+                            md.style.width='auto'; md.style.height='auto'; md.style.left='50%'; md.style.top='50%';
+                            const stretchX=Math.max(.85,Math.min(1.15,Number(c.stretchX)||1)),stretchY=Math.max(.85,Math.min(1.15,Number(c.stretchY)||1));md.style.transform=`translate(-50%,-50%) translate(${Number(c.offsetX)||0}px,${Number(c.offsetY)||0}px) scale(${scale}) scale(${stretchX},${stretchY})`;
+                        };
+                        if(md.complete) applyMedia(); else md.addEventListener('load',applyMedia,{once:true});
+                        el.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();openLarge(item);});
+                    }
                 }else if(item.type==='draw'){
                     const d=(item.points||[]).map((p,i)=>(i?'L':'M')+p[0]+' '+p[1]).join(' ');
                     el.style.left='0';el.style.top='0';el.style.width='100%';el.style.height='100%';el.style.pointerEvents='none';
@@ -6708,18 +7159,17 @@
                                 <label class="block text-xs font-bold text-slate-700 mb-1">详细经过与描述</label>
                                 <div class="border border-slate-300 rounded-lg overflow-visible bg-white">
                                     <div class="flex flex-wrap items-center gap-1 p-2 bg-slate-50 border-b border-slate-200">
-                                        <button type="button" onmousedown="event.preventDefault(); richRememberSelection()" onclick="richExec('bold')" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 font-bold w-7 h-7" title="加粗">B</button>
-                                        <button type="button" onmousedown="event.preventDefault(); richRememberSelection()" onclick="richExec('italic')" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 italic w-7 h-7" title="斜体">I</button>
-                                        <button type="button" onmousedown="event.preventDefault(); richRememberSelection()" onclick="richExec('underline')" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 underline w-7 h-7" title="下划线">U</button>
-                                        <button type="button" onmousedown="event.preventDefault(); richRememberSelection()" onclick="richExec('strikeThrough')" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 line-through w-7 h-7" title="删除线">S</button>
-                                        <button type="button" onmousedown="event.preventDefault(); richRememberSelection()" onclick="richToggleReveal()" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 px-1.5 h-7 text-[10px] font-semibold" title="悬停显现：选中文字后仅在鼠标悬停时显示">悬停</button>
-                                        <select id="richFontSizePreset" onmousedown="richRememberSelection()" onchange="richSetFontSize(this.value)" class="h-7 rounded-md border border-slate-200 bg-white text-[11px] text-slate-700" title="字号">
+                                        <button id="richBoldBtn" type="button" disabled onmousedown="event.preventDefault(); richRememberSelection()" onclick="richExec('bold')" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 font-bold w-7 h-7" title="加粗">B</button>
+                                        <button id="richItalicBtn" type="button" disabled onmousedown="event.preventDefault(); richRememberSelection()" onclick="richExec('italic')" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 italic w-7 h-7" title="斜体">I</button>
+                                        <button id="richUnderlineBtn" type="button" disabled onmousedown="event.preventDefault(); richRememberSelection()" onclick="richExec('underline')" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 underline w-7 h-7" title="下划线">U</button>
+                                        <button id="richStrikeBtn" type="button" disabled onmousedown="event.preventDefault(); richRememberSelection()" onclick="richExec('strikeThrough')" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 line-through w-7 h-7" title="删除线">S</button>
+                                        <button id="richRevealBtn" type="button" disabled onmousedown="event.preventDefault(); richRememberSelection()" onclick="richToggleReveal()" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 px-1.5 h-7 text-[10px] font-semibold" title="悬停显现：选中文字后仅在鼠标悬停时显示">悬停</button>
+                                        <select id="richFontSizePreset" disabled onmousedown="richRememberSelection()" onchange="richSetFontSize(this.value)" class="h-7 rounded-md border border-slate-200 bg-white text-[11px] text-slate-700" title="字号">
                                             <option value="">字号</option>
                                             ${['8px','9px','10px','11px','12px','13px','14px','16px','18px','20px','24px','28px','32px'].map(v=>`<option value="${v}">${v}${v==='14px'?'（默认大小）':''}</option>`).join('')}
                                         </select>
-                                        <div class="flex items-center gap-0.5" title="可输入任意字号"><input id="richFontSizeCustom" type="number" min="6" max="240" step="0.1" value="14" onmousedown="richRememberSelection()" onchange="richSetFontSizeCustom(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}" class="h-7 w-14 rounded-md border border-slate-200 bg-white px-1 text-[10px] font-mono text-slate-700"><span class="text-[10px] text-slate-400">px</span></div>
                                         <div class="relative">
-                                            <button type="button" onmousedown="event.preventDefault(); richRememberSelection()" onclick="openRichColorPalette()" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 px-2 h-7" title="字体颜色"><i class="fa-solid fa-palette"></i></button>
+                                            <button id="richColorBtn" type="button" disabled onmousedown="event.preventDefault(); richRememberSelection()" onclick="openRichColorPalette()" class="rich-selection-btn rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 px-2 h-7" title="字体颜色"><i class="fa-solid fa-palette"></i></button>
                                             <div id="richColorPalette" class="hidden absolute left-0 top-8 z-[240] w-56 p-2 bg-white border border-slate-200 rounded-xl shadow-xl">
                                                 <div class="text-[10px] text-slate-500 mb-2">常用颜色</div>
                                                 <div class="grid grid-cols-7 gap-2">
@@ -6734,12 +7184,12 @@
                                         </div>
                                         <label class="flex items-center gap-1.5 ml-1 text-[10px] text-slate-500" title="文字透明度">
                                             透明度
-                                            <input id="richOpacityRange" type="range" min="0" max="100" step="1" value="100" onmousedown="richRememberSelection()" oninput="richSetOpacity(this.value)" class="w-20">
-                                            <span id="richOpacityValue" class="w-7 text-right">100%</span>
+                                            <input id="richOpacityRange" type="range" min="0" max="100" step="1" value="100" disabled onmousedown="richRememberSelection()" oninput="richSetOpacity(this.value)" class="w-20 disabled:opacity-40 disabled:cursor-not-allowed">
+                                            <span id="richOpacityValue" class="w-7 text-right">—</span>
                                         </label>
-                                        <button type="button" onmousedown="event.preventDefault(); richRememberSelection()" onclick="richClearFormatting()" class="ml-auto rounded-md border border-slate-200 bg-white hover:bg-slate-100 px-2 h-7 text-[10px] text-slate-600" title="清除格式">清除格式</button>
+                                        <button id="richClearFormattingBtn" type="button" disabled onmousedown="event.preventDefault(); richRememberSelection()" onclick="richClearFormatting()" class="ml-auto rounded-md border border-slate-200 bg-white hover:bg-indigo-50 px-2 h-7 text-[10px] text-slate-700" title="清除格式">清除格式</button>
                                     </div>
-                                    <div id="editDescription" contenteditable="true" class="rich-editor w-full px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" data-placeholder="记录关于这件事的详细经过...">${window.descriptionToEditorHtml ? window.descriptionToEditorHtml(event.description || '') : String(event.description || '')}</div>
+                                    <div id="editDescription" contenteditable="true" onkeydown="richHandleEditorKeydown(event)" oninput="richEditorInput()" onmouseup="richRememberSelection()" onkeyup="richRememberSelection()" ontouchend="setTimeout(()=>richRememberSelection(),0)" class="rich-editor w-full px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" data-placeholder="记录关于这件事的详细经过...">${window.descriptionToEditorHtml ? window.descriptionToEditorHtml(event.description || '') : String(event.description || '')}</div>
                                 </div>
                             </div>
                         </div>
@@ -6756,6 +7206,8 @@
             window.renderLinkPreviews();
             window.renderEditConnections();
             window.switchEditPage(1);
+            window.richResetOpacitySelection?.();
+            
             const richEditor = document.getElementById('editDescription');
             if (richEditor) richEditor.addEventListener('input', window.richEditorInput);
             modal.classList.remove('hidden');
@@ -6787,13 +7239,35 @@
             }
         };
 
+        window.refreshStackAfterEventEdit = function(stackDate, eventId) {
+            if(!stackDate)return;
+            const modal=document.getElementById('stackManagerModal');
+            if(!modal||modal.classList.contains('hidden'))return;
+            const items=window.sortStackItems
+                ? window.sortStackItems(window.events.filter(e=>e&&e.date===stackDate))
+                : window.events.filter(e=>e&&e.date===stackDate);
+            if(items.length>1){
+                const idx=items.findIndex(e=>String(e.id)===String(eventId));
+                if(idx>=0)window._stackFocusIndex=idx;
+                else if(typeof window._stackFocusIndex!=='number'||window._stackFocusIndex<0||window._stackFocusIndex>=items.length)window._stackFocusIndex=0;
+                window.openStackManagerModal(items);
+            }else{
+                modal.classList.add('hidden');
+                window._stackItems=items;
+                window._stackFocusIndex=null;
+            }
+        };
+
         window.closeEditModal = function() {
+            const returnStackDate=window._isEditingFromStack ? window._editingFromStackDate : null;
+            const editedEventId=window.editingEventId;
             const editModal = document.getElementById('editModal');
             if (editModal) editModal.classList.add('hidden');
-            window.editingConnections = []; 
-            window.editingConnectionsDirty = false; 
+            window.editingConnections = [];
+            window.editingConnectionsDirty = false;
             window.editingConnectionDraftEventId = null;
-            
+
+            if(returnStackDate) window.refreshStackAfterEventEdit?.(returnStackDate,editedEventId);
             window._editingFromStackDate = null;
             window._isEditingFromStack = false;
         };
@@ -6974,6 +7448,38 @@
                 return raw;
             }
         };
+        window.getDescriptionFirstParagraphHtml = function(value) {
+            const prepared = window.prepareDescriptionForView ? window.prepareDescriptionForView(value) : String(value || '');
+            if (!prepared || prepared === '无详细描述') return '暂无详细描述';
+            try {
+                const src = document.createElement('div');
+                src.innerHTML = prepared;
+                const out = document.createElement('div');
+                let hasContent = false;
+                for (const node of Array.from(src.childNodes)) {
+                    if (node.nodeType === 1 && /^(P|DIV)$/i.test(node.tagName || '')) {
+                        if ((node.textContent || '').trim() || node.querySelector('img,video')) {
+                            out.appendChild(node.cloneNode(true));
+                            hasContent = true;
+                            break;
+                        }
+                        continue;
+                    }
+                    if (node.nodeType === 1 && node.tagName === 'BR') {
+                        if (hasContent) break;
+                        continue;
+                    }
+                    const clone = node.cloneNode(true);
+                    out.appendChild(clone);
+                    if ((node.textContent || '').trim()) hasContent = true;
+                }
+                return (out.innerHTML || '').trim() || '暂无详细描述';
+            } catch (_) {
+                const plain = String(value || '').split(/\r?\n/)[0].trim();
+                return window.escapeHtml ? window.escapeHtml(plain || '暂无详细描述') : (plain || '暂无详细描述');
+            }
+        };
+
         window.getEditorDescriptionHtml = function() {
             const e = document.getElementById('editDescription');
             if (!e) return '';
@@ -6989,24 +7495,140 @@
         };
         window.richSelectionRange = null;
         window.richOpacitySpan = null;
-        window.richRememberSelection = function() {
-            const e=document.getElementById('editDescription'), sel=window.getSelection();
-            if(!e||!sel||!sel.rangeCount) return;
-            const r=sel.getRangeAt(0);
-            if(!e.contains(r.commonAncestorContainer)) return;
-            window.richSelectionRange=r.cloneRange();
-            const n=r.commonAncestorContainer.nodeType===1?r.commonAncestorContainer:r.commonAncestorContainer.parentElement;
-            const sp=n?.closest?.('[data-rich-opacity]');
-            window.richOpacitySpan=sp&&e.contains(sp)?sp:null;
-            const custom=document.getElementById('richFontSizeCustom');
-            if(custom && document.activeElement!==custom){
-                const target=(n&&n.nodeType===1?n:n?.parentElement)||e;
-                const px=parseFloat(getComputedStyle(target).fontSize)||14;
-                custom.value=(Math.round(px*10)/10).toString();
-                const preset=document.getElementById('richFontSizePreset');
-                if(preset){const v=(Math.round(px*10)/10)+'px';preset.value=[...preset.options].some(o=>o.value===v)?v:'';}
+        window.richGetSelectionOpacityState = function(range) {
+            const e=document.getElementById('editDescription');
+            if(!e||!range||range.collapsed) return {valid:false,pct:100,span:null,mixed:false};
+            const values=[],spans=[];
+            const walker=document.createTreeWalker(e,NodeFilter.SHOW_TEXT);
+            let node;
+            while((node=walker.nextNode())){
+                if(!(node.nodeValue||'').trim())continue;
+                let hit=false;
+                try{hit=range.intersectsNode(node);}catch(_){hit=false;}
+                if(!hit)continue;
+                const sp=node.parentElement?.closest?.('[data-rich-opacity]');
+                const owned=sp&&e.contains(sp)?sp:null;
+                let opacity=1;
+                if(owned){
+                    const raw=parseFloat(owned.style.opacity||getComputedStyle(owned).opacity);
+                    if(Number.isFinite(raw))opacity=Math.max(0,Math.min(1,raw));
+                }
+                values.push(Math.round(opacity*100));
+                spans.push(owned);
+            }
+            if(!values.length){
+                const node=range.startContainer.nodeType===1?range.startContainer:range.startContainer.parentElement;
+                if(node&&e.contains(node)){
+                    const sp=node.closest?.('[data-rich-opacity]');
+                    let opacity=1;
+                    if(sp){const raw=parseFloat(sp.style.opacity||getComputedStyle(sp).opacity);if(Number.isFinite(raw))opacity=Math.max(0,Math.min(1,raw));}
+                    return {valid:true,pct:Math.round(opacity*100),span:sp||null,mixed:false};
+                }
+                return {valid:false,pct:100,span:null,mixed:false};
+            }
+            const first=values[0],mixed=values.some(v=>v!==first);
+            const firstSpan=spans[0],sameSpan=spans.every(s=>s===firstSpan);
+            return {valid:true,pct:first,span:(!mixed&&sameSpan)?firstSpan:null,mixed};
+        };
+        window.richGetActiveTextRange = function() {
+            const e=document.getElementById('editDescription'),sel=window.getSelection();
+            if(!e)return null;
+            if(sel&&sel.rangeCount){
+                const live=sel.getRangeAt(0);
+                if(!live.collapsed&&e.contains(live.commonAncestorContainer)){
+                    try{return live.cloneRange();}catch(_){}
+                }
+            }
+            const saved=window.richSelectionRange;
+            if(saved&&!saved.collapsed){
+                try{
+                    if(e.contains(saved.commonAncestorContainer))return saved.cloneRange();
+                }catch(_){}
+            }
+            return null;
+        };
+        window.richSyncSelectionOnlyControls = function(hasSelection) {
+            ['richBoldBtn','richItalicBtn','richUnderlineBtn','richStrikeBtn','richRevealBtn','richFontSizePreset','richColorBtn','richClearFormattingBtn'].forEach(id=>{
+                const el=document.getElementById(id);if(el)el.disabled=!hasSelection;
+            });
+            const opacity=document.getElementById('richOpacityRange');if(opacity&&!hasSelection)opacity.disabled=true;
+            if(!hasSelection){
+                const preset=document.getElementById('richFontSizePreset');if(preset)preset.value='';
+                const out=document.getElementById('richOpacityValue');if(out)out.textContent='—';
+                window.clearSelectedFormatFeedback?.('rich');
             }
         };
+        window.richSyncOpacityControl = function() {
+            const slider=document.getElementById('richOpacityRange'),out=document.getElementById('richOpacityValue');
+            if(!slider||!out)return;
+            const r=window.richGetActiveTextRange?.();
+            if(!r){
+                slider.disabled=true;slider.value='100';out.textContent='—';window.richOpacitySpan=null;
+                window.richSyncSelectionOnlyControls?.(false);
+                return;
+            }
+            const state=window.richGetSelectionOpacityState(r);
+            if(!state.valid){
+                slider.disabled=true;slider.value='100';out.textContent='—';window.richOpacitySpan=null;
+                window.richSyncSelectionOnlyControls?.(false);
+                return;
+            }
+            slider.disabled=false;
+            slider.value=String(state.pct);
+            out.textContent=state.mixed?'混合':state.pct+'%';
+            window.richOpacitySpan=state.span;
+            window.richSyncSelectionOnlyControls?.(true);
+        };
+        window.richResetOpacitySelection = function() {
+            window.richSelectionRange=null;
+            window.richOpacitySpan=null;
+            const slider=document.getElementById('richOpacityRange');
+            const out=document.getElementById('richOpacityValue');
+            if(slider){slider.value='100';slider.disabled=true;}
+            if(out)out.textContent='—';
+            window.richSyncSelectionOnlyControls?.(false);
+            
+        };
+        
+        window.richSyncSelectedFormatFeedback=function(){
+            const e=document.getElementById('editDescription'),sel=window.getSelection?.();
+            if(!e||!sel?.rangeCount){window.clearSelectedFormatFeedback?.('rich');return;}
+            const r=sel.getRangeAt(0);
+            if(r.collapsed||!e.contains(r.commonAncestorContainer)){
+                window.clearSelectedFormatFeedback?.('rich');return;
+            }
+            window.syncSelectedFormatFeedbackReadOnly?.(e,r,'rich');
+        };
+
+        window.richRememberSelection = function() {
+            const e=document.getElementById('editDescription'),sel=window.getSelection();
+            if(!e||!sel?.rangeCount){window.richSelectionRange=null;window.richSyncSelectionOnlyControls?.(false);window.richSyncOpacityControl?.();return;}
+            const r=sel.getRangeAt(0);
+            if(r.collapsed||!e.contains(r.commonAncestorContainer)){
+                window.richSelectionRange=null;window.richOpacitySpan=null;window.richSyncSelectionOnlyControls?.(false);window.clearSelectedFormatFeedback?.('rich');window.richSyncOpacityControl?.();return;
+            }
+            window.richSelectionRange=r.cloneRange();window.richSyncSelectionOnlyControls?.(true);
+            const state=window.getUniformSelectedFontSizeReadOnly?.(e,r),preset=document.getElementById('richFontSizePreset');
+            if(preset){if(!state?.valid||state.mixed)preset.value='';else{const v=(Math.round(state.size*10)/10)+'px';preset.value=[...preset.options].some(o=>o.value===v)?v:'';}}
+            window.richSyncSelectedFormatFeedback?.();window.richSyncOpacityControl?.();
+        };
+        
+        if(!window._richSelectedFormatFeedbackBound){
+            window._richSelectedFormatFeedbackBound=true;
+            document.addEventListener('selectionchange',()=>{
+                const e=document.getElementById('editDescription'),sel=window.getSelection?.();
+                if(!e)return;
+                if(sel?.rangeCount){
+                    const r=sel.getRangeAt(0);
+                    if(!r.collapsed&&e.contains(r.commonAncestorContainer)){
+                        window.richRememberSelection?.();
+                        return;
+                    }
+                }
+                window.clearSelectedFormatFeedback?.('rich');
+            });
+        }
+
         window.richRestoreSelection=function(){
             const e=document.getElementById('editDescription'), r=window.richSelectionRange;
             if(!e||!r) return false;
@@ -7037,25 +7659,24 @@
             e.querySelectorAll('*').forEach(apply);
         };
         window.richExec=function(cmd,val=null){
-            const e=document.getElementById('editDescription'); if(!e)return;
-            if(!window.richRestoreSelection()){
-                const sel=window.getSelection();
-                if(!sel||!sel.rangeCount||!e.contains(sel.anchorNode)) return;
-            }
+            const e=document.getElementById('editDescription');if(!e||!window.richRestoreSelection())return;
+            const sel=window.getSelection?.();if(!sel?.rangeCount||sel.isCollapsed)return;
+            const r=sel.getRangeAt(0);if(!e.contains(r.commonAncestorContainer))return;
             try{document.execCommand(cmd,false,val);}catch(_){}
-            if (cmd === 'underline' || cmd === 'strikeThrough') {
-                window.richSyncDecorationColor();
-            }
-            window.richRememberSelection();
+            if(cmd==='underline'||cmd==='strikeThrough')window.richSyncDecorationColor?.();
+            window.richRememberSelection?.();
         };
         window.richSetFontSize=function(px){
             const e=document.getElementById('editDescription');
-            if(!e||!px||!window.richRestoreSelection()) return;
-            const n=parseFloat(px);if(!Number.isFinite(n)||n<6||n>240){window.showToast('字号请输入 6–240 之间的数值','info');return;}
-            const val=(Math.round(n*10)/10)+'px';
+            if(!e||!px||!window.richRestoreSelection())return;
+            const n=parseFloat(px);
+            if(!Number.isFinite(n)||n<6||n>240){window.showToast('字号请输入 6–240 之间的数值','info');return;}
             const sel=window.getSelection();
-            if(!sel||!sel.rangeCount||sel.isCollapsed){window.showToast('请先选中需要调整字号的文字','info');return;}
-            try{document.execCommand('fontSize',false,'7');}catch(_){}
+            if(!sel||!sel.rangeCount||sel.isCollapsed)return;
+            const r=sel.getRangeAt(0);
+            if(!e.contains(r.commonAncestorContainer))return;
+            const val=(Math.round(n*10)/10)+'px';
+            try{document.execCommand('styleWithCSS',false,true);document.execCommand('fontSize',false,'7');}catch(_){}
             e.querySelectorAll('font[size="7"]').forEach(x=>{x.removeAttribute('size');x.style.fontSize=val;});
             const custom=document.getElementById('richFontSizeCustom');if(custom)custom.value=String(Math.round(n*10)/10);
             window.richRememberSelection();
@@ -7065,22 +7686,11 @@
             if(!Number.isFinite(n)||n<6||n>240){window.showToast('字号请输入 6–240 之间的数值','info');window.richRememberSelection();return;}
             window.richSetFontSize((Math.round(n*10)/10)+'px');
         };
-        window.richCollapseSelection=function(){
-            const e=document.getElementById('editDescription'),sel=window.getSelection();if(!e||!sel)return;
-            try{if(sel.rangeCount){const r=sel.getRangeAt(0).cloneRange();r.collapse(false);sel.removeAllRanges();sel.addRange(r);window.richSelectionRange=r.cloneRange();}else sel.removeAllRanges();}catch(_){try{sel.removeAllRanges();}catch(__){}}
-            e.blur?.();
-        };
         window.richSetColor=function(v){
-            if(!v) return;
-            window.richExec('foreColor',v);
-            window.richSyncDecorationColor();
-            window.richCollapseSelection();
-            document.querySelectorAll('#richColorPalette .rich-color-choice').forEach(b=>{
-                const on=b.getAttribute('title')===v;
-                b.classList.toggle('is-selected',on);
-            });
-            const p=document.getElementById('richColorPalette');
-            if(p) p.classList.add('hidden');
+            if(!v||!window.richSelectionRange)return;
+            window.richExec('foreColor',v);window.richSyncDecorationColor?.();
+            document.querySelectorAll('#richColorPalette .rich-color-choice').forEach(b=>b.classList.toggle('is-selected',b.getAttribute('title')===v));
+            document.getElementById('richColorPalette')?.classList.add('hidden');
         };
         window.richConfirmCustomColor=function(){
             const input=document.getElementById('richCustomColor');
@@ -7090,25 +7700,30 @@
         };
         window.openRichColorPalette=function(){
             const p=document.getElementById('richColorPalette'); if(!p)return;
-            window.richRememberSelection(); p.classList.toggle('hidden');
+            window.richRememberSelection(); if(!window.richSelectionRange)return; p.classList.toggle('hidden');
         };
         window.richSetOpacity=function(v){
-            const e=document.getElementById('editDescription'); if(!e)return;
+            const e=document.getElementById('editDescription'),slider=document.getElementById('richOpacityRange'); if(!e||slider?.disabled)return;
+            const activeRange=window.richGetActiveTextRange?.();
+            if(activeRange){
+                window.richSelectionRange=activeRange.cloneRange();
+            }
             const pct=Math.max(0,Math.min(100,Number(v)||0));
             const out=document.getElementById('richOpacityValue'); if(out) out.textContent=pct+'%';
             let sp=window.richOpacitySpan;
             if(!sp||!e.contains(sp)){
-                if(!window.richRestoreSelection()){
-                    window.showToast('请先选中需要调整透明度的文字','info'); return;
-                }
+                if(!window.richRestoreSelection())return;
                 const sel=window.getSelection();
-                if(!sel||!sel.rangeCount||sel.isCollapsed){
-                    window.showToast('请先选中需要调整透明度的文字','info'); return;
-                }
+                if(!sel||!sel.rangeCount||sel.isCollapsed)return;
                 const r=sel.getRangeAt(0);
                 sp=document.createElement('span');
                 sp.setAttribute('data-rich-opacity','1');
                 try{r.surroundContents(sp);}catch(_){const f=r.extractContents();sp.appendChild(f);r.insertNode(sp);}
+                sp.querySelectorAll('[data-rich-opacity]').forEach(inner=>{
+                    inner.style.opacity='1';
+                    inner.removeAttribute('data-rich-opacity');
+                    if(!inner.getAttribute('style')&&!inner.getAttribute('data-rich-reveal'))inner.replaceWith(...Array.from(inner.childNodes));
+                });
                 window.richOpacitySpan=sp;
             }
             sp.style.opacity=String(pct/100);
@@ -7116,10 +7731,12 @@
             const nr=document.createRange(); nr.selectNodeContents(sp);
             const sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(nr);
             window.richSelectionRange=nr.cloneRange();
+            window.richSyncOpacityControl?.();
         };
         window.richToggleReveal = function() {
             const e = document.getElementById('editDescription');
-            if (!e) return;
+            const btn=document.getElementById('richRevealBtn');
+            if (!e || btn?.disabled) return;
             if (!window.richRestoreSelection()) {
                 const sel = window.getSelection();
                 if (!sel || !sel.rangeCount || !e.contains(sel.anchorNode)) {
@@ -7162,23 +7779,78 @@
             window.showToast('已设为悬停显现', 'success');
         };
         window.richClearFormatting=function(){
-            const e=document.getElementById('editDescription'); if(!e)return;
-            const restored=window.richRestoreSelection();
-            if(restored){ try{document.execCommand('removeFormat',false,null);}catch(_){} }
-            e.querySelectorAll('span[data-rich-opacity]').forEach(x=>{
-                x.style.opacity='1';
-                x.removeAttribute('data-rich-opacity');
-                if(!x.getAttribute('style') && !x.getAttribute('data-rich-reveal')) x.replaceWith(...Array.from(x.childNodes));
+            const e=document.getElementById('editDescription'),btn=document.getElementById('richClearFormattingBtn');
+            if(!e||btn?.disabled)return;
+            if(!window.richRestoreSelection())return;
+            const sel=window.getSelection();
+            if(!sel||!sel.rangeCount||sel.isCollapsed)return;
+            const range=sel.getRangeAt(0);
+            try{document.execCommand('removeFormat',false,null);}catch(_){}
+            const selectedRange=sel.rangeCount?sel.getRangeAt(0):range;
+            const selectedNodes=[];
+            e.querySelectorAll('span[data-rich-opacity],span[data-rich-reveal]').forEach(sp=>{
+                let hit=false;try{hit=selectedRange.intersectsNode(sp);}catch(_){}
+                if(hit)selectedNodes.push(sp);
             });
-            e.querySelectorAll('span[data-rich-reveal]').forEach(x=>{
-                x.removeAttribute('data-rich-reveal');
-                if(!x.getAttribute('style') && !x.getAttribute('data-rich-opacity')) x.replaceWith(...Array.from(x.childNodes));
+            selectedNodes.forEach(sp=>{
+                sp.style.opacity='';
+                sp.removeAttribute('data-rich-opacity');
+                sp.removeAttribute('data-rich-reveal');
+                if(!sp.getAttribute('style'))sp.replaceWith(...Array.from(sp.childNodes));
             });
-            const r=document.getElementById('richOpacityRange'); if(r)r.value='100';
-            const out=document.getElementById('richOpacityValue'); if(out)out.textContent='100%';
+            window.richSelectionRange=sel.rangeCount?sel.getRangeAt(0).cloneRange():null;
             window.richOpacitySpan=null;
-            window.richRememberSelection();
+            window.richSyncDecorationColor?.();
+            window.richRememberSelection?.();
         };
+        if(!window._richSelectionSyncBound){
+            window._richSelectionSyncBound=true;
+            document.addEventListener('selectionchange',()=>{
+                const e=document.getElementById('editDescription'),sel=window.getSelection();
+                if(!e||!sel||!sel.rangeCount)return;
+                const r=sel.getRangeAt(0);
+                if(e.contains(r.commonAncestorContainer)){
+                    window.richRememberSelection?.();
+                    
+                }
+            });
+        }
+        window.richGetTopLevelLine=function(root,node){
+            if(!root||!node)return null;
+            let el=node.nodeType===1?node:node.parentElement;
+            while(el&&el.parentElement&&el.parentElement!==root)el=el.parentElement;
+            return el&&el!==root?el:null;
+        };
+        window.richHandleEditorKeydown=function(event){
+            if(!event||event.key!=='Enter'||event.defaultPrevented||event.isComposing)return;
+            const root=document.getElementById('editDescription'),sel=window.getSelection?.();
+            if(!root||!sel?.rangeCount)return;
+            const r=sel.getRangeAt(0);
+            if(!r.collapsed||!root.contains(r.commonAncestorContainer))return;
+
+            const line=window.richGetTopLevelLine(root,r.startContainer);
+            const scope=line||root;
+            const tail=document.createRange();
+            try{tail.selectNodeContents(scope);tail.setStart(r.startContainer,r.startOffset);}catch(_){return;}
+            // Middle/start Enter keeps the current style. Only a true line end is special.
+            if((tail.toString()||'').replace(/[\u200B\uFEFF]/g,'').length!==0)return;
+
+            event.preventDefault();
+            const fresh=document.createElement('div');
+            fresh.style.fontSize='14px';
+            fresh.style.fontWeight='400';
+            fresh.style.fontStyle='normal';
+            fresh.style.textDecoration='none';
+            fresh.style.color='#334155';
+            fresh.innerHTML='<br>';
+            if(line)line.after(fresh);else root.appendChild(fresh);
+            const nr=document.createRange();nr.selectNodeContents(fresh);nr.collapse(true);
+            try{sel.removeAllRanges();sel.addRange(nr);}catch(_){}
+            window.richSelectionRange=null;window.richOpacitySpan=null;
+            window.richSyncSelectionOnlyControls?.(false);
+            window.clearSelectedFormatFeedback?.('rich');
+        };
+
         window.richEditorInput=function(){
             window.richRememberSelection();
             const e=document.getElementById('editDescription');
@@ -8005,6 +8677,7 @@
 
         window.onresize = () => window.renderSvgConnections();
         window.onload = () => {
+            if(window.forceMobileBrowseMode?.()) window.updateLockButtonUI?.();
             initAppAndCloudSync();
         };
     </script>
