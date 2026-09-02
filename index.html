@@ -5010,7 +5010,7 @@
             return points;
         };
         window.deepSetDrawing = function(enabled){window.deepCanvasDrawing=!!enabled;if(enabled){window.deepDrawToolsActive=true;window.deepDrawSubtool='pen';window.deepCanvasErasing=false;window.deepCanvasSelecting=false;}else if(window.deepDrawSubtool==='pen'){window.deepDrawToolsActive=false;}if(!window.deepDrawToolsActive)document.getElementById('deepDrawPanel')?.classList.add('hidden');window.deepSyncDrawPanel?.();};
-        window.deepToggleEraser=function(){window.deepSetDrawSubtool('eraser');document.getElementById('deepDrawPanel')?.classList.remove('hidden');};
+        
         window.deepEnsureEraserCursor=function(){let c=document.getElementById('deepEraserCursor');if(!c){c=document.createElement('div');c.id='deepEraserCursor';document.body.appendChild(c);}return c;};
         window.deepRefreshEraserCursor=function(e){const c=window.deepEnsureEraserCursor();if(!c)return;const z=window.deepZoom||1,diameter=Math.max(4,(window.deepEraserSize||24)*z);c.style.width=diameter+'px';c.style.height=diameter+'px';if(e){c.style.left=e.clientX+'px';c.style.top=e.clientY+'px';window._deepEraserPointerInside=true;c.style.display=window.deepCanvasErasing?'block':'none';}else if(!window._deepEraserPointerInside){c.style.display='none';}};
         window.deepSetEraserSize=function(value){window.deepEraserSize=Math.max(4,Math.min(80,Number(value)||24));const out=document.getElementById('deepDrawSharedSizeValue');if(out&&window.deepDrawSubtool==='eraser')out.textContent=String(Math.round(window.deepEraserSize));const c=document.getElementById('deepEraserCursor');if(c){const z=window.deepZoom||1,d=Math.max(4,window.deepEraserSize*z);c.style.width=d+'px';c.style.height=d+'px';c.style.display='none';}window._deepEraserPointerInside=false;};
@@ -5104,6 +5104,65 @@
             tip.style.left=(x+12)+'px';tip.style.top=(y-28)+'px';tip.classList.remove('hidden');
         };
         
+        window.applyExactFontSizeToSelection=function(root,range,px){
+            if(!root||!range||range.collapsed)return null;
+            const sel=window.getSelection?.();
+            if(!sel)return null;
+            const size=Math.max(6,Math.min(240,Number(px)||14));
+
+            const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
+            const parts=[];
+            let node;
+            while((node=walker.nextNode())){
+                const raw=node.nodeValue||'';
+                if(!raw.length)continue;
+                let hit=false;
+                try{hit=range.intersectsNode(node);}catch(_){hit=false;}
+                if(!hit)continue;
+
+                let start=0,end=raw.length;
+                if(node===range.startContainer)start=Math.max(0,Math.min(raw.length,range.startOffset));
+                if(node===range.endContainer)end=Math.max(0,Math.min(raw.length,range.endOffset));
+                if(end<=start)continue;
+                parts.push({node,start,end});
+            }
+            if(!parts.length)return null;
+
+            // Format from end to start so text-node splits don't invalidate later offsets.
+            const made=[];
+            for(let i=parts.length-1;i>=0;i--){
+                let {node,start,end}=parts[i];
+                if(end<node.nodeValue.length)node.splitText(end);
+                if(start>0)node=node.splitText(start);
+
+                let span=node.parentElement;
+                if(!(span&&span.dataset&&span.dataset.exactFontSize==='1'&&span.childNodes.length===1)){
+                    const wrap=document.createElement('span');
+                    wrap.dataset.exactFontSize='1';
+                    node.parentNode.insertBefore(wrap,node);
+                    wrap.appendChild(node);
+                    span=wrap;
+                }
+                span.style.fontSize=size+'px';
+                made.unshift(span);
+            }
+
+            // Strip only the legacy size attribute left by the old browser fontSize command.
+            root.querySelectorAll('font[size]').forEach(f=>f.removeAttribute('size'));
+
+            const nr=document.createRange();
+            try{
+                const first=made[0],last=made[made.length-1];
+                nr.setStart(first,0);
+                nr.setEnd(last,last.childNodes.length);
+                sel.removeAllRanges();
+                sel.addRange(nr);
+                return nr.cloneRange();
+            }catch(_){
+                return null;
+            }
+        };
+
         window.getSelectedTextNodesReadOnly=function(root,range){
             if(!root||!range||range.collapsed)return [];
             const nodes=[],walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
@@ -5312,12 +5371,7 @@
             document.addEventListener('keyup',e=>{if(e.target?.closest?.('.deep-text-content'))sync();},true);
             document.addEventListener('click',e=>{if(e.target?.closest?.('.deep-text-content'))sync();},true);
         }
-        window.deepCollapseTextSelection=function(contentEl){
-            const sel=window.getSelection?.();if(!sel)return;
-            try{if(sel.rangeCount){const r=sel.getRangeAt(0).cloneRange();r.collapse(false);sel.removeAllRanges();sel.addRange(r);}else sel.removeAllRanges();}catch(_){try{sel.removeAllRanges();}catch(__){}}
-            window.deepSavedTextRange=null;
-            if(contentEl)contentEl.blur?.();
-        };
+        
         window.deepSyncDecorationColor=function(root){
             if(!root)return;
             root.querySelectorAll('u,s,strike,[style*="underline"],[style*="line-through"]').forEach(node=>node.style.setProperty('text-decoration-color','currentColor','important'));
@@ -5367,16 +5421,7 @@
             window.deepApplyTextStyle('fontSize',Math.round(n*10)/10);
             window.deepSyncFontSizeControls(it);
         };
-        window.deepMeasureTextOccupancy=function(contentEl){
-            if(!contentEl)return {w:0,h:0};
-            let maxW=0,minTop=Infinity,maxBottom=-Infinity;
-            try{
-                const range=document.createRange();range.selectNodeContents(contentEl);
-                [...range.getClientRects()].forEach(r=>{if(r.width>0&&r.height>0){maxW=Math.max(maxW,r.width);minTop=Math.min(minTop,r.top);maxBottom=Math.max(maxBottom,r.bottom);}});
-            }catch(_){}
-            const h=(Number.isFinite(minTop)&&Number.isFinite(maxBottom))?Math.max(0,maxBottom-minTop):Math.max(0,contentEl.scrollHeight||0);
-            return {w:maxW,h};
-        };
+        
         window.deepApplyCanonicalTextBoxStyle=function(contentEl,{editing=false,height=null}={}){
             if(!contentEl)return;
             contentEl.style.width='100%';
@@ -5463,44 +5508,7 @@
             return true;
         };
 
-        window.deepFitBoxAfterManualFontChange=function(item,contentEl,oldFontSize){
-            if(!item||item.type!=='text'||!contentEl)return false;
-            const host=contentEl.closest('.deep-canvas-text');if(!host)return false;
-            const newFont=Math.max(6,Math.min(240,Number(item.fontSize)||18));
-            const oldFont=Math.max(6,Math.min(240,Number(oldFontSize)||newFont));
-            const ratio=newFont/oldFont;
-
-            window.deepApplyCanonicalTextBoxStyle(contentEl,{editing:true});
-            contentEl.style.overflow='visible';
-            contentEl.style.fontSize=newFont+'px';
-
-            const oldW=Number(item.w)||parseFloat(host.style.width)||180;
-            const oldH=Number(item.h)||parseFloat(host.style.height)||60;
-
-            // First scale the box with the font change.
-            let w=Math.max(40,oldW*ratio);
-
-            // Then tighten width to the actual content width so shrinking the font
-            // does not leave a large unused area on the right.
-            const probeW=Math.max(60,Math.ceil(w));
-            const m=window.deepMeasureTextForBox(item,contentEl,probeW,newFont);
-            const naturalW=Math.max(40,Math.ceil(Math.min(probeW,m.w+16)));
-            w=Math.min(probeW,naturalW);
-
-            item.w=Math.ceil(w);
-            host.style.width=item.w+'px';
-            contentEl.style.width='100%';
-
-            const mm=window.deepMeasureTextForBox(item,contentEl,item.w,newFont);
-            const neededH=Math.max(Math.ceil(newFont*1.35+12),Math.ceil(mm.h+12));
-            // Height follows actual text content at the new font size, with the same
-            // 6px safe area above and below.
-            item.h=neededH;
-
-            host.style.height=item.h+'px';
-            window.deepApplyCanonicalTextBoxStyle(contentEl,{editing:true,height:item.h});
-            return true;
-        };
+        
         window.deepStableFontForBox=function(item,contentEl,targetW,targetH,allowGrow=true){
             const current=Math.max(6,Math.min(240,Number(item.fontSize)||18));
             const innerH=Math.max(1,targetH-12);
@@ -5601,9 +5609,10 @@
                 if(sel.rangeCount)window.deepSavedTextRange=sel.getRangeAt(0).cloneRange();window.deepSavedTextId=it.id;
             }else if(kind==='fontSize'){
                 const px=Math.max(6,Math.min(240,Number(val)||18));
-                try{document.execCommand('styleWithCSS',false,true);document.execCommand('fontSize',false,'7');}catch(_){}
-                editingEl.querySelectorAll('font[size="7"]').forEach(n=>{n.removeAttribute('size');n.style.fontSize=px+'px';});
-                if(sel.rangeCount)window.deepSavedTextRange=sel.getRangeAt(0).cloneRange();window.deepSavedTextId=it.id;
+                const fixed=window.applyExactFontSizeToSelection?.(editingEl,range,px);
+                if(!fixed)return;
+                range=fixed;
+                window.deepSavedTextRange=fixed.cloneRange();window.deepSavedTextId=it.id;
             }else if(kind==='align'){
                 if(!['left','center','right'].includes(val))return;
                 const wrap=document.createElement('span');wrap.style.display='block';wrap.style.width='100%';wrap.style.textAlign=val;
@@ -5630,10 +5639,7 @@
             window.renderDeepCanvas();
             requestAnimationFrame(()=>{const t=document.querySelector(`[data-deep-id="${CSS.escape(item.id)}"] .deep-text-content`); if(!t)return; t.contentEditable='true';window.deepFitTypingBox(item,t);t.focus();requestAnimationFrame(()=>window.deepFitTypingBox(item,t));});
         };
-        window.deepFinishTextEdit=function(item){
-            if(!item||item.type!=='text')return; const el=document.querySelector(`[data-deep-id="${CSS.escape(item.id)}"] .deep-text-content`); if(el){item.text=el.innerText||'';item.html=el.innerHTML||window.deepEsc(item.text);}
-            item.editing=false; window.deepHideSelectionFontTooltip?.(); window.renderDeepCanvas();
-        };
+        
         window.deepAddResizeHandles=function(el,item){
             if(item.type==='draw' || item.type==='connector')return;
             ['nw','n','ne','e','se','s','sw','w'].forEach(pos=>{const h=document.createElement('div');h.className='deep-canvas-handle deep-h-'+pos;h.dataset.handle=pos;el.appendChild(h);h.addEventListener('pointerdown',e=>{
@@ -5729,43 +5735,7 @@
         window.deepFormatVideoTime=function(sec){
             sec=Math.max(0,Number(sec)||0); const m=Math.floor(sec/60), s=Math.floor(sec%60); return m+':'+String(s).padStart(2,'0');
         };
-        window.deepOpenVideoCoverPicker=function(itemId){
-            const item=window.deepCanvasState?.items?.find(x=>x.id===itemId);
-            if(!item||item.type!=='media'||item.mediaKind!=='video')return;
-            let modal=document.getElementById('deepVideoCoverModal');
-            if(!modal){
-                modal=document.createElement('div');
-                modal.id='deepVideoCoverModal';
-                modal.className='fixed inset-0 z-[360] hidden bg-slate-950/85 backdrop-blur-sm p-3 sm:p-6 flex items-center justify-center';
-                document.body.appendChild(modal);
-            }
-            modal.innerHTML=`<div class="w-full max-w-3xl rounded-2xl bg-white shadow-2xl border border-slate-200 p-4 sm:p-5" onclick="event.stopPropagation()">
-                <div class="flex items-center justify-between mb-3"><div><div class="font-bold text-slate-800">截选视频封面</div><div class="text-[11px] text-slate-400 mt-1">播放或拖动到想要的画面，再截取当前帧。</div></div><button type="button" data-deep-cover-close class="w-8 h-8 rounded-full border text-slate-500"><i class="fa-solid fa-xmark"></i></button></div>
-                <video data-deep-cover-video src="${window.deepEsc(item.src)}" controls playsinline crossorigin="anonymous" class="w-full max-h-[62vh] rounded-xl bg-black object-contain"></video>
-                <div class="mt-4 flex justify-end gap-2"><button type="button" data-deep-cover-close class="px-4 py-2 border rounded-lg text-sm">取消</button><button type="button" data-deep-cover-capture class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold">截取当前帧做封面</button></div>
-            </div>`;
-            const close=()=>{const v=modal.querySelector('video');try{v?.pause();}catch(_){}modal.classList.add('hidden');modal.innerHTML='';};
-            modal.querySelectorAll('[data-deep-cover-close]').forEach(b=>b.onclick=close);
-            modal.onclick=e=>{if(e.target===modal)close();};
-            modal.querySelector('[data-deep-cover-capture]').onclick=()=>{
-                const v=modal.querySelector('[data-deep-cover-video]');
-                if(!v||!(v.videoWidth>0&&v.videoHeight>0)){window.showToast?.('视频画面尚未准备好','info');return;}
-                try{
-                    const maxW=1280,scale=Math.min(1,maxW/v.videoWidth);
-                    const c=document.createElement('canvas');c.width=Math.max(1,Math.round(v.videoWidth*scale));c.height=Math.max(1,Math.round(v.videoHeight*scale));
-                    const ctx=c.getContext('2d');ctx.drawImage(v,0,0,c.width,c.height);
-                    item.cover=c.toDataURL('image/jpeg',.84);
-                    deepPushUndo?.();
-                    window.renderDeepCanvas();
-                    window.showToast?.('视频封面已更新','success');
-                    close();
-                }catch(err){
-                    console.error('深入描述视频封面截取失败:',err);
-                    window.showToast?.('当前视频无法截取封面，请确认视频允许跨域读取后再试','error');
-                }
-            };
-            modal.classList.remove('hidden');
-        };
+        
         window.deepActivateVideoPlayer=function(host,item){
             if(!host||!item||host.querySelector(':scope > video'))return;
             const old=host.querySelector('.deep-video-cover-layer');old?.remove();
@@ -7675,17 +7645,15 @@
             if(!sel||!sel.rangeCount||sel.isCollapsed)return;
             const r=sel.getRangeAt(0);
             if(!e.contains(r.commonAncestorContainer))return;
-            const val=(Math.round(n*10)/10)+'px';
-            try{document.execCommand('styleWithCSS',false,true);document.execCommand('fontSize',false,'7');}catch(_){}
-            e.querySelectorAll('font[size="7"]').forEach(x=>{x.removeAttribute('size');x.style.fontSize=val;});
-            const custom=document.getElementById('richFontSizeCustom');if(custom)custom.value=String(Math.round(n*10)/10);
+
+            const fixed=window.applyExactFontSizeToSelection?.(e,r,n);
+            if(!fixed)return;
+            window.richSelectionRange=fixed.cloneRange();
+            const custom=document.getElementById('richFontSizeCustom');
+            if(custom)custom.value=String(Math.round(n*10)/10);
             window.richRememberSelection();
         };
-        window.richSetFontSizeCustom=function(value){
-            const n=Number(value);
-            if(!Number.isFinite(n)||n<6||n>240){window.showToast('字号请输入 6–240 之间的数值','info');window.richRememberSelection();return;}
-            window.richSetFontSize((Math.round(n*10)/10)+'px');
-        };
+        
         window.richSetColor=function(v){
             if(!v||!window.richSelectionRange)return;
             window.richExec('foreColor',v);window.richSyncDecorationColor?.();
