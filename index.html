@@ -355,6 +355,14 @@
         .deep-h-sw { left:-6px; bottom:-6px; cursor:nesw-resize; } .deep-h-w { left:-6px; top:50%; transform:translateY(-50%); cursor:ew-resize; }
         .deep-canvas-selected:not(.editing) .deep-canvas-handle { display:block; }
         .deep-canvas-text.editing .deep-canvas-handle, .deep-canvas-text.tool-visible .deep-canvas-handle { display:none; }
+        .deep-canvas-link { display:flex; align-items:center; justify-content:center; padding:10px 14px; box-sizing:border-box; border:1px solid #c7d2fe; border-radius:12px; background:rgba(255,255,255,.96); color:#4338ca; box-shadow:0 4px 14px rgba(15,23,42,.10); overflow:hidden; }
+        .deep-canvas-link .deep-link-inner { width:100%; min-width:0; display:flex; align-items:center; gap:9px; }
+        .deep-canvas-link .deep-link-icon { flex:0 0 auto; width:28px; height:28px; border-radius:9999px; display:flex; align-items:center; justify-content:center; background:#eef2ff; color:#4f46e5; }
+        .deep-canvas-link .deep-link-copy { min-width:0; flex:1; }
+        .deep-canvas-link .deep-link-label { display:block; font-size:13px; line-height:18px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .deep-canvas-link .deep-link-url { display:block; margin-top:2px; font-size:10px; line-height:14px; color:#64748b; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .deep-read-link { cursor:pointer; text-decoration:none; }
+        .deep-read-link:hover { border-color:#818cf8; background:#eef2ff; }
 
         .deep-color-choice.is-picked { box-shadow:0 0 0 2px #fff,0 0 0 4px #4f46e5 !important; transform:scale(1.12); position:relative; z-index:2; } .deep-color-choice.is-picked::after{content:'✓';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;text-shadow:0 1px 2px #000;font-size:12px;font-weight:800;} .deep-color-choice[title='#ffffff'].is-picked::after{color:#111;text-shadow:none;}
 #deepTextOpacity:disabled {
@@ -904,10 +912,13 @@
                 <div class="border border-green-300 rounded-xl p-4 bg-green-50">
                     <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.02</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">本次更新</span></div>
                     <div class="space-y-2 leading-7 mb-3">
-                        <p>优化了详细描述与深入描述中文字样式设置及透明度调整的功能</p>
+                        <p>优化了详细描述与深入描述中文字样式、字号、透明度、下划线与删除线显示的功能</p>
+                        <p>修复了深入描述中文字框随字号变化时高度、留白、缩放与删除选中异常的问题</p>
+                        <p>优化了深入描述与普通事件中视频播放、暂停、进度控制、大图查看及背景音乐自动暂停与续播的功能</p>
+                        <p>修复了深入描述与普通事件中视频切换媒体后未回到封面、播放进度未按预期重置及深入描述入口触发异常的问题</p>
+                        <p>增加了深入描述中视频封面截选、媒体加载提示与网址区域的功能</p>
+                        <p>修复了深入描述中文字框边框状态提示与二级设置界面关闭异常的问题</p>
                         <p>优化了同期事件集合中详细描述预览与编辑后实时更新的功能</p>
-                        <p>增加了深入描述中视频封面截选与封面显示的功能</p>
-                        <p>修复了深入描述编辑模式下视频无法播放的问题</p>
                         <p>增加了移动端仅能使用浏览模式的功能</p>
                     </div>
                     <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.01</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>优化了画笔图形矫正的功能</p><p>增加了画笔笔迹选中与移动的功能</p><p>优化了画笔工具界面的功能</p><p>优化了深入描述中媒体截选区域显示的功能</p></div></div>
@@ -4628,7 +4639,7 @@
         window.deepUndo = function(){ if(!window.deepCanvasUndo.length)return; window.deepCanvasRedo.push(window.deepClone(window.deepCanvasState)); window.deepRestoreState(window.deepCanvasUndo.pop()); };
         window.deepRedo = function(){ if(!window.deepCanvasRedo.length)return; window.deepCanvasUndo.push(window.deepClone(window.deepCanvasState)); window.deepRestoreState(window.deepCanvasRedo.pop()); };
         window.deepEsc = function(v){ return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
-        window.deepCanvasHasContent = function(st){ return !!(st && Array.isArray(st.items) && st.items.some(x=>x && ['text','media','draw','connector'].includes(x.type))); };
+        window.deepCanvasHasContent = function(st){ return !!(st && Array.isArray(st.items) && st.items.some(x=>x && ['text','media','draw','connector','link'].includes(x.type))); };
         window.deepDefaultState = function(type,obj){
             const src=window.deepGetSrc(type,obj);
             return {version:3,width:2600,height:1600,items:[{id:'seed_'+Date.now().toString(36),type:'media',x:160,y:120,w:520,h:340,src:src,mediaKind:type==='video'?'video':'image',seed:true}],sourceType:type,source:src};
@@ -4651,6 +4662,7 @@
                 <div class="deep-canvas-toolbar shrink-0 border-b border-slate-200 bg-slate-50 px-3 py-2 flex flex-wrap gap-1.5 items-center">
                     <button type="button" onclick="deepOpenCanvasSize()" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs" title="调整深入描述画布宽度与高度"><i class="fa-solid fa-maximize mr-1"></i>画布大小</button>
                     <button type="button" onclick="deepAddMedia()" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs"><i class="fa-solid fa-photo-film mr-1"></i>插入媒体</button>
+                    <button type="button" onclick="deepAddUrl()" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs" title="在画布中放置可点击的网址"><i class="fa-solid fa-globe mr-1"></i>网址</button>
                     <button type="button" onclick="deepToggleConnectMode()" id="deepConnectBtn" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs" title="建立联结；选中已有箭头后可直接拖动箭头调整弯曲"><i class="fa-solid fa-link mr-1"></i>联结</button>
                     <div class="relative"><button type="button" onclick="deepToggleDraw()" id="deepDrawBtn" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs"><i class="fa-solid fa-pencil mr-1"></i>画笔</button><div id="deepDrawPanel" class="hidden absolute left-0 top-9 z-[270] w-72 p-3 bg-white border border-slate-200 rounded-xl shadow-xl"><div class="text-[10px] font-semibold text-slate-500 mb-2">画笔设置</div><div class="flex items-center justify-center gap-3 mb-2"><button type="button" id="deepDrawModePen" onclick="deepSetDrawSubtool('pen')" class="deep-draw-mode-btn active" title="画笔"><i class="fa-solid fa-pencil"></i></button><button type="button" id="deepDrawModeEraser" onclick="deepSetDrawSubtool('eraser')" class="deep-draw-mode-btn" title="橡皮擦"><i class="fa-solid fa-eraser"></i></button><button type="button" id="deepDrawModeSelect" onclick="deepSetDrawSubtool('select')" class="deep-draw-mode-btn" title="选中移动"><i class="fa-solid fa-arrow-pointer"></i></button></div><div id="deepDrawSelectHint" class="hidden mb-3 rounded-lg bg-slate-50 border border-slate-200 px-2.5 py-2 text-[10px] leading-5 text-slate-500">单击选择一整笔，再次拖动可移动。圈选可移动局部内容。</div><label id="deepDrawSharedSizeRow" class="text-[10px] text-slate-500 flex items-center gap-2 mb-3"><span id="deepDrawSharedSizeLabel">画笔大小</span><input id="deepDrawSharedSize" type="range" min="1" max="24" step="1" value="4" oninput="deepSetSharedDrawSize(this.value)" class="flex-1"><span id="deepDrawSharedSizeValue" class="w-7 text-right font-mono">4</span></label><button type="button" id="deepDrawShapeAssistBtn" onclick="deepToggleDrawShapeAssist()" class="mb-3 px-1.5 py-1 rounded-md text-[10px] font-semibold text-slate-600 flex items-center gap-1.5"><span class="deep-draw-shape-switch"></span><span>图形矫正</span></button><div id="deepDrawPenOptions"><div class="text-[10px] text-slate-500 mb-2 flex items-center gap-2"><span>颜色</span><span id="deepDrawColorSwatch" class="inline-block w-4 h-4 rounded-full border border-slate-200" style="background:#334155"></span></div><div id="deepDrawColorPalette"><div class="grid grid-cols-7 gap-2">${['#0f172a','#334155','#64748b','#dc2626','#ea580c','#f59e0b','#16a34a','#059669','#0284c7','#2563eb','#4f46e5','#7c3aed','#db2777','#ffffff'].map(c=>`<button type="button" onclick="deepPickDrawColor('${c}')" class="w-6 h-6 rounded-full border border-slate-200 deep-color-choice" style="background:${c}" title="${c}"></button>`).join('')}</div><div class="flex items-center gap-2 mt-3 pt-2 border-t"><span class="text-[10px] text-slate-500">自定义</span><input id="deepDrawCustomColor" type="color" value="#334155" onchange="deepPickDrawColor(this.value)" class="w-7 h-7 p-0 border-0"><button type="button" onclick="deepApplyDrawCustomColor()" class="ml-auto px-2 py-1 rounded bg-indigo-600 text-white text-[10px]">使用</button></div></div></div></div></div>
                     <button type="button" onclick="deepToggleTextTool()" id="deepTextToolBtn" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs"><i class="fa-solid fa-font mr-1"></i>文字</button>
@@ -4810,8 +4822,8 @@
                     <div class="space-y-5">
                         <div><h4 class="font-bold text-slate-800 mb-1">1. 移动画布与浏览</h4><p>通过滚动画布区域，可以查看和编辑不同位置的内容；画布空间不够时，可以点击顶部“画布大小”随时扩大宽度或高度。</p></div>
                         <div><h4 class="font-bold text-slate-800 mb-1">2. 添加和编辑文字</h4><p>点击“文字”后可在画布中创建文字框。文字框可以移动、缩放，并支持多种样式设置。</p></div>
-                        <div><h4 class="font-bold text-slate-800 mb-1">3. 插入图片、动图与视频</h4><p>点击“插入媒体”可添加图片、动图与视频。插入后可以自由移动和调整区域大小，并可以进一步调整媒体在区域内部的显示位置与缩放。</p></div>
-                        <div><h4 class="font-bold text-slate-800 mb-1">4. 调整区域</h4><p>文字框、图片、动图和视频都属于可操作区域。选中区域后可以拖动改变位置，也可以拖动周围的控制点改变宽度与高度。</p></div>
+                        <div><h4 class="font-bold text-slate-800 mb-1">3. 插入图片、动图、视频与网址</h4><p>点击“插入媒体”可添加图片、动图与视频；点击“网址”可放置可点击的网站链接。插入后可以自由移动和调整区域大小，并可以进一步调整媒体在区域内部的显示位置与缩放。</p></div>
+                        <div><h4 class="font-bold text-slate-800 mb-1">4. 调整区域</h4><p>文字框、图片、动图、视频和网址都属于可操作区域。选中区域后可以拖动改变位置，也可以拖动周围的控制点改变宽度与高度。</p></div>
                         <div><h4 class="font-bold text-slate-800 mb-1">5. 创建区域联结</h4><p>点击“联结”后依次选择两个区域，即可创建从第一个区域指向第二个区域的虚线联结。移动或调整任一区域时，联结会自动跟随。</p></div>
                         <div><h4 class="font-bold text-slate-800 mb-1">6. 调整和取消联结</h4><p>选中联结线后可使用“弯曲”滑块改变线路弯曲程度。对已经互相联结的两个区域再次执行联结操作，会取消联结。</p></div>
                         <div><h4 class="font-bold text-slate-800 mb-1">7. 使用画笔</h4><p>点击“画笔”可以直接在画布中绘制补充标记，并可以选择画笔颜色。画笔内容会与其他画布内容一同保存。</p></div>
@@ -4875,6 +4887,7 @@
                 requestAnimationFrame(()=>input.focus());
             });
         };
+        window._deepMediaLoadingTimer=null;
         window.deepSetMediaLoading = function(show,text='正在加载媒体，请稍候…'){
             let box=document.getElementById('deepMediaLoadingNotice');
             if(!box){
@@ -4886,7 +4899,20 @@
             }
             const label=box.querySelector('[data-deep-media-loading-text]');
             if(label)label.textContent=text;
-            box.classList.toggle('hidden',!show);
+            if(window._deepMediaLoadingTimer){
+                clearTimeout(window._deepMediaLoadingTimer);
+                window._deepMediaLoadingTimer=null;
+            }
+            if(!show){
+                box.classList.add('hidden');
+                return;
+            }
+            box.classList.add('hidden');
+            window._deepMediaLoadingTimer=setTimeout(()=>{
+                window._deepMediaLoadingTimer=null;
+                const live=document.getElementById('deepMediaLoadingNotice');
+                if(live)live.classList.remove('hidden');
+            },450);
         };
         window.deepAddMedia = async function(){
             window.deepDeactivateDrawTools?.(); window.deepTextTool=false; window.deepSetTextToolsExpanded?.(false); window.deepConnectMode=false; window.deepConnectPending=[];
@@ -4908,6 +4934,97 @@
             const kind=/\.(mp4|webm|ogg|mov)(?:$|[?#])/i.test(val)?'video':'image';
             if(kind==='image'){const im=new Image();im.onload=()=>addBySrc(val,kind,im.naturalWidth,im.naturalHeight);im.onerror=()=>addBySrc(val,kind,640,360);im.src=val;}else{const v=document.createElement('video');v.preload='metadata';v.onloadedmetadata=()=>addBySrc(val,kind,v.videoWidth,v.videoHeight);v.onerror=()=>addBySrc(val,kind,640,360);v.src=val;}
         };
+
+        window.deepNormalizeUrl=function(value){
+            let url=String(value||'').trim();
+            if(!url)return '';
+            if(!/^[a-z][a-z0-9+.-]*:\/\//i.test(url))url='https://'+url.replace(/^\/+/,'');
+            try{
+                const parsed=new URL(url);
+                if(!/^https?:$/i.test(parsed.protocol))return '';
+                return parsed.href;
+            }catch(_){return '';}
+        };
+        window.deepUrlDialog=function(existing=null){
+            return new Promise(resolve=>{
+                let modal=document.getElementById('deepUrlModal');
+                if(!modal){
+                    modal=document.createElement('div');
+                    modal.id='deepUrlModal';
+                    modal.className='fixed inset-0 z-[435] hidden bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4';
+                    document.body.appendChild(modal);
+                }
+                const currentUrl=existing?.url||'';
+                const currentLabel=existing?.label||'';
+                modal.innerHTML=`<div class="w-full max-w-lg rounded-2xl bg-white border border-slate-200 shadow-2xl p-5 sm:p-6 text-slate-800" onclick="event.stopPropagation()">
+                    <div class="text-base font-bold">${existing?'编辑网址':'插入网址'}</div>
+                    <p class="mt-2 text-xs leading-5 text-slate-500">网址会作为独立区域放在深入描述画布中；浏览模式点击即可在新标签页打开。</p>
+                    <label class="block mt-4 text-xs font-semibold text-slate-600">网址
+                        <input data-deep-url-input type="url" value="${window.deepEsc(currentUrl)}" placeholder="https://example.com" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500">
+                    </label>
+                    <label class="block mt-3 text-xs font-semibold text-slate-600">显示名称（可选）
+                        <input data-deep-url-label type="text" value="${window.deepEsc(currentLabel)}" placeholder="例如：相关资料" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500">
+                    </label>
+                    <div class="mt-5 flex justify-end gap-2">
+                        <button type="button" data-deep-url-cancel class="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-sm">取消</button>
+                        <button type="button" data-deep-url-confirm class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold">确定</button>
+                    </div>
+                </div>`;
+                const urlInput=modal.querySelector('[data-deep-url-input]');
+                const labelInput=modal.querySelector('[data-deep-url-label]');
+                const finish=value=>{modal.classList.add('hidden');resolve(value);};
+                modal.onclick=e=>{if(e.target===modal)finish(null);};
+                modal.querySelector('[data-deep-url-cancel]').onclick=()=>finish(null);
+                modal.querySelector('[data-deep-url-confirm]').onclick=()=>{
+                    const url=window.deepNormalizeUrl(urlInput.value);
+                    if(!url){window.showToast?.('请输入有效的 http 或 https 网址','error');urlInput.focus();return;}
+                    finish({url,label:String(labelInput.value||'').trim()});
+                };
+                [urlInput,labelInput].forEach(input=>input.addEventListener('keydown',e=>{
+                    if(e.key==='Escape'){e.preventDefault();finish(null);}
+                    if(e.key==='Enter'){e.preventDefault();modal.querySelector('[data-deep-url-confirm]')?.click();}
+                }));
+                modal.classList.remove('hidden');
+                requestAnimationFrame(()=>urlInput.focus());
+            });
+        };
+        window.deepAddUrl=async function(){
+            window.deepDeactivateDrawTools?.();
+            window.deepConnectMode=false;window.deepConnectPending=[];
+            document.getElementById('deepConnectBtn')?.classList.remove('active');
+            const data=await window.deepUrlDialog();
+            if(!data)return;
+            deepPushUndo?.();
+            const w=320,h=72,cw=window.deepCanvasState?.width||2600,ch=window.deepCanvasState?.height||1600;
+            const stage=document.getElementById('deepCanvasStage');
+            const scroller=stage?.parentElement;
+            const z=Math.max(.01,Number(window.deepZoom)||1);
+            let x=120,y=120;
+            if(scroller){
+                const visibleLeft=(Number(scroller.scrollLeft)||0)/z;
+                const visibleTop=(Number(scroller.scrollTop)||0)/z;
+                const visibleW=(Number(scroller.clientWidth)||0)/z;
+                const visibleH=(Number(scroller.clientHeight)||0)/z;
+                x=visibleLeft+Math.max(24,(visibleW-w)/2);
+                y=visibleTop+Math.max(24,(visibleH-h)/2);
+            }
+            x=Math.max(20,Math.min(Math.max(20,cw-w-20),x));
+            y=Math.max(20,Math.min(Math.max(20,ch-h-20),y));
+            window.deepCanvasState.items.push({
+                id:'link_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7),type:'link',url:data.url,label:data.label||data.url,x,y,w,h
+            });
+            window.deepCanvasSelected=window.deepCanvasState.items[window.deepCanvasState.items.length-1].id;
+            window.renderDeepCanvas();
+        };
+        window.deepEditUrl=async function(item){
+            if(!item||item.type!=='link')return;
+            const data=await window.deepUrlDialog(item);
+            if(!data)return;
+            deepPushUndo?.();
+            item.url=data.url;item.label=data.label||data.url;
+            window.renderDeepCanvas();
+        };
+
         window.deepGetConnectorByPair=function(a,b){
             return window.deepCanvasState?.items?.find(x=>x.type==='connector' && x.sourceId===a && x.targetId===b) ||
                    window.deepCanvasState?.items?.find(x=>x.type==='connector' && x.sourceId===b && x.targetId===a) || null;
@@ -4920,7 +5037,7 @@
             window.showToast(window.deepConnectMode?'联结模式：依次点击两个区域，箭头从第一个指向第二个':'已退出联结模式','info');
         };
         window.deepHandleConnectPick=function(item){
-            if(!window.deepConnectMode || !item || !['text','media'].includes(item.type))return false;
+            if(!window.deepConnectMode || !item || !['text','media','link'].includes(item.type))return false;
             const pending=window.deepConnectPending||[];
             if(!pending.length){
                 window.deepConnectPending=[item.id]; window.deepCanvasSelected=item.id; window.renderDeepCanvas();
@@ -5082,11 +5199,22 @@
                 el.classList.toggle('opacity-40',locked);
                 el.classList.toggle('cursor-not-allowed',locked);
             });
+            window.deepSyncBorderToggle?.();
             ['deepTextColorPalette','deepBorderColorPalette'].forEach(id=>{
                 const p=document.getElementById(id);
                 if(locked) p?.classList.add('hidden');
                 p?.querySelectorAll('button,input,select').forEach(el=>{el.disabled=locked;});
             });
+        };
+        window.deepSyncBorderToggle=function(){
+            const btn=document.getElementById('deepBorderToggleBtn');
+            if(!btn)return;
+            const it=window.deepCanvasState?.items?.find(x=>x.id===window.deepCanvasSelected);
+            const on=!!(it&&it.type==='text'&&it.border);
+            btn.textContent='显示边框：'+(on?'开':'关');
+            btn.classList.toggle('bg-indigo-50',on);
+            btn.classList.toggle('border-indigo-300',on);
+            btn.classList.toggle('text-indigo-700',on);
         };
         window.deepOpenColorPalette=function(kind){
             if(kind==='text'&&!window.deepSavedTextRange)return;
@@ -5097,6 +5225,7 @@
             ['text','border','draw'].forEach(k=>document.getElementById('deep'+(k==='text'?'Text':k==='border'?'Border':'Draw')+'ColorPalette')?.classList.add('hidden'));
             if(wasOpen)return;
             p.classList.remove('hidden');
+            if(kind==='border')window.deepSyncBorderToggle?.();
             p.querySelectorAll('.deep-color-choice').forEach(b=>b.classList.remove('is-picked'));
             const current=kind==='draw'?(window.deepDrawColor||'#334155'):(()=>{const it=window.deepCanvasState?.items?.find(x=>x.id===window.deepCanvasSelected);return kind==='text'?(it?.color||'#334155'):(it?.borderColor||'#3b82f6');})();
             p.querySelectorAll('.deep-color-choice').forEach(b=>{if((b.getAttribute('title')||'').toLowerCase()===String(current).toLowerCase())b.classList.add('is-picked');});
@@ -5684,7 +5813,10 @@
             if(kind==='borderToggle'||kind==='borderColor'){
                 deepPushUndo();
                 if(kind==='borderToggle')it.border=!it.border;else it.borderColor=val;
-                window.renderDeepCanvas(false);return;
+                window.renderDeepCanvas(false);
+                window.deepSyncBorderToggle?.();
+                if(kind==='borderToggle')document.getElementById('deepBorderColorPalette')?.classList.add('hidden');
+                return;
             }
             if(!window.deepSavedTextRange)return;
             window.deepRestoreTextSelection();
@@ -6035,11 +6167,12 @@
             window.deepUpdateConnectors();
             window.deepCanvasState.items.forEach(item=>{
                 if(item.type==='draw')return;
-                const el=document.createElement('div'); el.className='deep-canvas-item '+(item.type==='media'?'deep-canvas-media ':'')+(item.type==='text'?'deep-canvas-text ':'')+(item.id===window.deepCanvasSelected?' deep-canvas-selected ':'')+(item.type==='text' && (window.deepTextTool||item.editing)?' tool-visible':''); el.dataset.deepId=item.id; el.style.left=item.x+'px';el.style.top=item.y+'px';el.style.width=item.w+'px';el.style.height=item.h+'px'; if(window.deepConnectPending?.includes(item.id))el.classList.add('deep-connect-pending');
+                const el=document.createElement('div'); el.className='deep-canvas-item '+(item.type==='media'?'deep-canvas-media ':'')+(item.type==='text'?'deep-canvas-text ':'')+(item.type==='link'?'deep-canvas-link ':'')+(item.id===window.deepCanvasSelected?' deep-canvas-selected ':'')+(item.type==='text' && (window.deepTextTool||item.editing)?' tool-visible':''); el.dataset.deepId=item.id; el.style.left=item.x+'px';el.style.top=item.y+'px';el.style.width=item.w+'px';el.style.height=item.h+'px'; if(window.deepConnectPending?.includes(item.id))el.classList.add('deep-connect-pending');
                 if(item.type==='text'){el.classList.toggle('has-border',!!item.border);el.classList.toggle('editing',!!item.editing);el.dataset.fontSize=(Math.round((Number(item.fontSize)||18)*10)/10).toString();el.style.borderColor=item.borderColor||'#3b82f6';el.style.fontSize=(item.fontSize||18)+'px';el.style.color=item.color||'#334155';el.style.textAlign=item.textAlign||'left';el.style.opacity='1';el.style.fontWeight=item.bold?'700':'400';el.style.fontStyle=item.italic?'italic':'normal';el.style.textDecoration='none';el.innerHTML=`<div class="deep-text-content">${item.html||window.deepEsc(item.text||'')}</div>`; const tc=el.querySelector('.deep-text-content'); if(tc) tc.contentEditable=item.editing?'true':'false'; if(tc){window.deepApplyCanonicalTextBoxStyle(tc,{editing:!!item.editing,height:item.h});tc.style.fontSize=(item.fontSize||18)+'px';tc.style.opacity=item.opacity??1;tc.style.textAlign=item.textAlign||'left';tc.style.textDecoration=[item.underline?'underline':'',item.strike?'line-through':''].filter(Boolean).join(' ')||'none';tc.style.textUnderlineOffset='0.13em';tc.style.textDecorationThickness='0.06em';tc.style.textDecorationColor='currentColor';tc.style.textDecorationSkipInk='none';;requestAnimationFrame(()=>{const live=document.querySelector(`[data-deep-id="${CSS.escape(item.id)}"] .deep-text-content`);if(live){window.deepAutoFitTextItem(item,live);if(item.editing)window.deepBindTextAutoFit(item,live);}});}}
-                else if(item.type==='media'){const c=item.crop||{scale:1,offsetX:0,offsetY:0,stretchX:1,stretchY:1};if(item.mediaKind==='video'){el.innerHTML='';window.deepRenderVideoCover(el,item,false);}else{el.innerHTML=`<img src="${window.deepEsc(item.src)}" alt="深入描述媒体">`;const md=el.firstElementChild;const applyMedia=()=>{if(!md)return;const scale=Math.max(0.01,Number(c.scale)||1);md.style.width='auto';md.style.height='auto';md.style.left='50%';md.style.top='50%';const stretchX=Math.max(.85,Math.min(1.15,Number(c.stretchX)||1)),stretchY=Math.max(.85,Math.min(1.15,Number(c.stretchY)||1));md.style.transform=`translate(-50%,-50%) translate(${Number(c.offsetX)||0}px,${Number(c.offsetY)||0}px) scale(${scale}) scale(${stretchX},${stretchY})`;};if(md.complete)applyMedia();else md.addEventListener('load',applyMedia,{once:true});}}else if(item.type==='connector'){ el.remove(); return; }
+                else if(item.type==='media'){const c=item.crop||{scale:1,offsetX:0,offsetY:0,stretchX:1,stretchY:1};if(item.mediaKind==='video'){el.innerHTML='';window.deepRenderVideoCover(el,item,false);}else{el.innerHTML=`<img src="${window.deepEsc(item.src)}" alt="深入描述媒体">`;const md=el.firstElementChild;const applyMedia=()=>{if(!md)return;const scale=Math.max(0.01,Number(c.scale)||1);md.style.width='auto';md.style.height='auto';md.style.left='50%';md.style.top='50%';const stretchX=Math.max(.85,Math.min(1.15,Number(c.stretchX)||1)),stretchY=Math.max(.85,Math.min(1.15,Number(c.stretchY)||1));md.style.transform=`translate(-50%,-50%) translate(${Number(c.offsetX)||0}px,${Number(c.offsetY)||0}px) scale(${scale}) scale(${stretchX},${stretchY})`;};if(md.complete)applyMedia();else md.addEventListener('load',applyMedia,{once:true});}}else if(item.type==='link'){const safeUrl=window.deepEsc(item.url||'');const safeLabel=window.deepEsc(item.label||item.url||'网址');el.innerHTML=`<div class="deep-link-inner"><span class="deep-link-icon"><i class="fa-solid fa-globe"></i></span><span class="deep-link-copy"><span class="deep-link-label">${safeLabel}</span><span class="deep-link-url">${safeUrl}</span></span><i class="fa-solid fa-arrow-up-right-from-square text-[11px] text-slate-400"></i></div>`;el.title='双击编辑网址';}else if(item.type==='connector'){ el.remove(); return; }
                 st.appendChild(el); window.deepBindItem(el,item); el.addEventListener('click',e=>{e.stopPropagation(); if(el._deepConnectPicked){el._deepConnectPicked=false;return;} if(window.deepConnectMode){window.deepHandleConnectPick(item);return;} window.deepCanvasSelected=item.id; window.deepUpdateConnectorControls(); if(item.type==='text' && window.deepTextTool) window.renderDeepCanvas(false);});
                 if(item.type==='media'){ el.addEventListener('dblclick',e=>{ e.preventDefault(); e.stopPropagation(); if(Date.now() < (el._deepSuppressCropUntil||0)) return; window.deepCanvasSelected=item.id; window.deepCropSelected(); }); }
+                if(item.type==='link'){ el.addEventListener('dblclick',e=>{ e.preventDefault(); e.stopPropagation(); window.deepCanvasSelected=item.id; window.deepEditUrl(item); }); }
             });
             window.deepRenderDrawPaths();
             window.deepUpdateConnectors();
@@ -6605,6 +6738,15 @@
                         if(md.complete) applyMedia(); else md.addEventListener('load',applyMedia,{once:true});
                         el.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();openLarge(item);});
                     }
+                }else if(item.type==='link'){
+                    el.className+=' deep-canvas-link deep-read-link';
+                    const safeUrl=window.deepEsc(item.url||'');
+                    const safeLabel=window.deepEsc(item.label||item.url||'网址');
+                    el.innerHTML=`<div class="deep-link-inner"><span class="deep-link-icon"><i class="fa-solid fa-globe"></i></span><span class="deep-link-copy"><span class="deep-link-label">${safeLabel}</span><span class="deep-link-url">${safeUrl}</span></span><i class="fa-solid fa-arrow-up-right-from-square text-[11px] text-slate-400"></i></div>`;
+                    el.setAttribute('role','link');el.tabIndex=0;
+                    const openUrl=()=>{const url=window.deepNormalizeUrl(item.url);if(url)window.open(url,'_blank','noopener,noreferrer');};
+                    el.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();openUrl();});
+                    el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openUrl();}});
                 }else if(item.type==='draw'){
                     const d=(item.points||[]).map((p,i)=>(i?'L':'M')+p[0]+' '+p[1]).join(' ');
                     el.style.left='0';el.style.top='0';el.style.width='100%';el.style.height='100%';el.style.pointerEvents='none';
