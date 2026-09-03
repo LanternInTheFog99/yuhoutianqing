@@ -148,25 +148,15 @@
         }
 
         /* Mobile timeline controls: desktop behavior remains unchanged. */
-        #mobileTimelineScrollControl { display: none; }
         @media (max-width: 639px) {
             .scroll-edge {
                 pointer-events: auto;
                 touch-action: manipulation;
             }
-            #mobileTimelineScrollControl {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                margin-top: 10px;
-                padding: 0 2px 2px;
-            }
-            #mobileTimelineScrollSlider {
-                width: 100%;
-                height: 18px;
-                cursor: pointer;
-                accent-color: #6366f1;
-                touch-action: none;
+            #timelineContainer {
+                -webkit-overflow-scrolling: touch;
+                touch-action: pan-x pan-y;
+                overscroll-behavior-x: contain;
             }
         }
         .scroll-edge.edge-active {
@@ -634,11 +624,6 @@
                     <div id="timelineMainAxis" class="absolute left-0 right-0 h-1 bg-slate-300 rounded-full z-0 pointer-events-none"></div>
                 </div>
             </div>
-            <div id="mobileTimelineScrollControl" aria-label="移动端时间线滑条">
-                <i class="fa-solid fa-chevron-left text-[10px] text-slate-400" aria-hidden="true"></i>
-                <input id="mobileTimelineScrollSlider" type="range" min="0" max="1000" step="1" value="0" aria-label="拖动浏览时间线">
-                <i class="fa-solid fa-chevron-right text-[10px] text-slate-400" aria-hidden="true"></i>
-            </div>
         </div>
 
         <div id="emptyState" class="hidden flex-col items-center justify-center py-20 text-center">
@@ -1014,9 +999,7 @@
                 <div class="border border-green-300 rounded-xl p-4 bg-green-50">
                     <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.03</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">本次更新</span></div>
                     <div class="space-y-2 leading-7 mb-3">
-                        <p>修复了移动端时间线下方滑条无法拖动的问题</p>
-                        <p>优化了移动端时间线边缘自动滑动的功能</p>
-                        <p>增加了移动端浏览模式切换提示的功能</p>
+                        <p>优化了移动端时间线交互的功能</p>
                     </div>
                     <div class="border-t border-green-200 pt-3">
                     <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.02</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
@@ -1041,9 +1024,7 @@
                 <div class="border border-green-300 rounded-xl p-4 bg-green-50">
                     <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.03</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">本次更新</span></div>
                     <div class="space-y-2 leading-7 mb-3">
-                        <p>修复了移动端时间线下方滑条无法拖动的问题</p>
-                        <p>优化了移动端时间线边缘自动滑动的功能</p>
-                        <p>增加了移动端浏览模式切换提示的功能</p>
+                        <p>优化了移动端时间线交互的功能</p>
                     </div>
                     <div class="border-t border-green-200 pt-3">
                     <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.02</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
@@ -2421,7 +2402,6 @@
             const rightEdge = document.getElementById('scrollEdgeRight');
             const container = document.getElementById('timelineContainer');
             const wrapper = document.getElementById('timelineWrapper');
-            const mobileSlider = document.getElementById('mobileTimelineScrollSlider');
             if (!container || !wrapper) return;
 
             window.setEdgeScrollSpeed(window.edgeScrollSpeed);
@@ -2434,7 +2414,6 @@
             let motionStartTs = 0;
             let motionStartScroll = 0;
             let mobileLatchedDirection = 0;
-            let mobileSliderDragging = false;
 
             window._pointerInEdgeZone = false;
             window._edgeAutoScrollActive = false;
@@ -2510,12 +2489,6 @@
                 }
             }
 
-            function syncMobileSliderFromTimeline() {
-                if (!mobileSlider || mobileSliderDragging) return;
-                const maxScroll = Math.max(0, container.scrollWidth - container.clientWidth);
-                mobileSlider.value = maxScroll > 0 ? String(Math.round((container.scrollLeft / maxScroll) * 1000)) : '0';
-                mobileSlider.disabled = maxScroll <= 0;
-            }
 
             function stopLoop(clearMobileLatch = false) {
                 if (clearMobileLatch) mobileLatchedDirection = 0;
@@ -2528,7 +2501,6 @@
                 container.style.scrollBehavior = '';
                 if (rafId) cancelAnimationFrame(rafId);
                 rafId = 0;
-                syncMobileSliderFromTimeline();
             }
 
             function frame(ts) {
@@ -2552,7 +2524,6 @@
                 const target = Math.max(0, Math.min(maxScroll, motionStartScroll + direction * speedPxPerSecond() * elapsedSeconds));
                 container.scrollLeft = target;
                 updateEdgePreview(direction);
-                syncMobileSliderFromTimeline();
 
                 if ((direction < 0 && target <= 0) || (direction > 0 && target >= maxScroll)) {
                     stopLoop(isMobileTimeline());
@@ -2600,21 +2571,17 @@
                 stopLoop(false);
             }, { passive: true });
 
-            // Mobile: one tap on an edge starts continuous auto-scroll. Tapping the same edge again stops it;
-            // tapping the opposite edge immediately reverses direction. Desktop never enters this branch.
+            // Mobile: the edge is a tap-to-toggle control. The first tap starts continuous
+            // auto-scroll toward that edge; the next edge tap stops it. Desktop never enters this branch.
             function handleMobileEdgeTap(dir, e) {
                 if (!isMobileTimeline() || !window.isLocked) return;
                 e?.preventDefault?.();
                 e?.stopPropagation?.();
-                mobileLatchedDirection = mobileLatchedDirection === dir ? 0 : dir;
-                if (!mobileLatchedDirection) {
+                if (mobileLatchedDirection || rafId) {
                     stopLoop(true);
                     return;
                 }
-                if (rafId) {
-                    cancelAnimationFrame(rafId);
-                    rafId = 0;
-                }
+                mobileLatchedDirection = dir;
                 direction = 0;
                 motionStartTs = 0;
                 motionStartScroll = container.scrollLeft;
@@ -2626,42 +2593,6 @@
                 if (isMobileTimeline() && mobileLatchedDirection) stopLoop(true);
             }, { passive: true });
 
-            // Mobile-only draggable range control mirrors the timeline's horizontal scroll position.
-            if (mobileSlider) {
-                const applySlider = () => {
-                    if (!isMobileTimeline()) return;
-                    const maxScroll = Math.max(0, container.scrollWidth - container.clientWidth);
-                    const ratio = Math.max(0, Math.min(1, Number(mobileSlider.value || 0) / 1000));
-                    container.scrollLeft = maxScroll * ratio;
-                    window.renderSvgConnections?.();
-                };
-                mobileSlider.addEventListener('pointerdown', () => {
-                    mobileSliderDragging = true;
-                    if (mobileLatchedDirection || rafId) stopLoop(true);
-                });
-                mobileSlider.addEventListener('input', applySlider);
-                mobileSlider.addEventListener('change', applySlider);
-                const endSliderDrag = () => {
-                    mobileSliderDragging = false;
-                    syncMobileSliderFromTimeline();
-                };
-                mobileSlider.addEventListener('pointerup', endSliderDrag);
-                mobileSlider.addEventListener('pointercancel', endSliderDrag);
-                mobileSlider.addEventListener('touchend', endSliderDrag, { passive: true });
-                container.addEventListener('scroll', syncMobileSliderFromTimeline, { passive: true });
-                window.addEventListener('resize', () => requestAnimationFrame(syncMobileSliderFromTimeline), { passive: true });
-                const timelineTrack = document.getElementById('timelineNodesTrack');
-                if (typeof ResizeObserver !== 'undefined') {
-                    const ro = new ResizeObserver(() => requestAnimationFrame(syncMobileSliderFromTimeline));
-                    ro.observe(container);
-                    if (timelineTrack) ro.observe(timelineTrack);
-                }
-                if (timelineTrack && typeof MutationObserver !== 'undefined') {
-                    const mo = new MutationObserver(() => requestAnimationFrame(syncMobileSliderFromTimeline));
-                    mo.observe(timelineTrack, { childList: true, subtree: true, attributes: true });
-                }
-                requestAnimationFrame(syncMobileSliderFromTimeline);
-            }
 
             window.addEventListener('blur', () => {
                 pointerX = null;
