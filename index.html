@@ -923,7 +923,7 @@
                 <div id="helpCommonBrowseTip" class="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 leading-6">
                     <div class="font-bold mb-1">小提示</div>
                     <p>本网站目前分为两种模式：1.如果网络可以连接云端，右上角会显示“已同步云端”，此时内容将会实时更新，所有操作也都会同步到云端。</p>
-                    <p>2.如果网络受限、无法连接云端，网站会自动加载预先放置的数据包，右上角会显示“离线数据已就绪”，数据无法实时同步，但仍然可以正常浏览全部内容。</p>
+                    <p>2.如果网络受限、无法连接云端，右上角会显示“未同步云端”，此时网站会自动加载预先放置的数据包，虽然数据无法实时同步，但仍然可以正常浏览全部内容。</p>
                     <p>数据包会不定期更新，以保证离线用户也能看到最新版本的内容。</p>
                 </div>
 
@@ -2000,26 +2000,29 @@
             initScrollEdges();
 
             try {
-                await loadBundledSnapshot();
+                const bundledSnapshotLoaded = await loadBundledSnapshot();
+                if (bundledSnapshotLoaded) {
+                    window.showToast('离线数据包已加载', 'info');
+                }
             } catch (e) {
                 console.warn('离线数据加载异常:', e);
                 try { loadLocalData(); window.renderEvents(); } catch (_) {}
             }
             isInitialLoadDone = true;
-            updateSyncStatus('offline', '离线数据已就绪');
+            updateSyncStatus('offline', '未同步云端');
 
             window.addEventListener('offline', () => {
-                updateSyncStatus('offline', '网络已断开');
+                updateSyncStatus('offline', '未同步云端');
             });
             window.addEventListener('online', () => {
                 if (isInitialLoadDone && !window.isCloudSynced) {
-                    updateSyncStatus('offline', '离线数据已就绪');
+                    updateSyncStatus('offline', '未同步云端');
                 }
             });
 
             const syncTimeout = setTimeout(() => {
                 if (!window.isCloudSynced) {
-                    updateSyncStatus('offline', '离线数据已就绪');
+                    updateSyncStatus('offline', '未同步云端');
                 }
             }, 6000);
 
@@ -2028,13 +2031,13 @@
             } catch (err) {
                 console.warn('Firebase 模块加载失败，保持离线模式:', err);
                 clearTimeout(syncTimeout);
-                updateSyncStatus('offline', '离线数据已就绪');
+                updateSyncStatus('offline', '未同步云端');
                 return;
             }
 
             if (!auth || !db || !signInAnonymously) {
                 clearTimeout(syncTimeout);
-                updateSyncStatus('offline', '离线数据已就绪');
+                updateSyncStatus('offline', '未同步云端');
                 return;
             }
 
@@ -2053,7 +2056,7 @@
             } catch (err) {
                 console.warn('Firebase 登录失败，保持离线模式:', err);
                 clearTimeout(syncTimeout);
-                updateSyncStatus('offline', '离线数据已就绪');
+                updateSyncStatus('offline', '未同步云端');
                 return;
             }
 
@@ -2061,7 +2064,7 @@
                 setupRealtimeListeners(syncTimeout);
             } else {
                 clearTimeout(syncTimeout);
-                updateSyncStatus('offline', '离线数据已就绪');
+                updateSyncStatus('offline', '未同步云端');
             }
         }
 
@@ -2110,7 +2113,7 @@
                     updateSyncStatus('synced', '已同步云端');
                 }, (err) => {
                     if (syncTimeout) clearTimeout(syncTimeout);
-                    updateSyncStatus('offline', '离线数据已就绪');
+                    updateSyncStatus('offline', '未同步云端');
                 });
 
                 onSnapshot(connCol, (snapshot) => {
@@ -2138,7 +2141,7 @@
                 }, (err) => {});
             } catch (err) {
                 if (syncTimeout) clearTimeout(syncTimeout);
-                updateSyncStatus('offline', '离线数据已就绪');
+                updateSyncStatus('offline', '未同步云端');
             }
         }
 
@@ -2248,7 +2251,7 @@
                 updateSyncStatus('synced', '已同步云端');
                 return true;
             } catch (e) {
-                updateSyncStatus('offline', '离线数据已就绪');
+                updateSyncStatus('offline', '未同步云端');
                 if (e?.code === 'EVENT_TOO_LARGE') {
                     const kb = Math.ceil((Number(e.cloudBytes)||0) / 1024);
                     window.showToast(`当前事件数据约 ${kb}KB，包含的深入描述媒体过大，未同步到云端`, 'error');
