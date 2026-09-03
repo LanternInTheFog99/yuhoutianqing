@@ -146,6 +146,29 @@
         .scroll-edge-right:hover {
             background: linear-gradient(to left, rgba(99, 102, 241, 0.18), transparent);
         }
+
+        /* Mobile timeline controls: desktop behavior remains unchanged. */
+        #mobileTimelineScrollControl { display: none; }
+        @media (max-width: 639px) {
+            .scroll-edge {
+                pointer-events: auto;
+                touch-action: manipulation;
+            }
+            #mobileTimelineScrollControl {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                margin-top: 10px;
+                padding: 0 2px 2px;
+            }
+            #mobileTimelineScrollSlider {
+                width: 100%;
+                height: 18px;
+                cursor: pointer;
+                accent-color: #6366f1;
+                touch-action: none;
+            }
+        }
         .scroll-edge.edge-active {
             background: linear-gradient(to right, rgba(99, 102, 241, 0.22), transparent) !important;
         }
@@ -611,6 +634,11 @@
                     <div id="timelineMainAxis" class="absolute left-0 right-0 h-1 bg-slate-300 rounded-full z-0 pointer-events-none"></div>
                 </div>
             </div>
+            <div id="mobileTimelineScrollControl" aria-label="移动端时间线滑条">
+                <i class="fa-solid fa-chevron-left text-[10px] text-slate-400" aria-hidden="true"></i>
+                <input id="mobileTimelineScrollSlider" type="range" min="0" max="1000" step="1" value="0" aria-label="拖动浏览时间线">
+                <i class="fa-solid fa-chevron-right text-[10px] text-slate-400" aria-hidden="true"></i>
+            </div>
         </div>
 
         <div id="emptyState" class="hidden flex-col items-center justify-center py-20 text-center">
@@ -968,10 +996,30 @@
                 </div>
                 </div>
             </div>
+            <!--
+              AI 编辑维护说明：更新日志书写、归类与合并规范
+              1. 更新日志统一采用“增加了……功能 / 增加了……的功能 / 移除了……功能 / 移除了……的功能 / 优化了……功能 / 优化了……的功能 / 修复了……的问题”等书面句式，并根据所描述内容的层级决定是否使用“的”。
+              2. “的”的使用规则：若描述的是一个完整、独立的大功能本身，通常不加“的”，例如“增加了感谢名单功能”；若描述的是某个大功能内部的具体子功能、子模块、交互、状态或问题，则应使用“的”连接具体内容与“功能/问题”，例如“优化了时间线边缘自动滑动的功能”“修复了感谢名单不显示的问题”。更新日志正文不为这些功能名称额外添加中文引号。
+              3. 同一功能或同一板块在同一版本内发生多次调整时，应归并为一条能够概括最终结果的更新内容，不因用户分多轮提出需求而重复记录。
+              4. 若后续仅对刚刚已经作为本次新功能写入更新日志的功能进行完善、参数调整、交互细化，或修复由本次改动直接引出的缺陷，不新增日志条目；应直接维护原条目，使其准确描述最终实现状态。
+              5. 若修改对象是此前版本已经存在的旧功能，即使本次没有新增功能，只要对旧功能进行了实质性的优化、修复、增加或移除，仍应记录到当前更新日志。
+              6. 因本次开发过程中的新改动临时引入、随后在同一轮开发中修复的 bug，不单独写入更新日志；日志只记录最终版本中用户能够实际感知的有效变化。
+              7. 若后续需求删除、撤销或缩减了本次已经写入更新日志的功能，必须同步删除或改写对应日志，确保更新日志始终与最终代码中实际存在的功能一致。
+              8. 时间线界面的浏览模式与编辑模式若存在重复的更新日志区域，同一项时间线公共功能的日志内容须同步维护，避免两个面板描述不一致。
+              9. 时间线界面的更新日志与深入描述界面的更新日志相互独立，不进行内容同步。时间线更新日志不得记录仅与深入描述功能相关的更新；深入描述更新日志也只记录深入描述界面及其内部功能的更新。
+              10. 在深入描述界面的更新日志中，因日志所在界面已经明确限定功能范围，描述其内部更新时不再额外添加“深入描述”作为大功能前缀，应直接记录具体子功能或问题，例如“优化了文字编辑的功能”，而不是“优化了深入描述文字编辑的功能”。
+            -->
             <div id="helpChangelogPanel" class="hidden overflow-y-auto p-5 text-xs text-slate-600 leading-relaxed">
                 <div id="helpBrowseChangelog">
                 <div class="border border-green-300 rounded-xl p-4 bg-green-50">
-                    <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.02</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">本次更新</span></div>
+                    <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.03</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">本次更新</span></div>
+                    <div class="space-y-2 leading-7 mb-3">
+                        <p>修复了移动端时间线下方滑条无法拖动的问题</p>
+                        <p>优化了移动端时间线边缘自动滑动的功能</p>
+                        <p>增加了移动端浏览模式切换提示的功能</p>
+                    </div>
+                    <div class="border-t border-green-200 pt-3">
+                    <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.02</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
                     <div class="space-y-2 leading-7 mb-3">
                         <p>优化了详细描述中文字编辑的功能</p>
                         
@@ -979,6 +1027,7 @@
                         
                         <p>优化了同期事件集合中详细描述预览与实时更新的功能</p>
                         <p>增加了移动端仅能使用浏览模式的功能</p>
+                    </div>
                     </div>
                     
                     <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.30</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>优化了事件详情页功能</p><p>增加了事件详情页中大图快捷切换的功能</p><p>修复了感谢名单无法显示的问题</p><p>优化了使用说明功能</p></div></div>
@@ -990,7 +1039,14 @@
                 </div>
             </div><div id="helpEditChangelog" class="hidden">
                 <div class="border border-green-300 rounded-xl p-4 bg-green-50">
-                    <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.02</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">本次更新</span></div>
+                    <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.03</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">本次更新</span></div>
+                    <div class="space-y-2 leading-7 mb-3">
+                        <p>修复了移动端时间线下方滑条无法拖动的问题</p>
+                        <p>优化了移动端时间线边缘自动滑动的功能</p>
+                        <p>增加了移动端浏览模式切换提示的功能</p>
+                    </div>
+                    <div class="border-t border-green-200 pt-3">
+                    <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.02</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
                     <div class="space-y-2 leading-7 mb-3">
                         <p>优化了详细描述中文字编辑的功能</p>
                         
@@ -998,6 +1054,7 @@
                         
                         <p>优化了同期事件集合中详细描述预览与实时更新的功能</p>
                         <p>增加了移动端仅能使用浏览模式的功能</p>
+                    </div>
                     </div>
                     
                     <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.30</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>优化了事件详情页功能</p><p>增加了事件详情页中大图快捷切换的功能</p><p>修复了感谢名单无法显示的问题</p><p>优化了使用说明功能</p></div></div>
@@ -2364,6 +2421,7 @@
             const rightEdge = document.getElementById('scrollEdgeRight');
             const container = document.getElementById('timelineContainer');
             const wrapper = document.getElementById('timelineWrapper');
+            const mobileSlider = document.getElementById('mobileTimelineScrollSlider');
             if (!container || !wrapper) return;
 
             window.setEdgeScrollSpeed(window.edgeScrollSpeed);
@@ -2375,9 +2433,13 @@
             let rafId = 0;
             let motionStartTs = 0;
             let motionStartScroll = 0;
+            let mobileLatchedDirection = 0;
+            let mobileSliderDragging = false;
 
             window._pointerInEdgeZone = false;
             window._edgeAutoScrollActive = false;
+
+            const isMobileTimeline = () => !!window.isMobileEditingDevice?.();
 
             function speedPxPerSecond() {
                 const level = Math.max(1, Math.min(20, Number(window.edgeScrollSpeed) || 5));
@@ -2386,7 +2448,9 @@
             }
 
             function readDirection() {
-                if (!window.isLocked || pointerX == null || pointerY == null) return 0;
+                if (!window.isLocked) return 0;
+                if (isMobileTimeline()) return mobileLatchedDirection;
+                if (pointerX == null || pointerY == null) return 0;
                 const r = wrapper.getBoundingClientRect();
                 if (pointerY < r.top || pointerY > r.bottom || pointerX < r.left || pointerX > r.right) return 0;
                 if (pointerX <= r.left + EDGE_PX) return -1;
@@ -2446,7 +2510,15 @@
                 }
             }
 
-            function stopLoop() {
+            function syncMobileSliderFromTimeline() {
+                if (!mobileSlider || mobileSliderDragging) return;
+                const maxScroll = Math.max(0, container.scrollWidth - container.clientWidth);
+                mobileSlider.value = maxScroll > 0 ? String(Math.round((container.scrollLeft / maxScroll) * 1000)) : '0';
+                mobileSlider.disabled = maxScroll <= 0;
+            }
+
+            function stopLoop(clearMobileLatch = false) {
+                if (clearMobileLatch) mobileLatchedDirection = 0;
                 direction = 0;
                 motionStartTs = 0;
                 motionStartScroll = container.scrollLeft;
@@ -2456,12 +2528,13 @@
                 container.style.scrollBehavior = '';
                 if (rafId) cancelAnimationFrame(rafId);
                 rafId = 0;
+                syncMobileSliderFromTimeline();
             }
 
             function frame(ts) {
                 const nextDirection = readDirection();
                 if (!nextDirection) {
-                    stopLoop();
+                    stopLoop(false);
                     return;
                 }
 
@@ -2479,9 +2552,10 @@
                 const target = Math.max(0, Math.min(maxScroll, motionStartScroll + direction * speedPxPerSecond() * elapsedSeconds));
                 container.scrollLeft = target;
                 updateEdgePreview(direction);
+                syncMobileSliderFromTimeline();
 
                 if ((direction < 0 && target <= 0) || (direction > 0 && target >= maxScroll)) {
-                    stopLoop();
+                    stopLoop(isMobileTimeline());
                     return;
                 }
 
@@ -2492,7 +2566,7 @@
                 const nextDirection = readDirection();
                 paintEdgeState(nextDirection);
                 if (!nextDirection) {
-                    if (rafId) stopLoop();
+                    if (rafId) stopLoop(false);
                     return;
                 }
                 if (!rafId) {
@@ -2504,28 +2578,95 @@
                 }
             }
 
+            // Desktop: keep the original hover-to-scroll interaction unchanged.
             wrapper.addEventListener('pointermove', e => {
+                if (isMobileTimeline()) return;
                 pointerX = e.clientX;
                 pointerY = e.clientY;
                 ensureLoop();
             }, { passive: true });
 
             wrapper.addEventListener('pointerenter', e => {
+                if (isMobileTimeline()) return;
                 pointerX = e.clientX;
                 pointerY = e.clientY;
                 ensureLoop();
             }, { passive: true });
 
             wrapper.addEventListener('pointerleave', () => {
+                if (isMobileTimeline()) return;
                 pointerX = null;
                 pointerY = null;
-                stopLoop();
+                stopLoop(false);
             }, { passive: true });
+
+            // Mobile: one tap on an edge starts continuous auto-scroll. Tapping the same edge again stops it;
+            // tapping the opposite edge immediately reverses direction. Desktop never enters this branch.
+            function handleMobileEdgeTap(dir, e) {
+                if (!isMobileTimeline() || !window.isLocked) return;
+                e?.preventDefault?.();
+                e?.stopPropagation?.();
+                mobileLatchedDirection = mobileLatchedDirection === dir ? 0 : dir;
+                if (!mobileLatchedDirection) {
+                    stopLoop(true);
+                    return;
+                }
+                if (rafId) {
+                    cancelAnimationFrame(rafId);
+                    rafId = 0;
+                }
+                direction = 0;
+                motionStartTs = 0;
+                motionStartScroll = container.scrollLeft;
+                ensureLoop();
+            }
+            leftEdge?.addEventListener('click', e => handleMobileEdgeTap(-1, e));
+            rightEdge?.addEventListener('click', e => handleMobileEdgeTap(1, e));
+            container.addEventListener('pointerdown', () => {
+                if (isMobileTimeline() && mobileLatchedDirection) stopLoop(true);
+            }, { passive: true });
+
+            // Mobile-only draggable range control mirrors the timeline's horizontal scroll position.
+            if (mobileSlider) {
+                const applySlider = () => {
+                    if (!isMobileTimeline()) return;
+                    const maxScroll = Math.max(0, container.scrollWidth - container.clientWidth);
+                    const ratio = Math.max(0, Math.min(1, Number(mobileSlider.value || 0) / 1000));
+                    container.scrollLeft = maxScroll * ratio;
+                    window.renderSvgConnections?.();
+                };
+                mobileSlider.addEventListener('pointerdown', () => {
+                    mobileSliderDragging = true;
+                    if (mobileLatchedDirection || rafId) stopLoop(true);
+                });
+                mobileSlider.addEventListener('input', applySlider);
+                mobileSlider.addEventListener('change', applySlider);
+                const endSliderDrag = () => {
+                    mobileSliderDragging = false;
+                    syncMobileSliderFromTimeline();
+                };
+                mobileSlider.addEventListener('pointerup', endSliderDrag);
+                mobileSlider.addEventListener('pointercancel', endSliderDrag);
+                mobileSlider.addEventListener('touchend', endSliderDrag, { passive: true });
+                container.addEventListener('scroll', syncMobileSliderFromTimeline, { passive: true });
+                window.addEventListener('resize', () => requestAnimationFrame(syncMobileSliderFromTimeline), { passive: true });
+                const timelineTrack = document.getElementById('timelineNodesTrack');
+                if (typeof ResizeObserver !== 'undefined') {
+                    const ro = new ResizeObserver(() => requestAnimationFrame(syncMobileSliderFromTimeline));
+                    ro.observe(container);
+                    if (timelineTrack) ro.observe(timelineTrack);
+                }
+                if (timelineTrack && typeof MutationObserver !== 'undefined') {
+                    const mo = new MutationObserver(() => requestAnimationFrame(syncMobileSliderFromTimeline));
+                    mo.observe(timelineTrack, { childList: true, subtree: true, attributes: true });
+                }
+                requestAnimationFrame(syncMobileSliderFromTimeline);
+            }
 
             window.addEventListener('blur', () => {
                 pointerX = null;
                 pointerY = null;
-                stopLoop();
+                stopLoop(isMobileTimeline());
             });
         }
 
@@ -2740,7 +2881,7 @@
                 lockBtn.className = "flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs font-medium transition-all shadow-sm border bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-80";
                 lockBtn.innerHTML = `<i class="fa-solid fa-lock text-slate-400"></i><span class="hidden sm:inline">浏览模式</span><span class="sm:hidden">浏览</span>`;
                 lockBtn.title = "移动端固定为浏览模式，编辑模式仅限电脑端";
-                lockBtn.disabled = true;
+                lockBtn.disabled = false;
             } else if (!window.isCloudSynced) {
                 lockBtn.title = "";
                 lockBtn.className = "flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs font-medium transition-all shadow-sm border bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed";
@@ -2777,7 +2918,11 @@
         }
 
         window.toggleLockState = function() {
-            if (window.forceMobileBrowseMode?.()) { window.updateLockButtonUI?.(); return; }
+            if (window.forceMobileBrowseMode?.()) {
+                window.updateLockButtonUI?.();
+                window.showToast('当前为移动端，仅支持浏览模式，无法切换模式', 'info');
+                return;
+            }
             if (!window.isCloudSynced) {
                 window.showToast('请先等待右上角显示"已同步云端"', 'error');
                 return;
