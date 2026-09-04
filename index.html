@@ -997,9 +997,16 @@
             <div id="helpChangelogPanel" class="hidden overflow-y-auto p-5 text-xs text-slate-600 leading-relaxed">
                 <div id="helpBrowseChangelog">
                 <div class="border border-green-300 rounded-xl p-4 bg-green-50">
-                    <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.03</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">本次更新</span></div>
+                    <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.04</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">本次更新</span></div>
                     <div class="space-y-2 leading-7 mb-3">
-                        <p>优化了移动端时间线交互的功能</p>
+                        <p>增加了云端同步成功提示的功能</p>
+                        <p>优化了时间线连线信息显示的功能</p>
+                        <p>增加了逻辑连线搜索与编辑的功能</p>
+                        <p>修复了单视频时间线预览无法循环播放的问题</p>
+                    </div>
+                    <div class="border-t border-green-200 pt-3">
+                    <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.03</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
+                    <div class="space-y-2 leading-7 mb-3"><p>优化了移动端时间线交互的功能</p></div>
                     </div>
                     <div class="border-t border-green-200 pt-3">
                     <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.02</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
@@ -1022,9 +1029,16 @@
                 </div>
             </div><div id="helpEditChangelog" class="hidden">
                 <div class="border border-green-300 rounded-xl p-4 bg-green-50">
-                    <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.03</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">本次更新</span></div>
+                    <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.04</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">本次更新</span></div>
                     <div class="space-y-2 leading-7 mb-3">
-                        <p>优化了移动端时间线交互的功能</p>
+                        <p>增加了云端同步成功提示的功能</p>
+                        <p>优化了时间线连线信息显示的功能</p>
+                        <p>增加了逻辑连线搜索与编辑的功能</p>
+                        <p>修复了单视频时间线预览无法循环播放的问题</p>
+                    </div>
+                    <div class="border-t border-green-200 pt-3">
+                    <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.03</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
+                    <div class="space-y-2 leading-7 mb-3"><p>优化了移动端时间线交互的功能</p></div>
                     </div>
                     <div class="border-t border-green-200 pt-3">
                     <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.02</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
@@ -1711,7 +1725,7 @@
                         preloadNextItem(media[i]);
                     }
                 }
-                presentItem(media[0], media.length > 1 ? next : null, true);
+                presentItem(media[0], (media.length > 1 || (media[0]?.type === 'video' && media[0]?.src)) ? next : null, true);
             };
             imgs.forEach(schedule);
             rootEl._previewSlideTimers = timers;
@@ -2107,9 +2121,18 @@
         }
 
         function updateSyncStatus(type, text) {
+            const previousType = window._syncStatusType;
+            if (type === 'syncing') {
+                window._syncingStartedFromSynced = previousType === 'synced' || !!window.isCloudSynced;
+            }
             window._syncStatusType = type;
             if (type === 'synced') {
                 window.isCloudSynced = true;
+                const routineSaveReturn = previousType === 'syncing' && window._syncingStartedFromSynced;
+                if (previousType !== 'synced' && !routineSaveReturn) {
+                    window.showToast?.('同步云端成功', 'success');
+                }
+                window._syncingStartedFromSynced = false;
             } else if (type === 'offline' || type === 'error') {
                 window.isCloudSynced = false;
             } else if (type === 'syncing') {
@@ -4037,204 +4060,145 @@
             }
         };
 
-        window.openConnectionManager = function() {
-            if (window.isLocked) {
-                window.showToast("当前处于浏览模式，请先解锁密码", "error");
-                window.openPwdModal();
-                return;
+        window.toggleConnectionEventPicker = function(pickerId) {
+            const picker = document.getElementById(pickerId);
+            if (!picker) return;
+            const willOpen = picker.classList.contains('hidden');
+            document.querySelectorAll('[data-connection-event-picker]').forEach(el => el.classList.add('hidden'));
+            if (willOpen) {
+                picker.classList.remove('hidden');
+                requestAnimationFrame(() => picker.querySelector('input[type="text"]')?.focus());
             }
+        };
 
-            let modal = document.getElementById('connectionManagerModal');
+        window.filterConnectionEventPicker = function(pickerId, query) {
+            const picker = document.getElementById(pickerId);
+            if (!picker) return;
+            const q = String(query || '').trim().toLowerCase();
+            let visible = 0;
+            picker.querySelectorAll('[data-conn-option]').forEach(item => {
+                const matched = !q || String(item.dataset.search || '').toLowerCase().includes(q);
+                item.classList.toggle('hidden', !matched);
+                if (matched) visible++;
+            });
+            const empty = picker.querySelector('[data-conn-empty]');
+            if (empty) empty.classList.toggle('hidden', visible !== 0);
+        };
+
+        window.selectConnectionEventPicker = function(pickerId, hiddenInputId, labelId, eventId) {
+            const event = window.events.find(e => String(e.id) === String(eventId));
+            const hidden = document.getElementById(hiddenInputId);
+            const label = document.getElementById(labelId);
+            const picker = document.getElementById(pickerId);
+            if (!event || !hidden || !label) return;
+            hidden.value = String(event.id);
+            label.textContent = `${window.formatDisplayDate(event.date)} · ${event.title || '未命名事件'}`;
+            label.classList.remove('text-slate-400');
+            label.classList.add('text-slate-700');
+            picker?.classList.add('hidden');
+        };
+
+        window.renderConnectionEventPickerOptions = function(pickerId, events, hiddenInputId, labelId) {
+            const picker = document.getElementById(pickerId);
+            if (!picker) return;
+            const list = picker.querySelector('[data-conn-options]');
+            if (!list) return;
+            list.innerHTML = events.map(e => {
+                const id = String(e.id);
+                const displayDate = window.formatDisplayDate(e.date);
+                const search = `${e.title || ''} ${displayDate} ${id}`;
+                const safeId = id.replace(/'/g, "\\'");
+                return `<button type="button" data-conn-option data-search="${escapeHtml(search)}" onclick="selectConnectionEventPicker('${pickerId}','${hiddenInputId}','${labelId}','${safeId}')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-indigo-50 text-xs text-slate-700 transition-colors"><span class="block font-medium truncate">${escapeHtml(e.title || '未命名事件')}</span><span class="block mt-0.5 text-[10px] text-slate-400">${escapeHtml(displayDate)}</span></button>`;
+            }).join('');
+            if (!events.length) list.innerHTML = '<div class="px-3 py-4 text-center text-[11px] text-slate-400">暂无其他事件可选</div>';
+        };
+
+        if (!window._connectionPickerOutsideBound) {
+            window._connectionPickerOutsideBound = true;
+            document.addEventListener('pointerdown', e => {
+                document.querySelectorAll('[data-connection-event-picker]').forEach(picker => {
+                    const wrap = picker.closest('[data-connection-picker-wrap]');
+                    if (wrap && !wrap.contains(e.target)) picker.classList.add('hidden');
+                });
+            });
+        }
+
+        window.openConnectionEditModal = function(connectionId) {
+            const list = window.editingConnections || [];
+            const conn = list.find(c => String(c.id) === String(connectionId));
+            const selfId = window.editingConnectionDraftEventId;
+            if (!conn || selfId == null) return;
+            const selfIsSource = String(conn.sourceId) === String(selfId);
+            const selfIsTarget = String(conn.targetId) === String(selfId);
+            if (!selfIsSource && !selfIsTarget) return;
+            const otherId = selfIsSource ? conn.targetId : conn.sourceId;
+            let relativeDir = 'forward';
+            if (conn.dir === 'both') relativeDir = 'both';
+            else if (conn.dir === 'backward') relativeDir = selfIsSource ? 'backward' : 'forward';
+            else relativeDir = selfIsSource ? 'forward' : 'backward';
+
+            let modal = document.getElementById('connectionEditModal');
             if (!modal) {
                 modal = document.createElement('div');
-                modal.id = 'connectionManagerModal';
-                modal.className = "fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-3 sm:p-4";
+                modal.id = 'connectionEditModal';
+                modal.className = 'fixed inset-0 bg-slate-900/65 backdrop-blur-sm z-[180] hidden flex items-center justify-center p-4';
                 document.body.appendChild(modal);
             }
+            const selfEvent = window.events.find(e => String(e.id) === String(selfId));
+            const otherEvent = window.events.find(e => String(e.id) === String(otherId));
+            const others = window.events.filter(e => String(e.id) !== String(selfId)).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)) || String(a.title).localeCompare(String(b.title)));
+            const currentLabel = selfEvent ? `${window.formatDisplayDate(selfEvent.date)} · ${selfEvent.title || '未命名事件'}` : '当前事件';
+            const otherLabel = otherEvent ? `${window.formatDisplayDate(otherEvent.date)} · ${otherEvent.title || '未命名事件'}` : '选择连接的事件';
+            const safeConnId = String(connectionId).replace(/'/g, "\\'");
 
-            const eventOptions = window.events
-                .slice()
-                .sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.title).localeCompare(String(b.title)))
-                .map(e => `<option value="${String(e.id).replace(/"/g, '&quot;')}">${escapeHtml(window.formatDisplayDate(e.date))} · ${escapeHtml(e.title || '未命名事件')}</option>`)
-                .join('');
-
-            const connectionRows = window.connections.map(conn => {
-                const source = window.events.find(e => String(e.id) === String(conn.sourceId));
-                const target = window.events.find(e => String(e.id) === String(conn.targetId));
-                const dirText = conn.dir === 'both' ? '双向' : (conn.dir === 'backward' ? '被指向' : '指向');
-                const dirIcon = conn.dir === 'both' ? '↔' : (conn.dir === 'backward' ? '←' : '→');
-                return `
-                    <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5">
-                        <span class="text-indigo-600 font-bold text-base w-5 text-center">${dirIcon}</span>
-                        <div class="min-w-0 flex-1">
-                            <div class="text-xs font-semibold text-slate-700 truncate">${escapeHtml(source?.title || String(conn.sourceId))} <span class="text-slate-400 font-normal">→</span> ${escapeHtml(target?.title || String(conn.targetId))}</div>
-                            <div class="text-[10px] text-slate-400 mt-0.5">${dirText}${conn.label ? ` · ${escapeHtml(conn.label)}` : ''}</div>
-                        </div>
-                        <button type="button" onclick="deleteConnection('${String(conn.id).replace(/'/g, "\\'")}')" class="shrink-0 w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center" title="删除连线">
-                            <i class="fa-solid fa-trash-can text-[11px]"></i>
-                        </button>
-                    </div>
-                `;
-            }).join('');
-
-            modal.innerHTML = `
-                <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[88vh] overflow-y-auto custom-scrollbar">
-                    <div class="sticky top-0 bg-white z-10 flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-slate-200">
-                        <div>
-                            <h3 class="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2">
-                                <i class="fa-solid fa-diagram-project text-indigo-600"></i>
-                                <span>节点逻辑连线</span>
-                            </h3>
-                            
-                        </div>
-                        <button onclick="closeConnectionManager()" class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full flex items-center justify-center">
-                            <i class="fa-solid fa-xmark"></i>
-                        </button>
-                    </div>
-
-                    <div class="p-4 sm:p-5 space-y-4">
-                        <div class="rounded-xl border border-indigo-100 bg-indigo-50/60 p-3.5">
-                            <div class="text-xs font-bold text-indigo-900 mb-2.5">新建连线</div>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                                <label class="block">
-                                    <span class="block text-[10px] font-semibold text-slate-500 mb-1">起点节点</span>
-                                    <select id="connSourceSelect" class="w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-indigo-500">${eventOptions}</select>
-                                </label>
-                                <label class="block">
-                                    <span class="block text-[10px] font-semibold text-slate-500 mb-1">终点节点</span>
-                                    <select id="connTargetSelect" class="w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-indigo-500">${eventOptions}</select>
-                                </label>
-                            </div>
-
-                            <div class="mt-3">
-                                <span class="block text-[10px] font-semibold text-slate-500 mb-1.5">方向</span>
-                                <div class="grid grid-cols-3 gap-1.5">
-                                    <label class="cursor-pointer">
-                                        <input type="radio" name="connDirection" value="forward" checked class="sr-only peer">
-                                        <span class="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">→ 指向</span>
-                                    </label>
-                                    <label class="cursor-pointer">
-                                        <input type="radio" name="connDirection" value="backward" class="sr-only peer">
-                                        <span class="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">← 被指向</span>
-                                    </label>
-                                    <label class="cursor-pointer">
-                                        <input type="radio" name="connDirection" value="both" class="sr-only peer">
-                                        <span class="flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">↔ 双向</span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div class="mt-3 flex gap-2">
-                                <input id="connLabelInput" type="text" maxlength="40" placeholder="连线文字" class="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
-                                <button type="button" onclick="createConnection()" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm shrink-0">
-                                    <i class="fa-solid fa-plus mr-1"></i>添加
-                                </button>
-                            </div>
-                        </div>
-
-                        <div>
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="text-xs font-bold text-slate-700">已有连线</span>
-                                <span class="text-[10px] text-slate-400">${window.connections.length} 条</span>
-                            </div>
-                            <div class="space-y-2 ${window.connections.length ? '' : 'border border-dashed border-slate-200 rounded-xl'}">
-                                ${connectionRows || '<div class="py-6 text-center text-[11px] text-slate-400">还没有连线</div>'}
-                            </div>
+            modal.innerHTML = `<div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5">
+                <div class="flex items-center justify-between mb-4"><h3 class="font-bold text-slate-800">编辑连线</h3><button type="button" onclick="closeConnectionEditModal()" class="w-8 h-8 rounded-full text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button></div>
+                <div class="space-y-3">
+                    <div><span class="block text-[10px] font-semibold text-slate-500 mb-1">当前事件</span><div class="w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-600 truncate">${escapeHtml(currentLabel)}</div></div>
+                    <div data-connection-picker-wrap class="relative"><span class="block text-[10px] font-semibold text-slate-500 mb-1">连接事件</span>
+                        <input type="hidden" id="connEditOther" value="${escapeHtml(otherId)}">
+                        <button type="button" onclick="toggleConnectionEventPicker('connEditOtherPicker')" class="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-left text-xs flex items-center justify-between gap-2"><span id="connEditOtherLabel" class="truncate text-slate-700">${escapeHtml(otherLabel)}</span><i class="fa-solid fa-chevron-down text-[9px] text-slate-400"></i></button>
+                        <div id="connEditOtherPicker" data-connection-event-picker class="hidden absolute left-0 right-0 top-full mt-1 z-[190] bg-white border border-slate-200 rounded-xl shadow-2xl p-2">
+                            <input type="text" oninput="filterConnectionEventPicker('connEditOtherPicker',this.value)" placeholder="搜索事件" class="w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500 mb-2">
+                            <div data-conn-options class="max-h-52 overflow-y-auto custom-scrollbar space-y-0.5"></div>
+                            <div data-conn-empty class="hidden px-3 py-4 text-center text-[11px] text-slate-400">没有匹配的事件</div>
                         </div>
                     </div>
                 </div>
-            `;
-
+                <div class="mt-3"><span class="block text-[10px] font-semibold text-slate-500 mb-1.5">方向</span><div class="grid grid-cols-3 gap-1.5">${[['forward','→ 指向'],['backward','← 被指向'],['both','↔ 双向']].map(([v,t])=>`<label class="cursor-pointer"><input type="radio" name="connEditDirection" value="${v}" ${relativeDir===v?'checked':''} class="sr-only peer"><span class="flex items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">${t}</span></label>`).join('')}</div></div>
+                <label class="block mt-3"><span class="block text-[10px] font-semibold text-slate-500 mb-1">连线文字</span><input id="connEditLabel" maxlength="40" value="${escapeHtml(conn.label||'')}" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs"></label>
+                <div class="flex justify-end gap-2 mt-5"><button type="button" onclick="closeConnectionEditModal()" class="px-3 py-2 border border-slate-300 rounded-lg text-xs">取消</button><button type="button" onclick="saveConnectionEdit('${safeConnId}')" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-semibold">保存修改</button></div>
+            </div>`;
+            window.renderConnectionEventPickerOptions('connEditOtherPicker', others, 'connEditOther', 'connEditOtherLabel');
             modal.classList.remove('hidden');
-            setTimeout(() => document.getElementById('connSourceSelect')?.focus(), 50);
         };
-
-        window.closeConnectionManager = function() {
-            document.getElementById('connectionManagerModal')?.classList.add('hidden');
+        window.closeConnectionEditModal = function(){ document.getElementById('connectionEditModal')?.classList.add('hidden'); };
+        window.saveConnectionEdit = function(connectionId) {
+            const list = window.editingConnections || [];
+            const conn = list.find(c => String(c.id) === String(connectionId));
+            const selfId = window.editingConnectionDraftEventId;
+            const otherIdRaw = document.getElementById('connEditOther')?.value;
+            if (!conn || selfId == null || !otherIdRaw) return;
+            const dir = document.querySelector('input[name="connEditDirection"]:checked')?.value || 'forward';
+            const label = (document.getElementById('connEditLabel')?.value || '').trim();
+            let sourceId = selfId, targetId = otherIdRaw, storedDir = dir;
+            if (dir === 'backward') { sourceId = otherIdRaw; targetId = selfId; storedDir = 'forward'; }
+            const duplicate = list.some(c => String(c.id) !== String(connectionId) && String(c.sourceId) === String(sourceId) && String(c.targetId) === String(targetId) && (c.dir === 'both') === (storedDir === 'both'));
+            if (duplicate) { window.showToast('连线已存在','error'); return; }
+            conn.sourceId = isNaN(Number(sourceId)) ? sourceId : Number(sourceId);
+            conn.targetId = isNaN(Number(targetId)) ? targetId : Number(targetId);
+            conn.dir = storedDir === 'both' ? 'both' : 'forward';
+            conn.label = label;
+            window.editingConnectionsDirty = true;
+            window.renderEditConnections();
+            window.closeConnectionEditModal();
+            window.showToast('连线已修改','success');
         };
 
         window.escapeHtml = function(value) {
             return String(value ?? '').replace(/[&<>"']/g, ch => ({
                 '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
             }[ch]));
-        };
-
-        window.createConnection = async function() {
-            if (!window.canEditNow()) return;
-            if (window.isLocked) return;
-
-            const sourceId = document.getElementById('connSourceSelect')?.value;
-            const targetId = document.getElementById('connTargetSelect')?.value;
-            const dir = document.querySelector('input[name="connDirection"]:checked')?.value || 'forward';
-            const label = (document.getElementById('connLabelInput')?.value || '').trim();
-
-            if (!sourceId || !targetId) {
-                window.showToast("请选择起点和终点节点", "error");
-                return;
-            }
-            if (String(sourceId) === String(targetId)) {
-                window.showToast("不能把节点连到自己", "error");
-                return;
-            }
-
-            const exists = window.connections.some(c =>
-                String(c.sourceId) === String(sourceId) &&
-                String(c.targetId) === String(targetId)
-            );
-            if (exists) {
-                window.showToast("这两个节点之间已经存在同向连线", "error");
-                return;
-            }
-
-            const connection = {
-                id: 'conn_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
-                sourceId: isNaN(sourceId) ? sourceId : Number(sourceId),
-                targetId: isNaN(targetId) ? targetId : Number(targetId),
-                dir,
-                label
-            };
-
-            window.connections.push(connection);
-            saveLocalData();
-            window.renderSvgConnections();
-
-            if (currentUser && db) {
-                try {
-                    updateSyncStatus('syncing', '保存连线...');
-                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'connections', String(connection.id)), connection);
-                    updateSyncStatus('synced', '已同步云端');
-                } catch (err) {
-                    updateSyncStatus('offline', '已就绪');
-                    window.showToast("连线已添加，但云端同步失败", "error");
-                }
-            }
-
-            window.showToast("连线已添加", "success");
-            window.openConnectionManager();
-        };
-
-        window.deleteConnection = async function(connectionId) {
-            if (!window.canEditNow()) return;
-            if (window.isLocked) return;
-
-            const target = window.connections.find(c => String(c.id) === String(connectionId));
-            if (!target) return;
-
-            window.connections = window.connections.filter(c => String(c.id) !== String(connectionId));
-            saveLocalData();
-            window.renderSvgConnections();
-
-            if (currentUser && db) {
-                try {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'connections', String(connectionId)));
-                } catch (err) {
-                    window.showToast("本地已删除，但云端删除失败", "error");
-                    return;
-                }
-            }
-
-            window.showToast("连线已删除", "info");
-            window.openConnectionManager();
         };
 
         window.renderSvgConnections = function() {
@@ -4356,6 +4320,10 @@
         window.updateConnectionLabelOverlap=function(){
             document.querySelectorAll('.node-title-area.conn-label-overlap-dim').forEach(n=>n.classList.remove('conn-label-overlap-dim'));
             const active=document.querySelectorAll('#svgConnectionsGroup .svg-conn-line.active-line');
+            const protectedIds = new Set();
+            const seeds = Array.from(window._connectionHighlightSeeds || []).map(String);
+            seeds.forEach(id => protectedIds.add(id));
+            window.getConnectedEventIds?.(seeds).forEach(id => protectedIds.add(String(id)));
             active.forEach(line=>{
                 const text=line.querySelector('text'); if(!text) return;
                 const tr=text.getBoundingClientRect(); if(!tr.width||!tr.height)return;
@@ -4363,11 +4331,12 @@
                 const targetId=String(line.getAttribute('data-target') ?? '');
                 document.querySelectorAll('.timeline-node-container .node-title-area').forEach(area=>{
                     const dateStr=area.closest('.timeline-node-container')?.getAttribute('data-date') || '';
-                    const relatedToLine=window.events.some(ev =>
-                        String(ev.date) === String(dateStr) &&
-                        (String(ev.id) === sourceId || String(ev.id) === targetId)
-                    );
-                    if(relatedToLine) return;
+                    const areaEventIds = window.events
+                        .filter(ev => String(ev.date) === String(dateStr))
+                        .map(ev => String(ev.id));
+                    const relatedToLine = areaEventIds.some(id => id === sourceId || id === targetId);
+                    const relatedToHoveredEvent = areaEventIds.some(id => protectedIds.has(id));
+                    if(relatedToLine || relatedToHoveredEvent) return;
                     const r=area.getBoundingClientRect();
                     const hit=!(tr.right<r.left||tr.left>r.right||tr.bottom<r.top||tr.top>r.bottom);
                     if(hit) area.classList.add('conn-label-overlap-dim');
@@ -4375,7 +4344,11 @@
             });
         };
 
+        window._connectionHighlightSeeds = window._connectionHighlightSeeds || new Set();
         window.highlightConnectionsForEvent = function(eventId, highlight) {
+            const seedKey = String(eventId);
+            if (highlight) window._connectionHighlightSeeds.add(seedKey);
+            else window._connectionHighlightSeeds.delete(seedKey);
             const lines = document.querySelectorAll('#svgConnectionsGroup .svg-conn-line');
             lines.forEach(line => {
                 const sId = isNaN(line.getAttribute('data-source')) ? line.getAttribute('data-source') : parseInt(line.getAttribute('data-source'));
@@ -7745,12 +7718,11 @@
                 .filter(e => String(e.id) !== String(selfId))
                 .slice()
                 .sort((a,b) => String(a.date).localeCompare(String(b.date)) || String(a.title).localeCompare(String(b.title)));
-            const options = others.map(e =>
-                `<option value="${String(e.id).replace(/"/g, '&quot;')}">${escapeHtml(window.formatDisplayDate(e.date))} · ${escapeHtml(e.title || '未命名事件')}</option>`
-            ).join('');
-            targetSelect.innerHTML = options
-                ? `<option value="">选择连接的事件</option>` + options
-                : `<option value="">暂无其他事件可选</option>`;
+            window.renderConnectionEventPickerOptions('editConnTargetPicker', others, 'editConnTarget', 'editConnTargetLabel');
+            if (!targetSelect.value) {
+                const label = document.getElementById('editConnTargetLabel');
+                if (label) { label.textContent = '选择连接的事件'; label.classList.add('text-slate-400'); label.classList.remove('text-slate-700'); }
+            }
 
             if (sourceSelect) {
                 const selfOpt = selfId != null
@@ -7771,10 +7743,10 @@
                 const targetTitle = String(conn.targetId) === String(selfId) ? '当前事件' : (target?.title || String(conn.targetId));
                 const dirText = conn.dir === 'both' ? '双向' : (conn.dir === 'backward' ? '被指向' : '指向');
                 const dirIcon = conn.dir === 'both' ? '↔' : (conn.dir === 'backward' ? '←' : '→');
-                return `<div class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-xs">
+                return `<div onclick="openConnectionEditModal('${String(conn.id).replace(/'/g, "\\'")}')" class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-xs cursor-pointer hover:border-indigo-200 hover:bg-indigo-50/40 transition-colors">
                     <span class="text-indigo-600 font-bold w-5 text-center">${dirIcon}</span>
                     <div class="min-w-0 flex-1"><div class="font-semibold text-slate-700 truncate">${escapeHtml(sourceTitle)} <span class="text-slate-400 font-normal">→</span> ${escapeHtml(targetTitle)}</div><div class="text-[10px] text-slate-400 mt-0.5">${dirText}${conn.label ? ` · ${escapeHtml(conn.label)}` : ''}</div></div>
-                    <button type="button" onclick="removeEditingConnection('${String(conn.id).replace(/'/g, "\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center shrink-0"><i class="fa-solid fa-xmark"></i></button>
+                    <button type="button" onclick="event.stopPropagation();removeEditingConnection('${String(conn.id).replace(/'/g, "\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center shrink-0"><i class="fa-solid fa-xmark"></i></button>
                 </div>`;
             }).join('');
         };
@@ -7824,6 +7796,10 @@
             window.editingConnectionsDirty = true;
             const labelInput = document.getElementById('editConnLabel');
             if (labelInput) labelInput.value = '';
+            const targetInput = document.getElementById('editConnTarget');
+            if (targetInput) targetInput.value = '';
+            const targetLabel = document.getElementById('editConnTargetLabel');
+            if (targetLabel) { targetLabel.textContent = '选择连接的事件'; targetLabel.classList.add('text-slate-400'); targetLabel.classList.remove('text-slate-700'); }
             window.renderEditConnections();
         };
 
@@ -7842,11 +7818,12 @@
                 window.connections = window.connections.filter(x => String(x.id) !== String(c.id));
                 if (currentUser && db) { try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'connections', String(c.id))); } catch (err) {} }
             }
-            const existingIds = new Set(window.connections.map(c => String(c.id)));
             for (const c of desiredConnections) {
-                if (!existingIds.has(String(c.id))) {
-                    window.connections.push({ ...c });
-                    if (currentUser && db) { try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'connections', String(c.id)), c); } catch (err) {} }
+                const idx = window.connections.findIndex(x => String(x.id) === String(c.id));
+                if (idx >= 0) window.connections[idx] = { ...c };
+                else window.connections.push({ ...c });
+                if (currentUser && db) {
+                    try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'connections', String(c.id)), c); } catch (err) {}
                 }
             }
             saveLocalData();
@@ -8006,7 +7983,15 @@
                             <div class="space-y-2 bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
                                 <div class="flex items-center justify-between"><div><label class="block text-xs font-bold text-slate-700"><i class="fa-solid fa-diagram-project text-indigo-600 mr-1"></i>逻辑连线</label><p class="text-[10px] text-slate-400 mt-0.5">可直接添加、修改和删除当前节点的连线</p></div></div>
                                 <select id="editConnSource" class="hidden"></select>
-                                <select id="editConnTarget" class="w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-indigo-500"></select>
+                                <div data-connection-picker-wrap class="relative">
+                                    <input type="hidden" id="editConnTarget">
+                                    <button type="button" onclick="toggleConnectionEventPicker('editConnTargetPicker')" class="w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-indigo-500 flex items-center justify-between gap-2 text-left"><span id="editConnTargetLabel" class="truncate text-slate-400">选择连接的事件</span><i class="fa-solid fa-chevron-down text-[9px] text-slate-400"></i></button>
+                                    <div id="editConnTargetPicker" data-connection-event-picker class="hidden absolute left-0 right-0 top-full mt-1 z-[40] bg-white border border-slate-200 rounded-xl shadow-xl p-2">
+                                        <input type="text" oninput="filterConnectionEventPicker('editConnTargetPicker',this.value)" placeholder="搜索事件" class="w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500 mb-2">
+                                        <div data-conn-options class="max-h-48 overflow-y-auto custom-scrollbar space-y-0.5"></div>
+                                        <div data-conn-empty class="hidden px-3 py-4 text-center text-[11px] text-slate-400">没有匹配的事件</div>
+                                    </div>
+                                </div>
                                 <div class="grid grid-cols-3 gap-1.5"><label class="cursor-pointer"><input type="radio" name="editConnDirection" value="forward" checked class="sr-only peer"><span class="flex items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">→ 指向</span></label><label class="cursor-pointer"><input type="radio" name="editConnDirection" value="backward" class="sr-only peer"><span class="flex items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">← 被指向</span></label><label class="cursor-pointer"><input type="radio" name="editConnDirection" value="both" class="sr-only peer"><span class="flex items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">↔ 双向</span></label></div>
                                 <div class="flex gap-2"><input id="editConnLabel" type="text" maxlength="40" placeholder="连线文字" class="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500"><button type="button" onclick="addEditingConnection()" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm shrink-0"><i class="fa-solid fa-plus mr-1"></i>添加</button></div>
                                 <div id="editConnectionsList" class="space-y-1.5 max-h-32 overflow-y-auto"></div>
