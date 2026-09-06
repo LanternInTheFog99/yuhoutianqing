@@ -7960,7 +7960,29 @@
             if(event.timeMode==='multi' && Array.isArray(event.timeSegments)){
                 let viewer=document.getElementById('fullscreenViewer');if(!viewer){viewer=document.createElement('div');viewer.id='fullscreenViewer';viewer.className='fixed inset-0 bg-slate-950/90 text-white z-50 overflow-y-auto backdrop-blur-md p-3 sm:p-8 flex flex-col items-center';viewer.addEventListener('click',e=>{if(e.target===viewer)window.closeReadOnlyFullscreen(viewer.dataset.fromStackDate||'');});document.body.appendChild(viewer);}viewer.dataset.fromStackDate=fromStackDate||'';
                 const segs=event.timeSegments.slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
-                const cols=segs.map((seg,si)=>{const fullImgs=(seg.images||[]).map(im=>window.multiGetImageFull(im));const imgs=(seg.images||[]).map((im,ii)=>{const thumb=window.multiGetImageThumb(im),hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(im?.deepDescription);return `<div class="group relative rounded-xl overflow-hidden border border-slate-800 cursor-pointer bg-transparent shadow-md hover:border-indigo-500 transition-colors" onpointerdown="if(event.isPrimary&&event.button===0){event.preventDefault();event.stopPropagation();openMultiLightbox('${event.id}',${si},${ii})}"><img src="${window.multiEsc(thumb)}" class="block w-full h-[170px] object-cover bg-transparent group-hover:scale-[1.02] transition-all duration-300">${hasDeep?'<span class="absolute right-1.5 bottom-1.5 text-sm opacity-0 group-hover:opacity-45">🐢✌🏻</span>':''}</div>`;}).join('');const vids=(seg.videos||[]).map((v,vi)=>{const url=v.blobUrl||v.url||'',cover=v.cover||'',hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(v?.deepDescription);return `<div data-detail-video-card data-detail-video-index="${vi}" data-multi-segment-index="${si}" data-detail-video-deep="${hasDeep?'1':'0'}" class="bg-black rounded-xl overflow-hidden border border-slate-800"><div data-detail-video-stage class="relative bg-black"><video ${cover?`poster="${window.multiEsc(cover)}"`:''} playsinline webkit-playsinline preload="metadata" class="block w-full max-h-64 object-contain bg-black"><source src="${window.multiEsc(url)}" ${v.mime?`type="${window.multiEsc(v.mime)}"`:''}></video></div>${v.title?`<div class="px-3 py-2 text-xs text-slate-300 bg-slate-900">${window.multiEsc(v.title)}</div>`:''}</div>`;}).join('');const links=(seg.links||[]).map(l=>`<a href="${l.url}" target="_blank" class="block px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-indigo-300 text-xs truncate"><i class="fa-solid fa-link mr-1"></i>${escapeHtml(l.title||l.url)}</a>`).join('');const desc=String(seg.description||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/gi,' ').trim()?`<div class="event-description-html text-sm leading-7 text-slate-200">${window.prepareDescriptionForView?window.prepareDescriptionForView(seg.description):seg.description}</div>`:'';return `<section class="shrink-0 w-[78vw] sm:w-[360px] rounded-2xl border border-slate-700 bg-slate-900/80 p-4 self-start"><div class="text-xs font-mono text-indigo-300 mb-3">${window.formatDisplayDate(seg.date)}</div><div class="space-y-3">${imgs}${vids}${links}${desc||'<div class="text-xs text-slate-500">这个时间没有附加内容</div>'}</div></section>`;}).join('');
+                const cols=segs.map((seg,si)=>{
+                    const imageList=seg.images||[];
+                    const imageCount=imageList.length;
+                    const imageCols=Math.min(3,Math.max(1,imageCount));
+                    const imageHeight=imageCount===1?260:170;
+                    const imgs=imageList.map((im,ii)=>{
+                        const thumb=window.multiGetImageThumb(im);
+                        const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(im?.deepDescription);
+                        return `<div class="group relative rounded-xl overflow-hidden border border-slate-800 cursor-pointer bg-transparent shadow-md hover:border-indigo-500 transition-colors" style="height:${imageHeight}px;" onpointerdown="if(event.isPrimary&&event.button===0){event.preventDefault();event.stopPropagation();openMultiLightbox('${event.id}',${si},${ii})}"><img src="${window.multiEsc(thumb)}" class="block w-full h-full object-cover bg-transparent group-hover:scale-[1.02] transition-all duration-300">${hasDeep?'<span class="absolute right-1.5 bottom-1.5 text-sm opacity-0 group-hover:opacity-45">🐢✌🏻</span>':''}</div>`;
+                    }).join('');
+                    const imagesBlock=imageCount
+                        ? `<div class="grid gap-2" style="grid-template-columns:repeat(${imageCols},minmax(0,1fr));">${imgs}</div>`
+                        : '';
+                    const vids=(seg.videos||[]).map((v,vi)=>{
+                        const url=v.blobUrl||v.url||'',cover=v.cover||'',hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(v?.deepDescription);
+                        return `<div data-detail-video-card data-detail-video-index="${vi}" data-multi-segment-index="${si}" data-detail-video-deep="${hasDeep?'1':'0'}" class="w-full bg-black rounded-xl overflow-hidden border border-slate-800"><div data-detail-video-stage class="relative bg-black"><video ${cover?`poster="${window.multiEsc(cover)}"`:''} playsinline webkit-playsinline preload="metadata" class="block w-full max-h-80 object-contain bg-black"><source src="${window.multiEsc(url)}" ${v.mime?`type="${window.multiEsc(v.mime)}"`:''}></video></div>${v.title?`<div class="px-3 py-2 text-xs text-slate-300 bg-slate-900">${window.multiEsc(v.title)}</div>`:''}</div>`;
+                    }).join('');
+                    const videosBlock=vids?`<div class="space-y-3">${vids}</div>`:'';
+                    const links=(seg.links||[]).map(l=>`<a href="${l.url}" target="_blank" class="block px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-indigo-300 text-xs truncate"><i class="fa-solid fa-link mr-1"></i>${escapeHtml(l.title||l.url)}</a>`).join('');
+                    const desc=String(seg.description||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/gi,' ').trim()?`<div class="event-description-html text-sm leading-7 text-slate-200">${window.prepareDescriptionForView?window.prepareDescriptionForView(seg.description):seg.description}</div>`:'';
+                    const body=imagesBlock+videosBlock+links+desc;
+                    return `<section class="shrink-0 w-[78vw] sm:w-[360px] rounded-2xl border border-slate-700 bg-slate-900/80 p-4 self-start"><div class="text-xs font-mono text-indigo-300 mb-3">${window.formatDisplayDate(seg.date)}</div><div class="space-y-3">${body||'<div class="text-xs text-slate-500">这个时间没有附加内容</div>'}</div></section>`;
+                }).join('');
                 viewer.innerHTML=`<div class="max-w-6xl w-full my-auto bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-8 shadow-2xl relative"><button onclick="closeReadOnlyFullscreen('${fromStackDate?fromStackDate.replace(/'/g,"\\'"):''}')" class="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full"><i class="fa-solid fa-xmark"></i></button><h1 class="text-xl sm:text-2xl font-bold mb-5 pr-12">${escapeHtml(event.title)}</h1><div id="multiDetailScroller" class="flex gap-4 overflow-x-auto overflow-y-visible pb-3 cursor-grab select-none" style="touch-action:pan-x pan-y;overscroll-behavior-x:contain;scroll-snap-type:none;scroll-behavior:auto;">${cols}</div></div>`;
                 viewer.classList.remove('hidden');window.bindDetailVideoBehavior(viewer,event.id);window.initMultiDetailScroller?.();return;
             }
@@ -9678,6 +9700,7 @@
                 target.collection = target.collection || target.originalFull;
                 window.showToast('截选完成并已应用', 'success');
                 window.renderMicroPreviews();
+                if (window._multiSharedSegmentIndex != null) window.multiRenderCurrentPage?.();
                 window.closeCropModal();
                 return;
             }
@@ -9700,6 +9723,7 @@
                 target.collection = croppedBase64;
                 window.showToast("截选完成并已应用", "success");
                 window.renderMicroPreviews();
+                if (window._multiSharedSegmentIndex != null) window.multiRenderCurrentPage?.();
                 window.closeCropModal();
             };
             imgObj.onerror = () => window.showToast("截选失败，请重试", "error");
