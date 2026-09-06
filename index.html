@@ -7877,7 +7877,78 @@
             });
         };
 
-        window.initMultiDetailScroller=function(){const sc=document.getElementById('multiDetailScroller');if(!sc||sc.dataset.bound)return;sc.dataset.bound='1';sc.addEventListener('wheel',e=>{if(Math.abs(e.deltaY)>=Math.abs(e.deltaX)){e.preventDefault();sc.scrollLeft+=e.deltaY;}},{passive:false});let down=false,x=0,left=0,moved=false;sc.addEventListener('pointerdown',e=>{if(e.pointerType!=='mouse'||e.button!==0)return;down=true;moved=false;x=e.clientX;left=sc.scrollLeft;sc.setPointerCapture?.(e.pointerId);sc.classList.add('cursor-grabbing');});sc.addEventListener('pointermove',e=>{if(!down)return;const dx=e.clientX-x;if(Math.abs(dx)>3)moved=true;sc.scrollLeft=left-dx;});const up=e=>{down=false;sc.classList.remove('cursor-grabbing');try{sc.releasePointerCapture?.(e.pointerId)}catch(_){}};sc.addEventListener('pointerup',up);sc.addEventListener('pointercancel',up);sc.addEventListener('click',e=>{if(moved){e.preventDefault();e.stopPropagation();moved=false;}},true);};
+        window.initMultiDetailScroller=function(){
+            const sc=document.getElementById('multiDetailScroller');
+            const viewer=document.getElementById('fullscreenViewer');
+            if(!sc||!viewer||sc.dataset.bound)return;
+            sc.dataset.bound='1';
+
+            // Multi-time detail browsing follows the same natural viewport model as the
+            // single-time detail page: normal wheel = vertical, Alt+wheel = horizontal.
+            // Mouse drag locks to the dominant direction after a small threshold.
+            sc.addEventListener('wheel',e=>{
+                const delta=Math.abs(e.deltaY)>=Math.abs(e.deltaX)?e.deltaY:e.deltaX;
+                if(e.altKey){
+                    e.preventDefault();
+                    sc.scrollLeft += delta;
+                }else{
+                    e.preventDefault();
+                    viewer.scrollTop += e.deltaY;
+                }
+            },{passive:false});
+
+            let drag=null;
+            let suppressClickUntil=0;
+            sc.style.cursor='grab';
+            sc.style.touchAction='pan-x pan-y';
+
+            sc.addEventListener('pointerdown',e=>{
+                if(e.pointerType!=='mouse'||e.button!==0)return;
+                if(e.target.closest('button,input,select,textarea,a,video'))return;
+                drag={
+                    id:e.pointerId,
+                    x:e.clientX,
+                    y:e.clientY,
+                    left:sc.scrollLeft,
+                    top:viewer.scrollTop,
+                    axis:null,
+                    moved:false
+                };
+                sc.style.cursor='grabbing';
+            });
+
+            sc.addEventListener('pointermove',e=>{
+                if(!drag||drag.id!==e.pointerId)return;
+                const dx=e.clientX-drag.x;
+                const dy=e.clientY-drag.y;
+                if(!drag.axis){
+                    if(Math.hypot(dx,dy)<4)return;
+                    drag.axis=Math.abs(dx)>=Math.abs(dy)?'x':'y';
+                    drag.moved=true;
+                    sc.setPointerCapture?.(e.pointerId);
+                }
+                if(drag.axis==='x')sc.scrollLeft=drag.left-dx;
+                else viewer.scrollTop=drag.top-dy;
+                e.preventDefault();
+            });
+
+            const endDrag=e=>{
+                if(!drag||drag.id!==e.pointerId)return;
+                if(drag.moved)suppressClickUntil=Date.now()+260;
+                try{sc.releasePointerCapture?.(e.pointerId);}catch(_){}
+                drag=null;
+                sc.style.cursor='grab';
+            };
+            sc.addEventListener('pointerup',endDrag);
+            sc.addEventListener('pointercancel',endDrag);
+            sc.addEventListener('click',e=>{
+                if(Date.now()<suppressClickUntil){
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.stopImmediatePropagation?.();
+                }
+            },true);
+        };
         window.openMultiLightbox=function(eventId,segIndex,index){window.pauseAllDetailVideosForLightbox();const ev=window.findEventById(eventId),seg=ev?.timeSegments?.[segIndex];if(!seg)return;const list=(seg.images||[]).map(window.multiGetImageFull);window.currentLightboxImages=list;window.currentLightboxIndex=index;const lb=document.getElementById('lightboxModal');if(!lb)return;lb.dataset.deepEventId='';lb.dataset.multiDeepEventId=String(eventId);lb.dataset.multiDeepSegment=String(segIndex);lb.dataset.multiDeepType='image';lb.dataset.deepIndex=String(index);lb.classList.remove('hidden');updateLightboxDisplay();};
         window.multiDeepWarningOpen=function(eventId,segIndex,type,index){const ev=window.findEventById(eventId),obj=ev?.timeSegments?.[segIndex]?.[type==='image'?'images':'videos']?.[index];if(ev?.deepDescriptionEnabled===false||!window.deepDescriptionIsEnabled(obj?.deepDescription))return;let m=document.getElementById('multiDeepEnterConfirmModal');if(!m){m=document.createElement('div');m.id='multiDeepEnterConfirmModal';m.className='fixed inset-0 z-[520] hidden bg-slate-950/65 backdrop-blur-sm flex items-center justify-center p-4';document.body.appendChild(m);}m.innerHTML=`<div class="w-full max-w-xl rounded-2xl bg-white border border-red-200 shadow-2xl p-6 sm:p-7 text-slate-800"><div class="text-base sm:text-lg font-extrabold leading-7">⚠️  你确定你真的要进入这个🐢🐢世界吗？⚠️</div><div class="mt-4 space-y-4"><p class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm sm:text-[15px] font-bold leading-7 text-red-600">Warning！Warning！前方区域疑似存在极高浓度的🐢🐢能量，请周围群众做好防护注意避让，不要擅自进入！</p></div><div class="mt-6 flex justify-end gap-2"><button data-c class="px-4 py-2 rounded-lg border">取消</button><button data-o class="px-4 py-2 rounded-lg bg-indigo-600 text-white">确定</button></div></div>`;const close=()=>m.classList.add('hidden');m.querySelector('[data-c]').onclick=close;m.querySelector('[data-o]').onclick=()=>{close();window.openMultiDeepDescriptionViewer(eventId,segIndex,type,index);};m.classList.remove('hidden');};
         window.multiOpenDeepMediaPreview=function(eventId,segIndex,index,startTime=0){window.resetAllDetailVideos?.();const ev=window.findEventById(eventId),obj=ev?.timeSegments?.[segIndex]?.videos?.[index];if(!obj)return;let m=document.getElementById('deepMediaPreviewModal');if(!m){m=document.createElement('div');m.id='deepMediaPreviewModal';m.className='fixed inset-0 z-[360] hidden bg-slate-950/95 p-3 sm:p-6 flex items-center justify-center';document.body.appendChild(m);}const src=obj.blobUrl||obj.url||'';m.innerHTML=`<button onclick="closeDeepMediaPreview()" class="absolute top-5 right-5 z-20 w-10 h-10 rounded-full bg-slate-800 text-white"><i class="fa-solid fa-xmark"></i></button><div data-deep-preview-stage class="max-w-5xl max-h-[90vh] w-full h-full flex items-center justify-center cursor-pointer"><video src="${window.deepEsc(src)}" controls playsinline autoplay class="max-w-full max-h-[88vh] rounded-xl bg-black"></video></div>`;const stage=m.querySelector('[data-deep-preview-stage]'),video=stage?.querySelector('video');const go=()=>{try{video.currentTime=Math.max(0,Number(startTime)||0)}catch(_){}video?.play().catch(()=>{})};if(video?.readyState>=1)go();else video?.addEventListener('loadedmetadata',go,{once:true});stage?.addEventListener('dblclick',e=>{e.preventDefault();e.stopPropagation();video?.pause();window.multiDeepWarningOpen(eventId,segIndex,'video',index);});m.classList.remove('hidden');};
@@ -7889,8 +7960,8 @@
             if(event.timeMode==='multi' && Array.isArray(event.timeSegments)){
                 let viewer=document.getElementById('fullscreenViewer');if(!viewer){viewer=document.createElement('div');viewer.id='fullscreenViewer';viewer.className='fixed inset-0 bg-slate-950/90 text-white z-50 overflow-y-auto backdrop-blur-md p-3 sm:p-8 flex flex-col items-center';viewer.addEventListener('click',e=>{if(e.target===viewer)window.closeReadOnlyFullscreen(viewer.dataset.fromStackDate||'');});document.body.appendChild(viewer);}viewer.dataset.fromStackDate=fromStackDate||'';
                 const segs=event.timeSegments.slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
-                const cols=segs.map((seg,si)=>{const fullImgs=(seg.images||[]).map(im=>window.multiGetImageFull(im));const imgs=(seg.images||[]).map((im,ii)=>{const thumb=window.multiGetImageThumb(im),hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(im?.deepDescription);return `<div class="group relative rounded-xl overflow-hidden border border-slate-800 cursor-pointer bg-slate-950" onpointerdown="if(event.isPrimary&&event.button===0){event.preventDefault();event.stopPropagation();openMultiLightbox('${event.id}',${si},${ii})}"><img src="${window.multiEsc(thumb)}" class="block w-full max-h-64 object-contain bg-black">${hasDeep?'<span class="absolute right-1.5 bottom-1.5 text-sm opacity-0 group-hover:opacity-45">🐢✌🏻</span>':''}</div>`;}).join('');const vids=(seg.videos||[]).map((v,vi)=>{const url=v.blobUrl||v.url||'',cover=v.cover||'',hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(v?.deepDescription);return `<div data-detail-video-card data-detail-video-index="${vi}" data-multi-segment-index="${si}" data-detail-video-deep="${hasDeep?'1':'0'}" class="bg-black rounded-xl overflow-hidden border border-slate-800"><div data-detail-video-stage class="relative bg-black"><video ${cover?`poster="${window.multiEsc(cover)}"`:''} playsinline webkit-playsinline preload="metadata" class="block w-full max-h-64 object-contain bg-black"><source src="${window.multiEsc(url)}" ${v.mime?`type="${window.multiEsc(v.mime)}"`:''}></video></div>${v.title?`<div class="px-3 py-2 text-xs text-slate-300 bg-slate-900">${window.multiEsc(v.title)}</div>`:''}</div>`;}).join('');const links=(seg.links||[]).map(l=>`<a href="${l.url}" target="_blank" class="block px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-indigo-300 text-xs truncate"><i class="fa-solid fa-link mr-1"></i>${escapeHtml(l.title||l.url)}</a>`).join('');const desc=String(seg.description||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/gi,' ').trim()?`<div class="event-description-html text-sm leading-7 text-slate-200">${window.prepareDescriptionForView?window.prepareDescriptionForView(seg.description):seg.description}</div>`:'';return `<section class="shrink-0 w-[78vw] sm:w-[360px] rounded-2xl border border-slate-700 bg-slate-900/80 p-4 snap-start"><div class="text-xs font-mono text-indigo-300 mb-3">${window.formatDisplayDate(seg.date)}</div><div class="space-y-3">${imgs}${vids}${links}${desc||'<div class="text-xs text-slate-500">这个时间没有附加内容</div>'}</div></section>`;}).join('');
-                viewer.innerHTML=`<div class="max-w-6xl w-full my-auto bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-8 shadow-2xl relative"><button onclick="closeReadOnlyFullscreen('${fromStackDate?fromStackDate.replace(/'/g,"\\'"):''}')" class="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full"><i class="fa-solid fa-xmark"></i></button><h1 class="text-xl sm:text-2xl font-bold mb-5 pr-12">${escapeHtml(event.title)}</h1><div id="multiDetailScroller" class="flex gap-4 overflow-x-auto pb-3 snap-x cursor-grab select-none touch-pan-x">${cols}</div></div>`;
+                const cols=segs.map((seg,si)=>{const fullImgs=(seg.images||[]).map(im=>window.multiGetImageFull(im));const imgs=(seg.images||[]).map((im,ii)=>{const thumb=window.multiGetImageThumb(im),hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(im?.deepDescription);return `<div class="group relative rounded-xl overflow-hidden border border-slate-800 cursor-pointer bg-transparent shadow-md hover:border-indigo-500 transition-colors" onpointerdown="if(event.isPrimary&&event.button===0){event.preventDefault();event.stopPropagation();openMultiLightbox('${event.id}',${si},${ii})}"><img src="${window.multiEsc(thumb)}" class="block w-full h-[170px] object-cover bg-transparent group-hover:scale-[1.02] transition-all duration-300">${hasDeep?'<span class="absolute right-1.5 bottom-1.5 text-sm opacity-0 group-hover:opacity-45">🐢✌🏻</span>':''}</div>`;}).join('');const vids=(seg.videos||[]).map((v,vi)=>{const url=v.blobUrl||v.url||'',cover=v.cover||'',hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(v?.deepDescription);return `<div data-detail-video-card data-detail-video-index="${vi}" data-multi-segment-index="${si}" data-detail-video-deep="${hasDeep?'1':'0'}" class="bg-black rounded-xl overflow-hidden border border-slate-800"><div data-detail-video-stage class="relative bg-black"><video ${cover?`poster="${window.multiEsc(cover)}"`:''} playsinline webkit-playsinline preload="metadata" class="block w-full max-h-64 object-contain bg-black"><source src="${window.multiEsc(url)}" ${v.mime?`type="${window.multiEsc(v.mime)}"`:''}></video></div>${v.title?`<div class="px-3 py-2 text-xs text-slate-300 bg-slate-900">${window.multiEsc(v.title)}</div>`:''}</div>`;}).join('');const links=(seg.links||[]).map(l=>`<a href="${l.url}" target="_blank" class="block px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-indigo-300 text-xs truncate"><i class="fa-solid fa-link mr-1"></i>${escapeHtml(l.title||l.url)}</a>`).join('');const desc=String(seg.description||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/gi,' ').trim()?`<div class="event-description-html text-sm leading-7 text-slate-200">${window.prepareDescriptionForView?window.prepareDescriptionForView(seg.description):seg.description}</div>`:'';return `<section class="shrink-0 w-[78vw] sm:w-[360px] rounded-2xl border border-slate-700 bg-slate-900/80 p-4 self-start"><div class="text-xs font-mono text-indigo-300 mb-3">${window.formatDisplayDate(seg.date)}</div><div class="space-y-3">${imgs}${vids}${links}${desc||'<div class="text-xs text-slate-500">这个时间没有附加内容</div>'}</div></section>`;}).join('');
+                viewer.innerHTML=`<div class="max-w-6xl w-full my-auto bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-8 shadow-2xl relative"><button onclick="closeReadOnlyFullscreen('${fromStackDate?fromStackDate.replace(/'/g,"\\'"):''}')" class="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full"><i class="fa-solid fa-xmark"></i></button><h1 class="text-xl sm:text-2xl font-bold mb-5 pr-12">${escapeHtml(event.title)}</h1><div id="multiDetailScroller" class="flex gap-4 overflow-x-auto overflow-y-visible pb-3 cursor-grab select-none" style="touch-action:pan-x pan-y;overscroll-behavior-x:contain;scroll-snap-type:none;scroll-behavior:auto;">${cols}</div></div>`;
                 viewer.classList.remove('hidden');window.bindDetailVideoBehavior(viewer,event.id);window.initMultiDetailScroller?.();return;
             }
             const detailHasImages=Array.isArray(event.images)&&event.images.length>0,detailHasVideos=Array.isArray(event.videos)&&event.videos.length>0,detailDescriptionText=String(event.description||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/gi,' ').trim(),detailHasDescription=!!detailDescriptionText;
