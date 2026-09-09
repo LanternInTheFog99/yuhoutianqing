@@ -882,6 +882,19 @@
             </div>
         </div>
     </div>
+<div id="multiSegmentDeleteModal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-md z-[155] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center transform scale-100 transition-transform">
+            <div class="w-12 h-12 rounded-full bg-rose-100 text-rose-500 flex items-center justify-center text-xl mx-auto mb-3">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h3 class="font-bold text-slate-800 text-base mb-1">确认删除这个时间？</h3>
+            <p class="text-xs text-slate-500 mb-5">该时间下的图片、视频、网址和文字都会一并移除。</p>
+            <div class="flex justify-center gap-3">
+                <button type="button" onclick="closeMultiSegmentDeleteModal()" class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button>
+                <button type="button" onclick="confirmMultiRemoveSegment()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-medium shadow-sm">确认删除</button>
+            </div>
+        </div>
+    </div>
 <div id="confirmSaveModal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-md z-[110] hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center transform scale-100 transition-transform">
             <div class="w-12 h-12 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xl mx-auto mb-3">
@@ -1116,7 +1129,7 @@
             </div><div id="helpEditChangelog" class="hidden">
                 <div class="border border-green-300 rounded-xl p-4 bg-green-50">
                                         <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.09</span><span class="px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-semibold">本次更新</span></div>
-                    <div class="space-y-2 leading-7 mb-3"><p>增加了活动日志功能</p><p>增加了小晴儿互动功能</p></div>
+                    <div class="space-y-2 leading-7 mb-3"><p>增加了活动日志功能</p><p>增加了小晴儿互动功能</p><p>优化了多时间事件删除时间的功能</p></div>
                     <div class="border-t border-green-200 pt-3">
 <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.06</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
                     <div class="space-y-2 leading-7 mb-3"><p>增加了多时间事件功能</p><p>优化了时间线边缘自动滑动的功能</p><p>优化了时间线节点状态显示的功能</p><p>修复了同期事件集合节点在连线重排时显示异常的问题</p></div>
@@ -1265,6 +1278,12 @@
                     <p class="text-[9px] text-slate-400 mt-1">{name} 会自动替换为当前用户名；匿名或未设置 ID 时为“小鱼丁”。</p>
                 </div>
                 <div>
+                    <label class="block text-[11px] font-bold text-slate-600 mb-1">特殊问候语</label>
+                    <div id="xiaoqingerSpecialGreetingEditor" contenteditable="true"
+                         class="xiaoqinger-rich-editor min-h-[42px] w-full px-3 py-2 border border-slate-300 rounded-lg leading-6 outline-none focus:ring-2 focus:ring-indigo-500 bg-white"></div>
+                    <p class="text-[9px] text-slate-400 mt-1">当前 ID 为“鱼猴癖”或“听雨”时，首次点击使用这句问候。</p>
+                </div>
+                <div>
                     <label class="block text-[11px] font-bold text-slate-600 mb-1">连续点击提示</label>
                     <div id="xiaoqingerRapidEditor" contenteditable="true"
                          class="xiaoqinger-rich-editor min-h-[42px] w-full px-3 py-2 border border-slate-300 rounded-lg  leading-6 outline-none focus:ring-2 focus:ring-indigo-500 bg-white"></div>
@@ -1337,6 +1356,7 @@
         let getDoc = null;
         let deleteDoc = null;
         let onSnapshot = null;
+        let runTransaction = null;
         let signInAnonymously = null;
         let signInWithCustomToken = null;
 
@@ -1357,6 +1377,7 @@
             getDoc = fsMod.getDoc;
             deleteDoc = fsMod.deleteDoc;
             onSnapshot = fsMod.onSnapshot;
+            runTransaction = fsMod.runTransaction;
             signInAnonymously = authMod.signInAnonymously;
             signInWithCustomToken = authMod.signInWithCustomToken;
             app = appMod.initializeApp(firebaseConfig);
@@ -2425,7 +2446,10 @@
             if (typeof window.updateLockButtonUI === 'function') window.updateLockButtonUI();
             window.updateOfflineDataMismatchNotice?.();
             if (type === 'synced' && currentUser) {
-                setTimeout(() => window.ensureEditorIdentity?.(), 0);
+                setTimeout(async () => {
+                    window.ensureEditorIdentity?.();
+                    await window.ensureCurrentIdentityReservation?.();
+                }, 0);
             }
             window.renderActivityLogs?.();
         }
@@ -10217,6 +10241,123 @@
         window.EDITOR_ID_STORAGE_KEY = 'yuhoutianqing_editor_identity';
         window.EDITOR_ANON_STORAGE_KEY = 'yuhoutianqing_editor_anonymous';
 
+        window.EDITOR_OWNER_STORAGE_KEY = 'yuhoutianqing_editor_owner_token';
+        window._identityReservationValid = false;
+
+        window.getEditorOwnerToken = function() {
+            try {
+                let token = localStorage.getItem(window.EDITOR_OWNER_STORAGE_KEY);
+                if (!token) {
+                    token = (crypto?.randomUUID?.() || ('owner_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2)));
+                    localStorage.setItem(window.EDITOR_OWNER_STORAGE_KEY, token);
+                }
+                return token;
+            } catch (_) {
+                return String(currentUser?.uid || 'unknown-owner');
+            }
+        };
+
+        window.normalizeEditorIdentityName = function(value) {
+            return String(value || '').normalize('NFKC').trim().replace(/\s+/g, ' ');
+        };
+
+        window.editorIdentityDocKey = function(name) {
+            const normalized = window.normalizeEditorIdentityName(name);
+            const bytes = new TextEncoder().encode(normalized);
+            let binary = '';
+            bytes.forEach(b => binary += String.fromCharCode(b));
+            return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+        };
+
+        window.claimEditorIdentity = async function(newName, oldName = '') {
+            if (!window.isCloudSynced || !currentUser || !db || !runTransaction) {
+                return { ok:false, reason:'offline' };
+            }
+            const next = window.normalizeEditorIdentityName(newName);
+            const prev = window.normalizeEditorIdentityName(oldName);
+            if (!next) return { ok:false, reason:'invalid' };
+
+            const ownerToken = window.getEditorOwnerToken();
+            const nextRef = doc(db, 'artifacts', appId, 'public', 'data', 'editorIdentities', window.editorIdentityDocKey(next));
+            const prevRef = prev && prev !== next
+                ? doc(db, 'artifacts', appId, 'public', 'data', 'editorIdentities', window.editorIdentityDocKey(prev))
+                : null;
+
+            try {
+                await runTransaction(db, async tx => {
+                    const nextSnap = await tx.get(nextRef);
+                    if (nextSnap.exists()) {
+                        const data = nextSnap.data() || {};
+                        if (String(data.ownerToken || '') !== ownerToken) {
+                            const err = new Error('IDENTITY_TAKEN');
+                            err.code = 'IDENTITY_TAKEN';
+                            throw err;
+                        }
+                    }
+
+                    let prevOwnedByMe = false;
+                    if (prevRef) {
+                        const prevSnap = await tx.get(prevRef);
+                        if (prevSnap.exists()) {
+                            prevOwnedByMe = String(prevSnap.data()?.ownerToken || '') === ownerToken;
+                        }
+                    }
+
+                    tx.set(nextRef, {
+                        displayName: next,
+                        ownerToken,
+                        authUid: String(currentUser.uid || ''),
+                        updatedAt: Date.now()
+                    });
+
+                    // Release the old ID only after a different new ID is successfully claimed.
+                    if (prevRef && prevOwnedByMe) tx.delete(prevRef);
+                });
+
+                window._identityReservationValid = true;
+                return { ok:true, name:next };
+            } catch (e) {
+                if (e?.code === 'IDENTITY_TAKEN' || String(e?.message || '').includes('IDENTITY_TAKEN')) {
+                    window._identityReservationValid = false;
+                    return { ok:false, reason:'taken' };
+                }
+                console.warn('ID 占用状态同步失败:', e);
+                window._identityReservationValid = false;
+                return { ok:false, reason:'error' };
+            }
+        };
+
+        window.ensureCurrentIdentityReservation = async function() {
+            const stored = window.getStoredEditorIdentity?.();
+            if (!stored || !window.isCloudSynced || !currentUser) {
+                window._identityReservationValid = !stored;
+                return !stored;
+            }
+            const result = await window.claimEditorIdentity(stored, '');
+            if (result.ok) return true;
+
+            if (result.reason === 'taken') {
+                const err = document.getElementById('editorIdentityError');
+                if (err) {
+                    err.textContent = '该 ID 已被其他用户使用，请更换';
+                    err.classList.remove('hidden');
+                }
+                const modal = document.getElementById('editorIdentityModal');
+                const title = document.getElementById('editorIdentityTitle');
+                const input = document.getElementById('editorIdentityInput');
+                const checkbox = document.getElementById('editorIdentityAnonymousCheckbox');
+                const cancel = document.getElementById('editorIdentityCancelBtn');
+                if (title) title.textContent = '重新设置 ID';
+                if (input) input.value = stored;
+                if (checkbox) checkbox.checked = false;
+                window.syncEditorIdentityAnonymousUI?.();
+                cancel?.classList.add('hidden');
+                modal?.classList.remove('hidden');
+                setTimeout(() => input?.focus(), 30);
+            }
+            return false;
+        };
+
         window.getStoredEditorIdentity = function() {
             if (window.currentEditorIdentity) return window.currentEditorIdentity;
             try {
@@ -10306,36 +10447,69 @@
             document.getElementById('editorIdentityModal')?.classList.add('hidden');
         };
 
-        window.saveEditorIdentity = function() {
+        window.saveEditorIdentity = async function() {
             const input = document.getElementById('editorIdentityInput');
             const checkbox = document.getElementById('editorIdentityAnonymousCheckbox');
             const err = document.getElementById('editorIdentityError');
             const anonymous = !!checkbox?.checked;
-            const value = String(input?.value || '').trim().replace(/\s+/g, ' ');
+            const value = window.normalizeEditorIdentityName(input?.value || '');
+            const oldValue = window.normalizeEditorIdentityName(window.getStoredEditorIdentity());
 
             if (!anonymous && (!value || value.length > 32)) {
-                err?.classList.remove('hidden');
+                if (err) {
+                    err.textContent = '请输入有效的 ID';
+                    err.classList.remove('hidden');
+                }
                 input?.focus();
                 return;
             }
 
-            if (value && value.length <= 32) {
-                try { localStorage.setItem(window.EDITOR_ID_STORAGE_KEY, value); } catch (_) {}
-                window.currentEditorIdentity = value;
+            // Anonymous mode preserves the already-owned ID and does not release it.
+            if (anonymous) {
+                if (oldValue && !window._identityReservationValid) {
+                    const retained = await window.claimEditorIdentity(oldValue, '');
+                    if (!retained.ok && retained.reason === 'taken') {
+                        if (err) {
+                            err.textContent = '原 ID 已被其他用户使用，请先更换 ID';
+                            err.classList.remove('hidden');
+                        }
+                        return;
+                    }
+                }
+                try { localStorage.setItem(window.EDITOR_ANON_STORAGE_KEY, '1'); } catch (_) {}
+                err?.classList.add('hidden');
+                document.getElementById('editorIdentityModal')?.classList.add('hidden');
+                const label = document.getElementById('activityCurrentUser');
+                if (label) label.textContent = '匿名';
+                window.renderActivityLogs?.();
+                window.showToast?.('已设为匿名', 'success');
+                return;
+            }
+
+            const claim = await window.claimEditorIdentity(value, oldValue);
+            if (!claim.ok) {
+                if (err) {
+                    err.textContent = claim.reason === 'taken'
+                        ? '该 ID 已被其他用户使用，请更换'
+                        : 'ID 保存失败，请确认云端连接后重试';
+                    err.classList.remove('hidden');
+                }
+                input?.focus();
+                return;
             }
 
             try {
-                if (anonymous) localStorage.setItem(window.EDITOR_ANON_STORAGE_KEY, '1');
-                else localStorage.removeItem(window.EDITOR_ANON_STORAGE_KEY);
+                localStorage.setItem(window.EDITOR_ID_STORAGE_KEY, claim.name);
+                localStorage.removeItem(window.EDITOR_ANON_STORAGE_KEY);
             } catch (_) {}
+            window.currentEditorIdentity = claim.name;
 
             err?.classList.add('hidden');
             document.getElementById('editorIdentityModal')?.classList.add('hidden');
-
             const label = document.getElementById('activityCurrentUser');
-            if (label) label.textContent = window.getEditorIdentityLabel();
+            if (label) label.textContent = claim.name;
             window.renderActivityLogs?.();
-            window.showToast?.(anonymous ? '已设为匿名' : 'ID 已保存', 'success');
+            window.showToast?.('ID 已保存', 'success');
         };
 
         window.formatActivityTime = function(ts) {
@@ -10421,6 +10595,8 @@
 
         window.writeActivityLog = async function(action, eventInfo) {
             const identity = window.getEditorIdentity();
+            const storedIdentity = window.getStoredEditorIdentity?.();
+            if (storedIdentity && !window._identityReservationValid) return false;
             if (!identity || !window.isCloudSynced || !currentUser || !db || !collection || !doc || !setDoc) return false;
             try {
                 const activityCol = collection(db, 'artifacts', appId, 'public', 'data', 'activityLogs');
@@ -10532,9 +10708,10 @@
 
         /* === 小晴儿初始互动 === */
         window.XIAOQINGER_DIALOGUE_STORAGE_KEY = 'yuhoutianqing_xiaoqinger_dialogues';
-        window.XIAOQINGER_DIALOGUE_SCHEMA_VERSION = 2;
+        window.XIAOQINGER_DIALOGUE_SCHEMA_VERSION = 3;
         window.xiaoqingerDialogueDefaults = {
             greeting: '{name}，你好呀！我是小晴儿',
+            specialGreeting: '妈咪！',
             rapid: '慢点儿',
             lines: [
                 '月子中心，只生不养！',
@@ -10646,17 +10823,22 @@
         window.normalizeXiaoqingerStoredConfig = function(raw) {
             if (!raw || typeof raw !== 'object') return null;
             const greeting = window.migrateXiaoqingerLegacyRichHtml(raw.greeting || '');
+            const specialGreeting = window.migrateXiaoqingerLegacyRichHtml(
+                raw.specialGreeting != null ? raw.specialGreeting : window.xiaoqingerDialogueDefaults.specialGreeting
+            );
             const rapid = window.migrateXiaoqingerLegacyRichHtml(raw.rapid || '');
             const lines = Array.isArray(raw.lines)
                 ? raw.lines.map(x => window.migrateXiaoqingerLegacyRichHtml(String(x)))
                     .filter(x => window.xiaoqingerRichPlainText(x))
                 : [];
             if (!window.xiaoqingerRichPlainText(greeting) ||
+                !window.xiaoqingerRichPlainText(specialGreeting) ||
                 !window.xiaoqingerRichPlainText(rapid) ||
                 !lines.length) return null;
             return {
                 schemaVersion: window.XIAOQINGER_DIALOGUE_SCHEMA_VERSION,
                 greeting,
+                specialGreeting,
                 rapid,
                 lines
             };
@@ -10678,6 +10860,7 @@
                 cfg = {
                     schemaVersion: window.XIAOQINGER_DIALOGUE_SCHEMA_VERSION,
                     greeting: window.sanitizeXiaoqingerRichHtml(d.greeting),
+                    specialGreeting: window.sanitizeXiaoqingerRichHtml(d.specialGreeting),
                     rapid: window.sanitizeXiaoqingerRichHtml(d.rapid),
                     lines: d.lines.map(x => window.sanitizeXiaoqingerRichHtml(x))
                 };
@@ -10729,7 +10912,13 @@
             if (!window._xiaoqingerHasGreeted) {
                 window._xiaoqingerHasGreeted = true;
                 window._xiaoqingerLastClickAt = now;
-                const tpl = String(window.xiaoqingerDialogueConfig?.greeting || window.xiaoqingerDialogueDefaults.greeting);
+                const storedId = String(window.getStoredEditorIdentity?.() || '').trim();
+                const useSpecialGreeting = !window.isEditorAnonymous?.() && (storedId === '鱼猴癖' || storedId === '听雨');
+                const tpl = String(
+                    useSpecialGreeting
+                        ? (window.xiaoqingerDialogueConfig?.specialGreeting || window.xiaoqingerDialogueDefaults.specialGreeting)
+                        : (window.xiaoqingerDialogueConfig?.greeting || window.xiaoqingerDialogueDefaults.greeting)
+                );
                 const safeName = String(window.getXiaoqingerAddressName()).replace(/[&<>]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]));
                 window.showXiaoqingerSimpleSpeech(tpl.replaceAll('{name}', safeName), { html:true });
                 return;
@@ -10781,21 +10970,6 @@
             window.xiaoqingerRememberRichSelection();
         };
 
-        window.xiaoqingerNormalizeEditorMarkup = function() {
-            document.querySelectorAll('.xiaoqinger-rich-editor').forEach(root => {
-                root.querySelectorAll('font').forEach(el => {
-                    const span = document.createElement('span');
-                    const color = el.getAttribute('color');
-                    const size = el.getAttribute('size');
-                    if (color) span.style.color = color;
-                    if (el.style?.color) span.style.color = el.style.color;
-                    if (el.style?.fontSize) span.style.fontSize = el.style.fontSize;
-                    span.append(...el.childNodes);
-                    el.replaceWith(span);
-                });
-            });
-        };
-
         window.xiaoqingerApplyInlineStyle = function(property, value) {
             if (!window.xiaoqingerRestoreRichSelection()) return false;
             const sel = window.getSelection?.();
@@ -10824,7 +10998,6 @@
                 sel.addRange(newRange);
                 window._xiaoqingerRichRange = newRange.cloneRange();
 
-                window.xiaoqingerNormalizeEditorMarkup?.();
                 window.xiaoqingerUpdateCurrentSize?.();
                 return true;
             } catch (e) {
@@ -10959,9 +11132,11 @@
         window.openXiaoqingerDialogueEditor = function() {
             const cfg = window.loadXiaoqingerDialogues();
             const greeting = document.getElementById('xiaoqingerGreetingEditor');
+            const specialGreeting = document.getElementById('xiaoqingerSpecialGreetingEditor');
             const rapid = document.getElementById('xiaoqingerRapidEditor');
             const lines = document.getElementById('xiaoqingerDialogueListEditor');
             if (greeting) greeting.innerHTML = cfg.greeting;
+            if (specialGreeting) specialGreeting.innerHTML = cfg.specialGreeting || window.xiaoqingerDialogueDefaults.specialGreeting;
             if (rapid) rapid.innerHTML = cfg.rapid;
             if (lines) lines.innerHTML = cfg.lines.map(x => `<div>${x}</div>`).join('');
             document.getElementById('xiaoqingerDialogueEditorModal')?.classList.remove('hidden');
@@ -10978,22 +11153,24 @@
                 return;
             }
             const greetingRoot = document.getElementById('xiaoqingerGreetingEditor');
+            const specialGreetingRoot = document.getElementById('xiaoqingerSpecialGreetingEditor');
             const rapidRoot = document.getElementById('xiaoqingerRapidEditor');
             const linesRoot = document.getElementById('xiaoqingerDialogueListEditor');
 
-            window.xiaoqingerNormalizeEditorMarkup?.();
             const greeting = window.sanitizeXiaoqingerRichHtml(greetingRoot?.innerHTML || '');
+            const specialGreeting = window.sanitizeXiaoqingerRichHtml(specialGreetingRoot?.innerHTML || '');
             const rapid = window.sanitizeXiaoqingerRichHtml(rapidRoot?.innerHTML || '');
             const lines = window.xiaoqingerDialogueBlocksFromEditor(linesRoot);
 
-            if (!window.xiaoqingerRichPlainText(greeting) || !window.xiaoqingerRichPlainText(rapid) || !lines.length) {
-                window.showToast?.('首次问候、连续点击提示和随机台词都不能为空', 'error');
+            if (!window.xiaoqingerRichPlainText(greeting) || !window.xiaoqingerRichPlainText(specialGreeting) || !window.xiaoqingerRichPlainText(rapid) || !lines.length) {
+                window.showToast?.('首次问候、特殊问候语、连续点击提示和随机台词都不能为空', 'error');
                 return;
             }
 
             const cfg = {
                 schemaVersion: window.XIAOQINGER_DIALOGUE_SCHEMA_VERSION,
                 greeting,
+                specialGreeting,
                 rapid,
                 lines
             };
@@ -11012,9 +11189,11 @@
         window.resetXiaoqingerDialogues = function() {
             const d = window.xiaoqingerDialogueDefaults;
             const greeting = document.getElementById('xiaoqingerGreetingEditor');
+            const specialGreeting = document.getElementById('xiaoqingerSpecialGreetingEditor');
             const rapid = document.getElementById('xiaoqingerRapidEditor');
             const lines = document.getElementById('xiaoqingerDialogueListEditor');
             if (greeting) greeting.innerHTML = d.greeting;
+            if (specialGreeting) specialGreeting.innerHTML = d.specialGreeting;
             if (rapid) rapid.innerHTML = d.rapid;
             if (lines) lines.innerHTML = d.lines.map(x => `<div>${x}</div>`).join('');
         };
@@ -11148,7 +11327,30 @@
 
         /* Multi-time-only segment operations: shared dialogs are reused wherever possible. */
         window.multiRemoveMedia=function(i,k,j){const kind=k==='images'?'image':k==='videos'?'video':'link';window.confirmEditAttachmentDelete?.(kind,()=>{window.multiTimeDraft[i]?.[k]?.splice(j,1);window.multiRenderCurrentPage();});};
-        window.multiRemoveSegment=function(i){if(window.multiTimeDraft.length<=1){window.showToast('至少保留一个时间','error');return;}if(!window.confirm('确认删除这个时间？该时间下的图片、视频、网址和文字都会一并移除。'))return;window.multiTimeDraft.splice(i,1);window.multiTimePage=Math.max(0,Math.min(window.multiTimePage,window.multiTimeDraft.length));window.multiRenderEditorShell();};
+        window.multiPendingDeleteSegmentIndex = null;
+        window.multiRemoveSegment = function(i) {
+            if (window.multiTimeDraft.length <= 1) {
+                window.showToast('至少保留一个时间','error');
+                return;
+            }
+            window.multiPendingDeleteSegmentIndex = Number(i);
+            document.getElementById('multiSegmentDeleteModal')?.classList.remove('hidden');
+        };
+        window.closeMultiSegmentDeleteModal = function() {
+            window.multiPendingDeleteSegmentIndex = null;
+            document.getElementById('multiSegmentDeleteModal')?.classList.add('hidden');
+        };
+        window.confirmMultiRemoveSegment = function() {
+            const i = window.multiPendingDeleteSegmentIndex;
+            if (!Number.isInteger(i) || i < 0 || i >= window.multiTimeDraft.length) {
+                window.closeMultiSegmentDeleteModal();
+                return;
+            }
+            window.multiTimeDraft.splice(i, 1);
+            window.multiTimePage = Math.max(0, Math.min(window.multiTimePage, window.multiTimeDraft.length));
+            window.closeMultiSegmentDeleteModal();
+            window.multiRenderEditorShell();
+        };
         window.multiMoveMedia=function(seg,key,from,to){const a=window.multiTimeDraft?.[seg]?.[key];if(!a||from===to||from<0||to<0||from>=a.length||to>=a.length)return;const [x]=a.splice(from,1);a.splice(to,0,x);window.multiRenderCurrentPage();};
         window.multiBindDrag=function(){const root=document.getElementById('multiPageBody');if(!root||root.dataset.dragBound)return;root.dataset.dragBound='1';let drag=null;root.addEventListener('dragstart',e=>{const x=e.target.closest('[data-multi-drag]');if(!x)return;drag={seg:Number(x.dataset.seg),key:x.dataset.key,from:Number(x.dataset.index)};x.classList.add('opacity-50');});root.addEventListener('dragend',e=>{e.target.closest('[data-multi-drag]')?.classList.remove('opacity-50');drag=null;});root.addEventListener('dragover',e=>{if(drag)e.preventDefault();});root.addEventListener('drop',e=>{if(!drag)return;const x=e.target.closest('[data-multi-drag]');if(!x)return;e.preventDefault();if(Number(x.dataset.seg)===drag.seg&&x.dataset.key===drag.key)window.multiMoveMedia(drag.seg,drag.key,drag.from,Number(x.dataset.index));drag=null;});};
 
