@@ -2203,7 +2203,7 @@
             }
             try {
                 const snapshot = {
-                    version: 1,
+                    version: 2,
                     updatedAt: new Date().toISOString(),
                     events: Array.isArray(window.events) ? window.events : [],
                     connections: Array.isArray(window.connections) ? window.connections : [],
@@ -2250,22 +2250,31 @@
         window.hasOfflineSnapshotMismatch = function() {
             const snapshot = window._bundledOfflineSnapshot;
             if (!snapshot) return false;
+            const currentDialogueRaw = window.loadXiaoqingerDialogues?.() || window.xiaoqingerDialogueConfig || null;
+            const bundledDialogueRaw = snapshot.xiaoqingerDialogues || null;
+            const currentDialogue = currentDialogueRaw
+                ? (window.normalizeXiaoqingerStoredConfig?.(currentDialogueRaw) || currentDialogueRaw)
+                : null;
+            const bundledDialogue = bundledDialogueRaw
+                ? (window.normalizeXiaoqingerStoredConfig?.(bundledDialogueRaw) || bundledDialogueRaw)
+                : null;
+
             const current = {
                 events: Array.isArray(window.events) ? window.events : [],
                 connections: Array.isArray(window.connections) ? window.connections : [],
                 tags: Array.isArray(window.availableTags) ? window.availableTags : [],
                 bgm: Array.isArray(window.bgmPlaylist) ? window.bgmPlaylist : [],
-                xiaoqingerDialogues: window.loadXiaoqingerDialogues?.() || window.xiaoqingerDialogueConfig || null
+                xiaoqingerDialogues: currentDialogue
             };
             const bundled = {
                 events: Array.isArray(snapshot.events) ? snapshot.events : [],
                 connections: Array.isArray(snapshot.connections) ? snapshot.connections : [],
                 tags: Array.isArray(snapshot.tags) ? snapshot.tags : [],
                 bgm: Array.isArray(snapshot.bgm) ? snapshot.bgm.filter(song => /^https?:\/\//i.test(song?.url || '')) : [],
-                xiaoqingerDialogues: snapshot.xiaoqingerDialogues || null
+                xiaoqingerDialogues: bundledDialogue
             };
             const keys = ['events','connections','tags','bgm'];
-            if (snapshot.xiaoqingerDialogues) keys.push('xiaoqingerDialogues');
+            if (bundledDialogue) keys.push('xiaoqingerDialogues');
             return keys.some(key =>
                 window.offlineDataCanonicalString(current[key]) !== window.offlineDataCanonicalString(bundled[key])
             );
@@ -2306,11 +2315,12 @@
                 try {
                     const dialogueKey = window.XIAOQINGER_DIALOGUE_STORAGE_KEY || 'yuhoutianqing_xiaoqinger_dialogues';
                     const hasLocalDialogues = localStorage.getItem(dialogueKey) !== null;
-                    if (!hasLocalDialogues && snapshot.xiaoqingerDialogues) {
+                    if (snapshot.xiaoqingerDialogues && (useBundledFallback || !hasLocalDialogues)) {
                         const migrated = window.normalizeXiaoqingerStoredConfig?.(snapshot.xiaoqingerDialogues);
                         if (migrated) {
                             localStorage.setItem(dialogueKey, JSON.stringify(migrated));
-                            window.loadXiaoqingerDialogues?.();
+                            window.xiaoqingerDialogueConfig = migrated;
+                            window.xiaoqingerSimpleDialogues = migrated.lines.slice();
                         }
                     }
                 } catch (e) {
@@ -2322,6 +2332,13 @@
                     if (Array.isArray(snapshot.connections)) window.connections = snapshot.connections;
                     if (Array.isArray(snapshot.tags)) window.availableTags = snapshot.tags;
                     if (Array.isArray(snapshot.bgm)) window.bgmPlaylist = snapshot.bgm.filter(song => /^https?:\/\//i.test(song?.url || ''));
+                    if (snapshot.xiaoqingerDialogues) {
+                        const migrated = window.normalizeXiaoqingerStoredConfig?.(snapshot.xiaoqingerDialogues);
+                        if (migrated) {
+                            window.xiaoqingerDialogueConfig = migrated;
+                            window.xiaoqingerSimpleDialogues = migrated.lines.slice();
+                        }
+                    }
                 }
 
                 window.renderEvents();
@@ -10869,8 +10886,12 @@
             window.xiaoqingerDialogueConfig = cfg;
             window.xiaoqingerSimpleDialogues = cfg.lines.slice();
 
-            // Write the migrated representation back once on this origin.
-            try { localStorage.setItem(key, JSON.stringify(cfg)); } catch (_) {}
+            // Built-in defaults are memory-only initialization data.
+            // Persist only when this origin already had an actual saved config
+            // (so legacy data can be migrated without making defaults look user-saved).
+            if (raw) {
+                try { localStorage.setItem(key, JSON.stringify(cfg)); } catch (_) {}
+            }
             return cfg;
         };
 
