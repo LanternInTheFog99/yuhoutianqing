@@ -2286,8 +2286,11 @@
                     const dialogueKey = window.XIAOQINGER_DIALOGUE_STORAGE_KEY || 'yuhoutianqing_xiaoqinger_dialogues';
                     const hasLocalDialogues = localStorage.getItem(dialogueKey) !== null;
                     if (!hasLocalDialogues && snapshot.xiaoqingerDialogues) {
-                        localStorage.setItem(dialogueKey, JSON.stringify(snapshot.xiaoqingerDialogues));
-                        window.loadXiaoqingerDialogues?.();
+                        const migrated = window.normalizeXiaoqingerStoredConfig?.(snapshot.xiaoqingerDialogues);
+                        if (migrated) {
+                            localStorage.setItem(dialogueKey, JSON.stringify(migrated));
+                            window.loadXiaoqingerDialogues?.();
+                        }
                     }
                 } catch (e) {
                     console.warn('小晴儿离线台词读取失败:', e);
@@ -10529,6 +10532,7 @@
 
         /* === 小晴儿初始互动 === */
         window.XIAOQINGER_DIALOGUE_STORAGE_KEY = 'yuhoutianqing_xiaoqinger_dialogues';
+        window.XIAOQINGER_DIALOGUE_SCHEMA_VERSION = 2;
         window.xiaoqingerDialogueDefaults = {
             greeting: '{name}，你好呀！我是小晴儿',
             rapid: '慢点儿',
@@ -10557,10 +10561,6 @@
                 const color = el.getAttribute('color');
                 const size = el.getAttribute('size');
                 if (color) span.style.color = color;
-                if (size) {
-                    const map = { '1':'10px','2':'11px','3':'12px','4':'14px','5':'16px','6':'18px','7':'20px' };
-                    if (map[size]) span.style.fontSize = map[size];
-                }
                 if (el.style?.color) span.style.color = el.style.color;
                 if (el.style?.fontSize) span.style.fontSize = el.style.fontSize;
                 span.append(...el.childNodes);
@@ -10621,21 +10621,74 @@
             return out;
         };
 
-        window.loadXiaoqingerDialogues = function() {
-            let cfg = null;
-            try {
-                cfg = JSON.parse(localStorage.getItem(window.XIAOQINGER_DIALOGUE_STORAGE_KEY) || 'null');
-            } catch (_) {}
-            const d = window.xiaoqingerDialogueDefaults;
-            window.xiaoqingerDialogueConfig = {
-                greeting: window.sanitizeXiaoqingerRichHtml(cfg?.greeting || d.greeting),
-                rapid: window.sanitizeXiaoqingerRichHtml(cfg?.rapid || d.rapid),
-                lines: Array.isArray(cfg?.lines) && cfg.lines.length
-                    ? cfg.lines.map(x => window.sanitizeXiaoqingerRichHtml(String(x))).filter(x => window.xiaoqingerRichPlainText(x))
-                    : d.lines.map(x => window.sanitizeXiaoqingerRichHtml(x))
+        window.migrateXiaoqingerLegacyRichHtml = function(html) {
+            const tpl = document.createElement('template');
+            tpl.innerHTML = String(html || '');
+
+            // Legacy builds temporarily used browser font size 7, which may persist as 48px online.
+            tpl.content.querySelectorAll('font[size="7"]').forEach(el => {
+                const span = document.createElement('span');
+                const color = el.getAttribute('color');
+                if (color) span.style.color = color;
+                span.style.fontSize = '14px';
+                span.append(...el.childNodes);
+                el.replaceWith(span);
+            });
+
+            tpl.content.querySelectorAll('[style]').forEach(el => {
+                const size = String(el.style.fontSize || '').toLowerCase();
+                if (size === '48px' || size === 'xxx-large') el.style.fontSize = '14px';
+            });
+
+            return window.sanitizeXiaoqingerRichHtml(tpl.innerHTML);
+        };
+
+        window.normalizeXiaoqingerStoredConfig = function(raw) {
+            if (!raw || typeof raw !== 'object') return null;
+            const greeting = window.migrateXiaoqingerLegacyRichHtml(raw.greeting || '');
+            const rapid = window.migrateXiaoqingerLegacyRichHtml(raw.rapid || '');
+            const lines = Array.isArray(raw.lines)
+                ? raw.lines.map(x => window.migrateXiaoqingerLegacyRichHtml(String(x)))
+                    .filter(x => window.xiaoqingerRichPlainText(x))
+                : [];
+            if (!window.xiaoqingerRichPlainText(greeting) ||
+                !window.xiaoqingerRichPlainText(rapid) ||
+                !lines.length) return null;
+            return {
+                schemaVersion: window.XIAOQINGER_DIALOGUE_SCHEMA_VERSION,
+                greeting,
+                rapid,
+                lines
             };
-            window.xiaoqingerSimpleDialogues = window.xiaoqingerDialogueConfig.lines.slice();
-            return window.xiaoqingerDialogueConfig;
+        };
+
+        window.loadXiaoqingerDialogues = function() {
+            const key = window.XIAOQINGER_DIALOGUE_STORAGE_KEY;
+            let raw = null;
+            try {
+                const stored = localStorage.getItem(key);
+                raw = stored ? JSON.parse(stored) : null;
+            } catch (_) {}
+
+            // Once the user has saved a valid configuration, it is the sole source of truth.
+            // Built-in defaults are initialization data only and are never merged into saved dialogue.
+            let cfg = window.normalizeXiaoqingerStoredConfig(raw);
+            if (!cfg) {
+                const d = window.xiaoqingerDialogueDefaults;
+                cfg = {
+                    schemaVersion: window.XIAOQINGER_DIALOGUE_SCHEMA_VERSION,
+                    greeting: window.sanitizeXiaoqingerRichHtml(d.greeting),
+                    rapid: window.sanitizeXiaoqingerRichHtml(d.rapid),
+                    lines: d.lines.map(x => window.sanitizeXiaoqingerRichHtml(x))
+                };
+            }
+
+            window.xiaoqingerDialogueConfig = cfg;
+            window.xiaoqingerSimpleDialogues = cfg.lines.slice();
+
+            // Write the migrated representation back once on this origin.
+            try { localStorage.setItem(key, JSON.stringify(cfg)); } catch (_) {}
+            return cfg;
         };
 
         window.loadXiaoqingerDialogues();
@@ -10735,10 +10788,6 @@
                     const color = el.getAttribute('color');
                     const size = el.getAttribute('size');
                     if (color) span.style.color = color;
-                    if (size) {
-                        const map = { '1':'10px','2':'11px','3':'12px','4':'14px','5':'16px','6':'18px','7':'20px' };
-                        if (map[size]) span.style.fontSize = map[size];
-                    }
                     if (el.style?.color) span.style.color = el.style.color;
                     if (el.style?.fontSize) span.style.fontSize = el.style.fontSize;
                     span.append(...el.childNodes);
@@ -10942,7 +10991,12 @@
                 return;
             }
 
-            const cfg = { greeting, rapid, lines };
+            const cfg = {
+                schemaVersion: window.XIAOQINGER_DIALOGUE_SCHEMA_VERSION,
+                greeting,
+                rapid,
+                lines
+            };
             try {
                 localStorage.setItem(window.XIAOQINGER_DIALOGUE_STORAGE_KEY, JSON.stringify(cfg));
             } catch (e) {
