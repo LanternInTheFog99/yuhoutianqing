@@ -2521,7 +2521,13 @@
 
             try {
                 const bundledSnapshotLoaded = await loadBundledSnapshot();
-                if (bundledSnapshotLoaded) {
+                if (
+                    bundledSnapshotLoaded &&
+                    (
+                        window.isCloudSyncDisabled?.() ||
+                        window._syncStatusType === 'offline'
+                    )
+                ) {
                     window.showToast('离线数据包已加载', 'info');
                 }
             } catch (e) {
@@ -2868,7 +2874,7 @@
                 } else if (String(e?.message || '').includes('cloud verification')) {
                     window.showToast('云端写入后核验失败：深入描述没有完整保存', 'error');
                 } else {
-                    window.showToast('离线数据已加载', 'info');
+                    if (window.isCloudSyncDisabled?.() || window._syncStatusType === 'offline') window.showToast('离线数据已加载', 'info');
                 }
                 throw e;
             }
