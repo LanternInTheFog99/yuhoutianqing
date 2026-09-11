@@ -5785,11 +5785,9 @@
                             <p>优化了画布缩放后的区域操作与媒体插入位置</p>
                             <p>增加了双向联结的功能</p>
                             <p>增加了区域复制的功能</p>
-                            <p>优化了画笔选中区域复制的功能</p>
                             <p>优化了文字框功能键显示的功能</p>
                             <p>优化了撤回与重做的功能</p>
-                            <p>增加了粘贴文本自动识别网址的功能</p>
-                            <p>优化了不同设备下画笔颜色面板显示的功能</p>
+                            <p>增加了自动识别网址的功能</p>
                         </div>
                         <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.03</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>增加了图层管理的功能</p><p>优化了文字工具界面的功能</p><p>优化了无边框文字框显示的功能</p><p>增加了浏览模式中文字选择的功能</p><p>优化了画笔模式下区域交互的功能</p></div></div>
                         <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.02</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>优化了文字编辑的功能</p><p>优化了文字框与边框设置的功能</p><p>优化了视频播放及预览的功能</p><p>增加了视频封面、媒体加载提示与网址区域的功能</p></div></div>
@@ -5975,7 +5973,7 @@
             document.getElementById('deepConnectBtn')?.classList.remove('active');
             const data=await window.deepUrlDialog();
             if(!data)return;
-            deepPushUndo?.();
+            window.deepPushUndo?.();
             const w=320,h=72;
             const pos=window.deepVisibleCanvasPlacement?.(w,h)||{x:120,y:120};
             const x=pos.x,y=pos.y;
@@ -5989,7 +5987,7 @@
             if(!item||item.type!=='link')return;
             const data=await window.deepUrlDialog(item);
             if(!data)return;
-            deepPushUndo?.();
+            window.deepPushUndo?.();
             item.url=data.url;item.label=data.label||data.url;
             window.renderDeepCanvas();
         };
@@ -7467,22 +7465,106 @@
         window.deepRenderDrawPaths=function(){
             const st=document.getElementById('deepCanvasStage');if(!st||!window.deepCanvasState)return;
             st.querySelectorAll('[data-deep-draw-layer]').forEach(n=>n.remove());
-            const layer=document.createElement('div');layer.dataset.deepDrawLayer='1';layer.className='deep-canvas-item';layer.style.cssText='left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:30;';
-            const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('width','100%');svg.setAttribute('height','100%');svg.setAttribute('viewBox',`0 0 ${window.deepCanvasState.width||st.clientWidth} ${window.deepCanvasState.height||st.clientHeight}`);
+            st.querySelectorAll('[data-deep-draw-selection-control]').forEach(n=>n.remove());
+
+            const layer=document.createElement('div');
+            layer.dataset.deepDrawLayer='1';
+            layer.className='deep-canvas-item';
+            layer.style.cssText='left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:30;';
+
+            const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+            svg.setAttribute('width','100%');
+            svg.setAttribute('height','100%');
+            svg.setAttribute('viewBox',`0 0 ${window.deepCanvasState.width||st.clientWidth} ${window.deepCanvasState.height||st.clientHeight}`);
+
             const selected=new Set(window.deepDrawSelection||[]);
-            (window.deepCanvasState.items||[]).filter(x=>x.type==='draw'&&Array.isArray(x.points)&&x.points.length).forEach(item=>{
-                const d=item.points.map((p,i)=>(i?'L':'M')+p[0]+' '+p[1]).join(' ');
-                if(selected.has(item.id)){const halo=document.createElementNS('http://www.w3.org/2000/svg','path');halo.setAttribute('d',d);halo.setAttribute('fill','none');halo.setAttribute('stroke','#6366f1');halo.setAttribute('stroke-opacity','.35');halo.setAttribute('stroke-width',Math.max(8,(Number(item.strokeWidth)||4)+8));halo.setAttribute('stroke-linecap','round');halo.setAttribute('stroke-linejoin','round');svg.appendChild(halo);}
-                const path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d',d);path.setAttribute('fill','none');path.setAttribute('stroke',item.stroke||'#334155');path.setAttribute('stroke-width',Math.max(1,Number(item.strokeWidth)||4));path.setAttribute('stroke-linecap','round');path.setAttribute('stroke-linejoin','round');svg.appendChild(path);
-            });
-            const lasso=(window.deepCanvasSelecting&&Array.isArray(window.deepDrawLassoPoints)&&window.deepDrawLassoPoints.length>1)?window.deepDrawLassoPoints:((window.deepCanvasSelecting&&Array.isArray(window.deepDrawSelectionLasso)&&window.deepDrawSelectionLasso.length>1)?window.deepDrawSelectionLasso:null);
-            if(lasso){const lp=document.createElementNS('http://www.w3.org/2000/svg','path');lp.setAttribute('d',lasso.map((p,i)=>(i?'L':'M')+p[0]+' '+p[1]).join(' ')+' Z');lp.setAttribute('fill','rgba(99,102,241,.05)');lp.setAttribute('stroke','#6366f1');lp.setAttribute('stroke-width','2');lp.setAttribute('stroke-dasharray','7 6');svg.appendChild(lp);}
-            layer.appendChild(svg);
-            if(selected.size){
-                const pts=[];(window.deepCanvasState.items||[]).filter(x=>x.type==='draw'&&selected.has(x.id)).forEach(x=>(x.points||[]).forEach(p=>pts.push(p)));
-                if(pts.length){const minX=Math.min(...pts.map(p=>Number(p[0])||0)),minY=Math.min(...pts.map(p=>Number(p[1])||0));const ctl=document.createElement('div');ctl.className='deep-draw-selection-controls';ctl.style.left=Math.max(4,minX)+'px';ctl.style.top=Math.max(34,minY)+'px';ctl.innerHTML='<button type="button" class="deep-layer-btn" title="复制选中笔迹"><i class="fa-solid fa-copy"></i></button>';ctl.querySelector('button').onclick=e=>{e.preventDefault();e.stopPropagation();window.deepDuplicateSelected?.();};layer.appendChild(ctl);}
+            (window.deepCanvasState.items||[])
+                .filter(x=>x.type==='draw'&&Array.isArray(x.points)&&x.points.length)
+                .forEach(item=>{
+                    const d=item.points.map((p,i)=>(i?'L':'M')+p[0]+' '+p[1]).join(' ');
+                    if(selected.has(item.id)){
+                        const halo=document.createElementNS('http://www.w3.org/2000/svg','path');
+                        halo.setAttribute('d',d);
+                        halo.setAttribute('fill','none');
+                        halo.setAttribute('stroke','#6366f1');
+                        halo.setAttribute('stroke-opacity','.35');
+                        halo.setAttribute('stroke-width',Math.max(8,(Number(item.strokeWidth)||4)+8));
+                        halo.setAttribute('stroke-linecap','round');
+                        halo.setAttribute('stroke-linejoin','round');
+                        svg.appendChild(halo);
+                    }
+                    const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+                    path.setAttribute('d',d);
+                    path.setAttribute('fill','none');
+                    path.setAttribute('stroke',item.stroke||'#334155');
+                    path.setAttribute('stroke-width',Math.max(1,Number(item.strokeWidth)||4));
+                    path.setAttribute('stroke-linecap','round');
+                    path.setAttribute('stroke-linejoin','round');
+                    svg.appendChild(path);
+                });
+
+            const lasso=(window.deepCanvasSelecting&&Array.isArray(window.deepDrawLassoPoints)&&window.deepDrawLassoPoints.length>1)
+                ?window.deepDrawLassoPoints
+                :((window.deepCanvasSelecting&&Array.isArray(window.deepDrawSelectionLasso)&&window.deepDrawSelectionLasso.length>1)
+                    ?window.deepDrawSelectionLasso:null);
+
+            if(lasso){
+                const lp=document.createElementNS('http://www.w3.org/2000/svg','path');
+                lp.setAttribute('d',lasso.map((p,i)=>(i?'L':'M')+p[0]+' '+p[1]).join(' ')+' Z');
+                lp.setAttribute('fill','rgba(99,102,241,.05)');
+                lp.setAttribute('stroke','#6366f1');
+                lp.setAttribute('stroke-width','2');
+                lp.setAttribute('stroke-dasharray','7 6');
+                svg.appendChild(lp);
             }
+
+            layer.appendChild(svg);
             st.appendChild(layer);
+
+            // IMPORTANT:
+            // 复制按钮不能放进上面的 deep-canvas-item 图层。
+            // 画笔工具启用时 CSS 会对 .deep-canvas-item 及其所有子元素强制
+            // pointer-events:none !important，导致按钮实际上永远接收不到点击。
+            // 因此将按钮作为 deepCanvasStage 的独立直接子元素创建。
+            if(selected.size){
+                const pts=[];
+                (window.deepCanvasState.items||[])
+                    .filter(x=>x.type==='draw'&&selected.has(x.id))
+                    .forEach(x=>(x.points||[]).forEach(p=>pts.push(p)));
+
+                if(pts.length){
+                    const minX=Math.min(...pts.map(p=>Number(p[0])||0));
+                    const minY=Math.min(...pts.map(p=>Number(p[1])||0));
+
+                    const ctl=document.createElement('div');
+                    ctl.dataset.deepDrawSelectionControl='1';
+                    ctl.className='deep-draw-selection-controls';
+                    ctl.style.left=Math.max(4,minX)+'px';
+                    ctl.style.top=Math.max(34,minY)+'px';
+                    ctl.style.pointerEvents='auto';
+                    ctl.innerHTML='<button type="button" class="deep-layer-btn" title="复制选中笔迹"><i class="fa-solid fa-copy"></i></button>';
+
+                    const block=e=>{
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.stopImmediatePropagation?.();
+                    };
+
+                    ['pointerdown','pointerup','mousedown','mouseup','touchstart','touchend','dblclick'].forEach(type=>{
+                        ctl.addEventListener(type,block,{passive:false});
+                    });
+
+                    ctl.querySelector('button')?.addEventListener('click',e=>{
+                        block(e);
+                        const ids=Array.isArray(window.deepDrawSelection)
+                            ?window.deepDrawSelection.slice()
+                            :[];
+                        window.deepDuplicateDrawSelection?.(ids);
+                    });
+
+                    st.appendChild(ctl);
+                }
+            }
         };
 
         window.renderDeepCanvas=function(rebuild=true){
@@ -7623,31 +7705,115 @@
                 }
             };
         };
-        window.deepDuplicateSelected=function(){
-            const state=window.deepCanvasState;if(!state||!Array.isArray(state.items))return;
-            const offset=28;
-            if(Array.isArray(window.deepDrawSelection)&&window.deepDrawSelection.length){
-                const ids=new Set(window.deepDrawSelection.map(String)),created=[];deepPushUndo?.();
-                state.items.filter(it=>it.type==='draw'&&ids.has(String(it.id))).forEach((it,i)=>{const c=window.deepClone(it);c.id='draw_'+Date.now().toString(36)+'_copy_'+i;c.points=(c.points||[]).map(p=>[Number(p[0]||0)+offset,Number(p[1]||0)+offset]);created.push(c);state.items.push(c);});
-                window.deepDrawSelection=created.map(x=>x.id);window.deepDrawSelectionLasso=[];window.deepRenderDrawPaths?.();window.showToast?.(`已复制 ${created.length} 个笔迹区域`,'success');return;
+        window.deepDuplicateDrawSelection=function(selectionIds){
+            const state=window.deepCanvasState;
+            if(!state||!Array.isArray(state.items))return false;
+
+            // Snapshot the selection before rendering so a control click cannot mutate it first.
+            const selectedIds=(Array.isArray(selectionIds)?selectionIds:window.deepDrawSelection||[]).map(String);
+            const ids=new Set(selectedIds);
+            if(!ids.size)return false;
+
+            const source=state.items.filter(it=>it?.type==='draw'&&ids.has(String(it.id)));
+            if(!source.length){
+                window.showToast?.('没有可复制的选中笔迹','info');
+                return false;
             }
+
+            const offset=28;
+            const hadAreaSelection=
+                Array.isArray(window.deepDrawSelectionLasso) &&
+                window.deepDrawSelectionLasso.length>2 &&
+                source.length>0;
+
+            // Preserve the original blue lasso shape for area selections, then offset it with the copy.
+            const originalLasso=hadAreaSelection
+                ?window.deepDrawSelectionLasso.map(p=>[Number(p?.[0])||0,Number(p?.[1])||0])
+                :[];
+
+            window.deepPushUndo?.();
+
+            const stamp=Date.now().toString(36);
+            const created=source.map((it,i)=>{
+                const c=window.deepClone(it);
+                c.id=`draw_${stamp}_copy_${i}_${Math.random().toString(36).slice(2,6)}`;
+                c.points=(Array.isArray(c.points)?c.points:[]).map(p=>[
+                    (Number(p?.[0])||0)+offset,
+                    (Number(p?.[1])||0)+offset
+                ]);
+                return c;
+            });
+
+            state.items.push(...created);
+
+            // Keep draw-select mode active and select the newly created copy.
+            window.deepCanvasSelected=null;
+            window.deepDrawToolsActive=true;
+            window.deepDrawSubtool='select';
+            window.deepCanvasDrawing=false;
+            window.deepCanvasErasing=false;
+            window.deepCanvasSelecting=true;
+            window.deepDrawSelection=created.map(x=>x.id);
+            window.deepDrawLassoPoints=[];
+
+            if(hadAreaSelection){
+                // Area selection: keep the same blue enclosing region, shifted with the duplicate.
+                window.deepDrawSelectionLasso=originalLasso.map(p=>[p[0]+offset,p[1]+offset]);
+            }else{
+                // Single-stroke selection: keep the copied stroke selected, without inventing a lasso.
+                window.deepDrawSelectionLasso=[];
+            }
+
+            window.deepSyncDrawPanel?.();
+            window.deepRenderDrawPaths?.();
+            window.showToast?.(`已复制 ${created.length} 个笔迹区域`,'success');
+            return true;
+        };
+
+        window.deepDuplicateSelected=function(){
+            const state=window.deepCanvasState;
+            if(!state||!Array.isArray(state.items))return;
+
+            if(Array.isArray(window.deepDrawSelection)&&window.deepDrawSelection.length){
+                window.deepDuplicateDrawSelection?.(window.deepDrawSelection.slice());
+                return;
+            }
+
+            const offset=28;
             const it=state.items.find(x=>x.id===window.deepCanvasSelected);
-            if(!it){window.showToast?.('请先选择要复制的区域','info');return;}
-            if(it.type==='connector'){window.showToast?.('联结线不能单独复制，请选择文字、媒体或网址区域','info');return;}
-            deepPushUndo?.();const c=window.deepClone(it);c.id=(it.type||'item')+'_'+Date.now().toString(36)+'_copy';
-            if(c.type==='draw'){c.points=(c.points||[]).map(p=>[Number(p[0]||0)+offset,Number(p[1]||0)+offset]);}
-            else{c.x=Math.max(0,(Number(c.x)||0)+offset);c.y=Math.max(0,(Number(c.y)||0)+offset);if(c.type==='text')c.editing=false;}
-            state.items.push(c);window.deepCanvasSelected=c.id;window.renderDeepCanvas();window.showToast?.('区域已复制','success');
+            if(!it){
+                window.showToast?.('请先选择要复制的区域','info');
+                return;
+            }
+            if(it.type==='connector'){
+                window.showToast?.('联结线不能单独复制，请选择文字、媒体或网址区域','info');
+                return;
+            }
+
+            window.deepPushUndo?.();
+            const c=window.deepClone(it);
+            c.id=(it.type||'item')+'_'+Date.now().toString(36)+'_copy';
+            if(c.type==='draw'){
+                c.points=(c.points||[]).map(p=>[(Number(p[0])||0)+offset,(Number(p[1])||0)+offset]);
+            }else{
+                c.x=Math.max(0,(Number(c.x)||0)+offset);
+                c.y=Math.max(0,(Number(c.y)||0)+offset);
+                if(c.type==='text')c.editing=false;
+            }
+            state.items.push(c);
+            window.deepCanvasSelected=c.id;
+            window.renderDeepCanvas();
+            window.showToast?.('区域已复制','success');
         };
         window.deepDeleteSelected=function(){
             const items=window.deepCanvasState?.items;if(!Array.isArray(items))return;
             if(Array.isArray(window.deepDrawSelection)&&window.deepDrawSelection.length){
-                const ids=new Set(window.deepDrawSelection.map(String));deepPushUndo?.();
+                const ids=new Set(window.deepDrawSelection.map(String));window.deepPushUndo?.();
                 window.deepCanvasState.items=items.filter(it=>!(it.type==='draw'&&ids.has(String(it.id))));
                 window.deepDrawSelection=[];window.deepDrawSelectionLasso=[];window.renderDeepCanvas();return;
             }
             const id=window.deepCanvasSelected;if(!id){window.showToast?.('请先选择要删除的内容','info');return;}
-            deepPushUndo?.();
+            window.deepPushUndo?.();
             window.deepCanvasState.items=items.filter(it=>String(it.id)!==String(id)&&!(it.type==='connector'&&(String(it.sourceId)===String(id)||String(it.targetId)===String(id))));
             window.deepCanvasSelected=null;window.deepSavedTextRange=null;window.deepSavedTextId=null;window.deepTextOpacitySpan=null;
             window.deepSetTextToolsExpanded?.(false);window.deepTextTool=false;document.getElementById('deepTextToolBtn')?.classList.remove('active');
@@ -7713,7 +7879,7 @@
                         c.width=Math.max(1,Math.round(media.videoWidth*sc));
                         c.height=Math.max(1,Math.round(media.videoHeight*sc));
                         c.getContext('2d').drawImage(media,0,0,c.width,c.height);
-                        deepPushUndo?.();
+                        window.deepPushUndo?.();
                         it.cover=c.toDataURL('image/jpeg',.84);
                         window.renderDeepCanvas();
                         window.showToast?.('视频封面已更新','success');
@@ -11808,20 +11974,7 @@
 
     </script>
 
-<script>
-(function(){
-    const _origSetSyncStatus = window.updateSyncStatus;
-    if (typeof _origSetSyncStatus === 'function') {
-        window.updateSyncStatus = function(type, text){
-            window.__cloudSyncPhase = type || '';
-            return _origSetSyncStatus.apply(this, arguments);
-        };
-    }
-    window.shouldHydrateLocalEventCache = function(){
-        return window.__cloudSyncPhase === 'offline' || window.isCloudSyncDisabled?.() === true;
-    };
-})();
-</script>
+
 
 </body>
 </html>
