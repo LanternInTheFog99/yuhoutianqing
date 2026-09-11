@@ -11908,5 +11908,45 @@
 })();
 </script>
 
+
+<script>
+(function(){
+    window.showOfflinePackageLoadingNotice = function(){
+        let el = document.getElementById('offlinePackageLoadingNotice');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'offlinePackageLoadingNotice';
+            el.className = 'fixed left-1/2 top-5 -translate-x-1/2 z-[10050] px-3 py-2 rounded-lg bg-slate-800/90 text-white text-xs shadow-lg flex items-center gap-2 pointer-events-none';
+            el.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i><span>离线数据包加载中...</span>';
+            document.body.appendChild(el);
+        }
+        el.style.display = 'flex';
+    };
+    window.hideOfflinePackageLoadingNotice = function(){
+        const el = document.getElementById('offlinePackageLoadingNotice');
+        if (el) el.style.display = 'none';
+    };
+})();
+</script>
+
+
+<script>
+(function(){
+    const originalLoadBundledSnapshot = window.loadBundledSnapshot;
+    if (typeof originalLoadBundledSnapshot === 'function' && !originalLoadBundledSnapshot.__offlineLoadingWrapped) {
+        const wrapped = async function(){
+            window.showOfflinePackageLoadingNotice?.();
+            try {
+                return await originalLoadBundledSnapshot.apply(this, arguments);
+            } finally {
+                window.hideOfflinePackageLoadingNotice?.();
+            }
+        };
+        wrapped.__offlineLoadingWrapped = true;
+        window.loadBundledSnapshot = wrapped;
+    }
+})();
+</script>
+
 </body>
 </html>
