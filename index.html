@@ -6429,32 +6429,16 @@
         };
         window.deepHandleTextEditorKeydown=function(event,item,content){
             if(!event||event.key!=='Enter'||event.defaultPrevented||event.isComposing||!item||!content)return;
-            const sel=window.getSelection?.();if(!sel?.rangeCount)return;
-            const r=sel.getRangeAt(0);
-            if(!r.collapsed||!content.contains(r.commonAncestorContainer))return;
-            const line=window.deepGetTopLevelTextLine(content,r.startContainer);
-            const scope=line||content;
-            const tail=document.createRange();
-            try{tail.selectNodeContents(scope);tail.setStart(r.startContainer,r.startOffset);}catch(_){return;}
-            if((tail.toString()||'').replace(/[\u200B\uFEFF]/g,'').length!==0)return;
-
-            event.preventDefault();
-            const fresh=document.createElement('div');
-            fresh.style.fontSize='18px';
-            fresh.style.fontWeight='400';
-            fresh.style.fontStyle='normal';
-            fresh.style.textDecoration='none';
-            fresh.style.color='#334155';
-            fresh.style.textAlign='left';
-            fresh.innerHTML='<br>';
-            if(line)line.after(fresh);else content.appendChild(fresh);
-            const nr=document.createRange();nr.selectNodeContents(fresh);nr.collapse(true);
-            try{sel.removeAllRanges();sel.addRange(nr);}catch(_){}
-            window.deepSavedTextRange=null;window.deepSavedTextId=null;window.deepTextOpacitySpan=null;
-            item.html=content.innerHTML;item.text=content.innerText||'';
-            window.deepSyncSelectionOnlyTextControls?.(false);
-            window.deepSyncOpacityControl?.();window.deepSyncSelectedFormatFeedback?.();
-            requestAnimationFrame(()=>window.deepAutoFitTextItem?.(item,content));
+            // Do not manufacture a block-level <div><br></div> here. The browser's native
+            // contenteditable Enter already creates exactly one visual newline; the old custom
+            // insertion made one Enter look like a double-height expansion in several browsers.
+            requestAnimationFrame(()=>{
+                item.html=content.innerHTML;
+                item.text=content.innerText||'';
+                window.deepAutoFitTextItem?.(item,content);
+                window.deepSyncOpacityControl?.();
+                window.deepSyncSelectedFormatFeedback?.();
+            });
         };
 
         window.deepCaptureTextSelectionSnapshot=function(){
@@ -6571,20 +6555,13 @@
         window.deepSyncDecorationGeometry=function(root){
             if(!root)return;
             root.querySelectorAll('u,s,strike,[style*="underline"],[style*="line-through"]').forEach(el=>{
-                const walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);
-                let n,maxSize=0,firstColor='';
-                while((n=walker.nextNode())){
-                    if(!(n.nodeValue||'').length)continue;
-                    const p=n.parentElement;if(!p)continue;
-                    const cs=getComputedStyle(p);
-                    const fs=parseFloat(cs.fontSize);
-                    if(Number.isFinite(fs))maxSize=Math.max(maxSize,fs);
-                    if(!firstColor)firstColor=cs.color||'';
-                }
-                if(maxSize>0)el.style.setProperty('font-size',maxSize+'px','important');
+                // Never promote a decoration wrapper to the largest descendant font size.
+                // Doing so makes mixed-size underline/strike lines all use nearly the same,
+                // oversized geometry. Keep the wrapper's natural font metrics instead.
+                el.style.removeProperty('font-size');
                 el.style.setProperty('text-decoration-thickness','0.06em','important');
                 el.style.setProperty('text-underline-offset','0.13em','important');
-                el.style.setProperty('text-decoration-color',firstColor||'currentColor','important');
+                el.style.setProperty('text-decoration-color','currentColor','important');
                 el.style.setProperty('text-decoration-skip-ink','auto','important');
             });
         };
@@ -6665,7 +6642,7 @@
         window.deepApplyCanonicalTextBoxStyle=function(contentEl,{editing=false,height=null}={}){
             if(!contentEl)return;
             contentEl.style.width='100%';
-            contentEl.style.padding='6px 8px';
+            contentEl.style.padding='4px';
             contentEl.style.boxSizing='border-box';
             contentEl.style.whiteSpace='pre-wrap';
             contentEl.style.overflowWrap='anywhere';
@@ -6689,7 +6666,7 @@
         };
 
         window.deepMeasureTextForBox=function(item,contentEl,targetW,fontSize){
-            const innerW=Math.max(20,targetW-16);
+            const innerW=Math.max(20,targetW-8);
             const probe=document.createElement('div');
             const cs=getComputedStyle(contentEl);
             probe.innerHTML=contentEl.innerHTML;
@@ -6740,12 +6717,13 @@
             const box=contentEl.closest?.('.deep-canvas-text');
             const oldH=Math.max(0,Number(item.h)||0);
 
-            // Canonical inner spacing stays symmetric: 6px top/bottom, 8px left/right.
+            // Canonical inner spacing: the same 4px on every side so the outline does not
+            // look bottom-heavy or wider on one edge.
             contentEl.style.boxSizing='border-box';
             contentEl.style.width='100%';
             contentEl.style.height='auto';
             contentEl.style.minHeight='0';
-            contentEl.style.padding='6px 8px';
+            contentEl.style.padding='4px';
             contentEl.style.overflow='visible';
 
             // Measure only the rendered text content. Do not reuse any previous large-font box height.
@@ -6762,7 +6740,7 @@
 
             const scroll=Math.ceil(contentEl.scrollHeight||0);
             // scrollHeight already includes the symmetric padding.
-            const needed=Math.max(18,Math.ceil(Math.max(scroll,visualBottom+6)));
+            const needed=Math.max(18,Math.ceil(Math.max(scroll,visualBottom+4)));
             const nextH=Math.max(18,needed);
 
             item.h=nextH;
@@ -6780,7 +6758,7 @@
         
         window.deepStableFontForBox=function(item,contentEl,targetW,targetH,allowGrow=true){
             const current=Math.max(6,Math.min(240,Number(item.fontSize)||18));
-            const innerH=Math.max(1,targetH-12);
+            const innerH=Math.max(1,targetH-8);
             const m=window.deepMeasureTextForBox(item,contentEl,targetW,current);
             const fillW=m.w/Math.max(1,m.innerW);
             const fillH=m.h/Math.max(1,innerH);
@@ -6802,7 +6780,7 @@
                 test=Math.round(test*10)/10;
 
                 const tm=window.deepMeasureTextForBox(item,contentEl,targetW,test);
-                const testInnerH=Math.max(1,targetH-12);
+                const testInnerH=Math.max(1,targetH-8);
                 const tf=Math.max(tm.w/Math.max(1,tm.innerW),tm.h/Math.max(1,testInnerH));
                 if(tf<=1.0){
                     item._preferredFontSize=Math.max(Number(item._preferredFontSize)||0,test);
@@ -6824,7 +6802,7 @@
             let next=window.deepStableFontForBox(item,contentEl,targetW,targetH,true);
 
             for(let guard=0;guard<18;guard++){
-                const innerH=Math.max(1,targetH-12);
+                const innerH=Math.max(1,targetH-8);
                 const measured=window.deepMeasureTextForBox(item,contentEl,targetW,next);
                 if(measured.w<=measured.innerW+0.5 && measured.h<=innerH+0.5)break;
                 if(next<=6.001){next=6;break;}
@@ -7033,7 +7011,7 @@
                         const live=el.querySelector('.deep-text-content');
                         if(live){
                             const m=window.deepMeasureTextForBox(item,live,nw,6);
-                            const innerH=Math.max(1,nh-12);
+                            const innerH=Math.max(1,nh-8);
                             const badW=m.w>m.innerW+0.75;
                             const badH=m.h>innerH+0.75;
                             if(badW){
