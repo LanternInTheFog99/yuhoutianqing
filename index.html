@@ -6001,6 +6001,11 @@
             st.style.transform=`scale(${window.deepZoom})`;
             st.style.transformOrigin='top left';
             st.style.marginBottom=Math.max(0,(window.deepCanvasState?.height||1000)*(window.deepZoom-1))+'px';
+
+            // Text decoration is especially sensitive to fractional transform scaling.
+            // Re-snap underline/strike thickness + offset whenever zoom changes so the
+            // final on-screen stroke lands on device-pixel increments instead of becoming fuzzy.
+            st.querySelectorAll('.deep-text-content').forEach(el=>window.deepSyncDecorationGeometry?.(el));
             window.deepRefreshEraserCursor?.();
         };
         window.deepHandleWheel = function(e){
@@ -6552,18 +6557,34 @@
             },true);
         }
 
+        window.deepDecorationMetrics=function(el){
+            const cs=getComputedStyle(el);
+            const fs=Math.max(6,parseFloat(cs.fontSize)||18);
+            const z=Math.max(0.01,Number(window.deepZoom)||1);
+            const dpr=Math.max(1,Number(window.devicePixelRatio)||1);
+            // Keep the old 0.06em / 0.13em proportions, but snap their *screen-space*
+            // result to physical-pixel increments. Larger fonts still get a thicker line.
+            const snapScreenPx=v=>Math.max(1/dpr,Math.round(v*dpr)/dpr);
+            const thickness=snapScreenPx(fs*0.06*z)/z;
+            const offset=snapScreenPx(fs*0.13*z)/z;
+            return {thickness,offset};
+        };
         window.deepSyncDecorationGeometry=function(root){
             if(!root)return;
-            root.querySelectorAll('u,s,strike,[style*="underline"],[style*="line-through"]').forEach(el=>{
+            const apply=el=>{
                 // Never promote a decoration wrapper to the largest descendant font size.
-                // Doing so makes mixed-size underline/strike lines all use nearly the same,
-                // oversized geometry. Keep the wrapper's natural font metrics instead.
-                el.style.removeProperty('font-size');
-                el.style.setProperty('text-decoration-thickness','0.06em','important');
-                el.style.setProperty('text-underline-offset','0.13em','important');
+                // Mixed-size selections therefore keep their own font-relative geometry.
+                if(el!==root)el.style.removeProperty('font-size');
+                const m=window.deepDecorationMetrics(el);
+                el.style.setProperty('text-decoration-thickness',m.thickness+'px','important');
+                el.style.setProperty('text-underline-offset',m.offset+'px','important');
                 el.style.setProperty('text-decoration-color','currentColor','important');
-                el.style.setProperty('text-decoration-skip-ink','auto','important');
-            });
+                el.style.setProperty('text-decoration-skip-ink','none','important');
+            };
+            // Root may carry whole-box underline/strike from the toolbar.
+            const rootDec=getComputedStyle(root).textDecorationLine||'';
+            if(/underline|line-through/.test(rootDec))apply(root);
+            root.querySelectorAll('u,s,strike,[style*="underline"],[style*="line-through"]').forEach(apply);
         };
         window.deepSyncDecorationColor=function(root){
             if(!root)return;
@@ -6726,21 +6747,13 @@
             contentEl.style.padding='4px';
             contentEl.style.overflow='visible';
 
-            // Measure only the rendered text content. Do not reuse any previous large-font box height.
-            let visualBottom=0;
-            try{
-                const r=document.createRange();
-                r.selectNodeContents(contentEl);
-                const rects=[...r.getClientRects()];
-                if(rects.length){
-                    const cr=contentEl.getBoundingClientRect();
-                    visualBottom=Math.max(...rects.map(x=>x.bottom-cr.top));
-                }
-            }catch(_){}
-
+            // Use only the element's unscaled layout coordinates here. The deep canvas is
+            // zoomed with transform:scale(), so getClientRects()/getBoundingClientRect() are
+            // screen-space values that already include deepZoom. Mixing those with scrollHeight
+            // made the stored item height grow in proportion to zoom, creating the extra blank
+            // region at the bottom. scrollHeight is the correct canonical canvas-space height.
             const scroll=Math.ceil(contentEl.scrollHeight||0);
-            // scrollHeight already includes the symmetric padding.
-            const needed=Math.max(18,Math.ceil(Math.max(scroll,visualBottom+4)));
+            const needed=Math.max(18,scroll);
             const nextH=Math.max(18,needed);
 
             item.h=nextH;
@@ -7277,7 +7290,7 @@
             window.deepCanvasState.items.forEach(item=>{
                 if(item.type==='draw')return;
                 const el=document.createElement('div'); el.className='deep-canvas-item '+(item.type==='media'?'deep-canvas-media ':'')+(item.type==='text'?'deep-canvas-text ':'')+(item.type==='link'?'deep-canvas-link ':'')+(item.id===window.deepCanvasSelected?' deep-canvas-selected ':'')+(item.type==='text' && (window.deepTextTool||item.editing)?' tool-visible':''); el.dataset.deepId=item.id; el.style.left=item.x+'px';el.style.top=item.y+'px';el.style.width=item.w+'px';el.style.height=item.h+'px'; if(['media','text','link'].includes(item.type))el.style.zIndex=String(20+(Number(item.layer)||0)); if(window.deepConnectPending?.includes(item.id))el.classList.add('deep-connect-pending');
-                if(item.type==='text'){el.classList.toggle('has-border',!!item.border);el.classList.toggle('editing',!!item.editing);el.dataset.fontSize=(Math.round((Number(item.fontSize)||18)*10)/10).toString();el.style.borderColor=item.borderColor||'#3b82f6';el.style.fontSize=(item.fontSize||18)+'px';el.style.color=item.color||'#334155';el.style.textAlign=item.textAlign||'left';el.style.opacity='1';el.style.fontWeight=item.bold?'700':'400';el.style.fontStyle=item.italic?'italic':'normal';el.style.textDecoration='none';el.innerHTML=`<div class="deep-text-content">${item.html||window.deepEsc(item.text||'')}</div>`; const tc=el.querySelector('.deep-text-content'); if(tc) tc.contentEditable=item.editing?'true':'false'; if(tc){window.deepApplyCanonicalTextBoxStyle(tc,{editing:!!item.editing,height:item.h});tc.style.fontSize=(item.fontSize||18)+'px';tc.style.opacity=item.opacity??1;tc.style.textAlign=item.textAlign||'left';tc.style.textDecoration=[item.underline?'underline':'',item.strike?'line-through':''].filter(Boolean).join(' ')||'none';tc.style.textUnderlineOffset='0.13em';tc.style.textDecorationThickness='0.06em';tc.style.textDecorationColor='currentColor';tc.style.textDecorationSkipInk='none';;requestAnimationFrame(()=>{const live=document.querySelector(`[data-deep-id="${CSS.escape(item.id)}"] .deep-text-content`);if(live){if(!item._manualResizing)window.deepAutoFitTextItem(item,live);if(item.editing)window.deepBindTextAutoFit(item,live);}});}}
+                if(item.type==='text'){el.classList.toggle('has-border',!!item.border);el.classList.toggle('editing',!!item.editing);el.dataset.fontSize=(Math.round((Number(item.fontSize)||18)*10)/10).toString();el.style.borderColor=item.borderColor||'#3b82f6';el.style.fontSize=(item.fontSize||18)+'px';el.style.color=item.color||'#334155';el.style.textAlign=item.textAlign||'left';el.style.opacity='1';el.style.fontWeight=item.bold?'700':'400';el.style.fontStyle=item.italic?'italic':'normal';el.style.textDecoration='none';el.innerHTML=`<div class="deep-text-content">${item.html||window.deepEsc(item.text||'')}</div>`; const tc=el.querySelector('.deep-text-content'); if(tc) tc.contentEditable=item.editing?'true':'false'; if(tc){window.deepApplyCanonicalTextBoxStyle(tc,{editing:!!item.editing,height:item.h});tc.style.fontSize=(item.fontSize||18)+'px';tc.style.opacity=item.opacity??1;tc.style.textAlign=item.textAlign||'left';tc.style.textDecoration=[item.underline?'underline':'',item.strike?'line-through':''].filter(Boolean).join(' ')||'none';tc.style.textDecorationColor='currentColor';tc.style.textDecorationSkipInk='none';window.deepSyncDecorationGeometry?.(tc);requestAnimationFrame(()=>{const live=document.querySelector(`[data-deep-id="${CSS.escape(item.id)}"] .deep-text-content`);if(live){window.deepSyncDecorationGeometry?.(live);if(!item._manualResizing)window.deepAutoFitTextItem(item,live);if(item.editing)window.deepBindTextAutoFit(item,live);}});}}
                 else if(item.type==='media'){const c=item.crop||{scale:1,offsetX:0,offsetY:0,stretchX:1,stretchY:1};if(item.mediaKind==='video'){el.innerHTML='';window.deepRenderVideoCover(el,item,false);}else{el.innerHTML=`<img src="${window.deepEsc(item.src)}" alt="深入描述媒体">`;const md=el.firstElementChild;const applyMedia=()=>{if(!md)return;const scale=Math.max(0.01,Number(c.scale)||1);md.style.width='auto';md.style.height='auto';md.style.left='50%';md.style.top='50%';const stretchX=Math.max(.85,Math.min(1.15,Number(c.stretchX)||1)),stretchY=Math.max(.85,Math.min(1.15,Number(c.stretchY)||1));md.style.transform=`translate(-50%,-50%) translate(${Number(c.offsetX)||0}px,${Number(c.offsetY)||0}px) scale(${scale}) scale(${stretchX},${stretchY})`;};if(md.complete)applyMedia();else md.addEventListener('load',applyMedia,{once:true});}}else if(item.type==='link'){const safeUrl=window.deepEsc(item.url||'');const safeLabel=window.deepEsc(item.label||item.url||'网址');el.innerHTML=`<div class="deep-link-inner"><span class="deep-link-icon"><i class="fa-solid fa-globe"></i></span><span class="deep-link-copy"><span class="deep-link-label">${safeLabel}</span><span class="deep-link-url">${safeUrl}</span></span><i class="fa-solid fa-arrow-up-right-from-square text-[11px] text-slate-400"></i></div>`;el.title='双击编辑网址';}else if(item.type==='connector'){ el.remove(); return; }
                 st.appendChild(el); window.deepBindItem(el,item); el.addEventListener('click',e=>{e.stopPropagation(); if(el._deepConnectPicked){el._deepConnectPicked=false;return;} if(window.deepConnectMode){window.deepHandleConnectPick(item);return;} window.deepCanvasSelected=item.id; window.deepUpdateConnectorControls(); window.deepSyncBorderToggle?.(); if(item.type==='text' && window.deepTextTool) window.renderDeepCanvas(false); else window.deepPositionTextTools?.();});
                 if(item.type==='media'){ el.addEventListener('dblclick',e=>{ e.preventDefault(); e.stopPropagation(); if(Date.now() < (el._deepSuppressCropUntil||0)) return; window.deepCanvasSelected=item.id; window.deepCropSelected(); }); }
