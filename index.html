@@ -9110,14 +9110,36 @@
             }
         };
 
-        window.descriptionToEditorHtml = function(value) {
+        // 详细描述的“14px（默认大小）”沿用旧版语义：
+        // 编辑器内默认显示为 14px，但保存时不写死 font-size，
+        // 从而让浏览/外显继续继承各自容器的响应式默认字号。
+        window.normalizeDescriptionDefaultFontSize = function(value) {
             const raw = String(value || '');
+            if (!raw) return '';
+            try {
+                const wrap = document.createElement('div');
+                wrap.innerHTML = raw;
+                wrap.querySelectorAll('[style]').forEach(el => {
+                    const size = String(el.style.fontSize || '').trim().toLowerCase();
+                    if (size === '14px' || size === '14.0px') {
+                        el.style.removeProperty('font-size');
+                    }
+                    if (!String(el.getAttribute('style') || '').trim()) el.removeAttribute('style');
+                });
+                return wrap.innerHTML;
+            } catch (_) {
+                return raw;
+            }
+        };
+
+        window.descriptionToEditorHtml = function(value) {
+            const raw = window.normalizeDescriptionDefaultFontSize?.(String(value || '')) ?? String(value || '');
             if (!raw) return '';
             if (/<(?:b|strong|i|em|u|s|strike|span|div|p|br|font)\b/i.test(raw)) return raw;
             return window.escapeHtml(raw).replace(/\r?\n/g, '<br>');
         };
         window.prepareDescriptionForView = function(value) {
-            const raw = String(value || '').trim();
+            const raw = (window.normalizeDescriptionDefaultFontSize?.(String(value || '')) ?? String(value || '')).trim();
             if (!raw) return '无详细描述';
             try {
                 const wrap = document.createElement('div');
@@ -9189,6 +9211,12 @@
         window.getEditorDescriptionHtml = function() {
             const e = document.getElementById('editDescription');
             if (!e) return '';
+            // 14px 是“默认大小”，不作为显式字号保存。这样与旧版 14px 默认的外显一致。
+            e.querySelectorAll('[style]').forEach(el => {
+                const size=String(el.style.fontSize||'').trim().toLowerCase();
+                if(size==='14px'||size==='14.0px') el.style.removeProperty('font-size');
+                if(!String(el.getAttribute('style')||'').trim()) el.removeAttribute('style');
+            });
             window.richSyncDecorationGeometry?.();
             e.querySelectorAll('*').forEach((el) => {
                 if (el.nodeType !== 1) return;
@@ -9407,6 +9435,14 @@
             const fixed=window.applyExactFontSizeToSelection?.(e,r,n);
             if(!fixed)return;
             window.richSelectionRange=fixed.cloneRange();
+            if(Math.abs(n-14)<0.001){
+                // “14px（默认大小）”恢复旧版行为：移除显式 14px，让外显继承默认响应式字号。
+                e.querySelectorAll('[style]').forEach(el=>{
+                    const size=String(el.style.fontSize||'').trim().toLowerCase();
+                    if(size==='14px'||size==='14.0px')el.style.removeProperty('font-size');
+                    if(!String(el.getAttribute('style')||'').trim())el.removeAttribute('style');
+                });
+            }
             window.richSyncDecorationGeometry?.();
             const custom=document.getElementById('richFontSizeCustom');
             if(custom)custom.value=String(Math.round(n*10)/10);
@@ -11582,7 +11618,7 @@
                 </div>            </div>`;
         };
 
-        window.multiPersistCurrentPage=function(){const title=document.getElementById('multiEventTitle');if(title)window.multiTimeGeneralDraft.title=title.value;const type=document.getElementById('multiEventType');if(type)window.multiTimeGeneralDraft.type=type.value;const tags=document.querySelectorAll('.multi-tag');if(tags.length)window.multiTimeGeneralDraft.tags=Array.from(tags).filter(x=>x.checked).map(x=>x.value);if(window.multiTimePage>0&&window.multiTimeDraft?.[window.multiTimePage-1]){const ed=document.getElementById('editDescription');if(ed){window.richSyncDecorationGeometry?.();window.multiTimeDraft[window.multiTimePage-1].description=ed.innerHTML.trim().replace(/^<br>+|<br>+$/g,'').trim();}}};
+        window.multiPersistCurrentPage=function(){const title=document.getElementById('multiEventTitle');if(title)window.multiTimeGeneralDraft.title=title.value;const type=document.getElementById('multiEventType');if(type)window.multiTimeGeneralDraft.type=type.value;const tags=document.querySelectorAll('.multi-tag');if(tags.length)window.multiTimeGeneralDraft.tags=Array.from(tags).filter(x=>x.checked).map(x=>x.value);if(window.multiTimePage>0&&window.multiTimeDraft?.[window.multiTimePage-1]){const ed=document.getElementById('editDescription');if(ed){window.richSyncDecorationGeometry?.();window.multiTimeDraft[window.multiTimePage-1].description=(window.normalizeDescriptionDefaultFontSize?.(ed.innerHTML)||ed.innerHTML).trim().replace(/^<br>+|<br>+$/g,'').trim();}}};
         window.multiRenderPageTabs=function(){
             const host=document.getElementById('multiPageTabs');if(!host)return;
             const total=window.multiTimeDraft.length+1;
