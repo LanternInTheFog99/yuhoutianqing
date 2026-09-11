@@ -1429,7 +1429,7 @@
         let cloudRetryAttempt = 0;
         let cloudRetryInFlight = false;
         const CLOUD_SYNC_OFFLINE_KEY = 'yuhoutianqing_cloudSyncDisabled';
-        const CLOUD_SYNC_VISIBLE_RETRY_LIMIT = 3;
+        const CLOUD_SYNC_VISIBLE_RETRY_LIMIT = 5;
 
         window.isCloudSyncDisabled = function(){
             try { return localStorage.getItem(CLOUD_SYNC_OFFLINE_KEY) === '1'; } catch (_) { return false; }
@@ -2465,20 +2465,35 @@
 
         function scheduleCloudRetry(delayMs){
             if(window.isCloudSyncDisabled?.() || window.isCloudSynced || cloudRetryTimer)return;
-            const delay=Number.isFinite(Number(delayMs))?Number(delayMs):Math.min(30000,5000+cloudRetryAttempt*5000);
+            const delay=Number.isFinite(Number(delayMs))?Number(delayMs):Math.min(45000,8000+cloudRetryAttempt*8000);
             cloudRetryTimer=setTimeout(()=>{
                 cloudRetryTimer=null;
                 retryCloudConnection();
             },Math.max(1500,delay));
         }
 
+        async function enterOfflineModeAndLoadSnapshot(){
+            updateSyncStatus('offline','未同步云端');
+            if(window._offlineSnapshotLoadedForCurrentFailure)return;
+            window._offlineSnapshotLoadedForCurrentFailure=true;
+            try{
+                const bundledSnapshotLoaded=await loadBundledSnapshot();
+                if(bundledSnapshotLoaded){
+                    window.showToast('离线数据包已加载','info');
+                }
+            }catch(e){
+                console.warn('离线数据加载异常:',e);
+                try{loadLocalData();window.renderEvents();}catch(_){}
+            }
+        }
+
         function noteCloudSyncFailure(){
             if(window.isCloudSyncDisabled?.()){
-                updateSyncStatus('offline','未同步云端');
+                enterOfflineModeAndLoadSnapshot();
                 return;
             }
             if(cloudRetryAttempt >= CLOUD_SYNC_VISIBLE_RETRY_LIMIT){
-                updateSyncStatus('offline','未同步云端');
+                enterOfflineModeAndLoadSnapshot();
             }else{
                 updateSyncStatus('syncing','正在同步...');
             }
@@ -2519,25 +2534,21 @@
             const cloudDisabled = window.isCloudSyncDisabled?.();
             if(!cloudDisabled) updateSyncStatus('syncing', '正在同步...');
 
+            // When cloud sync is enabled, do not load the bundled offline package while
+            // the UI still says “正在同步”. Use existing local cache only during attempts.
             try {
-                const bundledSnapshotLoaded = await loadBundledSnapshot();
-                if (
-                    bundledSnapshotLoaded &&
-                    (
-                        window.isCloudSyncDisabled?.() ||
-                        window._syncStatusType === 'offline'
-                    )
-                ) {
-                    window.showToast('离线数据包已加载', 'info');
-                }
+                loadLocalData();
+                window.renderEvents();
+                window.renderSvgConnections();
+                window.renderTagModalList();
+                window.renderBgmPlaylist();
             } catch (e) {
-                console.warn('离线数据加载异常:', e);
-                try { loadLocalData(); window.renderEvents(); } catch (_) {}
+                console.warn('本地缓存读取异常:', e);
             }
             isInitialLoadDone = true;
 
             if (cloudDisabled) {
-                updateSyncStatus('offline', '未同步云端');
+                await enterOfflineModeAndLoadSnapshot();
                 return;
             }
 
@@ -2562,7 +2573,7 @@
             }, 6000);
 
             try {
-                await loadFirebaseModules(4000);
+                await loadFirebaseModules(8000);
             } catch (err) {
                 console.warn('Firebase 模块加载失败，进入自动重试:', err);
                 clearTimeout(syncTimeout);
@@ -2586,7 +2597,7 @@
                     return await signInAnonymously(auth);
                 })();
                 const authTimeout = new Promise((_, reject) => {
-                    setTimeout(() => reject(new Error('Firebase auth timeout')), 5000);
+                    setTimeout(() => reject(new Error('Firebase auth timeout')), 8000);
                 });
                 const userCred = await Promise.race([authPromise, authTimeout]);
                 currentUser = userCred.user;
@@ -2617,6 +2628,7 @@
             if (type === 'synced') {
                 window.isCloudSynced = true;
                 cloudRetryAttempt=0;
+                window._offlineSnapshotLoadedForCurrentFailure=false;
                 if(cloudRetryTimer){clearTimeout(cloudRetryTimer);cloudRetryTimer=null;}
                 const routineSaveReturn = previousType === 'syncing' && window._syncingStartedFromSynced;
                 if (previousType !== 'synced' && !routineSaveReturn) {
@@ -2721,8 +2733,7 @@
             } catch (err) {
                 window._cloudRealtimeListenersAttached=false;
                 if (syncTimeout) clearTimeout(syncTimeout);
-                updateSyncStatus('offline', '未同步云端');
-                scheduleCloudRetry();
+                noteCloudSyncFailure();
             }
         }
 
@@ -2874,7 +2885,7 @@
                 } else if (String(e?.message || '').includes('cloud verification')) {
                     window.showToast('云端写入后核验失败：深入描述没有完整保存', 'error');
                 } else {
-                    if (window.isCloudSyncDisabled?.() || window._syncStatusType === 'offline') window.showToast('离线数据已加载', 'info');
+                    window.showToast('离线数据已加载', 'info');
                 }
                 throw e;
             }
