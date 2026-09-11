@@ -2534,24 +2534,28 @@
             const cloudDisabled = window.isCloudSyncDisabled?.();
             if(!cloudDisabled) updateSyncStatus('syncing', '正在同步...');
 
-            // When cloud sync is enabled, do not load the bundled offline package while
-            // the UI still says “正在同步”. Use existing local cache only during attempts.
+            // Cloud-enabled startup must not render local/offline event data while the
+            // status still says “正在同步”. Keep the in-memory view empty until either
+            // a cloud snapshot arrives or we formally enter the offline state.
+            if (cloudDisabled) {
+                isInitialLoadDone = true;
+                await enterOfflineModeAndLoadSnapshot();
+                return;
+            }
+
             try {
-                loadLocalData();
+                window.events = [];
+                window.connections = [];
+                window.availableTags = [];
+                window.bgmPlaylist = [];
                 window.renderEvents();
                 window.renderSvgConnections();
                 window.renderTagModalList();
                 window.renderBgmPlaylist();
             } catch (e) {
-                console.warn('本地缓存读取异常:', e);
+                console.warn('同步等待界面初始化异常:', e);
             }
             isInitialLoadDone = true;
-
-            if (cloudDisabled) {
-                await enterOfflineModeAndLoadSnapshot();
-                return;
-            }
-
             updateSyncStatus('syncing', '正在同步...');
 
             window.addEventListener('offline', () => {
