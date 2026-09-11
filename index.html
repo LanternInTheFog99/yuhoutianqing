@@ -724,11 +724,6 @@
             </div>
         </div>
 
-        <div id="offlineDataMismatchNotice" class="hidden mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-[11px] sm:text-xs leading-5 text-amber-800 shadow-sm">
-            <i class="fa-solid fa-triangle-exclamation mr-1.5 text-amber-500"></i>
-            检测到当前浏览数据与离线数据不一致。请清除浏览器缓存或网站数据后重新打开页面；不同浏览器的操作方式有所不同，可自行搜索对应方法。
-        </div>
-
         <div id="timelineWrapper" class="relative group my-6 sm:my-8 bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm overflow-hidden">
             <div class="text-[11px] sm:text-xs text-slate-400 mb-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1">
                 <span><i class="fa-solid fa-circle-info text-indigo-500 mr-1"></i>悬停预览 · 边缘滑动</span>
@@ -2355,64 +2350,11 @@
             try { return JSON.stringify(normalize(value)); } catch (_) { return ''; }
         };
 
-        window.hasOfflineSnapshotMismatch = function() {
-            const snapshot = window._bundledOfflineSnapshot;
-            if (!snapshot) return false;
-            const currentDialogueRaw = window.loadXiaoqingerDialogues?.() || window.xiaoqingerDialogueConfig || null;
-            const bundledDialogueRaw = snapshot.xiaoqingerDialogues || null;
-            const currentDialogue = currentDialogueRaw
-                ? (window.normalizeXiaoqingerStoredConfig?.(currentDialogueRaw) || currentDialogueRaw)
-                : null;
-            const bundledDialogue = bundledDialogueRaw
-                ? (window.normalizeXiaoqingerStoredConfig?.(bundledDialogueRaw) || bundledDialogueRaw)
-                : null;
+        ;
 
-            const current = {
-                events: Array.isArray(window.events) ? window.events : [],
-                connections: Array.isArray(window.connections) ? window.connections : [],
-                tags: Array.isArray(window.availableTags) ? window.availableTags : [],
-                bgm: Array.isArray(window.bgmPlaylist) ? window.bgmPlaylist : [],
-                xiaoqingerDialogues: currentDialogue
-            };
-            const bundled = {
-                events: Array.isArray(snapshot.events) ? snapshot.events : [],
-                connections: Array.isArray(snapshot.connections) ? snapshot.connections : [],
-                tags: Array.isArray(snapshot.tags) ? snapshot.tags : [],
-                bgm: Array.isArray(snapshot.bgm) ? snapshot.bgm.filter(song => /^https?:\/\//i.test(song?.url || '')) : [],
-                xiaoqingerDialogues: bundledDialogue
-            };
-            const keys = ['events','connections','tags','bgm'];
-            if (bundledDialogue) keys.push('xiaoqingerDialogues');
-            return keys.some(key =>
-                window.offlineDataCanonicalString(current[key]) !== window.offlineDataCanonicalString(bundled[key])
-            );
-        };
-
-        window.updateOfflineDataMismatchNotice = function() {
-            const notice = document.getElementById('offlineDataMismatchNotice');
-            if (!notice) return;
-            const shouldShow =
-                !!window.isLocked &&
-                window._syncStatusType === 'offline' &&
-                window.hasOfflineSnapshotMismatch();
-            notice.classList.toggle('hidden', !shouldShow);
-        };
+        ;
 
         async function loadBundledSnapshot() {
-            const localKeys = {
-                events: 'yuhoutianqing_events',
-                connections: 'yuhoutianqing_connections',
-                tags: 'yuhoutianqing_tags',
-                bgm: 'yuhoutianqing_bgm'
-            };
-
-            const hasLocal = Object.fromEntries(
-                Object.entries(localKeys).map(([key, storageKey]) => [key, localStorage.getItem(storageKey) !== null])
-            );
-
-            loadLocalData();
-            const useBundledFallback = !hasLocal.events || !Array.isArray(window.events) || window.events.length === 0;
-
             try {
                 const snapshotUrl = new URL('data/snapshot.json', document.baseURI).href;
                 const response = await fetch(snapshotUrl, { cache: 'no-store' });
@@ -2420,32 +2362,17 @@
                 const snapshot = await response.json();
                 window._bundledOfflineSnapshot = snapshot;
 
-                try {
-                    const dialogueKey = window.XIAOQINGER_DIALOGUE_STORAGE_KEY || 'yuhoutianqing_xiaoqinger_dialogues';
-                    const hasLocalDialogues = localStorage.getItem(dialogueKey) !== null;
-                    if (snapshot.xiaoqingerDialogues && (useBundledFallback || !hasLocalDialogues)) {
-                        const migrated = window.normalizeXiaoqingerStoredConfig?.(snapshot.xiaoqingerDialogues);
-                        if (migrated) {
-                            localStorage.setItem(dialogueKey, JSON.stringify(migrated));
-                            window.xiaoqingerDialogueConfig = migrated;
-                            window.xiaoqingerSimpleDialogues = migrated.lines.slice();
-                        }
-                    }
-                } catch (e) {
-                    console.warn('小晴儿离线台词读取失败:', e);
+                if (Array.isArray(snapshot.events)) window.events = snapshot.events;
+                if (Array.isArray(snapshot.connections)) window.connections = snapshot.connections;
+                if (Array.isArray(snapshot.tags)) window.availableTags = snapshot.tags;
+                if (Array.isArray(snapshot.bgm)) {
+                    window.bgmPlaylist = snapshot.bgm.filter(song => /^https?:\/\//i.test(song?.url || ''));
                 }
-
-                if (useBundledFallback) {
-                    if (Array.isArray(snapshot.events)) window.events = snapshot.events;
-                    if (Array.isArray(snapshot.connections)) window.connections = snapshot.connections;
-                    if (Array.isArray(snapshot.tags)) window.availableTags = snapshot.tags;
-                    if (Array.isArray(snapshot.bgm)) window.bgmPlaylist = snapshot.bgm.filter(song => /^https?:\/\//i.test(song?.url || ''));
-                    if (snapshot.xiaoqingerDialogues) {
-                        const migrated = window.normalizeXiaoqingerStoredConfig?.(snapshot.xiaoqingerDialogues);
-                        if (migrated) {
-                            window.xiaoqingerDialogueConfig = migrated;
-                            window.xiaoqingerSimpleDialogues = migrated.lines.slice();
-                        }
+                if (snapshot.xiaoqingerDialogues) {
+                    const migrated = window.normalizeXiaoqingerStoredConfig?.(snapshot.xiaoqingerDialogues);
+                    if (migrated) {
+                        window.xiaoqingerDialogueConfig = migrated;
+                        window.xiaoqingerSimpleDialogues = migrated.lines.slice();
                     }
                 }
 
@@ -2453,26 +2380,23 @@
                 window.renderSvgConnections();
                 window.renderTagModalList();
                 window.renderBgmPlaylist();
-                window.updateOfflineDataMismatchNotice?.();
-                return useBundledFallback;
+                return true;
             } catch (err) {
-                console.warn('GitHub 离线快照读取失败:', err);
-                loadLocalData();
-                window.renderEvents();
+                console.warn('离线数据包读取失败:', err);
                 return false;
             }
         }
 
         let offlineFallbackLoadPromise = null;
         async function ensureBundledOfflineFallbackLoaded(){
-            if(window._bundledOfflineFallbackApplied) return false;
+            if(window._bundledOfflineFallbackApplied) return true;
             if(offlineFallbackLoadPromise) return offlineFallbackLoadPromise;
-            if(window._syncStatusType !== 'offline') {
-                updateSyncStatus('offline', '未同步云端');
-            }
+
+            updateSyncStatus('offline', '正在加载...');
             offlineFallbackLoadPromise = (async()=>{
                 try {
                     const loaded = await loadBundledSnapshot();
+                    updateSyncStatus('offline', '未同步云端');
                     if (loaded) {
                         window._bundledOfflineFallbackApplied = true;
                         window.showToast('离线数据包已加载', 'info');
@@ -2480,7 +2404,7 @@
                     return loaded;
                 } catch (e) {
                     console.warn('离线数据加载异常:', e);
-                    try { loadLocalData(); window.renderEvents(); } catch (_) {}
+                    updateSyncStatus('offline', '未同步云端');
                     return false;
                 } finally {
                     offlineFallbackLoadPromise = null;
@@ -2547,15 +2471,6 @@
             const cloudDisabled = window.isCloudSyncDisabled?.();
             if(!cloudDisabled) updateSyncStatus('syncing', '正在同步...');
 
-            try {
-                loadLocalData();
-                window.renderEvents();
-                window.renderSvgConnections?.();
-                window.renderTagModalList?.();
-                window.renderBgmPlaylist?.();
-            } catch (e) {
-                console.warn('本地缓存加载异常:', e);
-            }
             isInitialLoadDone = true;
 
             if (cloudDisabled) {
@@ -11905,46 +11820,6 @@
     window.shouldHydrateLocalEventCache = function(){
         return window.__cloudSyncPhase === 'offline' || window.isCloudSyncDisabled?.() === true;
     };
-})();
-</script>
-
-
-<script>
-(function(){
-    window.showOfflinePackageLoadingNotice = function(){
-        let el = document.getElementById('offlinePackageLoadingNotice');
-        if (!el) {
-            el = document.createElement('div');
-            el.id = 'offlinePackageLoadingNotice';
-            el.className = 'fixed left-1/2 top-5 -translate-x-1/2 z-[10050] px-3 py-2 rounded-lg bg-slate-800/90 text-white text-xs shadow-lg flex items-center gap-2 pointer-events-none';
-            el.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i><span>离线数据包加载中...</span>';
-            document.body.appendChild(el);
-        }
-        el.style.display = 'flex';
-    };
-    window.hideOfflinePackageLoadingNotice = function(){
-        const el = document.getElementById('offlinePackageLoadingNotice');
-        if (el) el.style.display = 'none';
-    };
-})();
-</script>
-
-
-<script>
-(function(){
-    const originalLoadBundledSnapshot = window.loadBundledSnapshot;
-    if (typeof originalLoadBundledSnapshot === 'function' && !originalLoadBundledSnapshot.__offlineLoadingWrapped) {
-        const wrapped = async function(){
-            window.showOfflinePackageLoadingNotice?.();
-            try {
-                return await originalLoadBundledSnapshot.apply(this, arguments);
-            } finally {
-                window.hideOfflinePackageLoadingNotice?.();
-            }
-        };
-        wrapped.__offlineLoadingWrapped = true;
-        window.loadBundledSnapshot = wrapped;
-    }
 })();
 </script>
 
