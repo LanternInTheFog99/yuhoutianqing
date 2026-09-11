@@ -1429,7 +1429,7 @@
         let cloudRetryAttempt = 0;
         let cloudRetryInFlight = false;
         const CLOUD_SYNC_OFFLINE_KEY = 'yuhoutianqing_cloudSyncDisabled';
-        const CLOUD_SYNC_VISIBLE_RETRY_LIMIT = 5;
+        const CLOUD_SYNC_VISIBLE_RETRY_LIMIT = 3;
 
         window.isCloudSyncDisabled = function(){
             try { return localStorage.getItem(CLOUD_SYNC_OFFLINE_KEY) === '1'; } catch (_) { return false; }
@@ -2463,37 +2463,50 @@
             }
         }
 
+        let offlineFallbackLoadPromise = null;
+        async function ensureBundledOfflineFallbackLoaded(){
+            if(window._bundledOfflineFallbackApplied) return false;
+            if(offlineFallbackLoadPromise) return offlineFallbackLoadPromise;
+            if(window._syncStatusType !== 'offline') {
+                updateSyncStatus('offline', '未同步云端');
+            }
+            offlineFallbackLoadPromise = (async()=>{
+                try {
+                    const loaded = await loadBundledSnapshot();
+                    if (loaded) {
+                        window._bundledOfflineFallbackApplied = true;
+                        window.showToast('离线数据包已加载', 'info');
+                    }
+                    return loaded;
+                } catch (e) {
+                    console.warn('离线数据加载异常:', e);
+                    try { loadLocalData(); window.renderEvents(); } catch (_) {}
+                    return false;
+                } finally {
+                    offlineFallbackLoadPromise = null;
+                }
+            })();
+            return offlineFallbackLoadPromise;
+        }
+
         function scheduleCloudRetry(delayMs){
             if(window.isCloudSyncDisabled?.() || window.isCloudSynced || cloudRetryTimer)return;
-            const delay=Number.isFinite(Number(delayMs))?Number(delayMs):Math.min(45000,8000+cloudRetryAttempt*8000);
+            const delay=Number.isFinite(Number(delayMs))?Number(delayMs):Math.min(30000,5000+cloudRetryAttempt*5000);
             cloudRetryTimer=setTimeout(()=>{
                 cloudRetryTimer=null;
                 retryCloudConnection();
             },Math.max(1500,delay));
         }
 
-        async function enterOfflineModeAndLoadSnapshot(){
-            updateSyncStatus('offline','未同步云端');
-            if(window._offlineSnapshotLoadedForCurrentFailure)return;
-            window._offlineSnapshotLoadedForCurrentFailure=true;
-            try{
-                const bundledSnapshotLoaded=await loadBundledSnapshot();
-                if(bundledSnapshotLoaded){
-                    window.showToast('离线数据包已加载','info');
-                }
-            }catch(e){
-                console.warn('离线数据加载异常:',e);
-                try{loadLocalData();window.renderEvents();}catch(_){}
-            }
-        }
-
         function noteCloudSyncFailure(){
             if(window.isCloudSyncDisabled?.()){
-                enterOfflineModeAndLoadSnapshot();
+                updateSyncStatus('offline','未同步云端');
+                void ensureBundledOfflineFallbackLoaded();
                 return;
             }
             if(cloudRetryAttempt >= CLOUD_SYNC_VISIBLE_RETRY_LIMIT){
-                enterOfflineModeAndLoadSnapshot();
+                updateSyncStatus('offline','未同步云端');
+                void ensureBundledOfflineFallbackLoaded();
             }else{
                 updateSyncStatus('syncing','正在同步...');
             }
@@ -2534,28 +2547,23 @@
             const cloudDisabled = window.isCloudSyncDisabled?.();
             if(!cloudDisabled) updateSyncStatus('syncing', '正在同步...');
 
-            // Cloud-enabled startup must not render local/offline event data while the
-            // status still says “正在同步”. Keep the in-memory view empty until either
-            // a cloud snapshot arrives or we formally enter the offline state.
+            try {
+                loadLocalData();
+                window.renderEvents();
+                window.renderSvgConnections?.();
+                window.renderTagModalList?.();
+                window.renderBgmPlaylist?.();
+            } catch (e) {
+                console.warn('本地缓存加载异常:', e);
+            }
+            isInitialLoadDone = true;
+
             if (cloudDisabled) {
-                isInitialLoadDone = true;
-                await enterOfflineModeAndLoadSnapshot();
+                updateSyncStatus('offline', '未同步云端');
+                await ensureBundledOfflineFallbackLoaded();
                 return;
             }
 
-            try {
-                window.events = [];
-                window.connections = [];
-                window.availableTags = [];
-                window.bgmPlaylist = [];
-                window.renderEvents();
-                window.renderSvgConnections();
-                window.renderTagModalList();
-                window.renderBgmPlaylist();
-            } catch (e) {
-                console.warn('同步等待界面初始化异常:', e);
-            }
-            isInitialLoadDone = true;
             updateSyncStatus('syncing', '正在同步...');
 
             window.addEventListener('offline', () => {
@@ -2577,7 +2585,7 @@
             }, 6000);
 
             try {
-                await loadFirebaseModules(8000);
+                await loadFirebaseModules(4000);
             } catch (err) {
                 console.warn('Firebase 模块加载失败，进入自动重试:', err);
                 clearTimeout(syncTimeout);
@@ -2601,7 +2609,7 @@
                     return await signInAnonymously(auth);
                 })();
                 const authTimeout = new Promise((_, reject) => {
-                    setTimeout(() => reject(new Error('Firebase auth timeout')), 8000);
+                    setTimeout(() => reject(new Error('Firebase auth timeout')), 5000);
                 });
                 const userCred = await Promise.race([authPromise, authTimeout]);
                 currentUser = userCred.user;
@@ -2632,7 +2640,6 @@
             if (type === 'synced') {
                 window.isCloudSynced = true;
                 cloudRetryAttempt=0;
-                window._offlineSnapshotLoadedForCurrentFailure=false;
                 if(cloudRetryTimer){clearTimeout(cloudRetryTimer);cloudRetryTimer=null;}
                 const routineSaveReturn = previousType === 'syncing' && window._syncingStartedFromSynced;
                 if (previousType !== 'synced' && !routineSaveReturn) {
@@ -2737,7 +2744,9 @@
             } catch (err) {
                 window._cloudRealtimeListenersAttached=false;
                 if (syncTimeout) clearTimeout(syncTimeout);
-                noteCloudSyncFailure();
+                updateSyncStatus('offline', '未同步云端');
+                void ensureBundledOfflineFallbackLoaded();
+                scheduleCloudRetry();
             }
         }
 
@@ -11883,5 +11892,21 @@
         window.multiRenderSegments=function(){ window.multiRenderCurrentPage?.(); };
 
     </script>
+
+<script>
+(function(){
+    const _origSetSyncStatus = window.updateSyncStatus;
+    if (typeof _origSetSyncStatus === 'function') {
+        window.updateSyncStatus = function(type, text){
+            window.__cloudSyncPhase = type || '';
+            return _origSetSyncStatus.apply(this, arguments);
+        };
+    }
+    window.shouldHydrateLocalEventCache = function(){
+        return window.__cloudSyncPhase === 'offline' || window.isCloudSyncDisabled?.() === true;
+    };
+})();
+</script>
+
 </body>
 </html>
