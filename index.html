@@ -10841,6 +10841,21 @@
             if (!next) return { ok:false, reason:'invalid' };
 
             const ownerToken = window.getEditorOwnerToken();
+
+            const verifyOwnership = async () => {
+                try {
+                    const check = await timelineApiPost('checkIdentityOwnership', {
+                        name: next,
+                        ownerToken
+                    }, { auth:false, timeoutMs:12000 });
+                    if (check?.owned) {
+                        window._identityReservationValid = true;
+                        return { ok:true, name: check.name || next, recovered:true };
+                    }
+                } catch (_) {}
+                return null;
+            };
+
             try {
                 const action = prev && prev !== next ? 'renameIdentity' : 'claimIdentity';
                 const result = await timelineApiPost(action, {
@@ -10851,6 +10866,11 @@
                 window._identityReservationValid = true;
                 return { ok:true, name: result.name || next };
             } catch (e) {
+                // 请求可能在“云端已写入、响应未成功返回”的阶段失败。
+                // 先核验目标 ID 是否其实已经归当前 ownerToken 所有。
+                const recovered = await verifyOwnership();
+                if (recovered) return recovered;
+
                 if (e?.code === 'identity_taken') {
                     window._identityReservationValid = false;
                     return { ok:false, reason:'taken' };
