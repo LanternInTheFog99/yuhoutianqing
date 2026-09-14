@@ -581,12 +581,8 @@
 
         /* Compact cloud/offline switch: same visual language as 深入描述 → 图形矫正. */
         #cloudSyncCluster{position:relative;flex:0 0 auto;}
-        #cloudSyncToggleBtn{position:absolute;left:50%;top:calc(100% + 2px);transform:translateX(-50%);z-index:45;display:flex;align-items:center;gap:4px;padding:0;border:0;background:transparent;color:#94a3b8;font-size:9px;font-weight:600;line-height:1;white-space:nowrap;cursor:pointer;}
-        #cloudSyncToggleBtn:focus-visible{outline:2px solid #818cf8;outline-offset:2px;border-radius:9999px;}
         .cloud-sync-mini-switch{width:24px;height:14px;border-radius:9999px;background:#cbd5e1;position:relative;transition:.16s ease;flex:0 0 auto;}
         .cloud-sync-mini-switch::after{content:'';position:absolute;width:10px;height:10px;border-radius:9999px;background:#fff;left:2px;top:2px;box-shadow:0 1px 2px rgba(15,23,42,.25);transition:.16s ease;}
-        #cloudSyncToggleBtn.active .cloud-sync-mini-switch{background:#6366f1;}
-        #cloudSyncToggleBtn.active .cloud-sync-mini-switch::after{transform:translateX(10px);}
         /* Keep the mode switch footprint stable while its icon/text state is refreshed. */
         #lockToggleBtn{width:104px;min-width:104px;justify-content:center;white-space:nowrap;flex:0 0 104px;}
         @media(max-width:639px){
@@ -595,10 +591,8 @@
             #cloudSyncCluster{width:auto;height:auto;display:flex;align-items:center;gap:5px;}
             #syncStatus{display:flex !important;order:2;padding:4px 7px;font-size:10px;gap:4px;white-space:nowrap;}
             #syncStatus #syncDot{width:6px;height:6px;}
-            #cloudSyncToggleBtn{position:static;order:1;transform:none;font-size:8px;gap:3px;}
             .cloud-sync-mini-switch{width:21px;height:12px;}
             .cloud-sync-mini-switch::after{width:8px;height:8px;}
-            #cloudSyncToggleBtn.active .cloud-sync-mini-switch::after{transform:translateX(9px);}
             #shareCollabBtn,#addEventBtn,#lockToggleBtn{display:none !important;}
             /* With edit-only controls removed, keep the two useful labels visible on mobile. */
             #mobileMusicLabel,#mobileTagLabel{display:inline !important;}
@@ -894,10 +888,6 @@
                         <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse" id="syncDot"></span>
                         <span id="syncText">正在同步...</span>
                     </div>
-                    <button id="cloudSyncToggleBtn" type="button" onclick="toggleCloudSyncDisabled()" aria-label="仅离线" aria-pressed="false">
-                        <span class="cloud-sync-mini-switch" aria-hidden="true"></span>
-                        <span id="cloudSyncToggleText">仅离线</span>
-                    </button>
                 </div>
 
                 <button onclick="openMusicModal()" class="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-medium border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 flex items-center gap-1 transition-all shadow-sm">
@@ -909,12 +899,11 @@
                     <i class="fa-solid fa-tags text-slate-500"></i>
                     <span id="mobileTagLabel" class="hidden md:inline">tag库</span>
                 </button>
-
-                <button id="offlineExportBtn" onclick="requestOfflineSnapshotExport()" title="" aria-label="离线快照" class="fixed right-2 bottom-2 z-[80] w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-slate-400/25 hover:text-slate-500/80 hover:bg-slate-200/60 transition-all opacity-30 hover:opacity-100">
-                    <i class="fa-solid fa-download"></i>
-                </button>
                 <button id="xiaoqingerDialogueEditorBtn" onclick="requestXiaoqingerDialogueEditor()" title="" aria-label="小晴儿台词编辑" class="fixed right-10 bottom-2 z-[80] w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-slate-400/20 hover:text-slate-500/80 hover:bg-slate-200/60 transition-all opacity-25 hover:opacity-100">
                     <i class="fa-solid fa-comment-dots"></i>
+                </button>
+                <button id="manualBackupBtn" onclick="requestTimelineBackup()" title="" aria-label="导出 JSON 备份" class="fixed right-2 bottom-2 z-[80] w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-slate-400/20 hover:text-slate-500/80 hover:bg-slate-200/60 transition-all opacity-25 hover:opacity-100">
+                    <i class="fa-solid fa-download"></i>
                 </button>
 
                 <button id="shareCollabBtn" onclick="openShareModal()" title="仅编辑模式可使用" class="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-medium border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 flex items-center gap-1 transition-all shadow-sm">
@@ -1328,16 +1317,6 @@
             <div id="helpUsagePanel" class="overflow-y-auto p-5 text-xs text-slate-600 leading-7">
                 <div class="border border-slate-200 rounded-xl p-5 bg-gradient-to-r from-pink-50 via-purple-50 to-sky-50">
                 <p class="text-slate-800 mb-5 text-sm leading-7 font-bold">本网站旨在为鱼丁们创造一个可以时刻回顾禹欣的很多「值得纪念的美好事件」的环境，以下为使用说明：</p>
-
-                <div id="helpCommonBrowseTip" class="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800 leading-6">
-                    <div class="font-bold mb-1">小提示</div>
-                    <p>本网站目前分为两种模式：1.如果网络可以连接云端，右上角会显示“已同步云端”，此时内容将会实时更新，所有操作也都会同步到云端。</p>
-                    <p>2.如果网络受限、无法连接云端，右上角会显示“未同步云端”，此时网站会自动加载预先放置的数据包，虽然数据无法实时同步，但仍然可以正常浏览全部内容。</p>
-                    <p>3.如果已知当前网络受限、不需要云端同步，可以打开右上角的“仅离线”开关，跳过不必要的云端同步尝试，直接加载离线数据包。</p>
-                    <p id="helpMobileBrowseOnlyTip" class="hidden">4.移动端锁定为浏览模式，并且因篇幅限制，部分与编辑模式有关的功能可能不予显示；如需新建或编辑事件，请使用电脑端。</p>
-                    <p>*数据包会不定期更新，以保证离线用户也能看到最新版本的内容。</p>
-                </div>
-
                 <div id="helpBrowseUsage" class="space-y-5">
                     <div><h4 class="font-bold text-slate-800 mb-1">1. 浏览时间线</h4><p>进入网站后，可以直接通过时间线查看已经记录的事件。使用“密度”可以调整节点间距；“滑速”用于调整鼠标进入时间线左右边缘时的自动滚动速度，也可以使用滚轮和两侧按钮浏览更早或更晚的内容。</p></div>
                     <div><h4 class="font-bold text-slate-800 mb-1">2. 预览与事件详情</h4><p>将鼠标悬停在时间线节点附近可以查看事件预览；点击节点即可进入详情，详情中可以先查看该事件收录的图片、动图、视频和网址附件，再阅读详细经过与描述。</p></div>
@@ -1356,27 +1335,27 @@
                         <p>在编辑界面内，如果某个区域存在单独的“保存 / 添加 / 确定”按钮，一定要记得点击，例如逻辑连线处、网址附件处等；不点击的话，对应内容不会保存。</p>
                     </div>
 
-                    <div><h4 class="font-bold text-slate-800 mb-1">2. 新建事件</h4><p>解锁编辑权限后，可以点击右上角“新建事件”，选择新建单时间事件或多时间事件。单时间事件仅可设置一个日期，并为该日期添加相应内容；多时间事件可设置多个不同日期，并分别为各日期添加相应内容。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">1. 新建事件</h4><p>解锁编辑权限后，可以点击右上角“新建事件”，选择新建单时间事件或多时间事件。单时间事件仅可设置一个日期，并为该日期添加相应内容；多时间事件可设置多个不同日期，并分别为各日期添加相应内容。</p></div>
 
-                    <div><h4 class="font-bold text-slate-800 mb-1">3. 填写事件名称</h4><p>在事件名称处填写这条事件在时间线上显示的标题。建议使用能够快速辨认内容的名称，之后也可以通过搜索框按标题查找事件。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">2. 填写事件名称</h4><p>在事件名称处填写这条事件在时间线上显示的标题。建议使用能够快速辨认内容的名称，之后也可以通过搜索框按标题查找事件。</p></div>
 
-                    <div><h4 class="font-bold text-slate-800 mb-1">4. 填写日期及日期范围</h4><p>根据事件实际情况填写日期。如果事件只发生在某一天，可以填写单个日期；如果不知道具体日期，也可以只填写月份或年份；如果持续了一段时间，则可以设置开始和结束日期，让时间线按对应时间范围展示。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">3. 填写日期及日期范围</h4><p>根据事件实际情况填写日期。如果事件只发生在某一天，可以填写单个日期；如果不知道具体日期，也可以只填写月份或年份；如果持续了一段时间，则可以设置开始和结束日期，让时间线按对应时间范围展示。</p></div>
 
-                    <div><h4 class="font-bold text-slate-800 mb-1">5. 选择节点类型</h4><p>节点类型会影响事件在时间线上的呈现方式。根据事件性质选择合适的节点类型即可，之后仍然可以重新编辑调整。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">4. 选择节点类型</h4><p>节点类型会影响事件在时间线上的呈现方式。根据事件性质选择合适的节点类型即可，之后仍然可以重新编辑调整。</p></div>
 
-                    <div><h4 class="font-bold text-slate-800 mb-1">6. tag 功能</h4><p>tag功能可以帮助整理和筛选事件。可以打开 tag 库创建新的 tag，也在编辑事件时为事件添加一个或多个 tag。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">5. tag 功能</h4><p>tag功能可以帮助整理和筛选事件。可以打开 tag 库创建新的 tag，也在编辑事件时为事件添加一个或多个 tag。</p></div>
 
-                    <div><h4 class="font-bold text-slate-800 mb-1">7. 逻辑连线</h4><p>逻辑连线用于表示两个事件之间存在关联。编辑事件时，可以在逻辑连线区域选择要连接的其他事件，也可以填写连线文字作为关系的补充说明，并设置这条关系。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">6. 逻辑连线</h4><p>逻辑连线用于表示两个事件之间存在关联。编辑事件时，可以在逻辑连线区域选择要连接的其他事件，也可以填写连线文字作为关系的补充说明，并设置这条关系。</p></div>
 
-                    <div><h4 class="font-bold text-slate-800 mb-1">8. 添加图片、动图与视频</h4><p>可以为事件添加图片、动图和视频，也可以调整其顺序。图片可以进行截选；视频可以设置标题并截取画面作为预览封面。需要进一步补充分析时，还可以为对应媒体进入“深入描述”空间进行编辑。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">7. 添加图片、动图与视频</h4><p>可以为事件添加图片、动图和视频，也可以调整其顺序。图片可以进行截选；视频可以设置标题并截取画面作为预览封面。需要进一步补充分析时，还可以为对应媒体进入“深入描述”空间进行编辑。</p></div>
 
-                    <div><h4 class="font-bold text-slate-800 mb-1">9. 添加网址附件</h4><p>可以填写网址标题和链接，将网页作为事件的补充附件添加进去。已经添加的网址附件之后也可以继续修改标题或链接，也可以删除不再需要的附件。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">8. 添加网址附件</h4><p>可以填写网址标题和链接，将网页作为事件的补充附件添加进去。已经添加的网址附件之后也可以继续修改标题或链接，也可以删除不再需要的附件。</p></div>
 
-                    <div><h4 class="font-bold text-slate-800 mb-1">10. 详细经过与描述</h4><p>“详细经过与描述”用于记录事件本身更完整的经过、背景、补充说明或想法。编辑时支持多种文字样式，可以根据内容需要进行排版。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">9. 详细经过与描述</h4><p>“详细经过与描述”用于记录事件本身更完整的经过、背景、补充说明或想法。编辑时支持多种文字样式，可以根据内容需要进行排版。</p></div>
 
-                    <div><h4 class="font-bold text-slate-800 mb-1">11. 背景音乐</h4><p>顶部“背景音乐”用于添加音频链接并管理网站的背景音乐播放。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">10. 背景音乐</h4><p>顶部“背景音乐”用于添加音频链接并管理网站的背景音乐播放。</p></div>
 
-                    <div><h4 class="font-bold text-slate-800 mb-1">12. 分享协同</h4><p>“分享协同”仅在编辑模式且云端连接正常时使用。可以复制当前空间的专属链接发送给其他人，让不同设备进入同一个空间查看和协作编辑内容。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">11. 分享协同</h4><p>“分享协同”仅在编辑模式且云端连接正常时使用。可以复制当前空间的专属链接发送给其他人，让不同设备进入同一个空间查看和协作编辑内容。</p></div>
                 </div>
                 </div>
             </div>
@@ -1396,10 +1375,12 @@
             <div id="helpChangelogPanel" class="hidden overflow-y-auto p-5 text-xs text-slate-600 leading-relaxed">
                 <div id="helpBrowseChangelog">
                 <div class="border border-green-300 rounded-xl p-4 bg-green-50">
-                    <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.14</span><span class="px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-semibold">本次更新</span></div>
+                    <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.15</span><span class="px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-semibold">本次更新</span></div>
+                    <div class="space-y-2 leading-7 mb-3"><p>移除了仅离线功能</p></div>
+                    <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.14</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
                     <div class="space-y-2 leading-7 mb-3"><p>增加了评论区功能</p><p>优化了时间线搜索的功能</p><p>优化了评论区窗口显示与交互的功能</p></div>
                     <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.11</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
-                    <div class="space-y-2 leading-7 mb-3"><p>增加了自动识别网址的功能</p><p>修复了云端同步异常的问题</p><p>增加了仅离线功能</p></div>
+                    <div class="space-y-2 leading-7 mb-3"><p>增加了自动识别网址的功能</p><p>修复了云端同步异常的问题</p></div>
                     <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.09</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
                     <div class="space-y-2 leading-7 mb-3"><p>增加了小晴儿互动功能</p></div></div>
                     <div class="border-t border-green-200 pt-3">
@@ -1440,12 +1421,14 @@
                 </div>
             </div><div id="helpEditChangelog" class="hidden">
                 <div class="border border-green-300 rounded-xl p-4 bg-green-50">
-                    <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.14</span><span class="px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-semibold">本次更新</span></div>
+                    <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.15</span><span class="px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-semibold">本次更新</span></div>
+                    <div class="space-y-2 leading-7 mb-3"><p>移除了仅离线功能</p></div>
+                    <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.14</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
                     <div class="space-y-2 leading-7 mb-3"><p>增加了评论区功能</p><p>优化了时间线搜索的功能</p><p>优化了评论区窗口显示与交互的功能</p></div>
                     <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.11</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
-                    <div class="space-y-2 leading-7 mb-3"><p>增加了自动识别网址的功能</p><p>修复了云端同步异常的问题</p><p>增加了仅离线功能</p></div>
+                    <div class="space-y-2 leading-7 mb-3"><p>增加了自动识别网址的功能</p><p>修复了云端同步异常的问题</p></div>
                     <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.09</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
-                    <div class="space-y-2 leading-7 mb-3"><p>增加了活动日志功能</p><p>增加了小晴儿互动功能</p><p>优化了多时间事件删除时间的功能</p></div></div>
+                    <div class="space-y-2 leading-7 mb-3"><p>增加了小晴儿互动功能</p><p>优化了多时间事件删除时间的功能</p></div></div>
                     <div class="border-t border-green-200 pt-3">
 <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.06</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
                     <div class="space-y-2 leading-7 mb-3"><p>增加了多时间事件功能</p><p>优化了时间线边缘自动滑动的功能</p><p>优化了时间线节点状态显示的功能</p><p>修复了同期事件集合节点在连线重排时显示异常的问题</p></div>
@@ -1487,12 +1470,14 @@
                     <div class="flex items-start justify-between gap-3 mb-3">
                         <div>
                             <h4 class="text-base font-bold text-slate-800">活动日志</h4>
-                            <p class="text-[11px] text-slate-500 mt-0.5">仅记录成功同步至云端的事件新建、编辑与删除操作。</p>
+                            <p class="text-[11px] text-slate-500 mt-0.5">记录成功同步至云端的事件、Tag 与背景音乐修改。</p>
                         </div>
-                        <button type="button" onclick="openEditorIdentityEditor()" title="编辑 ID"
-                                class="shrink-0 text-[10px] text-slate-500 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 rounded-lg px-2 py-1 transition-colors">
-                            当前：<span id="activityCurrentUser" class="font-semibold text-indigo-700">--</span>
-                        </button>
+                        <div class="shrink-0 flex items-center gap-2">
+                            <button type="button" onclick="openEditorIdentityEditor()" title="编辑 ID"
+                                    class="text-[10px] text-slate-500 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 rounded-lg px-2 py-1 transition-colors">
+                                当前：<span id="activityCurrentUser" class="font-semibold text-indigo-700">--</span>
+                            </button>
+                        </div>
                     </div>
                     <div id="activityLogList" class="space-y-2">
                         <div class="text-center text-slate-400 py-8">正在读取活动日志...</div>
@@ -1647,86 +1632,42 @@
 
     <script type="module">
         const urlParams = new URLSearchParams(window.location.search);
-        window.currentRoomId = urlParams.get('room') || 'default';
+        window.currentRoomId = (urlParams.get('room') || 'default').trim() || 'default';
 
-        const baseAppId = typeof __app_id !== 'undefined' ? __app_id : 'yuhoutianqing-app';
-        const appId = `${baseAppId}-${window.currentRoomId}`;
+        // 每个 room 都是独立的 CloudBase 协同空间；没有 room 参数时使用 default 空间。
+        const TIMELINE_API_BASE = 'https://message-board-d6gyou26356c94cad-1474370265.ap-shanghai.app.tcloudbase.com';
+        const TIMELINE_EVENT_PAGE_LIMIT = 5;
+        const timelineEditTokenKey = () => `yht_timeline_edit_token_session:${window.currentRoomId}`;
+        const xiaoqingerEditTokenKey = () => `yht_xiaoqinger_edit_token_session:${window.currentRoomId}`;
+        window.timelineCloudSource = 'cloudbase';
+        window.cloudWriteReady = false;
+        window._cloudbaseTimelineVersion = '';
+        window._timelineVersionPollTimer = null;
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyC_E_OiW5o7ekAA04y_xNcBQ1_BZEtOBOM",
-            authDomain: "yuhoutianqing-3d170.firebaseapp.com",
-            databaseURL: "https://yuhoutianqing-3d170-default-rtdb.firebaseio.com",
-            projectId: "yuhoutianqing-3d170",
-            storageBucket: "yuhoutianqing-3d170.firebasestorage.app",
-            messagingSenderId: "162241948953",
-            appId: "1:162241948953:web:7d004f19089f4a17a1e988",
-            measurementId: "G-QGEYCHBDDG"
+        window.getTimelineEditToken = function() {
+            try { return sessionStorage.getItem(timelineEditTokenKey()) || ''; }
+            catch (_) { return ''; }
         };
-
-        let app = null;
-        let auth = null;
-        let db = null;
-        let collection = null;
-        let doc = null;
-        let setDoc = null;
-        let getDoc = null;
-        let deleteDoc = null;
-        let onSnapshot = null;
-        let runTransaction = null;
-        let signInAnonymously = null;
-        let signInWithCustomToken = null;
-        let cloudRetryTimer = null;
-        let cloudRetryAttempt = 0;
-        let cloudRetryInFlight = false;
-        const CLOUD_SYNC_OFFLINE_KEY = 'yuhoutianqing_cloudSyncDisabled';
-        const CLOUD_SYNC_VISIBLE_RETRY_LIMIT = 3;
-
-        window.isCloudSyncDisabled = function(){
-            try { return localStorage.getItem(CLOUD_SYNC_OFFLINE_KEY) === '1'; } catch (_) { return false; }
+        window.setTimelineEditToken = function(token) {
+            try {
+                if (token) sessionStorage.setItem(timelineEditTokenKey(), token);
+                else sessionStorage.removeItem(timelineEditTokenKey());
+            } catch (_) {}
         };
-        window.updateCloudSyncToggleUI = function(){
-            const disabled = window.isCloudSyncDisabled();
-            const btn = document.getElementById('cloudSyncToggleBtn');
-            const text = document.getElementById('cloudSyncToggleText');
-            if (!btn || !text) return;
-            btn.classList.toggle('active', disabled);
-            btn.setAttribute('aria-pressed', disabled ? 'true' : 'false');
-            text.textContent = '仅离线';
-            btn.removeAttribute('title');
-        };
-        window.toggleCloudSyncDisabled = function(){
-            const next = !window.isCloudSyncDisabled();
-            try { localStorage.setItem(CLOUD_SYNC_OFFLINE_KEY, next ? '1' : '0'); } catch (_) {}
-            window.updateCloudSyncToggleUI?.();
-            location.reload();
-        };
+        window.clearTimelineEditToken = function() { window.setTimelineEditToken(''); };
+        window.hasTimelineEditToken = function() { return !!window.getTimelineEditToken(); };
 
-        async function loadFirebaseModules(timeoutMs = 4000) {
-            if(app && auth && db && collection && doc && setDoc && onSnapshot && signInAnonymously)return true;
-            const loadPromise = (async () => {
-                const appMod = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
-                const authMod = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
-                const fsMod = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
-                return { appMod, authMod, fsMod };
-            })();
-            const timeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error('Firebase CDN load timeout')), timeoutMs);
-            });
-            const { appMod, authMod, fsMod } = await Promise.race([loadPromise, timeoutPromise]);
-            collection = fsMod.collection;
-            doc = fsMod.doc;
-            setDoc = fsMod.setDoc;
-            getDoc = fsMod.getDoc;
-            deleteDoc = fsMod.deleteDoc;
-            onSnapshot = fsMod.onSnapshot;
-            runTransaction = fsMod.runTransaction;
-            signInAnonymously = authMod.signInAnonymously;
-            signInWithCustomToken = authMod.signInWithCustomToken;
-            app = appMod.initializeApp(firebaseConfig);
-            auth = authMod.getAuth(app);
-            db = fsMod.getFirestore(app);
-            return true;
-        }
+        window.getXiaoqingerEditToken = function() {
+            try { return sessionStorage.getItem(xiaoqingerEditTokenKey()) || ''; } catch (_) { return ''; }
+        };
+        window.setXiaoqingerEditToken = function(token) {
+            try {
+                if (token) sessionStorage.setItem(xiaoqingerEditTokenKey(), token);
+                else sessionStorage.removeItem(xiaoqingerEditTokenKey());
+            } catch (_) {}
+        };
+        window.clearXiaoqingerEditToken = function() { window.setXiaoqingerEditToken(''); };
+        window.hasXiaoqingerEditToken = function() { return !!window.getXiaoqingerEditToken(); };
 
         window.events = [];
         window.connections = [];
@@ -1764,25 +1705,16 @@
             return true;
         };
         window.isLocked = localStorage.getItem('yuhoutianqing_isLocked') === 'false' ? false : true;
+        // 编辑授权只存于 sessionStorage。重新打开页面/标签页若没有有效令牌，必须真正回到浏览模式，
+        // 避免按钮显示“编辑模式”但实际 canEditNow() 为 false。
+        if (!window.hasTimelineEditToken?.()) {
+            window.isLocked = true;
+            try { localStorage.setItem('yuhoutianqing_isLocked', 'true'); } catch (_) {}
+        }
         window.forceMobileBrowseMode();
-        window.updateMobileBrowseHelpTip = function(){
-            const tip=document.getElementById('helpMobileBrowseOnlyTip');
-            if(!tip)return;
-            const mobile=!!window.isMobileEditingDevice();
-            tip.classList.toggle('hidden', !mobile);
-            // Keep visibility deterministic even if a utility class/style is re-applied later.
-            tip.style.display=mobile?'block':'none';
-        };
-        window.updateMobileBrowseHelpTip();
-        if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', window.updateMobileBrowseHelpTip, {once:true});
         window.isCloudSynced = false;
         try { localStorage.removeItem('yuhoutianqing_pending_events'); } catch (_) {}
-        window.canEditNow = function() { return !window.isMobileEditingDevice() && !window.isLocked && window.isCloudSynced; };
-        
-        if (!localStorage.getItem('yuhoutianqing_lockPassword')) {
-            localStorage.setItem('yuhoutianqing_lockPassword', 'tingyu1938');
-        }
-        
+        window.canEditNow = function() { return !window.isMobileEditingDevice() && !window.isLocked && window.isCloudSynced && window.cloudWriteReady && window.hasTimelineEditToken?.(); };
         window.zoomLevel = 3;
         window.edgeScrollSpeed = (function() {
             const v = Number(localStorage.getItem('yuhoutianqing_edgeScrollSpeed'));
@@ -2474,7 +2406,6 @@
             boxH: 160
         };
 
-        let currentUser = null;
         let isInitialLoadDone = false;
 
         function compressImage(file, maxWidth = 800, maxHeight = 800, quality = 0.7) {
@@ -2508,296 +2439,342 @@
             });
         }
 
-        function loadLocalData() {
-            try {
-                const localEv = localStorage.getItem('yuhoutianqing_events');
-                const localConn = localStorage.getItem('yuhoutianqing_connections');
-                const localTags = localStorage.getItem('yuhoutianqing_tags');
-                const localBgm = localStorage.getItem('yuhoutianqing_bgm');
-
-                if (localEv) window.events = JSON.parse(localEv);
-                if (localConn) window.connections = JSON.parse(localConn);
-                if (localTags) window.availableTags = JSON.parse(localTags);
-                if (localBgm) {
-                    const parsedBgm = JSON.parse(localBgm);
-                    window.bgmPlaylist = Array.isArray(parsedBgm) ? parsedBgm.filter(song => /^https?:\/\//i.test(song?.url || '')) : [];
-                }
-            } catch (e) {
-                console.warn("localStorage 读取异常:", e);
-            }
-        }
-
-        function saveLocalData() {
-            try {
-                localStorage.setItem('yuhoutianqing_events', JSON.stringify(window.events));
-                localStorage.setItem('yuhoutianqing_connections', JSON.stringify(window.connections));
-                localStorage.setItem('yuhoutianqing_tags', JSON.stringify(window.availableTags));
-                localStorage.setItem('yuhoutianqing_bgm', JSON.stringify(window.bgmPlaylist));
-            } catch (e) {
-                console.warn("localStorage 保存失败:", e);
-            }
-        }
-
-        const OFFLINE_EXPORT_PASSWORD = 'K7v!2Qm#9Rz@4Lp';
-
-        window.requestOfflineSnapshotExport = function() {
-            if (!window.isCloudSynced || window._syncStatusType !== 'synced') {
-                window.showToast?.('当前未同步云端，无法保存离线快照', 'error');
-                return;
-            }
-            const password = window.prompt('请输入离线数据导出密码：');
-            if (password === null) return;
-            if (password !== OFFLINE_EXPORT_PASSWORD) {
-                window.showToast('密码错误，无法导出离线数据', 'error');
-                return;
-            }
-            window.exportOfflineSnapshot();
-        };
-
-        window.exportOfflineSnapshot = function() {
-            if (!window.isCloudSynced || window._syncStatusType !== 'synced') {
-                window.showToast?.('当前未同步云端，无法保存离线快照', 'error');
-                return;
-            }
+        window.exportTimelineBackup = function() {
             try {
                 const snapshot = {
-                    version: 2,
+                    schemaVersion: 4,
+                    roomId: window.currentRoomId,
                     updatedAt: new Date().toISOString(),
                     events: Array.isArray(window.events) ? window.events : [],
                     connections: Array.isArray(window.connections) ? window.connections : [],
                     tags: Array.isArray(window.availableTags) ? window.availableTags : [],
                     bgm: Array.isArray(window.bgmPlaylist) ? window.bgmPlaylist : [],
+                    activityLogs: Array.isArray(window.activityLogs) ? window.activityLogs.map(({_logId, ...x}) => x) : [],
                     xiaoqingerDialogues: window.loadXiaoqingerDialogues?.() || window.xiaoqingerDialogueConfig || null
                 };
-
                 const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json;charset=utf-8' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
+                const d = new Date();
+                const pad = n => String(n).padStart(2,'0');
+                const stamp = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+                const safeRoom = String(window.currentRoomId || 'default').replace(/[^a-zA-Z0-9_-]+/g, '_').slice(0, 40) || 'default';
                 a.href = url;
-                a.download = 'snapshot.json';
+                a.download = `yuhoutianqing-backup-${safeRoom}-${stamp}.json`;
                 document.body.appendChild(a);
                 a.click();
                 a.remove();
                 setTimeout(() => URL.revokeObjectURL(url), 1000);
-                window.showToast('离线数据已导出为 snapshot.json', 'success');
+                window.showToast?.('JSON 备份已导出', 'success');
             } catch (e) {
-                console.error('离线数据导出失败:', e);
-                window.showToast('离线数据导出失败', 'error');
+                console.error('备份导出失败:', e);
+                window.showToast?.('备份导出失败', 'error');
             }
         };
 
-        window._bundledOfflineSnapshot = null;
-        window._syncStatusType = 'syncing';
-
-        window.offlineDataCanonicalString = function(value) {
-            const normalize = (v) => {
-                if (Array.isArray(v)) return v.map(normalize);
-                if (v && typeof v === 'object') {
-                    const out = {};
-                    Object.keys(v).sort().forEach(k => {
-                        if (k === 'blobUrl') return;
-                        out[k] = normalize(v[k]);
-                    });
-                    return out;
-                }
-                return v;
-            };
-            try { return JSON.stringify(normalize(value)); } catch (_) { return ''; }
-        };
-
-        ;
-
-        ;
-
-        async function loadBundledSnapshot() {
-            try {
-                const snapshotUrl = new URL('data/snapshot.json', document.baseURI).href;
-                const response = await fetch(snapshotUrl, { cache: 'no-store' });
-                if (!response.ok) throw new Error(`snapshot HTTP ${response.status}`);
-                const snapshot = await response.json();
-                window._bundledOfflineSnapshot = snapshot;
-
-                if (Array.isArray(snapshot.events)) window.events = snapshot.events;
-                if (Array.isArray(snapshot.connections)) window.connections = snapshot.connections;
-                if (Array.isArray(snapshot.tags)) window.availableTags = snapshot.tags;
-                if (Array.isArray(snapshot.bgm)) {
-                    window.bgmPlaylist = snapshot.bgm.filter(song => /^https?:\/\//i.test(song?.url || ''));
-                }
-                if (snapshot.xiaoqingerDialogues) {
-                    const migrated = window.normalizeXiaoqingerStoredConfig?.(snapshot.xiaoqingerDialogues);
-                    if (migrated) {
-                        window.xiaoqingerDialogueConfig = migrated;
-                        window.xiaoqingerSimpleDialogues = migrated.lines.slice();
-                    }
-                }
-
-                window.renderEvents();
-                window.renderSvgConnections();
-                window.renderTagModalList();
-                window.renderBgmPlaylist();
-                return true;
-            } catch (err) {
-                console.warn('离线数据包读取失败:', err);
-                return false;
-            }
-        }
-
-        let offlineFallbackLoadPromise = null;
-        async function ensureBundledOfflineFallbackLoaded(){
-            if(window._bundledOfflineFallbackApplied) return true;
-            if(offlineFallbackLoadPromise) return offlineFallbackLoadPromise;
-
-            updateSyncStatus('offline', '正在加载...');
-            offlineFallbackLoadPromise = (async()=>{
-                try {
-                    const loaded = await loadBundledSnapshot();
-                    updateSyncStatus('offline', '未同步云端');
-                    if (loaded) {
-                        window._bundledOfflineFallbackApplied = true;
-                        window.showToast('离线数据包已加载', 'info');
-                    }
-                    return loaded;
-                } catch (e) {
-                    console.warn('离线数据加载异常:', e);
-                    updateSyncStatus('offline', '未同步云端');
-                    return false;
-                } finally {
-                    offlineFallbackLoadPromise = null;
-                }
-            })();
-            return offlineFallbackLoadPromise;
-        }
-
-        function scheduleCloudRetry(delayMs){
-            if(window.isCloudSyncDisabled?.() || window.isCloudSynced || cloudRetryTimer)return;
-            const delay=Number.isFinite(Number(delayMs))?Number(delayMs):Math.min(30000,5000+cloudRetryAttempt*5000);
-            cloudRetryTimer=setTimeout(()=>{
-                cloudRetryTimer=null;
-                retryCloudConnection();
-            },Math.max(1500,delay));
-        }
-
-        function noteCloudSyncFailure(){
-            if(window.isCloudSyncDisabled?.()){
-                updateSyncStatus('offline','未同步云端');
-                void ensureBundledOfflineFallbackLoaded();
+        window.requestTimelineBackup = async function() {
+            if (!window.isCloudSynced || window._syncStatusType !== 'synced') {
+                window.showToast?.('请先等待云端同步完成', 'error');
                 return;
             }
-            if(cloudRetryAttempt >= CLOUD_SYNC_VISIBLE_RETRY_LIMIT){
-                updateSyncStatus('offline','未同步云端');
-                void ensureBundledOfflineFallbackLoaded();
-            }else{
-                updateSyncStatus('syncing','正在同步...');
+            const password = window.prompt('请输入 JSON 备份密钥：');
+            if (password === null) return;
+            try {
+                await timelineApiPost('backupAuth', { password }, { auth:false, timeoutMs:12000 });
+                window.exportTimelineBackup();
+            } catch (err) {
+                window.showToast?.(err?.code === 'bad_password' ? '备份密钥错误' : '备份授权失败，请稍后重试', 'error');
             }
-            scheduleCloudRetry();
+        };
+
+        window._syncStatusType = 'syncing';
+
+        async function timelineApiFetch(path, timeoutMs = 20000) {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                const sep = path.includes('?') ? '&' : '?';
+                const roomPath = `${path}${sep}room=${encodeURIComponent(window.currentRoomId || 'default')}`;
+                const response = await fetch(TIMELINE_API_BASE + roomPath, {
+                    method: 'GET',
+                    cache: 'no-store',
+                    signal: controller.signal,
+                    headers: { 'Accept': 'application/json' }
+                });
+                const raw = await response.text();
+                let data = null;
+                try { data = raw ? JSON.parse(raw) : null; }
+                catch (_) { throw new Error(`CloudBase 返回了无法解析的数据（HTTP ${response.status}）`); }
+                if (!response.ok || !data?.ok) {
+                    throw new Error(data?.message || data?.error || `CloudBase HTTP ${response.status}`);
+                }
+                return data;
+            } finally {
+                clearTimeout(timer);
+            }
         }
 
-        async function retryCloudConnection(){
-            if(window.isCloudSyncDisabled?.() || window.isCloudSynced || cloudRetryInFlight)return;
-            cloudRetryInFlight=true;
-            cloudRetryAttempt++;
-            if(cloudRetryAttempt < CLOUD_SYNC_VISIBLE_RETRY_LIMIT) updateSyncStatus('syncing','正在同步...');
-            try{
-                if(!auth || !db || !signInAnonymously)await loadFirebaseModules(10000);
-                if(!currentUser){
-                    const login=(typeof __initial_auth_token!=='undefined' && __initial_auth_token)
-                        ? signInWithCustomToken(auth,__initial_auth_token)
-                        : signInAnonymously(auth);
-                    currentUser=(await Promise.race([login,new Promise((_,reject)=>setTimeout(()=>reject(new Error('Firebase auth retry timeout')),10000))])).user;
+
+        async function timelineApiPost(action, payload = {}, { auth = 'edit', timeoutMs = 25000 } = {}) {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                const headers = { 'Accept':'application/json', 'Content-Type':'application/json' };
+                if (auth) {
+                    const token = auth === 'xiaoqinger' ? (window.getXiaoqingerEditToken?.() || '') : (window.getTimelineEditToken?.() || '');
+                    if (!token) {
+                        const err = new Error(auth === 'xiaoqinger' ? 'XIAOQINGER_AUTH_REQUIRED' : 'EDIT_AUTH_REQUIRED');
+                        err.code = auth === 'xiaoqinger' ? 'XIAOQINGER_AUTH_REQUIRED' : 'EDIT_AUTH_REQUIRED';
+                        throw err;
+                    }
+                    headers.Authorization = `Bearer ${token}`;
                 }
-                if(currentUser){
-                    updateSyncStatus('syncing','正在同步...');
-                    setupRealtimeListeners(null);
+                const response = await fetch(TIMELINE_API_BASE + '/timeline', {
+                    method:'POST', cache:'no-store', signal:controller.signal, headers,
+                    body: JSON.stringify({ room: window.currentRoomId || 'default', action, ...payload })
+                });
+                const raw = await response.text();
+                let data = null;
+                try { data = raw ? JSON.parse(raw) : null; }
+                catch (_) { throw new Error(`CloudBase 返回了无法解析的数据（HTTP ${response.status}）`); }
+                if (response.status === 401) {
+                    if (auth === 'xiaoqinger') window.clearXiaoqingerEditToken?.();
+                    else if (auth) {
+                        window.clearTimelineEditToken?.();
+                        window.isLocked = true;
+                        try { localStorage.setItem('yuhoutianqing_isLocked','true'); } catch (_) {}
+                        window.updateLockButtonUI?.();
+                    }
                 }
-            }catch(err){
-                console.warn('云端自动重连失败，将继续重试:',err);
-                noteCloudSyncFailure();
-            }finally{
-                cloudRetryInFlight=false;
+                if (!response.ok || !data?.ok) {
+                    const err = new Error(data?.message || data?.error || `CloudBase HTTP ${response.status}`);
+                    err.code = data?.error || `HTTP_${response.status}`;
+                    throw err;
+                }
+                if (data.version) window._cloudbaseTimelineVersion = String(data.version);
+                return data;
+            } finally { clearTimeout(timer); }
+        }
+
+        // 写入状态与“是否已连接云端”分离：保存期间仍保持编辑能力，避免按钮/功能被反复禁用。
+        window._timelinePendingWrites = 0;
+        window.timelineApiWrite = async function(action, payload = {}) {
+            window._timelinePendingWrites = Math.max(0, Number(window._timelinePendingWrites) || 0) + 1;
+            updateSyncStatus('saving', '保存中...');
+            let failed = false;
+            try {
+                return await timelineApiPost(action, payload, { auth:true });
+            } catch (err) {
+                failed = true;
+                if (err?.code === 'EDIT_AUTH_REQUIRED' || err?.code === 'unauthorized' || err?.code === 'token_expired') {
+                    window.showToast('编辑授权已失效，请重新解锁', 'error');
+                }
+                throw err;
+            } finally {
+                window._timelinePendingWrites = Math.max(0, (Number(window._timelinePendingWrites) || 1) - 1);
+                if (window._timelinePendingWrites === 0) {
+                    updateSyncStatus(failed ? 'error' : 'synced', failed ? '保存失败' : '已同步云端');
+                }
             }
+        };
+
+        window.authenticateTimelineEditor = async function(password) {
+            const result = await timelineApiPost('auth', { password }, { auth:false, timeoutMs:12000 });
+            if (!result?.token) throw new Error('未收到编辑令牌');
+            window.setTimelineEditToken(result.token);
+            return result;
+        };
+
+        window.authenticateXiaoqingerEditor = async function(password) {
+            const result = await timelineApiPost('xiaoqingerAuth', { password }, { auth:false, timeoutMs:12000 });
+            if (!result?.token) throw new Error('未收到小晴儿编辑令牌');
+            window.setXiaoqingerEditToken(result.token);
+            return result;
+        };
+
+        window.timelineApiXiaoqingerWrite = async function(action, payload = {}) {
+            updateSyncStatus('saving', '保存中...');
+            try {
+                const result = await timelineApiPost(action, payload, { auth:'xiaoqinger' });
+                updateSyncStatus('synced', '已同步云端');
+                return result;
+            } catch (err) {
+                updateSyncStatus('error', '保存失败');
+                throw err;
+            }
+        };
+
+        window.prepareEventForCloudBase = function(eventData) {
+            // CloudBase 文档数据库直接保存普通 JSON；仅兼容解开早期版本遗留的数组包装。
+            return window.deepDecodeLegacyWrappers(window.prepareEventForCloud(eventData));
+        };
+
+        window.startTimelineVersionPolling = function() {
+            if (window._timelineVersionPollTimer) clearInterval(window._timelineVersionPollTimer);
+            window._timelineVersionPollTimer = setInterval(async () => {
+                if (window.timelineCloudSource !== 'cloudbase') return;
+                try {
+                    const meta = await timelineApiFetch('/timeline/version', 10000);
+                    const nextVersion = String(meta?.version || '');
+                    if (!nextVersion || nextVersion === String(window._cloudbaseTimelineVersion || '')) return;
+
+                    // 有正在编辑的表单时不强行覆盖本地编辑状态；下一轮继续检查。
+                    if (!window.isLocked) return;
+
+                    await loadTimelineFromCloudBase();
+                    updateSyncStatus('synced', '已同步云端');
+                } catch (err) {
+                    console.warn('CloudBase 版本检查失败:', err);
+                }
+            }, 8000);
+        };
+
+        async function loadTimelineFromCloudBase() {
+            const fetchWithRetry = async (path, timeoutMs = 20000, attempts = 2) => {
+                let lastErr = null;
+                for (let i = 0; i < attempts; i++) {
+                    try { return await timelineApiFetch(path, timeoutMs); }
+                    catch (err) {
+                        lastErr = err;
+                        if (i + 1 < attempts) await new Promise(r => setTimeout(r, 320));
+                    }
+                }
+                throw lastErr || new Error('CloudBase 请求失败');
+            };
+
+            // 附属数据与主事件同时开始读取，减少等待时间。
+            const metaPromise = fetchWithRetry('/timeline?type=meta', 16000, 2);
+            const sideNames = ['逻辑关系','标签','BGM','活动日志','小晴儿台词'];
+            const sidePaths = [
+                '/timeline?type=connections',
+                '/timeline?type=tags',
+                '/timeline?type=bgm',
+                '/timeline?type=activityLogs',
+                '/timeline?type=xiaoqinger'
+            ];
+            const sidePromise = Promise.allSettled(sidePaths.map(p => fetchWithRetry(p, 16000, 2)));
+
+            // 先拿第一页，同时从响应中的 total 计算剩余页；每页 5 条并发读取，避免 59 个大事件串行请求过慢。
+            const firstPage = await fetchWithRetry(
+                `/timeline?type=events&offset=0&limit=${TIMELINE_EVENT_PAGE_LIMIT}`,
+                45000,
+                3
+            );
+            const cloudEvents = Array.isArray(firstPage?.items) ? firstPage.items.slice() : [];
+            const totalEvents = Math.max(cloudEvents.length, Number(firstPage?.total) || 0);
+            const offsets = [];
+            for (let off = Number(firstPage?.nextOffset) || TIMELINE_EVENT_PAGE_LIMIT; off < totalEvents; off += TIMELINE_EVENT_PAGE_LIMIT) {
+                offsets.push(off);
+            }
+
+            // 控制并发为 3，兼顾速度与函数压力。
+            // 使用共享结果数组，以 3 路并发读取所有剩余事件页。
+            const pageResults = new Array(offsets.length);
+            let cursor = 0;
+            const pool = Array.from({length: Math.min(3, offsets.length)}, async () => {
+                while (true) {
+                    const idx = cursor++;
+                    if (idx >= offsets.length) return;
+                    const off = offsets[idx];
+                    pageResults[idx] = await fetchWithRetry(
+                        `/timeline?type=events&offset=${encodeURIComponent(off)}&limit=${TIMELINE_EVENT_PAGE_LIMIT}`,
+                        45000,
+                        3
+                    );
+                }
+            });
+            await Promise.all(pool);
+            pageResults.forEach(page => {
+                if (Array.isArray(page?.items)) cloudEvents.push(...page.items);
+            });
+
+            const [meta, results] = await Promise.all([metaPromise, sidePromise]);
+            const expectedEvents = Number(meta?.counts?.events ?? totalEvents);
+            if (expectedEvents && cloudEvents.length !== expectedEvents) {
+                console.warn(`CloudBase 事件计数在读取期间发生变化：实际 ${cloudEvents.length} / 元数据 ${expectedEvents}`);
+            }
+
+            window._cloudPartialFailures = [];
+            results.forEach((r, i) => {
+                if (r.status === 'rejected') {
+                    window._cloudPartialFailures.push(sideNames[i]);
+                    console.warn(`CloudBase ${sideNames[i]}读取失败:`, r.reason);
+                }
+            });
+            const value = i => results[i].status === 'fulfilled' ? results[i].value : null;
+            const connectionsData = value(0);
+            const tagsData = value(1);
+            const bgmData = value(2);
+            const activityData = value(3);
+            const xiaoqingerData = value(4);
+
+            window.events = cloudEvents;
+            window.connections = Array.isArray(connectionsData?.items) ? connectionsData.items : [];
+            window.availableTags = Array.isArray(tagsData?.items) ? tagsData.items : [];
+            window.bgmPlaylist = Array.isArray(bgmData?.items)
+                ? bgmData.items.filter(song => /^https?:\/\//i.test(song?.url || ''))
+                : [];
+            window.activityLogs = Array.isArray(activityData?.items) ? activityData.items : [];
+            window.activityLogs.sort((a, b) => (Number(b?.timestamp) || 0) - (Number(a?.timestamp) || 0));
+            window._activityListenerReady = true;
+            window.renderActivityLogs?.();
+
+            const cloudXiaoqinger = window.normalizeXiaoqingerStoredConfig?.(xiaoqingerData?.config);
+            if (cloudXiaoqinger) {
+                window.xiaoqingerDialogueConfig = cloudXiaoqinger;
+                window.xiaoqingerSimpleDialogues = cloudXiaoqinger.lines.slice();
+            } else {
+                window.loadXiaoqingerDialogues?.();
+            }
+            // 小晴儿本体/拖动位置只属于当前浏览器；云端只同步台词。
+            window.ensureXiaoqingerVisible?.();
+            window.initXiaoqingerSimplePet?.();
+
+            window.renderEvents();
+            window.renderSvgConnections();
+            window.renderTagModalList();
+            window.renderBgmPlaylist();
+
+            window.timelineCloudSource = 'cloudbase';
+            window.cloudWriteReady = true;
+            window._cloudbaseTimelineVersion = String(meta?.version || '');
+            window.updateLockButtonUI?.();
+            return meta;
         }
 
         async function initAppAndCloudSync() {
             window.updateLockButtonUI();
-            window.updateCloudSyncToggleUI?.();
             initBgmAudioPlayer();
             initScrollEdges();
 
-            const cloudDisabled = window.isCloudSyncDisabled?.();
-            if(!cloudDisabled) updateSyncStatus('syncing', '正在同步...');
+            // 每个 room 都直接读取各自的 CloudBase 数据；default 也是一个独立云端空间。
+            window.events = [];
+            window.connections = [];
+            window.availableTags = [];
+            window.bgmPlaylist = [];
+            window.renderEvents();
+            window.renderSvgConnections();
+            window.renderTagModalList();
+            window.renderBgmPlaylist();
 
             isInitialLoadDone = true;
-
-            if (cloudDisabled) {
-                updateSyncStatus('offline', '未同步云端');
-                await ensureBundledOfflineFallbackLoaded();
-                return;
-            }
-
             updateSyncStatus('syncing', '正在同步...');
 
-            window.addEventListener('offline', () => {
-                if(window.isCloudSyncDisabled?.()) return;
-                noteCloudSyncFailure();
-            });
             window.addEventListener('online', () => {
-                if (isInitialLoadDone && !window.isCloudSynced && !window.isCloudSyncDisabled?.()) {
-                    updateSyncStatus('syncing', '正在同步...');
-                    scheduleCloudRetry(500);
-                }
+                if (!window.isCloudSynced) location.reload();
             });
 
-            const syncTimeout = setTimeout(() => {
-                if (!window.isCloudSynced && !window.isCloudSyncDisabled?.()) {
-                    updateSyncStatus('syncing', '正在同步...');
-                    scheduleCloudRetry(500);
-                }
-            }, 6000);
-
             try {
-                await loadFirebaseModules(4000);
+                await loadTimelineFromCloudBase();
+                const partial = Array.isArray(window._cloudPartialFailures) ? window._cloudPartialFailures : [];
+                updateSyncStatus('synced', partial.length ? `已同步云端（${partial.join('、')}暂不可用）` : '已同步云端');
+                window.startTimelineVersionPolling?.();
             } catch (err) {
-                console.warn('Firebase 模块加载失败，进入自动重试:', err);
-                clearTimeout(syncTimeout);
-                updateSyncStatus('syncing', '正在同步...');
-                scheduleCloudRetry(1000);
-                return;
-            }
-
-            if (!auth || !db || !signInAnonymously) {
-                clearTimeout(syncTimeout);
-                updateSyncStatus('syncing', '正在同步...');
-                scheduleCloudRetry(1000);
-                return;
-            }
-
-            try {
-                const authPromise = (async () => {
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        return await signInWithCustomToken(auth, __initial_auth_token);
-                    }
-                    return await signInAnonymously(auth);
-                })();
-                const authTimeout = new Promise((_, reject) => {
-                    setTimeout(() => reject(new Error('Firebase auth timeout')), 5000);
-                });
-                const userCred = await Promise.race([authPromise, authTimeout]);
-                currentUser = userCred.user;
-            } catch (err) {
-                console.warn('Firebase 登录失败，进入自动重试:', err);
-                clearTimeout(syncTimeout);
-                updateSyncStatus('syncing', '正在同步...');
-                scheduleCloudRetry(1000);
-                return;
-            }
-
-            if (currentUser) {
-                updateSyncStatus('syncing', '正在同步...');
-                setupRealtimeListeners(syncTimeout);
-            } else {
-                clearTimeout(syncTimeout);
-                updateSyncStatus('syncing', '正在同步...');
-                scheduleCloudRetry(1000);
+                console.error('CloudBase 时间线读取失败:', err);
+                window.timelineCloudSource = 'cloudbase';
+                window.cloudWriteReady = false;
+                updateSyncStatus('error', '云端同步失败');
+                window.showToast?.(`云端读取失败：${err?.message || '未知错误'}`, 'error');
             }
         }
 
@@ -2809,9 +2786,7 @@
             window._syncStatusType = type;
             if (type === 'synced') {
                 window.isCloudSynced = true;
-                cloudRetryAttempt=0;
-                if(cloudRetryTimer){clearTimeout(cloudRetryTimer);cloudRetryTimer=null;}
-                const routineSaveReturn = previousType === 'syncing' && window._syncingStartedFromSynced;
+                const routineSaveReturn = (previousType === 'syncing' && window._syncingStartedFromSynced) || previousType === 'saving';
                 if (previousType !== 'synced' && !routineSaveReturn) {
                     window.showToast?.('同步云端成功', 'success');
                 }
@@ -2819,7 +2794,11 @@
             } else if (type === 'offline' || type === 'error') {
                 window.isCloudSynced = false;
             } else if (type === 'syncing') {
+                // 仅用于首次/完整重新加载；这时确实还不能编辑。
                 window.isCloudSynced = false;
+            } else if (type === 'saving') {
+                // 保存过程中仍然保持云端连接状态，编辑模式不应被临时禁用。
+                window.isCloudSynced = true;
             }
             const dot = document.getElementById('syncDot');
             const textEl = document.getElementById('syncText');
@@ -2827,132 +2806,29 @@
             textEl.innerText = text;
             if (type === 'synced') {
                 dot.className = "w-2 h-2 rounded-full bg-emerald-500";
-            } else if (type === 'syncing') {
+            } else if (type === 'syncing' || type === 'saving') {
                 dot.className = "w-2 h-2 rounded-full bg-amber-400 animate-pulse";
             } else if (type === 'offline') {
-                dot.className = "w-2 h-2 rounded-full bg-indigo-500";
+                dot.className = "w-2 h-2 rounded-full bg-slate-400";
             } else {
                 dot.className = "w-2 h-2 rounded-full bg-rose-500";
             }
             if (typeof window.updateLockButtonUI === 'function') window.updateLockButtonUI();
-            window.updateCloudSyncToggleUI?.();
-            window.updateOfflineDataMismatchNotice?.();
-            if (type === 'synced' && currentUser) {
-                setTimeout(async () => {
-                    window.ensureEditorIdentity?.();
-                    await window.ensureCurrentIdentityReservation?.();
-                }, 0);
-            }
-            window.renderActivityLogs?.();
+            // 不要在每次保存完成后自动重新 claim 编辑者 ID。
+            // 该动作本身也是一次云端写入，会形成“保存中 ↔ 已同步云端”的递归循环。
         }
 
-        function setupRealtimeListeners(syncTimeout) {
-            if (!currentUser || !db) return;
-            if(window._cloudRealtimeListenersAttached)return;
-            window._cloudRealtimeListenersAttached=true;
-
-            try {
-                const eventsCol = collection(db, 'artifacts', appId, 'public', 'data', 'events');
-                const connCol = collection(db, 'artifacts', appId, 'public', 'data', 'connections');
-                const tagsCol = collection(db, 'artifacts', appId, 'public', 'data', 'tags');
-                const bgmCol = collection(db, 'artifacts', appId, 'public', 'data', 'bgm');
-                const activityCol = collection(db, 'artifacts', appId, 'public', 'data', 'activityLogs');
-
-                onSnapshot(eventsCol, async (snapshot) => {
-                    if (syncTimeout) clearTimeout(syncTimeout);
-                    isInitialLoadDone = true;
-                    const cloudEvents = snapshot.docs.map(doc => ({ id: isNaN(doc.id) ? doc.id : Number(doc.id), ...window.deepDecodeFromFirestore(doc.data()) }));
-                    // A transient empty snapshot must not wipe a non-empty local/offline timeline.
-                    if(cloudEvents.length===0 && Array.isArray(window.events) && window.events.length>0){
-                        console.warn('收到空的云端事件快照，已保留当前本地内容并等待后续快照');
-                        updateSyncStatus('syncing','正在同步...');
-                        return;
-                    }
-                    window.events = cloudEvents;
-                    saveLocalData();
-                    window.renderEvents();
-                    updateSyncStatus('synced', '已同步云端');
-                }, (err) => {
-                    if (syncTimeout) clearTimeout(syncTimeout);
-                    console.warn('事件实时同步监听异常:',err);
-                    noteCloudSyncFailure();
-                });
-
-                onSnapshot(connCol, (snapshot) => {
-                    window.connections = snapshot.docs.map(doc => ({ id: isNaN(doc.id) ? doc.id : Number(doc.id), ...doc.data() }));
-                    saveLocalData();
-                    window.renderSvgConnections();
-                }, (err) => { });
-
-                onSnapshot(tagsCol, (snapshot) => {
-                    if (!snapshot.empty) {
-                        const loadedTags = snapshot.docs.map(doc => doc.data().name);
-                        if (loadedTags.length >= 0) window.availableTags = loadedTags;
-                    }
-                    saveLocalData();
-                    window.renderTagModalList();
-                }, (err) => {});
-
-                onSnapshot(bgmCol, (snapshot) => {
-                    if (!snapshot.empty) {
-                        const loadedBgm = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        if (loadedBgm.length >= 0) window.bgmPlaylist = loadedBgm;
-                    }
-                    saveLocalData();
-                    window.renderBgmPlaylist();
-                }, (err) => {});
-
-                onSnapshot(activityCol, (snapshot) => {
-                    window.activityLogs = snapshot.docs.map(item => ({ id: item.id, ...item.data() }));
-                    window.activityLogs.sort((a, b) => (Number(b.timestamp) || 0) - (Number(a.timestamp) || 0));
-                    window._activityListenerReady = true;
-                    window.renderActivityLogs?.();
-                }, (err) => {
-                    window._activityListenerReady = false;
-                    window.renderActivityLogs?.();
-                });
-            } catch (err) {
-                window._cloudRealtimeListenersAttached=false;
-                if (syncTimeout) clearTimeout(syncTimeout);
-                updateSyncStatus('offline', '未同步云端');
-                void ensureBundledOfflineFallbackLoaded();
-                scheduleCloudRetry();
-            }
-        }
-
-        window.deepEncodeForFirestore=function(value){
-            if(Array.isArray(value)){
-                // Firestore rejects arrays nested directly inside arrays.
-                // Keep normal arrays, but wrap child arrays as point objects.
-                return value.map(v=>{
-                    if(Array.isArray(v)){
-                        if(v.length===2 && v.every(n=>typeof n==='number' && Number.isFinite(n))){
-                            return {__deepPoint:true,x:v[0],y:v[1]};
-                        }
-                        return {__deepArray:true,items:window.deepEncodeForFirestore(v)};
-                    }
-                    return window.deepEncodeForFirestore(v);
-                });
-            }
-            if(value && typeof value==='object'){
-                const out={};
-                Object.entries(value).forEach(([k,v])=>out[k]=window.deepEncodeForFirestore(v));
-                return out;
-            }
-            return value;
-        };
-
-        window.deepDecodeFromFirestore=function(value){
-            if(Array.isArray(value))return value.map(v=>window.deepDecodeFromFirestore(v));
+        window.deepDecodeLegacyWrappers=function(value){
+            if(Array.isArray(value)) return value.map(v=>window.deepDecodeLegacyWrappers(v));
             if(value && typeof value==='object'){
                 if(value.__deepPoint===true && Number.isFinite(Number(value.x)) && Number.isFinite(Number(value.y))){
                     return [Number(value.x),Number(value.y)];
                 }
                 if(value.__deepArray===true && Array.isArray(value.items)){
-                    return window.deepDecodeFromFirestore(value.items);
+                    return window.deepDecodeLegacyWrappers(value.items);
                 }
                 const out={};
-                Object.entries(value).forEach(([k,v])=>out[k]=window.deepDecodeFromFirestore(v));
+                Object.entries(value).forEach(([k,v])=>out[k]=window.deepDecodeLegacyWrappers(v));
                 return out;
             }
             return value;
@@ -3025,7 +2901,7 @@
                     }) : []
                 }));
             }
-            return window.deepEncodeForFirestore(cloudEvent);
+            return cloudEvent;
         };
 
         window.saveEventToCloud = async function(eventData) {
@@ -3038,90 +2914,84 @@
             } else {
                 window.events.push(eventData);
             }
-            saveLocalData();
             window.renderEvents();
 
-            if (!currentUser || !db) {
-                window.showToast('已保存到本机，等待云端连接后同步', 'info');
+            if (!window.hasTimelineEditToken?.()) {
+                window.showToast('请先解锁编辑模式', 'error');
                 return false;
             }
+
             try {
-                updateSyncStatus('syncing', '保存中...');
-                const cloudEvent = window.prepareEventForCloud(eventData);
+                const cloudEvent = window.prepareEventForCloudBase(eventData);
                 const cloudBytes = new TextEncoder().encode(JSON.stringify(cloudEvent)).length;
-                if (cloudBytes > 900 * 1024) {
-                    const err = new Error('event payload too large for reliable cloud sync');
+                if (cloudBytes > 5 * 1024 * 1024) {
+                    const err = new Error('EVENT_TOO_LARGE');
                     err.code = 'EVENT_TOO_LARGE';
                     err.cloudBytes = cloudBytes;
                     throw err;
                 }
-                const eventRef = doc(db, 'artifacts', appId, 'public', 'data', 'events', String(eventData.id));
-                await setDoc(eventRef, cloudEvent);
-                await window.verifyDeepDescriptionsAfterCloudSave(cloudEvent, eventRef);
-                updateSyncStatus('synced', '已同步云端');
+                await window.timelineApiWrite('upsertEvent', { event: cloudEvent });
                 return true;
             } catch (e) {
-                updateSyncStatus('offline', '未同步云端');
                 if (e?.code === 'EVENT_TOO_LARGE') {
                     const kb = Math.ceil((Number(e.cloudBytes)||0) / 1024);
-                    window.showToast(`当前事件数据约 ${kb}KB，包含的深入描述媒体过大，未同步到云端`, 'error');
-                } else if (String(e?.message || '').includes('cloud verification')) {
-                    window.showToast('云端写入后核验失败：深入描述没有完整保存', 'error');
+                    window.showToast(`当前事件数据约 ${kb}KB，超过单次安全写入大小`, 'error');
                 } else {
-                    window.showToast('离线数据已加载', 'info');
+                    window.showToast('事件云端保存失败', 'error');
                 }
                 throw e;
             }
         };
 
         window.deleteEventFromCloud = async function(eventId) {
+            const oldEvents = window.events.slice();
+            const oldConnections = window.connections.slice();
             window.events = window.events.filter(e => String(e.id) !== String(eventId));
             window.connections = window.connections.filter(c => String(c.sourceId) !== String(eventId) && String(c.targetId) !== String(eventId));
-            saveLocalData();
             window.renderEvents();
+            window.renderSvgConnections();
 
-            if (!currentUser || !db) return false;
+            if (!window.hasTimelineEditToken?.()) return false;
             try {
-                updateSyncStatus('syncing', '删除中...');
-                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'events', String(eventId)));
-                updateSyncStatus('synced', '已同步云端');
+                await window.timelineApiWrite('deleteEvent', { eventId });
                 return true;
             } catch (e) {
-                updateSyncStatus('offline', '未同步云端');
+                window.events = oldEvents;
+                window.connections = oldConnections;
+                    window.renderEvents();
+                window.renderSvgConnections();
+                window.showToast('事件删除失败，已恢复本机数据', 'error');
                 return false;
             }
         };
 
         window.saveTagToCloud = async function(tagName) {
-            if (!window.availableTags.includes(tagName)) {
-                window.availableTags.push(tagName);
-            }
-            saveLocalData();
+            if (!window.availableTags.includes(tagName)) window.availableTags.push(tagName);
             window.renderTagModalList();
 
-            if (!currentUser || !db) return false;
+            if (!window.hasTimelineEditToken?.()) return false;
             try {
-                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tags', tagName), { name: tagName });
-                updateSyncStatus('synced', '已同步云端');
+                await window.timelineApiWrite('upsertTag', { tag: String(tagName || '').trim() });
                 return true;
             } catch (e) {
-                updateSyncStatus('offline', '未同步云端');
+                window.showToast('Tag 云端保存失败', 'error');
                 return false;
             }
         };
 
         window.deleteTagFromCloud = async function(tagName) {
+            const oldTags = window.availableTags.slice();
             window.availableTags = window.availableTags.filter(t => t !== tagName);
-            saveLocalData();
             window.renderTagModalList();
 
-            if (!currentUser || !db) return false;
+            if (!window.hasTimelineEditToken?.()) return false;
             try {
-                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tags', tagName));
-                updateSyncStatus('synced', '已同步云端');
+                await window.timelineApiWrite('deleteTag', { tag: String(tagName || '').trim() });
                 return true;
             } catch (e) {
-                updateSyncStatus('offline', '未同步云端');
+                window.availableTags = oldTags;
+                    window.renderTagModalList();
+                window.showToast('Tag 删除失败，已恢复本机数据', 'error');
                 return false;
             }
         };
@@ -3469,18 +3339,15 @@
                 url: url
             };
             window.bgmPlaylist.push(newSong);
-            saveLocalData();
             window.renderBgmPlaylist();
-            if (currentUser && db) {
-                try {
-                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'bgm', newSong.id), newSong);
-                    updateSyncStatus('synced', '已同步云端');
-                    await window.writeActivityLog?.('bgm_add', { resourceType:'bgm', resourceName:newSong.name });
-                } catch (err) {
-                    updateSyncStatus('offline', '已就绪');
-                    window.showToast('已添加，但音乐信息云端同步失败', 'error');
-                    return;
-                }
+            try {
+                await window.timelineApiWrite('upsertBgm', { bgm: newSong });
+                await window.writeActivityLog?.('bgm_add', { resourceType:'bgm', resourceName:newSong.name });
+            } catch (err) {
+                window.bgmPlaylist = window.bgmPlaylist.filter(s => s.id !== newSong.id);
+                    window.renderBgmPlaylist();
+                window.showToast('音乐信息云端同步失败', 'error');
+                return;
             }
             if (urlInput) urlInput.value = '';
             if (nameInput) nameInput.value = '';
@@ -3499,20 +3366,16 @@
                 pauseBgm(true);
             }
             
-            saveLocalData();
             window.renderBgmPlaylist();
 
-            if (currentUser && db) {
-                try {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'bgm', songId));
-                    updateSyncStatus('synced', '已同步云端');
-                    await window.writeActivityLog?.('bgm_delete', {
-                        resourceType:'bgm',
-                        resourceName: targetSong?.name || '未命名音乐'
-                    });
-                } catch (err) {
-                    updateSyncStatus('offline', '未同步云端');
-                }
+            try {
+                await window.timelineApiWrite('deleteBgm', { bgmId: songId });
+                await window.writeActivityLog?.('bgm_delete', { resourceType:'bgm', resourceName: targetSong?.name || '未命名音乐' });
+            } catch (err) {
+                if (targetSong) window.bgmPlaylist.push(targetSong);
+                    window.renderBgmPlaylist();
+                window.showToast('音乐删除失败，已恢复本机数据', 'error');
+                return;
             }
             window.showToast(targetSong ? `已删除歌曲: ${targetSong.name}` : "已删除歌曲", "info");
         };
@@ -3600,7 +3463,7 @@
             const mobileBrowseOnly=!!window.forceMobileBrowseMode?.();
             const lockBtn = document.getElementById('lockToggleBtn');
             const shareBtn = document.getElementById('shareCollabBtn');
-            const shareEnabled = !mobileBrowseOnly && !window.isLocked && window.isCloudSynced;
+            const shareEnabled = !mobileBrowseOnly && !window.isLocked && !!window.isCloudSynced && !!window.cloudWriteReady;
             if (shareBtn) {
                 shareBtn.disabled = !shareEnabled;
                 shareBtn.className = shareEnabled
@@ -3620,6 +3483,11 @@
                 nextClass = "flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs font-medium transition-colors shadow-sm border bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed";
                 nextHtml = `<i class="fa-solid fa-cloud-arrow-down text-slate-400"></i><span class="hidden sm:inline">等待同步</span><span class="sm:hidden">同步中</span>`;
                 nextDisabled = true;
+            } else if (!window.cloudWriteReady) {
+                nextClass = "flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs font-medium transition-colors shadow-sm border bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed";
+                nextHtml = `<i class="fa-solid fa-eye text-slate-400"></i><span class="hidden sm:inline">浏览模式</span><span class="sm:hidden">浏览</span>`;
+                nextTitle = "CloudBase 数据已加载，可直接进行云端编辑";
+                nextDisabled = true;
             } else if (window.isLocked) {
                 nextClass = "flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs font-medium transition-colors shadow-sm border bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100";
                 nextHtml = `<i class="fa-solid fa-lock text-amber-600"></i><span class="hidden sm:inline">浏览模式</span><span class="sm:hidden">浏览</span>`;
@@ -3632,7 +3500,6 @@
             lockBtn.className = nextClass;
             lockBtn.title = nextTitle;
             lockBtn.disabled = nextDisabled;
-            window.updateOfflineDataMismatchNotice?.();
         };
 
         if(!window._mobileBrowseForceBound){
@@ -3659,10 +3526,15 @@
                 window.showToast('请先等待右上角显示"已同步云端"', 'error');
                 return;
             }
+            if (!window.cloudWriteReady) {
+                window.showToast('时间线已从 CloudBase 加载；当前编辑兼容层尚未连接，请暂时使用浏览模式', 'info');
+                return;
+            }
             if (window.isLocked) {
                 window.openPwdModal();
             } else {
                 window.isLocked = true;
+                window.clearTimelineEditToken?.();
                 localStorage.setItem('yuhoutianqing_isLocked', 'true');
                 window.updateLockButtonUI();
                 window.showToast("已恢复为浏览模式", "info");
@@ -3681,7 +3553,7 @@
             document.getElementById('pwdModal')?.classList.add('hidden');
         };
 
-        window.submitUnlockPassword = function() {
+        window.submitUnlockPassword = async function() {
             if (window.forceMobileBrowseMode?.()) {
                 window.closePwdModal();
                 window.updateLockButtonUI?.();
@@ -3691,32 +3563,44 @@
                 window.showToast('请先等待右上角显示"已同步云端"后再进入编辑模式', 'error');
                 return;
             }
+            if (!window.cloudWriteReady || window.timelineCloudSource !== 'cloudbase') {
+                window.showToast('当前仅可浏览，CloudBase 编辑接口尚未就绪', 'info');
+                return;
+            }
+
             const pwdInput = document.getElementById('unlockPwdInput');
             const pwd = pwdInput ? pwdInput.value : '';
-            const currentLockPwd = localStorage.getItem('yuhoutianqing_lockPassword') || 'tingyu1938';
-            if (pwd === currentLockPwd) {
+            if (!pwd) {
+                window.showToast('请输入编辑密码', 'error');
+                return;
+            }
+
+            try {
+                await window.authenticateTimelineEditor(pwd);
                 window.isLocked = false;
                 localStorage.setItem('yuhoutianqing_isLocked', 'false');
                 window.updateLockButtonUI();
                 window.closePwdModal();
+                await window.ensureCurrentIdentityReservation?.();
                 window.showToast("解锁成功，已切换至编辑模式", "success");
-            } else {
-                window.showToast("密码错误", "error");
+            } catch (err) {
+                window.clearTimelineEditToken?.();
+                window.isLocked = true;
+                localStorage.setItem('yuhoutianqing_isLocked', 'true');
+                window.updateLockButtonUI();
+                if (err?.code === 'bad_password') window.showToast("密码错误", "error");
+                else window.showToast("编辑授权失败，请稍后重试", "error");
             }
         };
 
         window.openShareModal = function() {
-            if (!window.canEditNow()) {
-                window.showToast(window.isCloudSynced ? '请先解锁编辑模式后使用分享协同' : '请先等待右上角显示"已同步云端"', 'error');
-                return;
-            }
+            if (window.isLocked || !window.isCloudSynced || !window.cloudWriteReady) return;
             const roomInput = document.getElementById('shareRoomInput');
             const urlInput = document.getElementById('shareUrlInput');
             if (roomInput) roomInput.value = window.currentRoomId === 'default' ? '' : window.currentRoomId;
 
             const shareUrl = window.location.origin + window.location.pathname + (window.currentRoomId !== 'default' ? `?room=${encodeURIComponent(window.currentRoomId)}` : '');
             if (urlInput) urlInput.value = shareUrl;
-
             document.getElementById('shareModal')?.classList.remove('hidden');
         };
 
@@ -4175,7 +4059,7 @@
                     const desiredConnections = eventData.connections || [];
                     delete eventData.connections;
                     const cloudSaved = await window.saveEventToCloud(eventData);
-                    if (!cloudSaved && currentUser && db) throw new Error('cloud save failed');
+                    if (!cloudSaved) throw new Error('cloud save failed');
                     
                     if (progressBar) progressBar.style.width = '80%';
                     await window.syncEditingConnections(eventData.id, desiredConnections);
@@ -4242,14 +4126,28 @@
                 const tag = window.activeTagFilter;
                 list = list.filter(e => e.tags && e.tags.some(t => t === tag));
             }
-            const query = (document.getElementById('searchInput')?.value || '').trim().toLowerCase();
+            const query = String(document.getElementById('searchInput')?.value || '').trim().toLocaleLowerCase('zh-CN');
             if (query) {
-                list = list.filter(e =>
-                    (e.title && e.title.toLowerCase().includes(query)) ||
-                    (e.description && e.description.toLowerCase().includes(query)) ||
-                    (e.timeMode === 'multi' && Array.isArray(e.timeSegments) && e.timeSegments.some(seg => String(seg.description || '').toLowerCase().includes(query))) ||
-                    (e.tags && e.tags.some(t => String(t).toLowerCase().includes(query)))
-                );
+                const searchableText = value => {
+                    if (value == null) return '';
+                    if (Array.isArray(value)) return value.map(searchableText).join(' ');
+                    if (typeof value === 'object') {
+                        // tag 兼容字符串与 {name/id} 两种结构；其它对象只提取可读字段。
+                        return [value.name, value.id, value.title, value.description, value.text, value.label]
+                            .filter(v => v != null).map(searchableText).join(' ');
+                    }
+                    return String(value)
+                        .replace(/<[^>]*>/g, ' ')
+                        .replace(/&nbsp;/gi, ' ')
+                        .toLocaleLowerCase('zh-CN');
+                };
+                list = list.filter(e => {
+                    const multiText = Array.isArray(e?.timeSegments)
+                        ? e.timeSegments.map(seg => [seg?.date, seg?.title, seg?.description, seg?.tags]).flatMap(v => Array.isArray(v) ? v : [v])
+                        : [];
+                    const haystack = [e?.title, e?.description, e?.tags, multiText].map(searchableText).join(' ');
+                    return haystack.includes(query);
+                });
             }
             return list;
         };
@@ -4933,7 +4831,6 @@
                     if (typeof window.saveEventToCloud === 'function') {
                         for (const ev of items) await window.saveEventToCloud(ev);
                     }
-                    try { localStorage.setItem('yhtq_events_cache', JSON.stringify(window.events)); } catch (_) {}
                     window._stackFocusIndex = to;
                     window.openStackManagerModal(items);
                     setStackSaving(true);
@@ -9138,20 +9035,30 @@
         window.syncEditingConnections = async function(eventId, desiredConnections) {
             const desiredIds = new Set(desiredConnections.map(c => String(c.id)));
             const existing = window.connections.filter(c => String(c.sourceId) === String(eventId) || String(c.targetId) === String(eventId));
-            for (const c of existing.filter(c => !desiredIds.has(String(c.id)))) {
+            const removed = existing.filter(c => !desiredIds.has(String(c.id)));
+
+            for (const c of removed) {
                 window.connections = window.connections.filter(x => String(x.id) !== String(c.id));
-                if (currentUser && db) { try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'connections', String(c.id))); } catch (err) {} }
             }
             for (const c of desiredConnections) {
                 const idx = window.connections.findIndex(x => String(x.id) === String(c.id));
                 if (idx >= 0) window.connections[idx] = { ...c };
                 else window.connections.push({ ...c });
-                if (currentUser && db) {
-                    try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'connections', String(c.id)), c); } catch (err) {}
-                }
             }
-            saveLocalData();
             window.renderSvgConnections();
+
+            try {
+                for (const c of removed) {
+                    await window.timelineApiWrite('deleteConnection', { connectionId: c.id });
+                }
+                for (const c of desiredConnections) {
+                    await window.timelineApiWrite('upsertConnection', { connection: c });
+                }
+                return true;
+            } catch (err) {
+                window.showToast('逻辑关系云端同步失败，请刷新后重试', 'error');
+                return false;
+            }
         };
 
         window.addImageByUrl = function() {
@@ -9672,26 +9579,10 @@
             }
         };
 
-        // 详细描述的“14px（默认大小）”沿用旧版语义：
-        // 编辑器内默认显示为 14px，但保存时不写死 font-size，
-        // 从而让浏览/外显继续继承各自容器的响应式默认字号。
+        // 详细描述中的“14px（默认大小）”必须真实作用于当前选区。
+        // 过去把 14px 样式移除会导致它继续继承外层的大字号，看起来像“默认大小没有生效”。
         window.normalizeDescriptionDefaultFontSize = function(value) {
-            const raw = String(value || '');
-            if (!raw) return '';
-            try {
-                const wrap = document.createElement('div');
-                wrap.innerHTML = raw;
-                wrap.querySelectorAll('[style]').forEach(el => {
-                    const size = String(el.style.fontSize || '').trim().toLowerCase();
-                    if (size === '14px' || size === '14.0px') {
-                        el.style.removeProperty('font-size');
-                    }
-                    if (!String(el.getAttribute('style') || '').trim()) el.removeAttribute('style');
-                });
-                return wrap.innerHTML;
-            } catch (_) {
-                return raw;
-            }
+            return String(value || '');
         };
 
         window.descriptionToEditorHtml = function(value) {
@@ -9773,12 +9664,6 @@
         window.getEditorDescriptionHtml = function() {
             const e = document.getElementById('editDescription');
             if (!e) return '';
-            // 14px 是“默认大小”，不作为显式字号保存。这样与旧版 14px 默认的外显一致。
-            e.querySelectorAll('[style]').forEach(el => {
-                const size=String(el.style.fontSize||'').trim().toLowerCase();
-                if(size==='14px'||size==='14.0px') el.style.removeProperty('font-size');
-                if(!String(el.getAttribute('style')||'').trim()) el.removeAttribute('style');
-            });
             window.richSyncDecorationGeometry?.();
             e.querySelectorAll('*').forEach((el) => {
                 if (el.nodeType !== 1) return;
@@ -9997,14 +9882,6 @@
             const fixed=window.applyExactFontSizeToSelection?.(e,r,n);
             if(!fixed)return;
             window.richSelectionRange=fixed.cloneRange();
-            if(Math.abs(n-14)<0.001){
-                // “14px（默认大小）”恢复旧版行为：移除显式 14px，让外显继承默认响应式字号。
-                e.querySelectorAll('[style]').forEach(el=>{
-                    const size=String(el.style.fontSize||'').trim().toLowerCase();
-                    if(size==='14px'||size==='14.0px')el.style.removeProperty('font-size');
-                    if(!String(el.getAttribute('style')||'').trim())el.removeAttribute('style');
-                });
-            }
             window.richSyncDecorationGeometry?.();
             const custom=document.getElementById('richFontSizeCustom');
             if(custom)custom.value=String(Math.round(n*10)/10);
@@ -10789,28 +10666,6 @@
             });
         };
 
-        window.verifyDeepDescriptionsAfterCloudSave = async function(eventData, eventRef) {
-            if (!getDoc || !eventRef) return true;
-            const snap = await getDoc(eventRef);
-            if (!snap.exists()) throw new Error('cloud verification: event missing');
-            const remote = window.deepDecodeFromFirestore(snap.data() || {});
-            const compareCollection = (localList, remoteList, label) => {
-                const a = Array.isArray(localList) ? localList : [];
-                const b = Array.isArray(remoteList) ? remoteList : [];
-                if (a.length !== b.length) throw new Error(`cloud verification: ${label} count mismatch`);
-                for (let i = 0; i < a.length; i++) {
-                    const localDeep = (typeof a[i] === 'object' && a[i]) ? a[i].deepDescription : null;
-                    const remoteDeep = (typeof b[i] === 'object' && b[i]) ? b[i].deepDescription : null;
-                    if (window.deepDescriptionFingerprint(localDeep) !== window.deepDescriptionFingerprint(remoteDeep)) {
-                        throw new Error(`cloud verification: ${label}[${i}] deepDescription mismatch`);
-                    }
-                }
-            };
-            compareCollection(eventData.images, remote.images, 'images');
-            compareCollection(eventData.videos, remote.videos, 'videos');
-            return true;
-        };
-
         window.toggleDeepDescriptionFeature = function(enabled) {
             window.deepDescriptionEnabledDraft = !!enabled;
             window.renderMicroPreviews();
@@ -10915,9 +10770,12 @@
             const modal = document.getElementById('thanksNoteModal');
             const title = document.getElementById('thanksNoteTitle');
             const body = document.getElementById('thanksNoteBody');
+            if (!modal) return;
+            // 历史帮助区 HTML 曾有误嵌套；二次弹窗强制挂到 body，避免被 hidden/overflow 父层裁掉。
+            if (modal.parentElement !== document.body) document.body.appendChild(modal);
             if (title) title.textContent = note.title;
             if (body) body.textContent = note.body;
-            modal?.classList.remove('hidden');
+            modal.classList.remove('hidden');
         };
         window.closeThanksNote = function() {
             document.getElementById('thanksNoteModal')?.classList.add('hidden');
@@ -10940,7 +10798,7 @@
                 }
                 return token;
             } catch (_) {
-                return String(currentUser?.uid || 'unknown-owner');
+                return 'owner_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2);
             }
         };
 
@@ -10948,16 +10806,8 @@
             return String(value || '').normalize('NFKC').trim().replace(/\s+/g, ' ');
         };
 
-        window.editorIdentityDocKey = function(name) {
-            const normalized = window.normalizeEditorIdentityName(name);
-            const bytes = new TextEncoder().encode(normalized);
-            let binary = '';
-            bytes.forEach(b => binary += String.fromCharCode(b));
-            return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-        };
-
         window.claimEditorIdentity = async function(newName, oldName = '') {
-            if (!window.isCloudSynced || !currentUser || !db || !runTransaction) {
+            if (!window.isCloudSynced || !window.hasTimelineEditToken?.()) {
                 return { ok:false, reason:'offline' };
             }
             const next = window.normalizeEditorIdentityName(newName);
@@ -10965,46 +10815,16 @@
             if (!next) return { ok:false, reason:'invalid' };
 
             const ownerToken = window.getEditorOwnerToken();
-            const nextRef = doc(db, 'artifacts', appId, 'public', 'data', 'editorIdentities', window.editorIdentityDocKey(next));
-            const prevRef = prev && prev !== next
-                ? doc(db, 'artifacts', appId, 'public', 'data', 'editorIdentities', window.editorIdentityDocKey(prev))
-                : null;
-
             try {
-                await runTransaction(db, async tx => {
-                    const nextSnap = await tx.get(nextRef);
-                    if (nextSnap.exists()) {
-                        const data = nextSnap.data() || {};
-                        if (String(data.ownerToken || '') !== ownerToken) {
-                            const err = new Error('IDENTITY_TAKEN');
-                            err.code = 'IDENTITY_TAKEN';
-                            throw err;
-                        }
-                    }
-
-                    let prevOwnedByMe = false;
-                    if (prevRef) {
-                        const prevSnap = await tx.get(prevRef);
-                        if (prevSnap.exists()) {
-                            prevOwnedByMe = String(prevSnap.data()?.ownerToken || '') === ownerToken;
-                        }
-                    }
-
-                    tx.set(nextRef, {
-                        displayName: next,
-                        ownerToken,
-                        authUid: String(currentUser.uid || ''),
-                        updatedAt: Date.now()
-                    });
-
-                    // Release the old ID only after a different new ID is successfully claimed.
-                    if (prevRef && prevOwnedByMe) tx.delete(prevRef);
+                const result = await window.timelineApiWrite('claimIdentity', {
+                    name: next,
+                    oldName: prev,
+                    ownerToken
                 });
-
                 window._identityReservationValid = true;
-                return { ok:true, name:next };
+                return { ok:true, name: result.name || next };
             } catch (e) {
-                if (e?.code === 'IDENTITY_TAKEN' || String(e?.message || '').includes('IDENTITY_TAKEN')) {
+                if (e?.code === 'identity_taken') {
                     window._identityReservationValid = false;
                     return { ok:false, reason:'taken' };
                 }
@@ -11016,7 +10836,7 @@
 
         window.ensureCurrentIdentityReservation = async function() {
             const stored = window.getStoredEditorIdentity?.();
-            if (!stored || !window.isCloudSynced || !currentUser) {
+            if (!stored || !window.isCloudSynced || !window.hasTimelineEditToken?.()) {
                 window._identityReservationValid = !stored;
                 return !stored;
             }
@@ -11081,7 +10901,7 @@
         };
 
         window.ensureEditorIdentity = function() {
-            if (!window.isCloudSynced || !currentUser) return false;
+            if (!window.isCloudSynced || !window.hasTimelineEditToken?.()) return false;
             const stored = window.getStoredEditorIdentity();
             const anonymous = window.isEditorAnonymous();
             if (stored || anonymous) {
@@ -11107,7 +10927,8 @@
         };
 
         window.openEditorIdentityEditor = function() {
-            if (!window.isCloudSynced || !currentUser) {
+            window.normalizeGlobalOverlayStructure?.();
+            if (!window.isCloudSynced || !window.hasTimelineEditToken?.()) {
                 window.showToast?.('当前未同步云端，无法编辑 ID', 'info');
                 return;
             }
@@ -11168,8 +10989,7 @@
                 document.getElementById('editorIdentityModal')?.classList.add('hidden');
                 const label = document.getElementById('activityCurrentUser');
                 if (label) label.textContent = '匿名';
-                window.renderActivityLogs?.();
-                window.showToast?.('已设为匿名', 'success');
+                    window.showToast?.('已设为匿名', 'success');
                 return;
             }
 
@@ -11195,7 +11015,6 @@
             document.getElementById('editorIdentityModal')?.classList.add('hidden');
             const label = document.getElementById('activityCurrentUser');
             if (label) label.textContent = claim.name;
-            window.renderActivityLogs?.();
             window.showToast?.('ID 已保存', 'success');
         };
 
@@ -11271,33 +11090,52 @@
                 title.className = 'font-semibold text-slate-800 break-words';
                 title.textContent = targetText;
                 desc.append(user, action, title);
+                const right = document.createElement('div');
+                right.className = 'shrink-0 flex items-center gap-2 pt-0.5';
                 const time = document.createElement('div');
-                time.className = 'shrink-0 text-[10px] font-mono text-slate-400 pt-0.5';
+                time.className = 'text-[10px] font-mono text-slate-400';
                 time.textContent = window.formatActivityTime(item.timestamp);
-                row.append(desc, time);
+                right.appendChild(time);
+                row.append(desc, right);
                 card.appendChild(row);
                 root.appendChild(card);
             });
+        };
+
+        window.refreshActivityLogsFromCloudBase = async function() {
+            if (!window.isCloudSynced || window.timelineCloudSource !== 'cloudbase') return false;
+            try {
+                const data = await timelineApiFetch('/timeline?type=activityLogs', 12000);
+                window.activityLogs = Array.isArray(data?.items) ? data.items : [];
+                window.activityLogs.sort((a, b) => (Number(b?.timestamp) || 0) - (Number(a?.timestamp) || 0));
+                window._activityListenerReady = true;
+                window.renderActivityLogs?.();
+                return true;
+            } catch (err) {
+                console.warn('活动日志刷新失败:', err);
+                return false;
+            }
         };
 
         window.writeActivityLog = async function(action, eventInfo) {
             const identity = window.getEditorIdentity();
             const storedIdentity = window.getStoredEditorIdentity?.();
             if (storedIdentity && !window._identityReservationValid) return false;
-            if (!identity || !window.isCloudSynced || !currentUser || !db || !collection || !doc || !setDoc) return false;
+            if (!identity || !window.isCloudSynced || !window.hasTimelineEditToken?.()) return false;
             try {
-                const activityCol = collection(db, 'artifacts', appId, 'public', 'data', 'activityLogs');
-                const ref = doc(activityCol);
-                await setDoc(ref, {
-                    userId: identity,
-                    action,
-                    eventId: String(eventInfo?.id ?? ''),
-                    eventTitle: String(eventInfo?.title || '未命名事件'),
-                    resourceType: String(eventInfo?.resourceType || ''),
-                    resourceName: String(eventInfo?.resourceName || ''),
-                    timestamp: Date.now(),
-                    authUid: String(currentUser.uid || '')
+                await window.timelineApiWrite('activityLog', {
+                    log: {
+                        userId: identity,
+                        action,
+                        eventId: String(eventInfo?.id ?? ''),
+                        eventTitle: String(eventInfo?.title || '未命名事件'),
+                        resourceType: String(eventInfo?.resourceType || ''),
+                        resourceName: String(eventInfo?.resourceName || ''),
+                        timestamp: Date.now()
+                    }
                 });
+                // 写入成功后立即重新读取，让活动日志在当前窗口立刻可见。
+                await window.refreshActivityLogsFromCloudBase?.();
                 return true;
             } catch (err) {
                 console.warn('活动日志写入失败:', err);
@@ -11305,12 +11143,44 @@
             }
         };
 
+        // 修复历史 HTML 中帮助面板的误嵌套：确保四个主面板互为兄弟，
+        // 并让浏览/编辑更新日志都直属于更新日志面板。
+        window.normalizeHelpPanelStructure = function() {
+            const changelog = document.getElementById('helpChangelogPanel');
+            const browseLog = document.getElementById('helpBrowseChangelog');
+            const editLog = document.getElementById('helpEditChangelog');
+            const activity = document.getElementById('helpActivityPanel');
+            const thanks = document.getElementById('helpThanksPanel');
+            if (!changelog) return;
+            const card = changelog.parentElement;
+            if (!card) return;
+            if (browseLog && browseLog.parentElement !== changelog) changelog.appendChild(browseLog);
+            if (editLog && editLog.parentElement !== changelog) changelog.appendChild(editLog);
+            if (activity && activity.parentElement !== card) card.appendChild(activity);
+            if (thanks && thanks.parentElement !== card) card.appendChild(thanks);
+            ['thanksNoteModal','xiaoqingerCustomColorModal','xiaoqingerDialogueEditorModal','editorIdentityModal','xiaoqingerSimplePet'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el && el.parentElement !== document.body) document.body.appendChild(el);
+            });
+        };
+        window.normalizeGlobalOverlayStructure = function() {
+            window.normalizeHelpPanelStructure?.();
+            ['thanksNoteModal','xiaoqingerCustomColorModal','xiaoqingerDialogueEditorModal','editorIdentityModal','xiaoqingerSimplePet'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el && el.parentElement !== document.body) document.body.appendChild(el);
+            });
+        };
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', window.normalizeGlobalOverlayStructure, {once:true});
+        } else {
+            window.normalizeGlobalOverlayStructure();
+        }
+
         window.openHelpModal = function() {
+            window.normalizeHelpPanelStructure?.();
             const modal = document.getElementById('helpModal'); if (!modal) return;
-            window.updateMobileBrowseHelpTip?.();
             const browse=document.getElementById('helpBrowseUsage');
             const edit=document.getElementById('helpEditUsage');
-            const commonBrowseTip=document.getElementById('helpCommonBrowseTip');
             const editing=!window.isLocked;
             if(browse) browse.classList.toggle('hidden',editing);
             if(edit) edit.classList.toggle('hidden',!editing);
@@ -11322,7 +11192,6 @@
             if(editLog)editLog.classList.toggle('hidden',!editing);
             if(activityTab) activityTab.classList.toggle('hidden', !editing);
             if(modeActivityPanel && !editing) modeActivityPanel.classList.add('hidden');
-            if(commonBrowseTip) commonBrowseTip.classList.toggle('hidden',editing);
             window.renderActivityLogs?.();
             switchHelpTab('usage');
             modal.classList.remove('hidden');
@@ -11337,6 +11206,7 @@
         };
         window.closeHelpModal = function() { document.getElementById('helpModal')?.classList.add('hidden'); };
         window.switchHelpTab = function(tab) {
+            window.normalizeHelpPanelStructure?.();
             const panels = {
                 usage: document.getElementById('helpUsagePanel'),
                 changelog: document.getElementById('helpChangelogPanel'),
@@ -11395,7 +11265,6 @@
         };
 
         /* === 小晴儿初始互动 === */
-        window.XIAOQINGER_DIALOGUE_STORAGE_KEY = 'yuhoutianqing_xiaoqinger_dialogues';
         window.XIAOQINGER_DIALOGUE_SCHEMA_VERSION = 3;
         window.xiaoqingerDialogueDefaults = {
             greeting: '{name}，你好呀！我是小晴儿',
@@ -11415,6 +11284,15 @@
         window.xiaoqingerDialogueConfig = null;
         window.xiaoqingerSimpleDialogues = [];
         window._xiaoqingerSpeechTimer = null;
+        // 小晴儿本体与默认台词不依赖云端。即使 CloudBase 完全不可用，也应该能显示并互动。
+        window.xiaoqingerDialogueConfig = {
+            schemaVersion: window.XIAOQINGER_DIALOGUE_SCHEMA_VERSION,
+            greeting: window.xiaoqingerDialogueDefaults.greeting,
+            specialGreeting: window.xiaoqingerDialogueDefaults.specialGreeting,
+            rapid: window.xiaoqingerDialogueDefaults.rapid,
+            lines: window.xiaoqingerDialogueDefaults.lines.slice()
+        };
+        window.xiaoqingerSimpleDialogues = window.xiaoqingerDialogueDefaults.lines.slice();
 
         window.sanitizeXiaoqingerRichHtml = function(html) {
             const tpl = document.createElement('template');
@@ -11533,36 +11411,19 @@
         };
 
         window.loadXiaoqingerDialogues = function() {
-            const key = window.XIAOQINGER_DIALOGUE_STORAGE_KEY;
-            let raw = null;
-            try {
-                const stored = localStorage.getItem(key);
-                raw = stored ? JSON.parse(stored) : null;
-            } catch (_) {}
-
-            // Once the user has saved a valid configuration, it is the sole source of truth.
-            // Built-in defaults are initialization data only and are never merged into saved dialogue.
-            let cfg = window.normalizeXiaoqingerStoredConfig(raw);
-            if (!cfg) {
-                const d = window.xiaoqingerDialogueDefaults;
-                cfg = {
-                    schemaVersion: window.XIAOQINGER_DIALOGUE_SCHEMA_VERSION,
-                    greeting: window.sanitizeXiaoqingerRichHtml(d.greeting),
-                    specialGreeting: window.sanitizeXiaoqingerRichHtml(d.specialGreeting),
-                    rapid: window.sanitizeXiaoqingerRichHtml(d.rapid),
-                    lines: d.lines.map(x => window.sanitizeXiaoqingerRichHtml(x))
-                };
-            }
-
+            // CloudBase 尚未返回配置时只使用内置默认值，不读取本机台词文件/缓存。
+            const existing = window.normalizeXiaoqingerStoredConfig(window.xiaoqingerDialogueConfig);
+            if (existing) return existing;
+            const d = window.xiaoqingerDialogueDefaults;
+            const cfg = {
+                schemaVersion: window.XIAOQINGER_DIALOGUE_SCHEMA_VERSION,
+                greeting: window.sanitizeXiaoqingerRichHtml(d.greeting),
+                specialGreeting: window.sanitizeXiaoqingerRichHtml(d.specialGreeting),
+                rapid: window.sanitizeXiaoqingerRichHtml(d.rapid),
+                lines: d.lines.map(x => window.sanitizeXiaoqingerRichHtml(x))
+            };
             window.xiaoqingerDialogueConfig = cfg;
             window.xiaoqingerSimpleDialogues = cfg.lines.slice();
-
-            // Built-in defaults are memory-only initialization data.
-            // Persist only when this origin already had an actual saved config
-            // (so legacy data can be migrated without making defaults look user-saved).
-            if (raw) {
-                try { localStorage.setItem(key, JSON.stringify(cfg)); } catch (_) {}
-            }
             return cfg;
         };
 
@@ -11716,6 +11577,7 @@
         };
 
         window.openXiaoqingerCustomColorModal = function() {
+            window.normalizeGlobalOverlayStructure?.();
             window.xiaoqingerRememberRichSelection();
             const picker = document.getElementById('xiaoqingerRichCustomColor');
             const hex = document.getElementById('xiaoqingerRichCustomColorHex');
@@ -11807,21 +11669,27 @@
             }, true);
         }
 
-        window.requestXiaoqingerDialogueEditor = function() {
+        window.requestXiaoqingerDialogueEditor = async function() {
+            window.normalizeGlobalOverlayStructure?.();
             if (!window.isCloudSynced || window._syncStatusType !== 'synced') {
                 window.showToast?.('当前未同步云端，无法编辑小晴儿台词', 'error');
                 return;
             }
-            const password = window.prompt('请输入小晴儿台词编辑密码：');
-            if (password === null) return;
-            if (password !== OFFLINE_EXPORT_PASSWORD) {
-                window.showToast?.('密码错误，无法编辑小晴儿台词', 'error');
-                return;
+            if (!window.hasXiaoqingerEditToken?.()) {
+                const password = window.prompt('请输入小晴儿台词编辑密钥：');
+                if (password === null) return;
+                try {
+                    await window.authenticateXiaoqingerEditor?.(password);
+                } catch (err) {
+                    window.showToast?.(err?.code === 'bad_password' ? '台词编辑密钥错误' : '台词编辑授权失败，请稍后重试', 'error');
+                    return;
+                }
             }
             window.openXiaoqingerDialogueEditor();
         };
 
         window.openXiaoqingerDialogueEditor = function() {
+            window.normalizeGlobalOverlayStructure?.();
             const cfg = window.loadXiaoqingerDialogues();
             const greeting = document.getElementById('xiaoqingerGreetingEditor');
             const specialGreeting = document.getElementById('xiaoqingerSpecialGreetingEditor');
@@ -11839,7 +11707,7 @@
             document.getElementById('xiaoqingerDialogueEditorModal')?.classList.add('hidden');
         };
 
-        window.saveXiaoqingerDialogues = function() {
+        window.saveXiaoqingerDialogues = async function() {
             if (!window.isCloudSynced || window._syncStatusType !== 'synced') {
                 window.showToast?.('当前未同步云端，无法保存小晴儿台词', 'error');
                 return;
@@ -11867,15 +11735,15 @@
                 lines
             };
             try {
-                localStorage.setItem(window.XIAOQINGER_DIALOGUE_STORAGE_KEY, JSON.stringify(cfg));
+                await window.timelineApiXiaoqingerWrite('updateXiaoqinger', { config: cfg });
+                window.xiaoqingerDialogueConfig = cfg;
+                window.xiaoqingerSimpleDialogues = lines.slice();
+                window.closeXiaoqingerDialogueEditor();
+                window.showToast?.('小晴儿台词已同步云端', 'success');
             } catch (e) {
-                window.showToast?.('台词保存失败', 'error');
-                return;
+                console.warn('小晴儿台词云端保存失败:', e);
+                window.showToast?.('小晴儿台词保存失败', 'error');
             }
-            window.xiaoqingerDialogueConfig = cfg;
-            window.xiaoqingerSimpleDialogues = lines.slice();
-            window.closeXiaoqingerDialogueEditor();
-            window.showToast?.('小晴儿台词已保存', 'success');
         };
 
         window.resetXiaoqingerDialogues = function() {
@@ -11890,23 +11758,34 @@
             if (lines) lines.innerHTML = d.lines.map(x => `<div>${x}</div>`).join('');
         };
 
+        // 小晴儿本体和拖动位置是“本机 UI 状态”，不参与云端同步；只有台词配置来自 CloudBase。
         window.XIAOQINGER_POS_STORAGE_KEY = 'yuhoutianqing_xiaoqinger_position';
-
+        window.ensureXiaoqingerVisible = function() {
+            const pet = document.getElementById('xiaoqingerSimplePet');
+            if (!pet) return;
+            if (pet.parentElement !== document.body) document.body.appendChild(pet);
+            pet.hidden = false;
+            pet.removeAttribute('hidden');
+            pet.classList.remove('hidden');
+            pet.style.setProperty('display', 'block', 'important');
+            pet.style.setProperty('visibility', 'visible', 'important');
+            pet.style.setProperty('opacity', '1', 'important');
+            pet.style.setProperty('position', 'fixed', 'important');
+            pet.style.setProperty('z-index', '88', 'important');
+            pet.style.setProperty('pointer-events', 'auto', 'important');
+        };
         window.saveXiaoqingerPosition = function() {
             const pet = document.getElementById('xiaoqingerSimplePet');
             if (!pet) return;
             const r = pet.getBoundingClientRect();
             try {
-                localStorage.setItem(window.XIAOQINGER_POS_STORAGE_KEY, JSON.stringify({
-                    left: r.left,
-                    top: r.top
-                }));
+                localStorage.setItem(window.XIAOQINGER_POS_STORAGE_KEY, JSON.stringify({ left:r.left, top:r.top }));
             } catch (_) {}
         };
-
         window.restoreXiaoqingerPosition = function() {
             const pet = document.getElementById('xiaoqingerSimplePet');
             if (!pet) return;
+            window.ensureXiaoqingerVisible?.();
             try {
                 const p = JSON.parse(localStorage.getItem(window.XIAOQINGER_POS_STORAGE_KEY) || 'null');
                 if (p && Number.isFinite(Number(p.left)) && Number.isFinite(Number(p.top))) {
@@ -11916,15 +11795,23 @@
                     pet.style.bottom = 'auto';
                     pet.style.left = Math.max(0, Math.min(maxLeft, Number(p.left))) + 'px';
                     pet.style.top = Math.max(64, Math.min(maxTop, Number(p.top))) + 'px';
+                    return;
                 }
             } catch (_) {}
+            pet.style.left = 'auto';
+            pet.style.top = 'auto';
+            pet.style.right = window.innerWidth <= 639 ? '42px' : '72px';
+            pet.style.bottom = window.innerWidth <= 639 ? '12px' : '18px';
         };
 
         window.initXiaoqingerSimplePet = function() {
             const pet = document.getElementById('xiaoqingerSimplePet');
-            if (!pet || pet.dataset.bound === '1') return;
-            pet.dataset.bound = '1';
+            if (!pet) return;
+            // 显示/恢复位置每次都执行；事件绑定只执行一次。
+            window.ensureXiaoqingerVisible?.();
             window.restoreXiaoqingerPosition();
+            if (pet.dataset.bound === '1') return;
+            pet.dataset.bound = '1';
 
             let drag = null;
             let suppressClickUntil = 0;
@@ -11995,13 +11882,25 @@
             });
         };
 
+        window.bootXiaoqingerLocalPet = function() {
+            try {
+                window.ensureXiaoqingerVisible?.();
+                window.initXiaoqingerSimplePet?.();
+            } catch (e) {
+                console.warn('小晴儿本体初始化失败:', e);
+            }
+        };
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => window.initXiaoqingerSimplePet?.(), { once:true });
+            document.addEventListener('DOMContentLoaded', window.bootXiaoqingerLocalPet, { once:true });
         } else {
-            window.initXiaoqingerSimplePet?.();
+            window.bootXiaoqingerLocalPet();
         }
+        // 再做两次独立兜底，不依赖任何云端同步流程。
+        setTimeout(window.bootXiaoqingerLocalPet, 0);
+        setTimeout(window.bootXiaoqingerLocalPet, 1200);
 
         window.onload = () => {
+            window.bootXiaoqingerLocalPet?.();
             if(window.forceMobileBrowseMode?.()) window.updateLockButtonUI?.();
             initAppAndCloudSync();
         };
