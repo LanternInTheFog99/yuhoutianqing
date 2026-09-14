@@ -624,6 +624,259 @@
             }
         }
 
+
+        /* === 每个事件独立留言板 / CloudBase message-api === */
+        .event-comment-board{margin-top:28px;padding-top:24px;border-top:1px solid #1e293b;color:#e2e8f0}
+        .event-comment-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+        .event-comment-title{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:800;color:#f8fafc}
+        .event-comment-count{font-size:10px;font-weight:700;color:#a5b4fc;background:rgba(99,102,241,.13);border:1px solid rgba(129,140,248,.22);padding:2px 7px;border-radius:9999px}
+        .event-comment-identity{border:1px solid #334155;background:rgba(15,23,42,.72);border-radius:14px;padding:11px 12px;margin-bottom:12px}
+        .event-comment-identity-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+        .event-comment-avatar{width:28px;height:28px;border-radius:9999px;display:flex;align-items:center;justify-content:center;background:#312e81;color:#c7d2fe;font-size:11px;flex:0 0 auto}
+        .event-comment-name{font-size:12px;font-weight:800;color:#f1f5f9;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .event-comment-muted{font-size:10px;color:#94a3b8}
+        .event-comment-btn{border:1px solid #475569;background:#1e293b;color:#cbd5e1;border-radius:8px;padding:5px 9px;font-size:10px;font-weight:700;cursor:pointer;transition:.15s ease}
+        .event-comment-btn:hover{background:#334155;color:#fff}
+        .event-comment-btn.primary{background:#4f46e5;border-color:#6366f1;color:#fff}
+        .event-comment-btn.primary:hover{background:#4338ca}
+        .event-comment-btn.danger{color:#fda4af;border-color:rgba(244,63,94,.35);background:rgba(136,19,55,.12)}
+        .event-comment-btn:disabled{opacity:.45;cursor:not-allowed}
+        .event-comment-switch{display:inline-flex;align-items:center;gap:6px;font-size:10px;font-weight:700;color:#cbd5e1;cursor:pointer;user-select:none}
+        .event-comment-switch input{display:none}
+        .event-comment-switch-track{width:28px;height:16px;border-radius:9999px;background:#475569;position:relative;transition:.15s ease}
+        .event-comment-switch-track::after{content:'';position:absolute;width:12px;height:12px;border-radius:9999px;left:2px;top:2px;background:#fff;transition:.15s ease}
+        .event-comment-switch input:checked + .event-comment-switch-track{background:#6366f1}
+        .event-comment-switch input:checked + .event-comment-switch-track::after{transform:translateX(12px)}
+        .event-comment-settings{display:none;margin-top:10px;padding-top:10px;border-top:1px solid #334155}
+        .event-comment-settings.is-open{display:block}
+        .event-comment-input-row{display:flex;gap:7px}
+        .event-comment-input{min-width:0;flex:1;background:#0f172a;border:1px solid #475569;color:#f8fafc;border-radius:9px;padding:7px 9px;font-size:11px;outline:none}
+        .event-comment-input:focus,.event-comment-textarea:focus{border-color:#818cf8;box-shadow:0 0 0 2px rgba(99,102,241,.16)}
+        .event-comment-compose{border:1px solid #334155;background:rgba(15,23,42,.52);border-radius:14px;padding:11px 12px;margin-bottom:14px}
+        .event-comment-replying{display:none;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;padding:6px 8px;border-radius:8px;background:rgba(79,70,229,.13);border:1px solid rgba(129,140,248,.2);font-size:10px;color:#c7d2fe}
+        .event-comment-replying.is-visible{display:flex}
+        .event-comment-textarea{display:block;width:100%;min-height:76px;max-height:180px;resize:vertical;background:#0f172a;border:1px solid #475569;color:#f8fafc;border-radius:10px;padding:9px 10px;font-size:12px;line-height:1.6;outline:none}
+        .event-comment-compose-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}
+        .event-comment-char{font-size:9px;color:#64748b}
+        .event-comment-list{display:flex;flex-direction:column;gap:9px}
+        .event-comment-empty{padding:22px 10px;text-align:center;color:#64748b;font-size:11px;border:1px dashed #334155;border-radius:12px}
+        .event-comment-item{border:1px solid #334155;background:rgba(15,23,42,.42);border-radius:13px;padding:10px 11px}
+        .event-comment-item.is-reply{margin-left:24px;border-left:2px solid #4f46e5}
+        .event-comment-meta{display:flex;align-items:center;gap:7px;min-width:0}
+        .event-comment-author{font-size:11px;font-weight:800;color:#e2e8f0;cursor:default;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .event-comment-author.is-profile{cursor:pointer;color:#c7d2fe}
+        .event-comment-author.is-profile:hover{text-decoration:underline}
+        .event-comment-time{font-size:9px;color:#64748b;white-space:nowrap}
+        .event-comment-anon{font-size:9px;color:#94a3b8}
+        .event-comment-content{margin-top:6px;font-size:12px;line-height:1.65;color:#e2e8f0;white-space:pre-wrap;overflow-wrap:anywhere}
+        .event-comment-actions{display:flex;align-items:center;gap:8px;margin-top:7px}
+        .event-comment-action-link{border:0;background:transparent;color:#94a3b8;font-size:9px;cursor:pointer;padding:0}
+        .event-comment-action-link:hover{color:#c7d2fe}
+        .event-comment-action-link.danger:hover{color:#fda4af}
+        .event-comment-loading{padding:18px;text-align:center;color:#94a3b8;font-size:11px}
+        .event-comment-error{padding:9px 10px;border-radius:9px;background:rgba(127,29,29,.2);border:1px solid rgba(248,113,113,.22);color:#fecaca;font-size:10px;margin-bottom:9px}
+        .event-comment-profile-card{position:fixed;inset:0;z-index:260;background:rgba(2,6,23,.72);backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center;padding:16px}
+        .event-comment-profile-dialog{width:min(420px,100%);max-height:80vh;overflow:auto;background:#0f172a;border:1px solid #334155;border-radius:18px;padding:18px;color:#e2e8f0;box-shadow:0 24px 60px rgba(0,0,0,.45)}
+        @media(max-width:639px){
+            .event-comment-board{margin-top:22px;padding-top:19px}
+            .event-comment-identity-row{gap:6px}
+            .event-comment-input-row{flex-direction:column}
+            .event-comment-item.is-reply{margin-left:13px}
+            .event-comment-compose-foot{align-items:flex-end}
+        }
+
+
+        /* === 浮动详情窗口 + 独立白色评论区窗口 === */
+        #fullscreenViewer{overflow:hidden !important;align-items:initial !important;justify-content:initial !important;}
+        #fullscreenViewer [data-detail-shell]{
+            position:absolute !important;
+            left:50%;top:50%;
+            transform:translate(-50%,-50%);
+            max-height:calc(100vh - 34px);
+            overflow:auto;
+            margin:0 !important;
+            touch-action:none;
+        }
+        .detail-window-dragbar{
+            display:flex;align-items:center;gap:7px;
+            margin:-10px -10px 14px;
+            padding:9px 52px 9px 11px;
+            border-bottom:1px solid #334155;
+            color:#94a3b8;font-size:10px;font-weight:700;
+            cursor:grab;user-select:none;touch-action:none;
+        }
+        .detail-window-dragbar:active{cursor:grabbing}
+        .detail-window-comments-btn{
+            position:absolute;top:16px;right:108px;z-index:4;
+            height:40px;padding:0 12px;border-radius:9999px;
+            border:1px solid #475569;background:rgba(30,41,59,.9);
+            color:#c7d2fe;font-size:11px;font-weight:800;
+            display:flex;align-items:center;gap:6px;
+        }
+        .detail-window-comments-btn:hover{background:#334155;color:#fff}
+        #eventCommentWindow{
+            position:fixed;z-index:80;
+            right:22px;top:88px;
+            width:min(430px,calc(100vw - 28px));
+            height:min(640px,calc(100vh - 110px));
+            min-width:300px;min-height:280px;
+            max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);
+            resize:both;overflow:hidden;
+            border:1px solid #cbd5e1;border-radius:18px;
+            background:#fff;color:#334155;
+            box-shadow:0 24px 65px rgba(15,23,42,.28);
+        }
+        #eventCommentWindow.hidden{display:none}
+        .comment-window-titlebar{
+            height:46px;display:flex;align-items:center;justify-content:space-between;
+            gap:10px;padding:0 12px 0 15px;
+            border-bottom:1px solid #e2e8f0;background:#f8fafc;
+            cursor:move;user-select:none;touch-action:none;
+        }
+        .comment-window-title{
+            min-width:0;display:flex;align-items:center;gap:8px;
+            color:#0f172a;font-size:13px;font-weight:800;
+        }
+        .comment-window-event-name{
+            max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+            color:#0f172a;font-size:14px;font-weight:800;line-height:1.2;
+        }
+        .comment-window-close{
+            width:30px;height:30px;border:0;border-radius:9999px;background:#e2e8f0;
+            color:#64748b;display:flex;align-items:center;justify-content:center;cursor:pointer;
+        }
+        .comment-window-close:hover{background:#cbd5e1;color:#0f172a}
+        .comment-window-body{height:calc(100% - 46px);overflow:auto;padding:14px}
+        #eventCommentWindow .event-comment-board{margin:0;padding:0;border:0;color:#334155}
+        #eventCommentWindow .event-comment-title{color:#0f172a}
+        #eventCommentWindow .event-comment-count{color:#4f46e5;background:#eef2ff;border-color:#c7d2fe}
+        #eventCommentWindow .event-comment-identity{border-color:#e2e8f0;background:#f8fafc}
+        #eventCommentWindow .event-comment-avatar{background:#eef2ff;color:#4f46e5}
+        #eventCommentWindow .event-comment-name{color:#0f172a}
+        #eventCommentWindow .event-comment-muted{color:#64748b}
+        #eventCommentWindow .event-comment-btn{border-color:#cbd5e1;background:#fff;color:#475569}
+        #eventCommentWindow .event-comment-btn:hover{background:#f1f5f9;color:#0f172a}
+        #eventCommentWindow .event-comment-btn.primary{background:#4f46e5;border-color:#4f46e5;color:#fff}
+        #eventCommentWindow .event-comment-btn.primary:hover{background:#4338ca}
+        #eventCommentWindow .event-comment-btn.danger{background:#fff1f2;border-color:#fecdd3;color:#be123c}
+        #eventCommentWindow .event-comment-switch{color:#475569}
+        #eventCommentWindow .event-comment-switch-track{background:#cbd5e1}
+        #eventCommentWindow .event-comment-settings{border-top-color:#e2e8f0}
+        #eventCommentWindow .event-comment-input,
+        #eventCommentWindow .event-comment-textarea{
+            background:#fff;border-color:#cbd5e1;color:#0f172a
+        }
+        #eventCommentWindow .event-comment-compose{border-color:#e2e8f0;background:#f8fafc}
+        #eventCommentWindow .event-comment-replying{background:#eef2ff;border-color:#c7d2fe;color:#4338ca}
+        #eventCommentWindow .event-comment-char{color:#94a3b8}
+        #eventCommentWindow .event-comment-empty{color:#94a3b8;border-color:#cbd5e1}
+        #eventCommentWindow .event-comment-item{border-color:#e2e8f0;background:#fff}
+        #eventCommentWindow .event-comment-item.is-reply{border-left-color:#6366f1}
+        #eventCommentWindow .event-comment-author{color:#334155}
+        #eventCommentWindow .event-comment-author.is-profile{color:#4f46e5}
+        #eventCommentWindow .event-comment-time,
+        #eventCommentWindow .event-comment-anon{color:#94a3b8}
+        #eventCommentWindow .event-comment-content{color:#334155}
+        #eventCommentWindow .event-comment-action-link{color:#64748b}
+        #eventCommentWindow .event-comment-action-link:hover{color:#4f46e5}
+        #eventCommentWindow .event-comment-loading{color:#64748b}
+        #eventCommentWindow .event-comment-error{background:#fff1f2;border-color:#fecdd3;color:#be123c}
+        .comment-history-hover{
+            position:fixed;z-index:520;display:none;
+            min-width:170px;max-width:260px;padding:9px 10px;
+            border:1px solid #cbd5e1;border-radius:10px;
+            background:#fff;color:#334155;
+            box-shadow:0 12px 30px rgba(15,23,42,.2);
+            pointer-events:none;
+        }
+        .comment-history-hover.is-visible{display:block}
+        .comment-history-hover-title{font-size:10px;font-weight:800;color:#64748b;margin-bottom:5px}
+        .comment-history-hover-row{font-size:11px;line-height:1.6;color:#334155}
+        @media(max-width:639px){
+            #fullscreenViewer [data-detail-shell]{
+                left:8px;right:8px;top:76px;transform:none;width:auto !important;
+                max-height:calc(100vh - 90px);
+            }
+            .detail-window-comments-btn{top:14px;right:58px;height:36px;padding:0 10px}
+            #eventCommentWindow{
+                left:8px !important;right:auto !important;top:76px !important;
+                width:calc(100vw - 16px) !important;height:calc(100vh - 92px) !important;
+                min-width:0;min-height:0;resize:none;
+            }
+            .comment-window-event-name{max-width:180px;font-size:13px}
+        }
+
+
+        #eventCommentWindow{resize:none !important;}
+        .comment-window-resizer{
+            position:absolute;right:0;bottom:0;z-index:8;
+            width:24px;height:24px;cursor:nwse-resize;
+            touch-action:none;
+        }
+        .comment-window-resizer::before,
+        .comment-window-resizer::after{
+            content:'';position:absolute;right:5px;bottom:5px;
+            width:9px;height:1px;background:#94a3b8;
+            transform:rotate(-45deg);transform-origin:right center;
+        }
+        .comment-window-resizer::after{right:5px;bottom:9px;width:5px;}
+        @media(max-width:639px){.comment-window-resizer{display:none}}
+
+
+        .comment-confirm-layer{
+            position:absolute;inset:0;z-index:30;
+            background:rgba(248,250,252,.78);backdrop-filter:blur(2px);
+            display:flex;align-items:center;justify-content:center;padding:16px;
+        }
+        .comment-confirm-card{
+            width:min(320px,100%);background:#fff;border:1px solid #cbd5e1;
+            border-radius:14px;padding:16px;box-shadow:0 18px 40px rgba(15,23,42,.18);
+        }
+        .comment-confirm-title{font-size:13px;font-weight:800;color:#0f172a;margin-bottom:6px}
+        .comment-confirm-text{font-size:11px;line-height:1.6;color:#64748b;margin-bottom:13px}
+        .comment-confirm-actions{display:flex;justify-content:flex-end;gap:8px}
+
+
+        #eventCommentWindow .event-comment-switch input:checked + .event-comment-switch-track{
+            background:#2563eb !important;
+        }
+
+
+        /* === 评论区 v4：评论列表优先，输入/身份按需展开 === */
+        .event-comment-compose-toggle-wrap{
+            position:sticky;
+            bottom:0;
+            z-index:6;
+            margin-top:12px;
+            padding-top:10px;
+            background:linear-gradient(to bottom,rgba(255,255,255,0),#fff 35%);
+        }
+        .event-comment-compose-toggle{
+            width:100%;
+            height:40px;
+            border:1px solid #c7d2fe;
+            border-radius:11px;
+            background:#eef2ff;
+            color:#4338ca;
+            font-size:11px;
+            font-weight:800;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            gap:7px;
+            cursor:pointer;
+        }
+        .event-comment-compose-toggle:hover{background:#e0e7ff}
+        .event-comment-compose-panel{
+            display:none;
+            margin-top:9px;
+            padding-top:9px;
+            border-top:1px solid #e2e8f0;
+        }
+        .event-comment-compose-panel.is-open{display:block}
+        #eventCommentWindow .event-comment-compose{margin-bottom:10px}
+        #eventCommentWindow .event-comment-identity{margin-bottom:0}
+
 </style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
@@ -717,10 +970,7 @@
 
             <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs w-full sm:w-auto">
                 <i class="fa-solid fa-magnifying-glass text-slate-400"></i>
-                <input type="text" id="searchInput" onkeydown="if(event.key==='Enter'){event.preventDefault();handleSearch();}" placeholder="搜索事件名…" class="bg-transparent outline-none text-slate-700 placeholder-slate-400 w-full sm:w-44">
-                <button type="button" onclick="handleSearch()" title="确定搜索" class="ml-1 px-2 py-1 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-semibold shrink-0 flex items-center gap-1 transition-colors">
-                    <i class="fa-solid fa-check text-[9px]"></i><span class="hidden sm:inline">确定</span>
-                </button>
+                <input type="text" id="searchInput" oninput="handleSearch()" placeholder="搜索事件名…" class="bg-transparent outline-none text-slate-700 placeholder-slate-400 w-full sm:w-52">
             </div>
         </div>
 
@@ -1092,10 +1342,11 @@
                     <div><h4 class="font-bold text-slate-800 mb-1">1. 浏览时间线</h4><p>进入网站后，可以直接通过时间线查看已经记录的事件。使用“密度”可以调整节点间距；“滑速”用于调整鼠标进入时间线左右边缘时的自动滚动速度，也可以使用滚轮和两侧按钮浏览更早或更晚的内容。</p></div>
                     <div><h4 class="font-bold text-slate-800 mb-1">2. 预览与事件详情</h4><p>将鼠标悬停在时间线节点附近可以查看事件预览；点击节点即可进入详情，详情中可以先查看该事件收录的图片、动图、视频和网址附件，再阅读详细经过与描述。</p></div>
                     <div><h4 class="font-bold text-slate-800 mb-1">3. 查看媒体</h4><p>详情中的图片、动图和视频可以通过单击或双击来进一步查看。</p></div>
-                    <div><h4 class="font-bold text-slate-800 mb-1">4. 节点之间的逻辑关系</h4><p>部分事件之间存在逻辑连线或关联。在时间线上查看相关节点时，可以结合节点之间显示的连接关系理解事件之间的前后、补充或关联关系。</p></div>
-                    <div><h4 class="font-bold text-slate-800 mb-1">5. 搜索事件</h4><p>使用时间线右侧的搜索框输入事件标题并确认，可以快速定位对应节点。</p></div>
-                    <div><h4 class="font-bold text-slate-800 mb-1">6. tag功能</h4><p>打开 tag 库后可以按 tag 筛选时间线内容，并可选择“包含 / 排除”以及“任一 / 全部”等匹配方式，筛选生效后，时间线只会显示符合当前筛选条件的事件。</p></div>
-                    <div><h4 class="font-bold text-slate-800 mb-1">7. 背景音乐</h4><p>顶部“背景音乐”可以播放网站设置的背景音乐。播放有声视频时，背景音乐会自动暂停；视频停止后会根据原来的播放状态恢复。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">4. 使用评论区</h4><p>打开事件详情后，点击右上方的“评论区”按钮即可查看该事件的评论；点击“发表评论”可以展开输入区，并可选择使用自己的 ID 或匿名发表评论。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">5. 节点之间的逻辑关系</h4><p>部分事件之间存在逻辑连线或关联。在时间线上查看相关节点时，可以结合节点之间显示的连接关系理解事件之间的前后、补充或关联关系。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">6. 搜索事件</h4><p>使用时间线右侧的搜索框输入内容，时间线会随着输入实时筛选并显示匹配的事件。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">7. tag功能</h4><p>打开 tag 库后可以按 tag 筛选时间线内容，并可选择“包含 / 排除”以及“任一 / 全部”等匹配方式，筛选生效后，时间线只会显示符合当前筛选条件的事件。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">8. 背景音乐</h4><p>顶部“背景音乐”可以播放网站设置的背景音乐。播放有声视频时，背景音乐会自动暂停；视频停止后会根据原来的播放状态恢复。</p></div>
                     <p class="pt-1 text-slate-500">另：想自己上手编辑的话可以call作者给权限喵</p>
                 </div>
 
@@ -1105,27 +1356,27 @@
                         <p>在编辑界面内，如果某个区域存在单独的“保存 / 添加 / 确定”按钮，一定要记得点击，例如逻辑连线处、网址附件处等；不点击的话，对应内容不会保存。</p>
                     </div>
 
-                    <div><h4 class="font-bold text-slate-800 mb-1">1. 新建事件</h4><p>解锁编辑权限后，可以点击右上角“新建事件”，选择新建单时间事件或多时间事件。单时间事件仅可设置一个日期，并为该日期添加相应内容；多时间事件可设置多个不同日期，并分别为各日期添加相应内容。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">2. 新建事件</h4><p>解锁编辑权限后，可以点击右上角“新建事件”，选择新建单时间事件或多时间事件。单时间事件仅可设置一个日期，并为该日期添加相应内容；多时间事件可设置多个不同日期，并分别为各日期添加相应内容。</p></div>
 
-                    <div><h4 class="font-bold text-slate-800 mb-1">2. 填写事件名称</h4><p>在事件名称处填写这条事件在时间线上显示的标题。建议使用能够快速辨认内容的名称，之后也可以通过搜索框按标题查找事件。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">3. 填写事件名称</h4><p>在事件名称处填写这条事件在时间线上显示的标题。建议使用能够快速辨认内容的名称，之后也可以通过搜索框按标题查找事件。</p></div>
 
-                    <div><h4 class="font-bold text-slate-800 mb-1">3. 填写日期及日期范围</h4><p>根据事件实际情况填写日期。如果事件只发生在某一天，可以填写单个日期；如果不知道具体日期，也可以只填写月份或年份；如果持续了一段时间，则可以设置开始和结束日期，让时间线按对应时间范围展示。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">4. 填写日期及日期范围</h4><p>根据事件实际情况填写日期。如果事件只发生在某一天，可以填写单个日期；如果不知道具体日期，也可以只填写月份或年份；如果持续了一段时间，则可以设置开始和结束日期，让时间线按对应时间范围展示。</p></div>
 
-                    <div><h4 class="font-bold text-slate-800 mb-1">4. 选择节点类型</h4><p>节点类型会影响事件在时间线上的呈现方式。根据事件性质选择合适的节点类型即可，之后仍然可以重新编辑调整。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">5. 选择节点类型</h4><p>节点类型会影响事件在时间线上的呈现方式。根据事件性质选择合适的节点类型即可，之后仍然可以重新编辑调整。</p></div>
 
-                    <div><h4 class="font-bold text-slate-800 mb-1">5. tag 功能</h4><p>tag功能可以帮助整理和筛选事件。可以打开 tag 库创建新的 tag，也在编辑事件时为事件添加一个或多个 tag。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">6. tag 功能</h4><p>tag功能可以帮助整理和筛选事件。可以打开 tag 库创建新的 tag，也在编辑事件时为事件添加一个或多个 tag。</p></div>
 
-                    <div><h4 class="font-bold text-slate-800 mb-1">6. 逻辑连线</h4><p>逻辑连线用于表示两个事件之间存在关联。编辑事件时，可以在逻辑连线区域选择要连接的其他事件，也可以填写连线文字作为关系的补充说明，并设置这条关系。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">7. 逻辑连线</h4><p>逻辑连线用于表示两个事件之间存在关联。编辑事件时，可以在逻辑连线区域选择要连接的其他事件，也可以填写连线文字作为关系的补充说明，并设置这条关系。</p></div>
 
-                    <div><h4 class="font-bold text-slate-800 mb-1">7. 添加图片、动图与视频</h4><p>可以为事件添加图片、动图和视频，也可以调整其顺序。图片可以进行截选；视频可以设置标题并截取画面作为预览封面。需要进一步补充分析时，还可以为对应媒体进入“深入描述”空间进行编辑。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">8. 添加图片、动图与视频</h4><p>可以为事件添加图片、动图和视频，也可以调整其顺序。图片可以进行截选；视频可以设置标题并截取画面作为预览封面。需要进一步补充分析时，还可以为对应媒体进入“深入描述”空间进行编辑。</p></div>
 
-                    <div><h4 class="font-bold text-slate-800 mb-1">8. 添加网址附件</h4><p>可以填写网址标题和链接，将网页作为事件的补充附件添加进去。已经添加的网址附件之后也可以继续修改标题或链接，也可以删除不再需要的附件。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">9. 添加网址附件</h4><p>可以填写网址标题和链接，将网页作为事件的补充附件添加进去。已经添加的网址附件之后也可以继续修改标题或链接，也可以删除不再需要的附件。</p></div>
 
-                    <div><h4 class="font-bold text-slate-800 mb-1">9. 详细经过与描述</h4><p>“详细经过与描述”用于记录事件本身更完整的经过、背景、补充说明或想法。编辑时支持多种文字样式，可以根据内容需要进行排版。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">10. 详细经过与描述</h4><p>“详细经过与描述”用于记录事件本身更完整的经过、背景、补充说明或想法。编辑时支持多种文字样式，可以根据内容需要进行排版。</p></div>
 
-                    <div><h4 class="font-bold text-slate-800 mb-1">10. 背景音乐</h4><p>顶部“背景音乐”用于添加音频链接并管理网站的背景音乐播放。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">11. 背景音乐</h4><p>顶部“背景音乐”用于添加音频链接并管理网站的背景音乐播放。</p></div>
 
-                    <div><h4 class="font-bold text-slate-800 mb-1">11. 分享协同</h4><p>“分享协同”仅在编辑模式且云端连接正常时使用。可以复制当前空间的专属链接发送给其他人，让不同设备进入同一个空间查看和协作编辑内容。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">12. 分享协同</h4><p>“分享协同”仅在编辑模式且云端连接正常时使用。可以复制当前空间的专属链接发送给其他人，让不同设备进入同一个空间查看和协作编辑内容。</p></div>
                 </div>
                 </div>
             </div>
@@ -1145,7 +1396,9 @@
             <div id="helpChangelogPanel" class="hidden overflow-y-auto p-5 text-xs text-slate-600 leading-relaxed">
                 <div id="helpBrowseChangelog">
                 <div class="border border-green-300 rounded-xl p-4 bg-green-50">
-                    <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.11</span><span class="px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-semibold">本次更新</span></div>
+                    <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.14</span><span class="px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-semibold">本次更新</span></div>
+                    <div class="space-y-2 leading-7 mb-3"><p>增加了评论区功能</p><p>优化了时间线搜索的功能</p><p>优化了评论区窗口显示与交互的功能</p></div>
+                    <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.11</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
                     <div class="space-y-2 leading-7 mb-3"><p>增加了自动识别网址的功能</p><p>修复了云端同步异常的问题</p><p>增加了仅离线功能</p></div>
                     <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.09</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
                     <div class="space-y-2 leading-7 mb-3"><p>增加了小晴儿互动功能</p></div></div>
@@ -1187,7 +1440,9 @@
                 </div>
             </div><div id="helpEditChangelog" class="hidden">
                 <div class="border border-green-300 rounded-xl p-4 bg-green-50">
-                    <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.11</span><span class="px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-semibold">本次更新</span></div>
+                    <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.14</span><span class="px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-semibold">本次更新</span></div>
+                    <div class="space-y-2 leading-7 mb-3"><p>增加了评论区功能</p><p>优化了时间线搜索的功能</p><p>优化了评论区窗口显示与交互的功能</p></div>
+                    <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.11</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
                     <div class="space-y-2 leading-7 mb-3"><p>增加了自动识别网址的功能</p><p>修复了云端同步异常的问题</p><p>增加了仅离线功能</p></div>
                     <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.09</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
                     <div class="space-y-2 leading-7 mb-3"><p>增加了活动日志功能</p><p>增加了小晴儿互动功能</p><p>优化了多时间事件删除时间的功能</p></div></div>
@@ -4007,9 +4262,6 @@
                 if (typeof window.updateTagFilterBadge === 'function') window.updateTagFilterBadge();
             }
             window.renderEvents();
-            requestAnimationFrame(() => {
-                window.scrollTimelineToFirstNode();
-            });
         };
 
         window.scrollTimelineToFirstNode = function() {
@@ -8683,8 +8935,8 @@
                     const subtitle=String(seg.subtitle||'').trim();
                     return `<section class="shrink-0 w-[78vw] sm:w-[360px] rounded-2xl border border-slate-700 bg-slate-900/80 p-4 self-start"><div class="text-xs font-mono text-indigo-300 ${subtitle?'mb-1':'mb-3'}">${window.formatDisplayDate(seg.date)}</div>${subtitle?`<h2 class="text-sm sm:text-base font-normal text-slate-200 mb-3">${escapeHtml(subtitle)}</h2>`:''}<div class="space-y-3">${body||'<div class="text-xs text-slate-500">这个时间没有附加内容</div>'}</div></section>`;
                 }).join('');
-                viewer.innerHTML=`<div class="max-w-6xl w-full my-auto bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-8 shadow-2xl relative"><button onclick="closeReadOnlyFullscreen('${fromStackDate?fromStackDate.replace(/'/g,"\\'"):''}')" class="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full"><i class="fa-solid fa-xmark"></i></button><h1 class="text-xl sm:text-2xl font-bold mb-5 pr-12">${escapeHtml(event.title)}</h1><div id="multiDetailScroller" class="flex gap-4 overflow-x-auto overflow-y-visible pb-3 cursor-grab select-none" style="touch-action:pan-x pan-y;overscroll-behavior-x:contain;scroll-snap-type:none;scroll-behavior:auto;">${cols}</div></div>`;
-                viewer.classList.remove('hidden');window.bindDetailVideoBehavior(viewer,event.id);window.initMultiDetailScroller?.();return;
+                viewer.innerHTML=`<div data-detail-shell class="max-w-6xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-8 shadow-2xl relative"><div class="detail-window-dragbar" data-detail-drag-handle><i class="fa-solid fa-grip-lines"></i><span>点击此处拖动详情页</span></div><button type="button" onclick="window.openEventCommentWindow('${event.id}')" class="detail-window-comments-btn"><i class="fa-regular fa-comments"></i><span>评论区</span></button><button onclick="closeReadOnlyFullscreen('${fromStackDate?fromStackDate.replace(/'/g,"\\'"):''}')" class="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full"><i class="fa-solid fa-xmark"></i></button><h1 class="text-xl sm:text-2xl font-bold mb-5 pr-12">${escapeHtml(event.title)}</h1><div id="multiDetailScroller" class="flex gap-4 overflow-x-auto overflow-y-visible pb-3 cursor-grab select-none" style="touch-action:pan-x pan-y;overscroll-behavior-x:contain;scroll-snap-type:none;scroll-behavior:auto;">${cols}</div></div>`;
+                viewer.classList.remove('hidden');window.bindDetailVideoBehavior(viewer,event.id);window.initMultiDetailScroller?.();window.initFloatingDetailWindow(viewer);return;
             }
             const detailHasImages=Array.isArray(event.images)&&event.images.length>0,detailHasVideos=Array.isArray(event.videos)&&event.videos.length>0,detailDescriptionText=String(event.description||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/gi,' ').trim(),detailHasDescription=!!detailDescriptionText;
             let viewer=document.getElementById('fullscreenViewer');if(!viewer){viewer=document.createElement('div');viewer.id='fullscreenViewer';viewer.className='fixed inset-0 bg-slate-950/90 text-white z-50 overflow-y-auto backdrop-blur-md p-3 sm:p-8 flex flex-col items-center';viewer.addEventListener('click',e=>{if(e.target===viewer)window.closeReadOnlyFullscreen(viewer.dataset.fromStackDate||'');});document.body.appendChild(viewer);}viewer.dataset.fromStackDate=fromStackDate||'';
@@ -8692,16 +8944,19 @@
             let videosHtml='';if(detailHasVideos){videosHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-video mr-1"></i>事件视频</h4><div data-detail-videos>${event.videos.map((v,vidx)=>{const vUrl=typeof v==='object'?(v.blobUrl||v.url):v,vCover=typeof v==='object'?(v.cover||''):'',vTitle=typeof v==='object'?(v.title||v.name||''):'',vType=typeof v==='object'&&v.mime?`type="${v.mime}"`:'';const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(v?.deepDescription);return `<div data-detail-video-card data-detail-video-index="${vidx}" data-detail-video-deep="${hasDeep?'1':'0'}" class="bg-black rounded-xl overflow-hidden border border-slate-800 ${hasDeep?'cursor-pointer':''}">${vTitle?`<div data-detail-video-title class="px-3 py-2 bg-slate-900 text-xs font-semibold text-slate-200 border-b border-slate-800">${escapeHtml(vTitle)}</div>`:''}<div data-detail-video-stage class="relative bg-black overflow-hidden"><video ${vCover?`poster="${vCover}"`:''} playsinline webkit-playsinline preload="metadata" class="block bg-black object-contain"><source src="${vUrl}" ${vType}></video>${hasDeep?'<span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">🐢</span><span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">✌🏻</span>':''}</div></div>`;}).join('')}</div></div>`;}
             let linksHtml='';if(event.links&&event.links.length>0){linksHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-link mr-1"></i>跳转网址</h4><div class="flex flex-wrap gap-2">${event.links.map(l=>`<a href="${l.url}" target="_blank" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-indigo-300 hover:text-indigo-200 px-3 py-2 rounded-xl text-xs transition-colors"><i class="fa-solid fa-globe"></i><span class="font-medium">${l.title||l.url}</span></a>`).join('')}</div></div>`;}
             const descriptionHtml=detailHasDescription?`<div data-detail-description class="border-t border-slate-800 pt-6 mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">事件经过与描述</h4><div class="event-description-html text-sm sm:text-base leading-relaxed whitespace-pre-wrap">${window.prepareDescriptionForView?window.prepareDescriptionForView(event.description):event.description}</div></div>`:'';
-            viewer.innerHTML=`<div data-detail-shell class="max-w-3xl w-full my-auto bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-10 shadow-2xl relative"><button onclick="closeReadOnlyFullscreen('${fromStackDate?fromStackDate.replace(/'/g,"\\'"):''}')" class="absolute top-4 right-4 sm:top-6 sm:right-6 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full flex items-center justify-center transition-colors"><i class="fa-solid fa-xmark text-lg"></i></button><div class="flex items-center gap-3 mb-2"><span class="text-xs font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full font-semibold">${window.formatDisplayDate(event.date)}</span>${event.type==='major'?'<span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full">重大里程碑</span>':''}</div><h1 class="text-xl sm:text-2xl font-bold text-white mb-3 tracking-wide">${event.title}</h1><div data-detail-body>${imagesHtml}${videosHtml}${linksHtml}${descriptionHtml}</div></div>`;
+            viewer.innerHTML=`<div data-detail-shell class="max-w-3xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-10 shadow-2xl relative"><div class="detail-window-dragbar" data-detail-drag-handle><i class="fa-solid fa-grip-lines"></i><span>点击此处拖动详情页</span></div><button type="button" onclick="window.openEventCommentWindow('${event.id}')" class="detail-window-comments-btn"><i class="fa-regular fa-comments"></i><span>评论区</span></button><button onclick="closeReadOnlyFullscreen('${fromStackDate?fromStackDate.replace(/'/g,"\\'"):''}')" class="absolute top-4 right-4 sm:top-6 sm:right-6 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full flex items-center justify-center transition-colors"><i class="fa-solid fa-xmark text-lg"></i></button><div class="flex items-center gap-3 mb-2"><span class="text-xs font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full font-semibold">${window.formatDisplayDate(event.date)}</span>${event.type==='major'?'<span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full">重大里程碑</span>':''}</div><h1 class="text-xl sm:text-2xl font-bold text-white mb-3 tracking-wide">${event.title}</h1><div data-detail-body>${imagesHtml}${videosHtml}${linksHtml}${descriptionHtml}</div></div>`;
             // 首次打开详情时先完成媒体布局，再让整个详情页参与绘制，避免媒体以块级默认宽度闪现一帧。
             viewer.style.visibility='hidden';
             viewer.classList.remove('hidden');
             window.fitEventDetailMedia(viewer);
             viewer.style.visibility='';
-            window.bindDetailVideoBehavior(viewer,event.id);const refit=()=>window.fitEventDetailMedia(viewer);viewer.querySelectorAll('[data-detail-image]').forEach(img=>{if(!img.complete)img.addEventListener('load',refit,{once:true});});viewer.querySelectorAll('[data-detail-video-card] video').forEach(video=>{if(!video.videoWidth)video.addEventListener('loadedmetadata',refit,{once:true});});if(viewer._detailResizeHandler)window.removeEventListener('resize',viewer._detailResizeHandler);viewer._detailResizeHandler=refit;window.addEventListener('resize',refit);requestAnimationFrame(()=>requestAnimationFrame(refit));
+            window.bindDetailVideoBehavior(viewer,event.id);
+            window.initFloatingDetailWindow(viewer);const refit=()=>window.fitEventDetailMedia(viewer);viewer.querySelectorAll('[data-detail-image]').forEach(img=>{if(!img.complete)img.addEventListener('load',refit,{once:true});});viewer.querySelectorAll('[data-detail-video-card] video').forEach(video=>{if(!video.videoWidth)video.addEventListener('loadedmetadata',refit,{once:true});});if(viewer._detailResizeHandler)window.removeEventListener('resize',viewer._detailResizeHandler);viewer._detailResizeHandler=refit;window.addEventListener('resize',refit);requestAnimationFrame(()=>requestAnimationFrame(refit));
         };
 
         window.closeReadOnlyFullscreen = function(fromStackDate = '') {
+            window.closeEventCommentWindow?.();
+            window.commentHideHistoryHover?.();
             const viewer = document.getElementById('fullscreenViewer');
             if (viewer) {
                 if(viewer._detailResizeHandler){window.removeEventListener('resize',viewer._detailResizeHandler);viewer._detailResizeHandler=null;}
@@ -11972,7 +12227,661 @@
 
         window.multiRenderSegments=function(){ window.multiRenderCurrentPage?.(); };
 
-    </script>
+    
+
+        // ============================================================
+        // 每事件评论区（CloudBase message-api）
+        // ============================================================
+        window.COMMENT_API_BASE = 'https://message-board-d6gyou26356c94cad-1474370265.ap-shanghai.app.tcloudbase.com';
+        window.COMMENT_ANONYMOUS_NAME = '一枚小鱼丁';
+        window._commentBoards = window._commentBoards || new Map();
+
+        window.commentEscAttr = function(v){
+            return String(v ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        };
+
+        window.commentCredentials = function(){
+            let userId = localStorage.getItem('yht_comment_user_id') || '';
+            let secret = localStorage.getItem('yht_comment_secret') || '';
+            // 兼容之前独立测试页创建的身份，避免用户无故重新注册。
+            if (!userId || !secret) {
+                const oldId = localStorage.getItem('comment_test_user_id') || '';
+                const oldSecret = localStorage.getItem('comment_test_secret') || '';
+                if (oldId && oldSecret) {
+                    userId = oldId; secret = oldSecret;
+                    localStorage.setItem('yht_comment_user_id', userId);
+                    localStorage.setItem('yht_comment_secret', secret);
+                }
+            }
+            return { userId, secret };
+        };
+
+        window.commentSaveCredentials = function(identity){
+            if (!identity?.userId || !identity?.secret) return;
+            localStorage.setItem('yht_comment_user_id', String(identity.userId));
+            localStorage.setItem('yht_comment_secret', String(identity.secret));
+        };
+
+        window.commentHeaders = function(withJson=true){
+            const {userId, secret} = window.commentCredentials();
+            const headers = {};
+            if (withJson) headers['Content-Type'] = 'application/json';
+            if (userId) headers['X-Comment-User-Id'] = userId;
+            if (secret) headers['X-Comment-Secret'] = secret;
+            return headers;
+        };
+
+        window.commentRequest = async function(path, options={}){
+            const response = await fetch(window.COMMENT_API_BASE + path, {
+                method: options.method || 'GET',
+                headers: options.headers || window.commentHeaders(options.body !== undefined),
+                body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+                cache: 'no-store'
+            });
+            let data = null;
+            try { data = await response.json(); } catch (_) { data = {}; }
+            if (!response.ok || data?.ok === false) {
+                const err = new Error(data?.error || `HTTP ${response.status}`);
+                err.status = response.status;
+                err.code = data?.error || '';
+                err.response = data;
+                throw err;
+            }
+            return data;
+        };
+
+        window.commentHumanError = function(error){
+            const code = String(error?.code || error?.message || '');
+            const map = {
+                unauthorized: '评论身份已失效，请重新创建身份。',
+                handle_required: '请先设置你的留言 ID。',
+                handle_taken: '这个 ID 已经被其他用户使用了。',
+                reserved_handle: '这个 ID 是匿名状态专用名称，不能使用。',
+                invalid_handle: '这个 ID 含有不支持的字符。',
+                invalid_handle_length: 'ID 长度需要在 2～24 个字符之间。',
+                invalid_content: '留言不能为空，且最多 500 个字符。',
+                invalid_event_id: '当前事件无法建立评论区。',
+                parent_not_found: '要回复的评论已经不存在。',
+                parent_event_mismatch: '回复目标不属于当前事件。',
+                not_owner: '只能删除自己发布的评论。'
+            };
+            if (map[code]) return map[code];
+            if (!navigator.onLine) return '当前网络不可用，留言板需要联网。';
+            return '评论区暂时无法连接，请稍后再试。';
+        };
+
+        window.commentOwnIdsKey = function(){
+            const {userId} = window.commentCredentials();
+            return `yht_comment_own_ids_${userId || 'none'}`;
+        };
+        window.commentGetOwnIds = function(){
+            try { return new Set(JSON.parse(localStorage.getItem(window.commentOwnIdsKey()) || '[]')); }
+            catch (_) { return new Set(); }
+        };
+        window.commentRememberOwnId = function(id){
+            if (!id) return;
+            const set = window.commentGetOwnIds();
+            set.add(String(id));
+            localStorage.setItem(window.commentOwnIdsKey(), JSON.stringify([...set].slice(-1000)));
+        };
+        window.commentForgetOwnId = function(id){
+            const set = window.commentGetOwnIds();
+            set.delete(String(id));
+            localStorage.setItem(window.commentOwnIdsKey(), JSON.stringify([...set]));
+        };
+
+        window.renderCommentBoardShell = function(eventId){
+            const id = window.commentEscAttr(eventId);
+            return `<section class="event-comment-board" data-comment-board data-event-id="${id}">
+                <div class="event-comment-head">
+                    <div class="event-comment-title"><i class="fa-regular fa-comments text-indigo-600"></i><span>评论区</span><span class="event-comment-count" data-comment-count>0</span></div>
+                    <button type="button" class="event-comment-btn" data-comment-refresh><i class="fa-solid fa-rotate-right mr-1"></i>刷新</button>
+                </div>
+
+                <div data-comment-error></div>
+
+                <div class="event-comment-list" data-comment-list>
+                    <div class="event-comment-loading"><i class="fa-solid fa-circle-notch fa-spin mr-1"></i>正在加载评论…</div>
+                </div>
+
+                <div class="event-comment-compose-toggle-wrap">
+                    <button type="button" class="event-comment-compose-toggle" data-comment-compose-toggle aria-expanded="false">
+                        <i class="fa-regular fa-pen-to-square"></i>
+                        <span data-comment-compose-toggle-text>发表评论</span>
+                    </button>
+
+                    <div class="event-comment-compose-panel" data-comment-compose-panel>
+                        <div class="event-comment-compose" data-comment-compose>
+                            <div class="event-comment-replying" data-comment-replying>
+                                <span data-comment-reply-label></span>
+                                <button type="button" class="event-comment-action-link" data-comment-reply-cancel>取消回复</button>
+                            </div>
+                            <textarea class="event-comment-textarea" maxlength="500" data-comment-text placeholder="写下评论…"></textarea>
+                            <div class="event-comment-compose-foot">
+                                <span class="event-comment-char" data-comment-char>0 / 500</span>
+                                <button type="button" class="event-comment-btn primary" data-comment-send><i class="fa-solid fa-paper-plane mr-1"></i>发布</button>
+                            </div>
+                        </div>
+
+                        <div class="event-comment-identity" data-comment-identity>
+                            <div class="event-comment-loading"><i class="fa-solid fa-circle-notch fa-spin mr-1"></i>正在读取评论身份…</div>
+                        </div>
+                    </div>
+                </div>
+            </section>`;
+        };
+
+
+        window.commentSetComposeOpen = function(board, open, focus=false){
+            if(!board)return;
+            const panel=board.querySelector('[data-comment-compose-panel]');
+            const btn=board.querySelector('[data-comment-compose-toggle]');
+            const label=board.querySelector('[data-comment-compose-toggle-text]');
+            if(!panel || !btn)return;
+            const next=!!open;
+            panel.classList.toggle('is-open',next);
+            btn.setAttribute('aria-expanded',next?'true':'false');
+            if(label)label.textContent=next?'收起评论框':'发表评论';
+            if(next && focus){
+                requestAnimationFrame(()=>board.querySelector('[data-comment-text]')?.focus());
+            }
+        };
+
+        window.commentBoardError = function(board, message=''){
+            const box = board?.querySelector('[data-comment-error]');
+            if (!box) return;
+            box.innerHTML = '';
+            if (!message) return;
+            const d = document.createElement('div');
+            d.className = 'event-comment-error';
+            d.textContent = message;
+            box.appendChild(d);
+        };
+
+        window.commentRenderIdentity = function(board, identity){
+            const box = board?.querySelector('[data-comment-identity]');
+            if (!box) return;
+            const creds = window.commentCredentials();
+            const hasCreds = !!(creds.userId && creds.secret);
+            box.innerHTML = '';
+
+            if (!hasCreds || !identity) {
+                const row = document.createElement('div');
+                row.className = 'event-comment-identity-row';
+                const icon = document.createElement('div');
+                icon.className = 'event-comment-avatar';
+                icon.innerHTML = '<i class="fa-solid fa-user-plus"></i>';
+                const copy = document.createElement('div');
+                copy.style.flex = '1';
+                copy.innerHTML = '<div class="event-comment-name">还没有评论身份</div><div class="event-comment-muted">创建后即可设置唯一 ID、匿名评论与删除自己的评论。</div>';
+                const btn = document.createElement('button');
+                btn.type = 'button'; btn.className = 'event-comment-btn primary'; btn.textContent = '创建身份';
+                btn.onclick = () => window.commentRegister(board);
+                row.append(icon, copy, btn); box.appendChild(row);
+                return;
+            }
+
+            const row = document.createElement('div'); row.className='event-comment-identity-row';
+            const avatar = document.createElement('div'); avatar.className='event-comment-avatar'; avatar.innerHTML='<i class="fa-solid fa-user"></i>';
+            const copy = document.createElement('div'); copy.style.cssText='flex:1;min-width:0';
+            const nm = document.createElement('div'); nm.className='event-comment-name';
+            nm.textContent = identity.anonymous ? '匿名' : (identity.handle || '尚未设置 ID');
+            copy.appendChild(nm);
+            if (!identity.anonymous) {
+                const sub = document.createElement('div');
+                sub.className='event-comment-muted';
+                sub.textContent = identity.handle ? '当前以此 ID 公开评论' : '设置唯一 ID 后才能发布评论';
+                copy.appendChild(sub);
+            }
+
+            const toggleLabel=document.createElement('label'); toggleLabel.className='event-comment-switch'; toggleLabel.title='只影响之后新发布的留言';
+            const toggle=document.createElement('input'); toggle.type='checkbox'; toggle.checked=identity.anonymous===true;
+            const track=document.createElement('span'); track.className='event-comment-switch-track';
+            const toggleText=document.createElement('span'); toggleText.textContent='匿名';
+            toggleLabel.append(toggle,track,toggleText);
+            toggle.onchange=()=>window.commentSetAnonymous(board,toggle.checked);
+
+            const settingsBtn=document.createElement('button'); settingsBtn.type='button'; settingsBtn.className='event-comment-btn'; settingsBtn.textContent='设置';
+            row.append(avatar,copy,toggleLabel,settingsBtn);
+
+            const settings=document.createElement('div'); settings.className='event-comment-settings';
+            const inputRow=document.createElement('div'); inputRow.className='event-comment-input-row';
+            const input=document.createElement('input'); input.className='event-comment-input'; input.maxLength=24; input.placeholder='设置 / 修改唯一 ID'; input.value=identity.handle || '';
+            const save=document.createElement('button'); save.type='button'; save.className='event-comment-btn primary'; save.textContent='保存 ID';
+            const history=document.createElement('button'); history.type='button'; history.className='event-comment-btn'; history.textContent='我的历史 ID';
+            save.onclick=()=>window.commentChangeHandle(board,input.value);
+            input.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();save.click();}};
+            history.onclick=()=>window.commentShowProfile(identity.userId);
+            inputRow.append(input,save,history); settings.appendChild(inputRow);
+            settingsBtn.onclick=()=>settings.classList.toggle('is-open');
+            box.append(row,settings);
+        };
+
+        window.commentRegister = async function(board){
+            window.commentBoardError(board,'');
+            try{
+                const data=await window.commentRequest('/identity/register',{method:'POST',body:{}});
+                window.commentSaveCredentials(data.identity);
+                await window.commentLoadIdentity(board);
+            }catch(e){ window.commentBoardError(board,window.commentHumanError(e)); }
+        };
+
+        window.commentLoadIdentity = async function(board){
+            if (!board?.isConnected) return null;
+            const creds=window.commentCredentials();
+            if (!creds.userId || !creds.secret) {
+                window.commentRenderIdentity(board,null); return null;
+            }
+            try{
+                const data=await window.commentRequest('/identity',{method:'GET',headers:window.commentHeaders(false)});
+                board._commentIdentity=data.identity || null;
+                window.commentRenderIdentity(board,board._commentIdentity);
+                return board._commentIdentity;
+            }catch(e){
+                if (e.status===401) {
+                    localStorage.removeItem('yht_comment_user_id');
+                    localStorage.removeItem('yht_comment_secret');
+                    board._commentIdentity=null;
+                    window.commentRenderIdentity(board,null);
+                } else window.commentBoardError(board,window.commentHumanError(e));
+                return null;
+            }
+        };
+
+        window.commentChangeHandle = async function(board, handle){
+            handle=String(handle||'').trim();
+            if(!handle){window.commentBoardError(board,'请输入新的 ID。');return;}
+            window.commentBoardError(board,'');
+            try{
+                await window.commentRequest('/identity/handle',{method:'POST',body:{handle}});
+                await window.commentLoadIdentity(board);
+                await window.commentLoadMessages(board);
+            }catch(e){window.commentBoardError(board,window.commentHumanError(e));}
+        };
+
+        window.commentSetAnonymous = async function(board, anonymous){
+            window.commentBoardError(board,'');
+            try{
+                await window.commentRequest('/identity/anonymous',{method:'POST',body:{anonymous:!!anonymous}});
+                await window.commentLoadIdentity(board);
+            }catch(e){
+                window.commentBoardError(board,window.commentHumanError(e));
+                await window.commentLoadIdentity(board);
+            }
+        };
+
+        window.commentFormatTime = function(value){
+            const n=Number(value);
+            if(!Number.isFinite(n)) return '';
+            try{
+                return new Intl.DateTimeFormat('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(n));
+            }catch(_){return '';}
+        };
+
+        window.commentCanDelete = function(message){
+            const {userId}=window.commentCredentials();
+            if (!userId) return false;
+            if (message?.canDelete === true) return true;
+            if (message?.author?.profileId && String(message.author.profileId)===String(userId)) return true;
+            return window.commentGetOwnIds().has(String(message?.id||''));
+        };
+
+        window.commentCreateMessageNode = function(board, message, isReply=false){
+            const item=document.createElement('article');
+            item.className='event-comment-item'+(isReply?' is-reply':'');
+            item.dataset.messageId=String(message.id||'');
+
+            const meta=document.createElement('div'); meta.className='event-comment-meta';
+            const author=document.createElement('span'); author.className='event-comment-author';
+            author.textContent=message?.author?.displayName || '未知用户';
+            if (!message?.author?.anonymous && message?.author?.profileId) {
+                author.classList.add('is-profile');
+                author.title='点击查看历史 ID';
+                author.onclick=()=>window.commentShowProfile(message.author.profileId);
+                author.addEventListener('mouseenter',()=>window.commentShowHistoryHover(author,message.author.profileId));
+                author.addEventListener('mouseleave',()=>{author.dataset.historyHoverToken='';window.commentHideHistoryHover();});
+            }
+            const time=document.createElement('span'); time.className='event-comment-time'; time.textContent=window.commentFormatTime(message.createdAt);
+            meta.append(author,time);
+            if (message?.author?.anonymous) {
+                const anon=document.createElement('span'); anon.className='event-comment-anon'; anon.textContent='匿名';
+                meta.appendChild(anon);
+            }
+
+            const content=document.createElement('div'); content.className='event-comment-content'; content.textContent=String(message.content||'');
+            const actions=document.createElement('div'); actions.className='event-comment-actions';
+            const reply=document.createElement('button'); reply.type='button'; reply.className='event-comment-action-link'; reply.textContent='回复';
+            reply.onclick=()=>{
+                board._commentReplyId=String(message.id||'');
+                board._commentReplyName=message?.author?.displayName || '这条评论';
+                window.commentSetComposeOpen(board,true,false);
+                const bar=board.querySelector('[data-comment-replying]');
+                const label=board.querySelector('[data-comment-reply-label]');
+                if(label) label.textContent=`正在回复 ${board._commentReplyName}`;
+                bar?.classList.add('is-visible');
+                board.querySelector('[data-comment-text]')?.focus();
+            };
+            actions.appendChild(reply);
+
+            if (window.commentCanDelete(message)) {
+                const del=document.createElement('button'); del.type='button'; del.className='event-comment-action-link danger'; del.textContent='删除';
+                del.onclick=()=>window.commentDelete(board,message.id);
+                actions.appendChild(del);
+            }
+            item.append(meta,content,actions);
+            return item;
+        };
+
+        window.commentRenderMessages = function(board, messages){
+            const list=board?.querySelector('[data-comment-list]');
+            const count=board?.querySelector('[data-comment-count]');
+            if(!list)return;
+            const rows=Array.isArray(messages)?messages:[];
+            if(count) count.textContent=String(rows.length);
+            list.innerHTML='';
+            if(!rows.length){
+                const empty=document.createElement('div'); empty.className='event-comment-empty'; empty.textContent='还没有评论，来留下第一条吧。'; list.appendChild(empty); return;
+            }
+
+            const children=new Map();
+            const roots=[];
+            rows.forEach(m=>{
+                const pid=m.parentId?String(m.parentId):'';
+                if(pid){
+                    if(!children.has(pid))children.set(pid,[]);
+                    children.get(pid).push(m);
+                }else roots.push(m);
+            });
+            const rendered=new Set();
+            const appendTree=(m,depth=0)=>{
+                if(!m || rendered.has(String(m.id)))return;
+                rendered.add(String(m.id));
+                list.appendChild(window.commentCreateMessageNode(board,m,depth>0));
+                (children.get(String(m.id))||[]).forEach(ch=>appendTree(ch,depth+1));
+            };
+            roots.forEach(m=>appendTree(m,0));
+            rows.forEach(m=>{if(!rendered.has(String(m.id)))appendTree(m,m.parentId?1:0);});
+        };
+
+        window.commentLoadMessages = async function(board){
+            if(!board?.isConnected)return;
+            const eventId=String(board.dataset.eventId||'');
+            const list=board.querySelector('[data-comment-list]');
+            if(list) list.innerHTML='<div class="event-comment-loading"><i class="fa-solid fa-circle-notch fa-spin mr-1"></i>正在加载评论…</div>';
+            try{
+                const data=await window.commentRequest('/messages?eventId='+encodeURIComponent(eventId),{method:'GET',headers:window.commentHeaders(false)});
+                board._commentMessages=Array.isArray(data.messages)?data.messages:[];
+                window.commentRenderMessages(board,board._commentMessages);
+            }catch(e){
+                if(list){list.innerHTML='';const d=document.createElement('div');d.className='event-comment-error';d.textContent=window.commentHumanError(e);list.appendChild(d);}
+            }
+        };
+
+        window.commentSend = async function(board){
+            const textarea=board?.querySelector('[data-comment-text]');
+            const btn=board?.querySelector('[data-comment-send]');
+            const content=String(textarea?.value||'').trim();
+            if(!content){window.commentBoardError(board,'请输入评论内容。');return;}
+            let identity=board._commentIdentity;
+            if(!identity) identity=await window.commentLoadIdentity(board);
+            if(!identity){window.commentBoardError(board,'请先创建评论身份。');return;}
+            if(!identity.handle){window.commentBoardError(board,'请先在“设置”中设置唯一 ID。');return;}
+            window.commentBoardError(board,'');
+            if(btn)btn.disabled=true;
+            try{
+                const body={eventId:String(board.dataset.eventId||''),content,parentId:board._commentReplyId||null};
+                const data=await window.commentRequest('/messages',{method:'POST',body});
+                if(data?.id)window.commentRememberOwnId(data.id);
+                if(textarea)textarea.value='';
+                const char=board.querySelector('[data-comment-char]');if(char)char.textContent='0 / 500';
+                board._commentReplyId=null;board._commentReplyName='';
+                board.querySelector('[data-comment-replying]')?.classList.remove('is-visible');
+                await window.commentLoadMessages(board);
+                window.commentSetComposeOpen(board,false,false);
+            }catch(e){window.commentBoardError(board,window.commentHumanError(e));}
+            finally{if(btn)btn.disabled=false;}
+        };
+
+        window.commentDelete = async function(board,id){
+            if(!id)return;
+            const win=document.getElementById('eventCommentWindow');
+            if(!win)return;
+            win.querySelector('.comment-confirm-layer')?.remove();
+
+            const layer=document.createElement('div');layer.className='comment-confirm-layer';
+            const card=document.createElement('div');card.className='comment-confirm-card';
+            const title=document.createElement('div');title.className='comment-confirm-title';title.textContent='删除评论';
+            const copy=document.createElement('div');copy.className='comment-confirm-text';copy.textContent='确定删除这条评论吗？删除后无法恢复。';
+            const actions=document.createElement('div');actions.className='comment-confirm-actions';
+            const cancel=document.createElement('button');cancel.type='button';cancel.className='event-comment-btn';cancel.textContent='取消';
+            const ok=document.createElement('button');ok.type='button';ok.className='event-comment-btn danger';ok.textContent='删除';
+            cancel.onclick=()=>layer.remove();
+            ok.onclick=async()=>{
+                ok.disabled=true;cancel.disabled=true;
+                window.commentBoardError(board,'');
+                try{
+                    await window.commentRequest('/messages?id='+encodeURIComponent(id),{method:'DELETE',headers:window.commentHeaders(false)});
+                    window.commentForgetOwnId(id);
+                    layer.remove();
+                    await window.commentLoadMessages(board);
+                }catch(e){
+                    layer.remove();
+                    window.commentBoardError(board,window.commentHumanError(e));
+                }
+            };
+            actions.append(cancel,ok);card.append(title,copy,actions);layer.appendChild(card);win.appendChild(layer);
+        };
+
+        window.commentShowProfile = async function(profileId){
+            if(!profileId)return;
+            let overlay=document.getElementById('commentProfileOverlay');
+            if(overlay)overlay.remove();
+            overlay=document.createElement('div');overlay.id='commentProfileOverlay';overlay.className='event-comment-profile-card';
+            const dialog=document.createElement('div');dialog.className='event-comment-profile-dialog';
+            const top=document.createElement('div');top.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px';
+            const title=document.createElement('div');title.style.cssText='font-size:14px;font-weight:800;color:#f8fafc';title.textContent='历史 ID';
+            const close=document.createElement('button');close.type='button';close.className='event-comment-btn';close.textContent='关闭';close.onclick=()=>overlay.remove();
+            top.append(title,close);
+            const body=document.createElement('div');body.className='event-comment-loading';body.textContent='正在读取…';
+            dialog.append(top,body);overlay.appendChild(dialog);document.body.appendChild(overlay);
+            overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove();});
+            try{
+                const data=await window.commentRequest('/users/history?profileId='+encodeURIComponent(profileId),{method:'GET',headers:{}});
+                body.className='';body.innerHTML='';
+                const current=document.createElement('div');current.style.cssText='font-size:12px;color:#cbd5e1;margin-bottom:10px';
+                current.textContent='当前 ID：'+(data?.profile?.currentHandle||data?.profile?.handle||'暂无');
+                body.appendChild(current);
+                const history=Array.isArray(data?.profile?.history)?data.profile.history:[];
+                if(!history.length){
+                    const p=document.createElement('div');p.className='event-comment-muted';p.textContent='暂无历史 ID 记录。';body.appendChild(p);
+                }else{
+                    history.forEach(row=>{
+                        const line=document.createElement('div');line.style.cssText='padding:8px 0;border-top:1px solid #1e293b;display:flex;align-items:center;justify-content:space-between;gap:8px';
+                        const name=document.createElement('span');name.style.cssText='font-size:12px;font-weight:700;color:#e2e8f0';name.textContent=row.handle||'';
+                        const state=document.createElement('span');state.className='event-comment-muted';state.textContent=row.current?'当前使用':'历史使用';
+                        line.append(name,state);body.appendChild(line);
+                    });
+                }
+            }catch(e){body.className='event-comment-error';body.textContent=window.commentHumanError(e);}
+        };
+
+
+        window.makeFloatingDrag = function(element, handle){
+            if(!element || !handle || handle.dataset.dragBound==='1')return;
+            handle.dataset.dragBound='1';
+            let state=null;
+            const move=e=>{
+                if(!state)return;
+                const p=e.touches?.[0]||e;
+                let left=state.left+(p.clientX-state.x);
+                let top=state.top+(p.clientY-state.y);
+                const maxLeft=Math.max(0,window.innerWidth-element.offsetWidth);
+                const maxTop=Math.max(0,window.innerHeight-element.offsetHeight);
+                left=Math.min(Math.max(0,left),maxLeft);
+                top=Math.min(Math.max(0,top),maxTop);
+                element.style.left=left+'px'; element.style.top=top+'px';
+                element.style.right='auto'; element.style.bottom='auto'; element.style.transform='none';
+            };
+            const up=()=>{
+                state=null;
+                document.removeEventListener('pointermove',move);
+                document.removeEventListener('pointerup',up);
+            };
+            handle.addEventListener('pointerdown',e=>{
+                if(e.button!==0)return;
+                if(e.target.closest('button,input,textarea,a,select'))return;
+                const r=element.getBoundingClientRect();
+                state={x:e.clientX,y:e.clientY,left:r.left,top:r.top};
+                element.style.left=r.left+'px';element.style.top=r.top+'px';
+                element.style.right='auto';element.style.bottom='auto';element.style.transform='none';
+                handle.setPointerCapture?.(e.pointerId);
+                document.addEventListener('pointermove',move);
+                document.addEventListener('pointerup',up,{once:true});
+                e.preventDefault();
+            });
+        };
+
+        window.initFloatingDetailWindow = function(viewer){
+            const shell=viewer?.querySelector('[data-detail-shell]');
+            if(!shell)return;
+            window.makeFloatingDrag(shell,shell.querySelector('[data-detail-drag-handle]'));
+        };
+
+
+        window.makeCommentWindowResizable = function(win,handle){
+            if(!win || !handle || handle.dataset.resizeBound==='1')return;
+            handle.dataset.resizeBound='1';
+            let state=null;
+            const move=e=>{
+                if(!state)return;
+                const minW=300,minH=280;
+                const maxW=Math.max(minW,window.innerWidth-state.left-8);
+                const maxH=Math.max(minH,window.innerHeight-state.top-8);
+                const w=Math.min(maxW,Math.max(minW,state.width+(e.clientX-state.x)));
+                const h=Math.min(maxH,Math.max(minH,state.height+(e.clientY-state.y)));
+                win.style.width=w+'px';
+                win.style.height=h+'px';
+            };
+            const up=()=>{
+                state=null;
+                document.removeEventListener('pointermove',move);
+                document.removeEventListener('pointerup',up);
+            };
+            handle.addEventListener('pointerdown',e=>{
+                if(e.button!==0)return;
+                const r=win.getBoundingClientRect();
+                win.style.left=r.left+'px';
+                win.style.top=r.top+'px';
+                win.style.right='auto';
+                win.style.bottom='auto';
+                state={x:e.clientX,y:e.clientY,width:r.width,height:r.height,left:r.left,top:r.top};
+                handle.setPointerCapture?.(e.pointerId);
+                document.addEventListener('pointermove',move);
+                document.addEventListener('pointerup',up,{once:true});
+                e.preventDefault();
+                e.stopPropagation();
+            });
+        };
+
+        window.closeEventCommentWindow = function(){
+            const win=document.getElementById('eventCommentWindow');
+            if(win)win.classList.add('hidden');
+        };
+
+        window.openEventCommentWindow = function(eventId){
+            const ev=window.findEventById?window.findEventById(eventId):window.events?.find(e=>String(e.id)===String(eventId));
+            if(!ev)return;
+            let win=document.getElementById('eventCommentWindow');
+            if(!win){
+                win=document.createElement('aside');
+                win.id='eventCommentWindow';
+                document.body.appendChild(win);
+            }
+            win.classList.remove('hidden');
+            win.dataset.eventId=String(eventId);
+            win.innerHTML='';
+            const bar=document.createElement('div');bar.className='comment-window-titlebar';
+            const title=document.createElement('div');title.className='comment-window-title';
+            const eventName=document.createElement('span');eventName.className='comment-window-event-name';eventName.textContent=String(ev.title||'');
+            title.append(eventName);
+            const close=document.createElement('button');close.type='button';close.className='comment-window-close';close.setAttribute('aria-label','关闭评论区');close.innerHTML='<i class="fa-solid fa-xmark"></i>';close.onclick=window.closeEventCommentWindow;
+            bar.append(title,close);
+            const body=document.createElement('div');body.className='comment-window-body';body.innerHTML=window.renderCommentBoardShell(eventId);
+            const resizer=document.createElement('div');resizer.className='comment-window-resizer';resizer.setAttribute('aria-hidden','true');
+            win.append(bar,body,resizer);
+            window.makeFloatingDrag(win,bar);
+            window.makeCommentWindowResizable(win,resizer);
+            window.initCommentBoard(eventId,win);
+        };
+
+        window._commentHistoryCache = window._commentHistoryCache || new Map();
+        window.commentGetHistory = async function(profileId){
+            const key=String(profileId||'');
+            if(!key)return null;
+            if(window._commentHistoryCache.has(key))return window._commentHistoryCache.get(key);
+            try{
+                const data=await window.commentRequest('/users/history?profileId='+encodeURIComponent(key),{method:'GET',headers:{}});
+                const profile=data?.profile||null;
+                window._commentHistoryCache.set(key,profile);
+                return profile;
+            }catch(_){window._commentHistoryCache.set(key,null);return null;}
+        };
+        window.commentHideHistoryHover = function(){
+            const tip=document.getElementById('commentHistoryHover');
+            if(tip)tip.classList.remove('is-visible');
+        };
+        window.commentShowHistoryHover = async function(anchor,profileId){
+            if(!anchor || !profileId)return;
+            const token=String(profileId)+'_'+Date.now();
+            anchor.dataset.historyHoverToken=token;
+            const profile=await window.commentGetHistory(profileId);
+            if(anchor.dataset.historyHoverToken!==token || !anchor.matches(':hover'))return;
+            const history=Array.isArray(profile?.history)?profile.history:[];
+            // 没有真正的历史 ID 时不展示悬浮卡。
+            const distinct=[...new Set(history.map(x=>String(x?.handle||'').trim()).filter(Boolean))];
+            if(distinct.length<2)return;
+            let tip=document.getElementById('commentHistoryHover');
+            if(!tip){tip=document.createElement('div');tip.id='commentHistoryHover';tip.className='comment-history-hover';document.body.appendChild(tip);}
+            tip.innerHTML='';
+            const head=document.createElement('div');head.className='comment-history-hover-title';head.textContent='历史 ID';
+            tip.appendChild(head);
+            distinct.slice(0,8).forEach(name=>{const row=document.createElement('div');row.className='comment-history-hover-row';row.textContent=name;tip.appendChild(row);});
+            const r=anchor.getBoundingClientRect();
+            let left=r.left, top=r.bottom+7;
+            tip.style.left='0px';tip.style.top='0px';tip.classList.add('is-visible');
+            const tr=tip.getBoundingClientRect();
+            if(left+tr.width>window.innerWidth-8)left=window.innerWidth-tr.width-8;
+            if(top+tr.height>window.innerHeight-8)top=r.top-tr.height-7;
+            tip.style.left=Math.max(8,left)+'px';tip.style.top=Math.max(8,top)+'px';
+        };
+
+        window.initCommentBoard = function(eventId, root=document){
+            if(!root)return;
+            const boards=[...root.querySelectorAll('[data-comment-board]')].filter(b=>String(b.dataset.eventId)===String(eventId));
+            boards.forEach(board=>{
+                if(board.dataset.commentInited==='1')return;
+                board.dataset.commentInited='1';
+                window._commentBoards.set(String(eventId),board);
+                const text=board.querySelector('[data-comment-text]');
+                const char=board.querySelector('[data-comment-char]');
+                text?.addEventListener('input',()=>{if(char)char.textContent=`${text.value.length} / 500`;});
+                board.querySelector('[data-comment-send]')?.addEventListener('click',()=>window.commentSend(board));
+                board.querySelector('[data-comment-refresh]')?.addEventListener('click',()=>window.commentLoadMessages(board));
+                board.querySelector('[data-comment-compose-toggle]')?.addEventListener('click',()=>{
+                    const panel=board.querySelector('[data-comment-compose-panel]');
+                    const open=!panel?.classList.contains('is-open');
+                    window.commentSetComposeOpen(board,open,open);
+                });
+                board.querySelector('[data-comment-reply-cancel]')?.addEventListener('click',()=>{
+                    board._commentReplyId=null;board._commentReplyName='';
+                    board.querySelector('[data-comment-replying]')?.classList.remove('is-visible');
+                });
+                void window.commentLoadIdentity(board);
+                void window.commentLoadMessages(board);
+            });
+        };
+
+</script>
 
 
 
