@@ -585,40 +585,147 @@
         .cloud-sync-mini-switch::after{content:'';position:absolute;width:10px;height:10px;border-radius:9999px;background:#fff;left:2px;top:2px;box-shadow:0 1px 2px rgba(15,23,42,.25);transition:.16s ease;}
         /* Keep the mode switch footprint stable while its icon/text state is refreshed. */
         #lockToggleBtn{width:104px;min-width:104px;justify-content:center;white-space:nowrap;flex:0 0 104px;}
-        @media(max-width:639px){
-            /* Mobile header: keep cloud status visible, put the offline switch on its left,
-               and remove edit-only actions to preserve horizontal space. */
-            #cloudSyncCluster{width:auto;height:auto;display:flex;align-items:center;gap:5px;}
-            #syncStatus{display:flex !important;order:2;padding:4px 7px;font-size:10px;gap:4px;white-space:nowrap;}
-            #syncStatus #syncDot{width:6px;height:6px;}
-            .cloud-sync-mini-switch{width:21px;height:12px;}
-            .cloud-sync-mini-switch::after{width:8px;height:8px;}
+        /* 手机和平板统一使用移动端顶部栏：
+           只保留 背景音乐 / tag库 / 用户设置 三个纯图标按钮。 */
+        /* 触屏移动设备通用：隐藏分享协同 / 模式切换 / 新建事件。 */
+        @media (hover:none) and (pointer:coarse){
             #shareCollabBtn,#addEventBtn,#lockToggleBtn{display:none !important;}
-            /* With edit-only controls removed, keep the two useful labels visible on mobile. */
-            #mobileMusicLabel,#mobileTagLabel{display:inline !important;}
-            #cloudSyncCluster{gap:4px;min-width:0;}
-            #syncStatus{flex:0 0 auto;}
         }
 
-        @media(max-width:639px){
+        /* 平板：保留文字版同步状态、背景音乐、tag库、用户设置。
+           用户设置并回工具组，和其他按钮使用相同 gap；整组向左收。 */
+        @media (hover:none) and (pointer:coarse) and (min-width:640px){
+            header > div.max-w-6xl{
+                padding-right:24px !important;
+            }
+            header > div.max-w-6xl > div:last-of-type{
+                gap:8px !important;
+                flex-wrap:nowrap !important;
+                min-width:0 !important;
+                margin-left:auto !important;
+                transform:translateX(-18px);
+            }
+
+            #cloudSyncCluster{
+                display:flex !important;
+                align-items:center !important;
+                flex:0 0 auto !important;
+                margin:0 !important;
+            }
+            #syncStatus{
+                display:flex !important;
+                align-items:center !important;
+                gap:5px !important;
+                padding:5px 9px !important;
+                font-size:11px !important;
+                white-space:nowrap !important;
+            }
+
             header button[onclick="openMusicModal()"],
             header button[onclick="openTagModal()"]{
-                padding-left:6px !important;
-                padding-right:6px !important;
-                gap:3px !important;
-                font-size:10px !important;
-                flex:0 1 auto;
-                min-width:0;
+                width:auto !important;
+                height:auto !important;
+                min-width:0 !important;
+                max-width:none !important;
+                flex:0 0 auto !important;
+                padding:8px 10px !important;
+                gap:5px !important;
+                justify-content:center !important;
+                overflow:visible !important;
+                margin:0 !important;
             }
             #mobileMusicLabel,#mobileTagLabel{
-                overflow:hidden;
-                text-overflow:ellipsis;
-                white-space:nowrap;
-                max-width:58px;
+                display:inline !important;
+                max-width:none !important;
+                overflow:visible !important;
             }
+
+            #userSettingsBtn{
+                position:static !important;
+                right:auto !important;
+                top:auto !important;
+                transform:none !important;
+                width:auto !important;
+                height:auto !important;
+                min-width:0 !important;
+                max-width:none !important;
+                flex:0 0 auto !important;
+                padding:8px 10px !important;
+                gap:5px !important;
+                justify-content:center !important;
+                overflow:visible !important;
+                margin:0 !important;
+                z-index:auto !important;
+            }
+            #userSettingsBtn span{display:inline !important;}
         }
 
+        /* 手机：同步状态 + 音乐 + tag + 用户设置全部进入同一个 flex 组，
+           所有相邻项目都只使用同一个 gap，不再让用户设置单独绝对定位。 */
+        @media(max-width:639px){
+            #shareCollabBtn,#addEventBtn,#lockToggleBtn{display:none !important;}
 
+            header > div.max-w-6xl{
+                padding-right:12px !important;
+            }
+            header > div.max-w-6xl > div:last-of-type{
+                gap:6px !important;
+                flex-wrap:nowrap !important;
+                min-width:0 !important;
+                margin-left:auto !important;
+            }
+
+            #cloudSyncCluster{
+                display:flex !important;
+                align-items:center !important;
+                flex:0 0 auto !important;
+                margin:0 !important;
+            }
+            #syncStatus{
+                display:flex !important;
+                align-items:center !important;
+                gap:3px !important;
+                padding:4px 6px !important;
+                font-size:9px !important;
+                white-space:nowrap !important;
+                flex:0 0 auto !important;
+            }
+            #syncStatus #syncDot{width:6px !important;height:6px !important;}
+
+            header button[onclick="openMusicModal()"],
+            header button[onclick="openTagModal()"]{
+                width:32px !important;height:32px !important;
+                min-width:32px !important;max-width:32px !important;
+                flex:0 0 32px !important;
+                padding:0 !important;gap:0 !important;
+                justify-content:center !important;
+                overflow:hidden !important;
+                margin:0 !important;
+            }
+            #mobileMusicLabel,#mobileTagLabel{display:none !important;}
+
+            #userSettingsBtn{
+                position:static !important;
+                right:auto !important;
+                top:auto !important;
+                transform:none !important;
+                width:32px !important;height:32px !important;
+                min-width:32px !important;max-width:32px !important;
+                flex:0 0 32px !important;
+                padding:0 !important;gap:0 !important;
+                justify-content:center !important;
+                overflow:hidden !important;
+                margin:0 !important;
+                z-index:auto !important;
+            }
+            #userSettingsBtn span{display:none !important;}
+
+            /* 给功能组更多横向空间，避免标题把右侧按钮挤折叠。 */
+            header h1{
+                font-size:14px !important;
+                white-space:nowrap !important;
+            }
+        }
         /* === 每个事件独立留言板 / CloudBase message-api === */
         .event-comment-board{margin-top:28px;padding-top:24px;border-top:1px solid #1e293b;color:#e2e8f0}
         .event-comment-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
@@ -787,17 +894,65 @@
         .comment-history-hover-title{font-size:10px;font-weight:800;color:#64748b;margin-bottom:5px}
         .comment-history-hover-row{font-size:11px;line-height:1.6;color:#334155}
         @media(max-width:639px){
+            /* 手机详情页默认居中；不允许拖动，也不再显示“点击此处拖动详情页”的说明/分隔线。 */
             #fullscreenViewer [data-detail-shell]{
-                left:8px;right:8px;top:76px;transform:none;width:auto !important;
-                max-height:calc(100vh - 90px);
+                left:8px !important;
+                right:8px !important;
+                top:50% !important;
+                transform:translateY(-50%) !important;
+                width:auto !important;
+                max-height:calc(100vh - 24px) !important;
+                touch-action:pan-y !important;
+                transition:top .18s ease,transform .18s ease,max-height .18s ease;
             }
-            .detail-window-comments-btn{top:14px;right:58px;height:36px;padding:0 10px}
+            #fullscreenViewer .detail-window-dragbar{display:none !important;}
+
+            /* 打开评论区后，详情页自动移到屏幕上方，给底部半屏评论区让出空间。 */
+            #fullscreenViewer.mobile-comments-open [data-detail-shell]{
+                top:8px !important;
+                transform:none !important;
+                max-height:calc(50vh - 16px) !important;
+            }
+
+            /* 评论按钮与关闭按钮一起上移，避免压到原来的分隔区域。 */
+            .detail-window-comments-btn{
+                top:6px !important;
+                right:56px !important;
+                height:34px !important;
+                padding:0 9px !important;
+            }
+            #fullscreenViewer [data-detail-shell] > button[onclick^="closeReadOnlyFullscreen"]{
+                top:4px !important;
+                right:8px !important;
+                width:34px !important;
+                height:34px !important;
+            }
+
+            /* 手机评论区固定为底部半屏，内容区可纵向滑动。 */
             #eventCommentWindow{
-                left:8px !important;right:auto !important;top:76px !important;
-                width:calc(100vw - 16px) !important;height:calc(100vh - 92px) !important;
-                min-width:0;min-height:0;resize:none;
+                left:0 !important;
+                right:0 !important;
+                top:auto !important;
+                bottom:0 !important;
+                width:100vw !important;
+                height:50vh !important;
+                min-width:0 !important;
+                min-height:0 !important;
+                max-width:none !important;
+                max-height:50vh !important;
+                resize:none !important;
+                border-radius:18px 18px 0 0 !important;
             }
-            .comment-window-event-name{max-width:180px;font-size:13px}
+            #eventCommentWindow .comment-window-titlebar{
+                cursor:default !important;
+                touch-action:pan-y !important;
+            }
+            #eventCommentWindow .comment-window-body{
+                overflow-y:auto !important;
+                -webkit-overflow-scrolling:touch;
+                overscroll-behavior:contain;
+            }
+            .comment-window-event-name{max-width:calc(100vw - 90px);font-size:13px}
         }
 
 
@@ -873,10 +1028,6 @@
 
 
         /* 用户设置独立固定在最右端，不参与原功能按钮组布局。 */
-        @media(max-width:639px){
-            #userSettingsBtn{right:8px !important;}
-            #userSettingsBtn span{display:none !important;}
-        }
 
 </style>
 </head>
@@ -1387,7 +1538,7 @@
                 <div id="helpBrowseChangelog">
                 <div class="border border-green-300 rounded-xl p-4 bg-green-50">
                     <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.15</span><span class="px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-semibold">本次更新</span></div>
-                    <div class="space-y-2 leading-7 mb-3"><p>移除了仅离线功能</p></div>
+                    <div class="space-y-2 leading-7 mb-3"><p>移除了仅离线功能</p><p>优化了移动端显示的功能</p></div>
                     <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.14</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
                     <div class="space-y-2 leading-7 mb-3"><p>增加了评论区功能</p><p>优化了时间线搜索的功能</p><p>优化了评论区窗口显示与交互的功能</p></div>
                     <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.11</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
@@ -12500,6 +12651,8 @@
         window.initFloatingDetailWindow = function(viewer){
             const shell=viewer?.querySelector('[data-detail-shell]');
             if(!shell)return;
+            // 手机详情页固定布局不绑定拖动；平板/电脑仅保留原有拖动，不做额外自动居中校正。
+            if(window.matchMedia?.('(max-width: 639px)').matches)return;
             window.makeFloatingDrag(shell,shell.querySelector('[data-detail-drag-handle]'));
         };
 
@@ -12542,6 +12695,7 @@
         window.closeEventCommentWindow = function(){
             const win=document.getElementById('eventCommentWindow');
             if(win)win.classList.add('hidden');
+            document.getElementById('fullscreenViewer')?.classList.remove('mobile-comments-open');
         };
 
         window.openEventCommentWindow = function(eventId){
@@ -12565,8 +12719,14 @@
             const body=document.createElement('div');body.className='comment-window-body';body.innerHTML=window.renderCommentBoardShell(eventId);
             const resizer=document.createElement('div');resizer.className='comment-window-resizer';resizer.setAttribute('aria-hidden','true');
             win.append(bar,body,resizer);
-            window.makeFloatingDrag(win,bar);
-            window.makeCommentWindowResizable(win,resizer);
+
+            const isNarrowPhone=window.matchMedia?.('(max-width: 639px)').matches;
+            if(isNarrowPhone){
+                document.getElementById('fullscreenViewer')?.classList.add('mobile-comments-open');
+            }else{
+                window.makeFloatingDrag(win,bar);
+                window.makeCommentWindowResizable(win,resizer);
+            }
             window.initCommentBoard(eventId,win);
         };
 
@@ -12700,6 +12860,32 @@
                 void window.commentLoadMessages(board);
             });
         };
+
+
+        /* === 顶部功能弹窗：点击外层空白遮罩关闭 ===
+           仅当点击目标就是遮罩本身时关闭；点击弹窗内容、输入框、按钮均不会触发。
+           动态创建的新建/编辑事件弹窗也由同一处统一处理。 */
+        window.installHeaderModalBackdropClose = function(){
+            if(window._headerModalBackdropCloseInstalled)return;
+            window._headerModalBackdropCloseInstalled=true;
+
+            const closeByOverlayId = {
+                musicModal: () => window.closeMusicModal?.(),
+                tagModal: () => window.closeTagModal?.(),
+                editorIdentityModal: () => window.closeEditorIdentityEditor?.(),
+                shareModal: () => window.closeShareModal?.(),
+                pwdModal: () => window.closePwdModal?.()
+            };
+
+            document.addEventListener('click', (event) => {
+                const target=event.target;
+                if(!(target instanceof HTMLElement))return;
+                const close=closeByOverlayId[target.id];
+                if(!close)return;
+                close();
+            });
+        };
+        window.installHeaderModalBackdropClose();
 
 </script>
 
