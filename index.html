@@ -871,10 +871,17 @@
         #eventCommentWindow .event-comment-compose{margin-bottom:10px}
         #eventCommentWindow .event-comment-identity{margin-bottom:0}
 
+
+        /* 用户设置独立固定在最右端，不参与原功能按钮组布局。 */
+        @media(max-width:639px){
+            #userSettingsBtn{right:8px !important;}
+            #userSettingsBtn span{display:none !important;}
+        }
+
 </style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
-<header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+<header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm relative">
         <div class="max-w-6xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2">
             <div class="flex items-center gap-2 sm:gap-3 shrink-0">
                 <div>
@@ -899,7 +906,7 @@
                     <i class="fa-solid fa-tags text-slate-500"></i>
                     <span id="mobileTagLabel" class="hidden md:inline">tag库</span>
                 </button>
-                <button id="xiaoqingerDialogueEditorBtn" onclick="requestXiaoqingerDialogueEditor()" title="" aria-label="小晴儿台词编辑" class="fixed right-10 bottom-2 z-[80] w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-slate-400/20 hover:text-slate-500/80 hover:bg-slate-200/60 transition-all opacity-25 hover:opacity-100">
+<button id="xiaoqingerDialogueEditorBtn" onclick="requestXiaoqingerDialogueEditor()" title="" aria-label="小晴儿台词编辑" class="fixed right-10 bottom-2 z-[80] w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-slate-400/20 hover:text-slate-500/80 hover:bg-slate-200/60 transition-all opacity-25 hover:opacity-100">
                     <i class="fa-solid fa-comment-dots"></i>
                 </button>
                 <button id="manualBackupBtn" onclick="requestTimelineBackup()" title="" aria-label="导出 JSON 备份" class="fixed right-2 bottom-2 z-[80] w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-slate-400/20 hover:text-slate-500/80 hover:bg-slate-200/60 transition-all opacity-25 hover:opacity-100">
@@ -917,6 +924,10 @@
                 <button id="addEventBtn" onclick="handleNewEventClick()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 shadow-sm transition-all shrink-0">
                     <i class="fa-solid fa-plus"></i>
                     <span class="hidden sm:inline">新建事件</span>
+                </button>
+<button id="userSettingsBtn" onclick="openEditorIdentityEditor()" title="用户设置" aria-label="用户设置" class="absolute right-3 sm:right-5 top-1/2 -translate-y-1/2 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-medium border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 flex items-center gap-1 transition-all shadow-sm shrink-0 z-10">
+                    <i class="fa-solid fa-user-gear text-slate-500"></i>
+                    <span class="hidden md:inline">用户设置</span>
                 </button>
             </div>
         </div>
@@ -1473,10 +1484,11 @@
                             <p class="text-[11px] text-slate-500 mt-0.5">记录成功同步至云端的事件、Tag 与背景音乐修改。</p>
                         </div>
                         <div class="shrink-0 flex items-center gap-2">
-                            <button type="button" onclick="openEditorIdentityEditor()" title="编辑 ID"
-                                    class="text-[10px] text-slate-500 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 rounded-lg px-2 py-1 transition-colors">
-                                当前：<span id="activityCurrentUser" class="font-semibold text-indigo-700">--</span>
-                            </button>
+                            <span class="text-[10px] text-slate-500">匿名</span>
+                            <label class="event-comment-switch">
+                                <input id="activityAnonymousSwitch" type="checkbox" onchange="setActivityAnonymous(this.checked)">
+                                <span class="event-comment-switch-track"></span>
+                            </label>
                         </div>
                     </div>
                     <div id="activityLogList" class="space-y-2">
@@ -1576,7 +1588,7 @@
                     <label class="block text-[11px] font-bold text-slate-600 mb-1">首次问候</label>
                     <div id="xiaoqingerGreetingEditor" contenteditable="true"
                          class="xiaoqinger-rich-editor min-h-[42px] w-full px-3 py-2 border border-slate-300 rounded-lg  leading-6 outline-none focus:ring-2 focus:ring-indigo-500 bg-white"></div>
-                    <p class="text-[9px] text-slate-400 mt-1">{name} 会自动替换为当前用户名；匿名或未设置 ID 时为“小鱼丁”。</p>
+                    <p class="text-[9px] text-slate-400 mt-1">{name} 会自动替换为当前用户名；匿名或未设置 ID 时按原版“小鱼丁”处理。</p>
                 </div>
                 <div>
                     <label class="block text-[11px] font-bold text-slate-600 mb-1">特殊问候语</label>
@@ -1615,12 +1627,16 @@
             <input id="editorIdentityInput" type="text" maxlength="32" autocomplete="off" placeholder="输入 ID"
                    onkeydown="if(event.key==='Enter'){event.preventDefault();saveEditorIdentity();}"
                    class="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 mb-3">
-            <label class="flex items-center gap-2 mb-3 px-1 text-sm text-slate-600 cursor-pointer select-none">
-                <input id="editorIdentityAnonymousCheckbox" type="checkbox" onchange="syncEditorIdentityAnonymousUI()" class="w-4 h-4 rounded border-slate-300 accent-indigo-600">
-                <span>匿名</span>
-            </label>
             <button type="button" onclick="saveEditorIdentity()" class="w-full px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-sm">确定</button>
-            <button id="editorIdentityCancelBtn" type="button" onclick="closeEditorIdentityEditor()" class="hidden w-full mt-2 px-4 py-2 rounded-lg text-xs text-slate-500 hover:bg-slate-50">取消</button>
+
+            <div id="editorIdentityHistorySection" class="mt-4 pt-3 border-t border-slate-200">
+                <div class="text-xs font-bold text-slate-700 mb-2">历史 ID</div>
+                <div id="editorIdentityHistoryList" class="space-y-1.5">
+                    <div class="text-[11px] text-slate-400">正在读取…</div>
+                </div>
+            </div>
+
+            <button id="editorIdentityCancelBtn" type="button" onclick="closeEditorIdentityEditor()" class="hidden w-full mt-3 px-4 py-2 rounded-lg text-xs text-slate-500 hover:bg-slate-50">取消</button>
             <p id="editorIdentityError" class="hidden text-[11px] text-rose-500 text-center mt-2">请输入有效的 ID</p>
         </div>
     </div>
@@ -3569,7 +3585,7 @@
             }
 
             const pwdInput = document.getElementById('unlockPwdInput');
-            const pwd = pwdInput ? pwdInput.value : '';
+            const pwd = pwdInput ? pwdInput.value.trim() : '';
             if (!pwd) {
                 window.showToast('请输入编辑密码', 'error');
                 return;
@@ -8832,7 +8848,7 @@
                     const subtitle=String(seg.subtitle||'').trim();
                     return `<section class="shrink-0 w-[78vw] sm:w-[360px] rounded-2xl border border-slate-700 bg-slate-900/80 p-4 self-start"><div class="text-xs font-mono text-indigo-300 ${subtitle?'mb-1':'mb-3'}">${window.formatDisplayDate(seg.date)}</div>${subtitle?`<h2 class="text-sm sm:text-base font-normal text-slate-200 mb-3">${escapeHtml(subtitle)}</h2>`:''}<div class="space-y-3">${body||'<div class="text-xs text-slate-500">这个时间没有附加内容</div>'}</div></section>`;
                 }).join('');
-                viewer.innerHTML=`<div data-detail-shell class="max-w-6xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-8 shadow-2xl relative"><div class="detail-window-dragbar" data-detail-drag-handle><i class="fa-solid fa-grip-lines"></i><span>点击此处拖动详情页</span></div><button type="button" onclick="window.openEventCommentWindow('${event.id}')" class="detail-window-comments-btn"><i class="fa-regular fa-comments"></i><span>评论区</span></button><button onclick="closeReadOnlyFullscreen('${fromStackDate?fromStackDate.replace(/'/g,"\\'"):''}')" class="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full"><i class="fa-solid fa-xmark"></i></button><h1 class="text-xl sm:text-2xl font-bold mb-5 pr-12">${escapeHtml(event.title)}</h1><div id="multiDetailScroller" class="flex gap-4 overflow-x-auto overflow-y-visible pb-3 cursor-grab select-none" style="touch-action:pan-x pan-y;overscroll-behavior-x:contain;scroll-snap-type:none;scroll-behavior:auto;">${cols}</div></div>`;
+                viewer.innerHTML=`<div data-detail-shell class="max-w-6xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-8 shadow-2xl relative"><div class="detail-window-dragbar" data-detail-drag-handle><i class="fa-solid fa-grip-lines"></i><span>点击此处拖动详情页</span></div><button type="button" onclick="window.openEventCommentWindow('${event.id}')" class="detail-window-comments-btn"><i class="fa-regular fa-comments"></i><span>评论区</span></button><button onclick="closeReadOnlyFullscreen('${fromStackDate?fromStackDate.replace(/'/g,"\\'"):''}')" class="absolute top-3 right-4 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full"><i class="fa-solid fa-xmark"></i></button><h1 class="text-xl sm:text-2xl font-bold mb-5 pr-12">${escapeHtml(event.title)}</h1><div id="multiDetailScroller" class="flex gap-4 overflow-x-auto overflow-y-visible pb-3 cursor-grab select-none" style="touch-action:pan-x pan-y;overscroll-behavior-x:contain;scroll-snap-type:none;scroll-behavior:auto;">${cols}</div></div>`;
                 viewer.classList.remove('hidden');window.bindDetailVideoBehavior(viewer,event.id);window.initMultiDetailScroller?.();window.initFloatingDetailWindow(viewer);return;
             }
             const detailHasImages=Array.isArray(event.images)&&event.images.length>0,detailHasVideos=Array.isArray(event.videos)&&event.videos.length>0,detailDescriptionText=String(event.description||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/gi,' ').trim(),detailHasDescription=!!detailDescriptionText;
@@ -8841,7 +8857,7 @@
             let videosHtml='';if(detailHasVideos){videosHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-video mr-1"></i>事件视频</h4><div data-detail-videos>${event.videos.map((v,vidx)=>{const vUrl=typeof v==='object'?(v.blobUrl||v.url):v,vCover=typeof v==='object'?(v.cover||''):'',vTitle=typeof v==='object'?(v.title||v.name||''):'',vType=typeof v==='object'&&v.mime?`type="${v.mime}"`:'';const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(v?.deepDescription);return `<div data-detail-video-card data-detail-video-index="${vidx}" data-detail-video-deep="${hasDeep?'1':'0'}" class="bg-black rounded-xl overflow-hidden border border-slate-800 ${hasDeep?'cursor-pointer':''}">${vTitle?`<div data-detail-video-title class="px-3 py-2 bg-slate-900 text-xs font-semibold text-slate-200 border-b border-slate-800">${escapeHtml(vTitle)}</div>`:''}<div data-detail-video-stage class="relative bg-black overflow-hidden"><video ${vCover?`poster="${vCover}"`:''} playsinline webkit-playsinline preload="metadata" class="block bg-black object-contain"><source src="${vUrl}" ${vType}></video>${hasDeep?'<span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">🐢</span><span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">✌🏻</span>':''}</div></div>`;}).join('')}</div></div>`;}
             let linksHtml='';if(event.links&&event.links.length>0){linksHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-link mr-1"></i>跳转网址</h4><div class="flex flex-wrap gap-2">${event.links.map(l=>`<a href="${l.url}" target="_blank" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-indigo-300 hover:text-indigo-200 px-3 py-2 rounded-xl text-xs transition-colors"><i class="fa-solid fa-globe"></i><span class="font-medium">${l.title||l.url}</span></a>`).join('')}</div></div>`;}
             const descriptionHtml=detailHasDescription?`<div data-detail-description class="border-t border-slate-800 pt-6 mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">事件经过与描述</h4><div class="event-description-html text-sm sm:text-base leading-relaxed whitespace-pre-wrap">${window.prepareDescriptionForView?window.prepareDescriptionForView(event.description):event.description}</div></div>`:'';
-            viewer.innerHTML=`<div data-detail-shell class="max-w-3xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-10 shadow-2xl relative"><div class="detail-window-dragbar" data-detail-drag-handle><i class="fa-solid fa-grip-lines"></i><span>点击此处拖动详情页</span></div><button type="button" onclick="window.openEventCommentWindow('${event.id}')" class="detail-window-comments-btn"><i class="fa-regular fa-comments"></i><span>评论区</span></button><button onclick="closeReadOnlyFullscreen('${fromStackDate?fromStackDate.replace(/'/g,"\\'"):''}')" class="absolute top-4 right-4 sm:top-6 sm:right-6 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full flex items-center justify-center transition-colors"><i class="fa-solid fa-xmark text-lg"></i></button><div class="flex items-center gap-3 mb-2"><span class="text-xs font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full font-semibold">${window.formatDisplayDate(event.date)}</span>${event.type==='major'?'<span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full">重大里程碑</span>':''}</div><h1 class="text-xl sm:text-2xl font-bold text-white mb-3 tracking-wide">${event.title}</h1><div data-detail-body>${imagesHtml}${videosHtml}${linksHtml}${descriptionHtml}</div></div>`;
+            viewer.innerHTML=`<div data-detail-shell class="max-w-3xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-10 shadow-2xl relative"><div class="detail-window-dragbar" data-detail-drag-handle><i class="fa-solid fa-grip-lines"></i><span>点击此处拖动详情页</span></div><button type="button" onclick="window.openEventCommentWindow('${event.id}')" class="detail-window-comments-btn"><i class="fa-regular fa-comments"></i><span>评论区</span></button><button onclick="closeReadOnlyFullscreen('${fromStackDate?fromStackDate.replace(/'/g,"\\'"):''}')" class="absolute top-3 right-4 sm:top-4 sm:right-6 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full flex items-center justify-center transition-colors"><i class="fa-solid fa-xmark text-lg"></i></button><div class="flex items-center gap-3 mb-2"><span class="text-xs font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full font-semibold">${window.formatDisplayDate(event.date)}</span>${event.type==='major'?'<span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full">重大里程碑</span>':''}</div><h1 class="text-xl sm:text-2xl font-bold text-white mb-3 tracking-wide">${event.title}</h1><div data-detail-body>${imagesHtml}${videosHtml}${linksHtml}${descriptionHtml}</div></div>`;
             // 首次打开详情时先完成媒体布局，再让整个详情页参与绘制，避免媒体以块级默认宽度闪现一帧。
             viewer.style.visibility='hidden';
             viewer.classList.remove('hidden');
@@ -10784,7 +10800,19 @@
 
         /* === 用户身份与活动日志 === */
         window.EDITOR_ID_STORAGE_KEY = 'yuhoutianqing_editor_identity';
-        window.EDITOR_ANON_STORAGE_KEY = 'yuhoutianqing_editor_anonymous';
+        window.ACTIVITY_ANON_KEY = 'yuhoutianqing_activity_anonymous';
+        window.isActivityAnonymous = function(){ return localStorage.getItem(window.ACTIVITY_ANON_KEY)==='1'; };
+        window.setActivityAnonymous = function(value){
+            localStorage.setItem(window.ACTIVITY_ANON_KEY, value ? '1' : '0');
+            const sw = document.getElementById('activityAnonymousSwitch');
+            if (sw) sw.checked = !!value;
+        };
+        window.toggleActivityAnonymous = function(){ window.setActivityAnonymous(!window.isActivityAnonymous()); };
+        // 评论区与活动日志共用同一 ID，仅匿名状态保持页面独立。
+        window.COMMON_USER_ID_KEY = window.EDITOR_ID_STORAGE_KEY;
+        window.getCommonUserId = function(){
+            return String(localStorage.getItem(window.COMMON_USER_ID_KEY) || '').trim();
+        };
 
         window.EDITOR_OWNER_STORAGE_KEY = 'yuhoutianqing_editor_owner_token';
         window._identityReservationValid = false;
@@ -10807,20 +10835,19 @@
         };
 
         window.claimEditorIdentity = async function(newName, oldName = '') {
-            if (!window.isCloudSynced || !window.hasTimelineEditToken?.()) {
-                return { ok:false, reason:'offline' };
-            }
+            if (!window.isCloudSynced) return { ok:false, reason:'offline' };
             const next = window.normalizeEditorIdentityName(newName);
             const prev = window.normalizeEditorIdentityName(oldName);
             if (!next) return { ok:false, reason:'invalid' };
 
             const ownerToken = window.getEditorOwnerToken();
             try {
-                const result = await window.timelineApiWrite('claimIdentity', {
+                const action = prev && prev !== next ? 'renameIdentity' : 'claimIdentity';
+                const result = await timelineApiPost(action, {
                     name: next,
                     oldName: prev,
                     ownerToken
-                });
+                }, { auth:false, timeoutMs:12000 });
                 window._identityReservationValid = true;
                 return { ok:true, name: result.name || next };
             } catch (e) {
@@ -10836,7 +10863,7 @@
 
         window.ensureCurrentIdentityReservation = async function() {
             const stored = window.getStoredEditorIdentity?.();
-            if (!stored || !window.isCloudSynced || !window.hasTimelineEditToken?.()) {
+            if (!stored || !window.isCloudSynced) {
                 window._identityReservationValid = !stored;
                 return !stored;
             }
@@ -10852,12 +10879,9 @@
                 const modal = document.getElementById('editorIdentityModal');
                 const title = document.getElementById('editorIdentityTitle');
                 const input = document.getElementById('editorIdentityInput');
-                const checkbox = document.getElementById('editorIdentityAnonymousCheckbox');
                 const cancel = document.getElementById('editorIdentityCancelBtn');
                 if (title) title.textContent = '重新设置 ID';
                 if (input) input.value = stored;
-                if (checkbox) checkbox.checked = false;
-                window.syncEditorIdentityAnonymousUI?.();
                 cancel?.classList.add('hidden');
                 modal?.classList.remove('hidden');
                 setTimeout(() => input?.focus(), 30);
@@ -10875,52 +10899,21 @@
             return window.currentEditorIdentity;
         };
 
-        window.isEditorAnonymous = function() {
-            try {
-                return localStorage.getItem(window.EDITOR_ANON_STORAGE_KEY) === '1';
-            } catch (_) {
-                return false;
-            }
-        };
-
-        window.getEditorIdentity = function() {
-            return window.isEditorAnonymous() ? '不知名的小鱼丁' : window.getStoredEditorIdentity();
-        };
-
-        window.getEditorIdentityLabel = function() {
-            return window.isEditorAnonymous() ? '匿名' : (window.getStoredEditorIdentity() || '--');
-        };
-
-        window.syncEditorIdentityAnonymousUI = function() {
-            const checkbox = document.getElementById('editorIdentityAnonymousCheckbox');
-            const input = document.getElementById('editorIdentityInput');
-            if (!checkbox || !input) return;
-            input.disabled = checkbox.checked;
-            input.classList.toggle('bg-slate-100', checkbox.checked);
-            input.classList.toggle('text-slate-400', checkbox.checked);
-        };
 
         window.ensureEditorIdentity = function() {
-            if (!window.isCloudSynced || !window.hasTimelineEditToken?.()) return false;
+            if (!window.isCloudSynced) return false;
             const stored = window.getStoredEditorIdentity();
-            const anonymous = window.isEditorAnonymous();
-            if (stored || anonymous) {
-                const label = document.getElementById('activityCurrentUser');
-                if (label) label.textContent = window.getEditorIdentityLabel();
-                return true;
-            }
+            if (stored) return true;
+
             const modal = document.getElementById('editorIdentityModal');
             const input = document.getElementById('editorIdentityInput');
-            const checkbox = document.getElementById('editorIdentityAnonymousCheckbox');
             const err = document.getElementById('editorIdentityError');
             const title = document.getElementById('editorIdentityTitle');
             const cancel = document.getElementById('editorIdentityCancelBtn');
             if (title) title.textContent = '设置 ID';
             if (input) input.value = '';
-            if (checkbox) checkbox.checked = false;
-            window.syncEditorIdentityAnonymousUI?.();
             err?.classList.add('hidden');
-            cancel?.classList.add('hidden');
+            cancel?.classList.remove('hidden');
             modal?.classList.remove('hidden');
             setTimeout(() => input?.focus(), 30);
             return false;
@@ -10928,68 +10921,41 @@
 
         window.openEditorIdentityEditor = function() {
             window.normalizeGlobalOverlayStructure?.();
-            if (!window.isCloudSynced || !window.hasTimelineEditToken?.()) {
+            if (!window.isCloudSynced) {
                 window.showToast?.('当前未同步云端，无法编辑 ID', 'info');
                 return;
             }
             const modal = document.getElementById('editorIdentityModal');
             const input = document.getElementById('editorIdentityInput');
-            const checkbox = document.getElementById('editorIdentityAnonymousCheckbox');
             const err = document.getElementById('editorIdentityError');
             const title = document.getElementById('editorIdentityTitle');
             const cancel = document.getElementById('editorIdentityCancelBtn');
             if (title) title.textContent = '编辑 ID';
             if (input) input.value = window.getStoredEditorIdentity();
-            if (checkbox) checkbox.checked = window.isEditorAnonymous();
-            window.syncEditorIdentityAnonymousUI?.();
             err?.classList.add('hidden');
             cancel?.classList.remove('hidden');
             modal?.classList.remove('hidden');
-            setTimeout(() => {
-                if (!window.isEditorAnonymous()) input?.focus();
-            }, 30);
+            void window.loadEditorIdentityHistory?.();
+            setTimeout(() => input?.focus(), 30);
         };
 
         window.closeEditorIdentityEditor = function() {
-            if (!window.getStoredEditorIdentity() && !window.isEditorAnonymous()) return;
+            
             document.getElementById('editorIdentityModal')?.classList.add('hidden');
         };
 
         window.saveEditorIdentity = async function() {
             const input = document.getElementById('editorIdentityInput');
-            const checkbox = document.getElementById('editorIdentityAnonymousCheckbox');
             const err = document.getElementById('editorIdentityError');
-            const anonymous = !!checkbox?.checked;
             const value = window.normalizeEditorIdentityName(input?.value || '');
             const oldValue = window.normalizeEditorIdentityName(window.getStoredEditorIdentity());
 
-            if (!anonymous && (!value || value.length > 32)) {
+            if (!value || value.length > 32) {
                 if (err) {
                     err.textContent = '请输入有效的 ID';
                     err.classList.remove('hidden');
                 }
                 input?.focus();
-                return;
-            }
-
-            // Anonymous mode preserves the already-owned ID and does not release it.
-            if (anonymous) {
-                if (oldValue && !window._identityReservationValid) {
-                    const retained = await window.claimEditorIdentity(oldValue, '');
-                    if (!retained.ok && retained.reason === 'taken') {
-                        if (err) {
-                            err.textContent = '原 ID 已被其他用户使用，请先更换 ID';
-                            err.classList.remove('hidden');
-                        }
-                        return;
-                    }
-                }
-                try { localStorage.setItem(window.EDITOR_ANON_STORAGE_KEY, '1'); } catch (_) {}
-                err?.classList.add('hidden');
-                document.getElementById('editorIdentityModal')?.classList.add('hidden');
-                const label = document.getElementById('activityCurrentUser');
-                if (label) label.textContent = '匿名';
-                    window.showToast?.('已设为匿名', 'success');
                 return;
             }
 
@@ -11005,16 +10971,16 @@
                 return;
             }
 
-            try {
-                localStorage.setItem(window.EDITOR_ID_STORAGE_KEY, claim.name);
-                localStorage.removeItem(window.EDITOR_ANON_STORAGE_KEY);
-            } catch (_) {}
+            try { localStorage.setItem(window.EDITOR_ID_STORAGE_KEY, claim.name); } catch (_) {}
             window.currentEditorIdentity = claim.name;
-
+            window._identityHistoryCache?.clear?.();
             err?.classList.add('hidden');
             document.getElementById('editorIdentityModal')?.classList.add('hidden');
-            const label = document.getElementById('activityCurrentUser');
-            if (label) label.textContent = claim.name;
+
+            // 评论明 ID 直接读取统一身份；不再存在第二套评论 handle。
+            await window.refreshActivityLogsFromCloudBase?.();
+            document.querySelectorAll('[data-comment-board]').forEach(board => window.commentRenderIdentity?.(board, board._commentIdentity));
+
             window.showToast?.('ID 已保存', 'success');
         };
 
@@ -11027,9 +10993,8 @@
         window.renderActivityLogs = function() {
             const root = document.getElementById('activityLogList');
             if (!root) return;
-            const current = window.getEditorIdentityLabel();
-            const label = document.getElementById('activityCurrentUser');
-            if (label) label.textContent = current || '--';
+            const activitySwitch = document.getElementById('activityAnonymousSwitch');
+            if (activitySwitch) activitySwitch.checked = window.isActivityAnonymous();
 
             root.innerHTML = '';
             if (!window.isCloudSynced) {
@@ -11063,7 +11028,7 @@
                 desc.className = 'text-xs text-slate-700 leading-6 min-w-0';
                 const user = document.createElement('span');
                 user.className = 'font-bold text-indigo-700';
-                user.textContent = String(item.userId || '未知');
+                user.textContent = item?.anonymous === true ? '不知名的小鱼丁' : String(item.userName || item.username || item.displayName || item.userId || '未知');
 
                 let actionText = ' 编辑了 ';
                 let targetText = '「' + String(item.eventTitle || '未命名事件') + '」事件';
@@ -11118,14 +11083,18 @@
         };
 
         window.writeActivityLog = async function(action, eventInfo) {
-            const identity = window.getEditorIdentity();
             const storedIdentity = window.getStoredEditorIdentity?.();
+            const anonymous = window.isActivityAnonymous();
             if (storedIdentity && !window._identityReservationValid) return false;
-            if (!identity || !window.isCloudSynced || !window.hasTimelineEditToken?.()) return false;
+            if ((!storedIdentity && !anonymous) || !window.isCloudSynced || !window.hasTimelineEditToken?.()) return false;
+            const signedName = anonymous ? '不知名的小鱼丁' : storedIdentity;
             try {
                 await window.timelineApiWrite('activityLog', {
+                    identityName: anonymous ? '' : storedIdentity,
                     log: {
-                        userId: identity,
+                        userId: signedName,
+                        userName: signedName,
+                        anonymous,
                         action,
                         eventId: String(eventInfo?.id ?? ''),
                         eventTitle: String(eventInfo?.title || '未命名事件'),
@@ -11134,7 +11103,6 @@
                         timestamp: Date.now()
                     }
                 });
-                // 写入成功后立即重新读取，让活动日志在当前窗口立刻可见。
                 await window.refreshActivityLogsFromCloudBase?.();
                 return true;
             } catch (err) {
@@ -12131,7 +12099,6 @@
         // ============================================================
         // 每事件评论区（CloudBase message-api）
         // ============================================================
-        window.COMMENT_API_BASE = 'https://message-board-d6gyou26356c94cad-1474370265.ap-shanghai.app.tcloudbase.com';
         window.COMMENT_ANONYMOUS_NAME = '一枚小鱼丁';
         window._commentBoards = window._commentBoards || new Map();
 
@@ -12139,79 +12106,38 @@
             return String(v ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         };
 
+        window.COMMENT_ANON_KEY = 'yht_comment_anonymous';
+        window.commentIsAnonymous = function(){
+            return localStorage.getItem(window.COMMENT_ANON_KEY)==='1';
+        };
+
+        // 评论区不再创建/维护第二套身份。唯一身份就是用户设置中的 ID + ownerToken。
         window.commentCredentials = function(){
-            let userId = localStorage.getItem('yht_comment_user_id') || '';
-            let secret = localStorage.getItem('yht_comment_secret') || '';
-            // 兼容之前独立测试页创建的身份，避免用户无故重新注册。
-            if (!userId || !secret) {
-                const oldId = localStorage.getItem('comment_test_user_id') || '';
-                const oldSecret = localStorage.getItem('comment_test_secret') || '';
-                if (oldId && oldSecret) {
-                    userId = oldId; secret = oldSecret;
-                    localStorage.setItem('yht_comment_user_id', userId);
-                    localStorage.setItem('yht_comment_secret', secret);
-                }
-            }
-            return { userId, secret };
-        };
-
-        window.commentSaveCredentials = function(identity){
-            if (!identity?.userId || !identity?.secret) return;
-            localStorage.setItem('yht_comment_user_id', String(identity.userId));
-            localStorage.setItem('yht_comment_secret', String(identity.secret));
-        };
-
-        window.commentHeaders = function(withJson=true){
-            const {userId, secret} = window.commentCredentials();
-            const headers = {};
-            if (withJson) headers['Content-Type'] = 'application/json';
-            if (userId) headers['X-Comment-User-Id'] = userId;
-            if (secret) headers['X-Comment-Secret'] = secret;
-            return headers;
-        };
-
-        window.commentRequest = async function(path, options={}){
-            const response = await fetch(window.COMMENT_API_BASE + path, {
-                method: options.method || 'GET',
-                headers: options.headers || window.commentHeaders(options.body !== undefined),
-                body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-                cache: 'no-store'
-            });
-            let data = null;
-            try { data = await response.json(); } catch (_) { data = {}; }
-            if (!response.ok || data?.ok === false) {
-                const err = new Error(data?.error || `HTTP ${response.status}`);
-                err.status = response.status;
-                err.code = data?.error || '';
-                err.response = data;
-                throw err;
-            }
-            return data;
+            return {
+                userId: window.getCommonUserId?.() || '',
+                ownerToken: window.getEditorOwnerToken?.() || ''
+            };
         };
 
         window.commentHumanError = function(error){
             const code = String(error?.code || error?.message || '');
             const map = {
-                unauthorized: '评论身份已失效，请重新创建身份。',
-                handle_required: '请先设置你的留言 ID。',
-                handle_taken: '这个 ID 已经被其他用户使用了。',
-                reserved_handle: '这个 ID 是匿名状态专用名称，不能使用。',
-                invalid_handle: '这个 ID 含有不支持的字符。',
-                invalid_handle_length: 'ID 长度需要在 2～24 个字符之间。',
+                identity_required: '请先在右上角“用户设置”填写 ID。',
+                identity_mismatch: '当前用户 ID 同步状态异常，请重新保存一次用户设置。',
                 invalid_content: '留言不能为空，且最多 500 个字符。',
                 invalid_event_id: '当前事件无法建立评论区。',
                 parent_not_found: '要回复的评论已经不存在。',
                 parent_event_mismatch: '回复目标不属于当前事件。',
-                not_owner: '只能删除自己发布的评论。'
+                not_owner: '只能删除自己发布的评论。',
+                comment_not_found: '这条评论已经不存在。'
             };
             if (map[code]) return map[code];
             if (!navigator.onLine) return '当前网络不可用，留言板需要联网。';
-            return '评论区暂时无法连接，请稍后再试。';
+            return code === 'bad_type' || code === 'bad_action' ? '评论后端版本未更新，请重新部署新的 index.js。' : '评论区暂时无法连接，请稍后再试。';
         };
 
         window.commentOwnIdsKey = function(){
-            const {userId} = window.commentCredentials();
-            return `yht_comment_own_ids_${userId || 'none'}`;
+            return `yht_comment_own_ids_${window.getEditorOwnerToken?.() || 'none'}`;
         };
         window.commentGetOwnIds = function(){
             try { return new Set(JSON.parse(localStorage.getItem(window.commentOwnIdsKey()) || '[]')); }
@@ -12229,6 +12155,7 @@
             localStorage.setItem(window.commentOwnIdsKey(), JSON.stringify([...set]));
         };
 
+
         window.renderCommentBoardShell = function(eventId){
             const id = window.commentEscAttr(eventId);
             return `<section class="event-comment-board" data-comment-board data-event-id="${id}">
@@ -12236,19 +12163,15 @@
                     <div class="event-comment-title"><i class="fa-regular fa-comments text-indigo-600"></i><span>评论区</span><span class="event-comment-count" data-comment-count>0</span></div>
                     <button type="button" class="event-comment-btn" data-comment-refresh><i class="fa-solid fa-rotate-right mr-1"></i>刷新</button>
                 </div>
-
                 <div data-comment-error></div>
-
                 <div class="event-comment-list" data-comment-list>
                     <div class="event-comment-loading"><i class="fa-solid fa-circle-notch fa-spin mr-1"></i>正在加载评论…</div>
                 </div>
-
                 <div class="event-comment-compose-toggle-wrap">
                     <button type="button" class="event-comment-compose-toggle" data-comment-compose-toggle aria-expanded="false">
                         <i class="fa-regular fa-pen-to-square"></i>
                         <span data-comment-compose-toggle-text>发表评论</span>
                     </button>
-
                     <div class="event-comment-compose-panel" data-comment-compose-panel>
                         <div class="event-comment-compose" data-comment-compose>
                             <div class="event-comment-replying" data-comment-replying>
@@ -12261,15 +12184,11 @@
                                 <button type="button" class="event-comment-btn primary" data-comment-send><i class="fa-solid fa-paper-plane mr-1"></i>发布</button>
                             </div>
                         </div>
-
-                        <div class="event-comment-identity" data-comment-identity>
-                            <div class="event-comment-loading"><i class="fa-solid fa-circle-notch fa-spin mr-1"></i>正在读取评论身份…</div>
-                        </div>
+                        <div class="event-comment-identity" data-comment-identity></div>
                     </div>
                 </div>
             </section>`;
         };
-
 
         window.commentSetComposeOpen = function(board, open, focus=false){
             if(!board)return;
@@ -12281,9 +12200,7 @@
             panel.classList.toggle('is-open',next);
             btn.setAttribute('aria-expanded',next?'true':'false');
             if(label)label.textContent=next?'收起评论框':'发表评论';
-            if(next && focus){
-                requestAnimationFrame(()=>board.querySelector('[data-comment-text]')?.focus());
-            }
+            if(next && focus) requestAnimationFrame(()=>board.querySelector('[data-comment-text]')?.focus());
         };
 
         window.commentBoardError = function(board, message=''){
@@ -12297,116 +12214,58 @@
             box.appendChild(d);
         };
 
-        window.commentRenderIdentity = function(board, identity){
+        window.commentRenderIdentity = function(board){
             const box = board?.querySelector('[data-comment-identity]');
             if (!box) return;
-            const creds = window.commentCredentials();
-            const hasCreds = !!(creds.userId && creds.secret);
             box.innerHTML = '';
 
-            if (!hasCreds || !identity) {
-                const row = document.createElement('div');
-                row.className = 'event-comment-identity-row';
-                const icon = document.createElement('div');
-                icon.className = 'event-comment-avatar';
-                icon.innerHTML = '<i class="fa-solid fa-user-plus"></i>';
-                const copy = document.createElement('div');
-                copy.style.flex = '1';
-                copy.innerHTML = '<div class="event-comment-name">还没有评论身份</div><div class="event-comment-muted">创建后即可设置唯一 ID、匿名评论与删除自己的评论。</div>';
-                const btn = document.createElement('button');
-                btn.type = 'button'; btn.className = 'event-comment-btn primary'; btn.textContent = '创建身份';
-                btn.onclick = () => window.commentRegister(board);
-                row.append(icon, copy, btn); box.appendChild(row);
-                return;
-            }
+            const anonymous = window.commentIsAnonymous();
+            const currentId = window.getCommonUserId?.() || '';
+            const row = document.createElement('div');
+            row.className='event-comment-identity-row';
 
-            const row = document.createElement('div'); row.className='event-comment-identity-row';
-            const avatar = document.createElement('div'); avatar.className='event-comment-avatar'; avatar.innerHTML='<i class="fa-solid fa-user"></i>';
-            const copy = document.createElement('div'); copy.style.cssText='flex:1;min-width:0';
-            const nm = document.createElement('div'); nm.className='event-comment-name';
-            nm.textContent = identity.anonymous ? '匿名' : (identity.handle || '尚未设置 ID');
-            copy.appendChild(nm);
-            if (!identity.anonymous) {
-                const sub = document.createElement('div');
-                sub.className='event-comment-muted';
-                sub.textContent = identity.handle ? '当前以此 ID 公开评论' : '设置唯一 ID 后才能发布评论';
-                copy.appendChild(sub);
-            }
+            const avatar = document.createElement('div');
+            avatar.className='event-comment-avatar';
+            avatar.innerHTML='<i class="fa-solid fa-user"></i>';
 
-            const toggleLabel=document.createElement('label'); toggleLabel.className='event-comment-switch'; toggleLabel.title='只影响之后新发布的留言';
-            const toggle=document.createElement('input'); toggle.type='checkbox'; toggle.checked=identity.anonymous===true;
-            const track=document.createElement('span'); track.className='event-comment-switch-track';
-            const toggleText=document.createElement('span'); toggleText.textContent='匿名';
+            const copy = document.createElement('div');
+            copy.style.cssText='flex:1;min-width:0';
+            const nm = document.createElement('div');
+            nm.className='event-comment-name';
+            nm.textContent = anonymous ? '匿名' : (currentId || '尚未设置 ID');
+            const sub = document.createElement('div');
+            sub.className='event-comment-muted';
+            sub.textContent = currentId ? '' : '可在最右侧“用户设置”填写 ID';
+            copy.append(nm); if (sub.textContent) copy.append(sub);
+
+            const toggleLabel=document.createElement('label');
+            toggleLabel.className='event-comment-switch';
+            const toggle=document.createElement('input');
+            toggle.type='checkbox';
+            toggle.checked=anonymous;
+            const track=document.createElement('span');
+            track.className='event-comment-switch-track';
+            const toggleText=document.createElement('span');
+            toggleText.textContent='匿名';
             toggleLabel.append(toggle,track,toggleText);
             toggle.onchange=()=>window.commentSetAnonymous(board,toggle.checked);
 
-            const settingsBtn=document.createElement('button'); settingsBtn.type='button'; settingsBtn.className='event-comment-btn'; settingsBtn.textContent='设置';
-            row.append(avatar,copy,toggleLabel,settingsBtn);
-
-            const settings=document.createElement('div'); settings.className='event-comment-settings';
-            const inputRow=document.createElement('div'); inputRow.className='event-comment-input-row';
-            const input=document.createElement('input'); input.className='event-comment-input'; input.maxLength=24; input.placeholder='设置 / 修改唯一 ID'; input.value=identity.handle || '';
-            const save=document.createElement('button'); save.type='button'; save.className='event-comment-btn primary'; save.textContent='保存 ID';
-            const history=document.createElement('button'); history.type='button'; history.className='event-comment-btn'; history.textContent='我的历史 ID';
-            save.onclick=()=>window.commentChangeHandle(board,input.value);
-            input.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();save.click();}};
-            history.onclick=()=>window.commentShowProfile(identity.userId);
-            inputRow.append(input,save,history); settings.appendChild(inputRow);
-            settingsBtn.onclick=()=>settings.classList.toggle('is-open');
-            box.append(row,settings);
-        };
-
-        window.commentRegister = async function(board){
-            window.commentBoardError(board,'');
-            try{
-                const data=await window.commentRequest('/identity/register',{method:'POST',body:{}});
-                window.commentSaveCredentials(data.identity);
-                await window.commentLoadIdentity(board);
-            }catch(e){ window.commentBoardError(board,window.commentHumanError(e)); }
+            row.append(avatar,copy,toggleLabel);
+            box.append(row);
         };
 
         window.commentLoadIdentity = async function(board){
-            if (!board?.isConnected) return null;
-            const creds=window.commentCredentials();
-            if (!creds.userId || !creds.secret) {
-                window.commentRenderIdentity(board,null); return null;
-            }
-            try{
-                const data=await window.commentRequest('/identity',{method:'GET',headers:window.commentHeaders(false)});
-                board._commentIdentity=data.identity || null;
-                window.commentRenderIdentity(board,board._commentIdentity);
-                return board._commentIdentity;
-            }catch(e){
-                if (e.status===401) {
-                    localStorage.removeItem('yht_comment_user_id');
-                    localStorage.removeItem('yht_comment_secret');
-                    board._commentIdentity=null;
-                    window.commentRenderIdentity(board,null);
-                } else window.commentBoardError(board,window.commentHumanError(e));
-                return null;
-            }
+            window.commentRenderIdentity(board);
+            return {
+                handle: window.getCommonUserId?.() || '',
+                anonymous: window.commentIsAnonymous()
+            };
         };
 
-        window.commentChangeHandle = async function(board, handle){
-            handle=String(handle||'').trim();
-            if(!handle){window.commentBoardError(board,'请输入新的 ID。');return;}
-            window.commentBoardError(board,'');
-            try{
-                await window.commentRequest('/identity/handle',{method:'POST',body:{handle}});
-                await window.commentLoadIdentity(board);
-                await window.commentLoadMessages(board);
-            }catch(e){window.commentBoardError(board,window.commentHumanError(e));}
-        };
-
+        // 匿名只是一项“下一条起生效”的本地发布状态，不会重写任何历史评论。
         window.commentSetAnonymous = async function(board, anonymous){
-            window.commentBoardError(board,'');
-            try{
-                await window.commentRequest('/identity/anonymous',{method:'POST',body:{anonymous:!!anonymous}});
-                await window.commentLoadIdentity(board);
-            }catch(e){
-                window.commentBoardError(board,window.commentHumanError(e));
-                await window.commentLoadIdentity(board);
-            }
+            localStorage.setItem(window.COMMENT_ANON_KEY, anonymous ? '1' : '0');
+            window.commentRenderIdentity(board);
         };
 
         window.commentFormatTime = function(value){
@@ -12418,10 +12277,6 @@
         };
 
         window.commentCanDelete = function(message){
-            const {userId}=window.commentCredentials();
-            if (!userId) return false;
-            if (message?.canDelete === true) return true;
-            if (message?.author?.profileId && String(message.author.profileId)===String(userId)) return true;
             return window.commentGetOwnIds().has(String(message?.id||''));
         };
 
@@ -12435,10 +12290,11 @@
             author.textContent=message?.author?.displayName || '未知用户';
             if (!message?.author?.anonymous && message?.author?.profileId) {
                 author.classList.add('is-profile');
-                author.title='点击查看历史 ID';
-                author.onclick=()=>window.commentShowProfile(message.author.profileId);
                 author.addEventListener('mouseenter',()=>window.commentShowHistoryHover(author,message.author.profileId));
-                author.addEventListener('mouseleave',()=>{author.dataset.historyHoverToken='';window.commentHideHistoryHover();});
+                author.addEventListener('mouseleave',()=>{
+                    author.dataset.historyHoverToken='';
+                    window.commentHideHistoryHover();
+                });
             }
             const time=document.createElement('span'); time.className='event-comment-time'; time.textContent=window.commentFormatTime(message.createdAt);
             meta.append(author,time);
@@ -12508,7 +12364,7 @@
             const list=board.querySelector('[data-comment-list]');
             if(list) list.innerHTML='<div class="event-comment-loading"><i class="fa-solid fa-circle-notch fa-spin mr-1"></i>正在加载评论…</div>';
             try{
-                const data=await window.commentRequest('/messages?eventId='+encodeURIComponent(eventId),{method:'GET',headers:window.commentHeaders(false)});
+                const data=await timelineApiFetch('/timeline?type=comments&eventId='+encodeURIComponent(eventId),12000);
                 board._commentMessages=Array.isArray(data.messages)?data.messages:[];
                 window.commentRenderMessages(board,board._commentMessages);
             }catch(e){
@@ -12521,15 +12377,26 @@
             const btn=board?.querySelector('[data-comment-send]');
             const content=String(textarea?.value||'').trim();
             if(!content){window.commentBoardError(board,'请输入评论内容。');return;}
-            let identity=board._commentIdentity;
-            if(!identity) identity=await window.commentLoadIdentity(board);
-            if(!identity){window.commentBoardError(board,'请先创建评论身份。');return;}
-            if(!identity.handle){window.commentBoardError(board,'请先在“设置”中设置唯一 ID。');return;}
+
+            const anonymous=window.commentIsAnonymous();
+            const currentId=window.getCommonUserId?.() || '';
+            if(!anonymous && !currentId){
+                window.commentBoardError(board,'明 ID 评论需要先在最右侧“用户设置”填写 ID；也可以打开匿名滑条后发布。');
+                window.openEditorIdentityEditor?.();
+                return;
+            }
+
             window.commentBoardError(board,'');
             if(btn)btn.disabled=true;
             try{
-                const body={eventId:String(board.dataset.eventId||''),content,parentId:board._commentReplyId||null};
-                const data=await window.commentRequest('/messages',{method:'POST',body});
+                const data=await timelineApiPost('commentAdd',{
+                    eventId:String(board.dataset.eventId||''),
+                    content,
+                    parentId:board._commentReplyId||null,
+                    ownerToken:window.getEditorOwnerToken?.() || '',
+                    identityName: currentId,
+                    anonymous
+                },{auth:false,timeoutMs:12000});
                 if(data?.id)window.commentRememberOwnId(data.id);
                 if(textarea)textarea.value='';
                 const char=board.querySelector('[data-comment-char]');if(char)char.textContent='0 / 500';
@@ -12559,7 +12426,11 @@
                 ok.disabled=true;cancel.disabled=true;
                 window.commentBoardError(board,'');
                 try{
-                    await window.commentRequest('/messages?id='+encodeURIComponent(id),{method:'DELETE',headers:window.commentHeaders(false)});
+                    await timelineApiPost('commentDelete',{
+                        id:String(id),
+                        eventId:String(board.dataset.eventId||''),
+                        ownerToken:window.getEditorOwnerToken?.() || ''
+                    },{auth:false,timeoutMs:12000});
                     window.commentForgetOwnId(id);
                     layer.remove();
                     await window.commentLoadMessages(board);
@@ -12570,40 +12441,6 @@
             };
             actions.append(cancel,ok);card.append(title,copy,actions);layer.appendChild(card);win.appendChild(layer);
         };
-
-        window.commentShowProfile = async function(profileId){
-            if(!profileId)return;
-            let overlay=document.getElementById('commentProfileOverlay');
-            if(overlay)overlay.remove();
-            overlay=document.createElement('div');overlay.id='commentProfileOverlay';overlay.className='event-comment-profile-card';
-            const dialog=document.createElement('div');dialog.className='event-comment-profile-dialog';
-            const top=document.createElement('div');top.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px';
-            const title=document.createElement('div');title.style.cssText='font-size:14px;font-weight:800;color:#f8fafc';title.textContent='历史 ID';
-            const close=document.createElement('button');close.type='button';close.className='event-comment-btn';close.textContent='关闭';close.onclick=()=>overlay.remove();
-            top.append(title,close);
-            const body=document.createElement('div');body.className='event-comment-loading';body.textContent='正在读取…';
-            dialog.append(top,body);overlay.appendChild(dialog);document.body.appendChild(overlay);
-            overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove();});
-            try{
-                const data=await window.commentRequest('/users/history?profileId='+encodeURIComponent(profileId),{method:'GET',headers:{}});
-                body.className='';body.innerHTML='';
-                const current=document.createElement('div');current.style.cssText='font-size:12px;color:#cbd5e1;margin-bottom:10px';
-                current.textContent='当前 ID：'+(data?.profile?.currentHandle||data?.profile?.handle||'暂无');
-                body.appendChild(current);
-                const history=Array.isArray(data?.profile?.history)?data.profile.history:[];
-                if(!history.length){
-                    const p=document.createElement('div');p.className='event-comment-muted';p.textContent='暂无历史 ID 记录。';body.appendChild(p);
-                }else{
-                    history.forEach(row=>{
-                        const line=document.createElement('div');line.style.cssText='padding:8px 0;border-top:1px solid #1e293b;display:flex;align-items:center;justify-content:space-between;gap:8px';
-                        const name=document.createElement('span');name.style.cssText='font-size:12px;font-weight:700;color:#e2e8f0';name.textContent=row.handle||'';
-                        const state=document.createElement('span');state.className='event-comment-muted';state.textContent=row.current?'当前使用':'历史使用';
-                        line.append(name,state);body.appendChild(line);
-                    });
-                }
-            }catch(e){body.className='event-comment-error';body.textContent=window.commentHumanError(e);}
-        };
-
 
         window.makeFloatingDrag = function(element, handle){
             if(!element || !handle || handle.dataset.dragBound==='1')return;
@@ -12713,45 +12550,109 @@
             window.initCommentBoard(eventId,win);
         };
 
-        window._commentHistoryCache = window._commentHistoryCache || new Map();
+        window._identityHistoryCache = window._identityHistoryCache || new Map();
+
         window.commentGetHistory = async function(profileId){
             const key=String(profileId||'');
             if(!key)return null;
-            if(window._commentHistoryCache.has(key))return window._commentHistoryCache.get(key);
+            if(window._identityHistoryCache.has(key)) return window._identityHistoryCache.get(key);
             try{
-                const data=await window.commentRequest('/users/history?profileId='+encodeURIComponent(key),{method:'GET',headers:{}});
+                const data=await timelineApiFetch('/timeline?type=identityHistory&profileId='+encodeURIComponent(key),12000);
                 const profile=data?.profile||null;
-                window._commentHistoryCache.set(key,profile);
+                window._identityHistoryCache.set(key,profile);
                 return profile;
-            }catch(_){window._commentHistoryCache.set(key,null);return null;}
+            }catch(_){
+                window._identityHistoryCache.set(key,null);
+                return null;
+            }
         };
+
         window.commentHideHistoryHover = function(){
             const tip=document.getElementById('commentHistoryHover');
-            if(tip)tip.classList.remove('is-visible');
+            if(tip) tip.classList.remove('is-visible');
         };
+
         window.commentShowHistoryHover = async function(anchor,profileId){
             if(!anchor || !profileId)return;
             const token=String(profileId)+'_'+Date.now();
             anchor.dataset.historyHoverToken=token;
             const profile=await window.commentGetHistory(profileId);
             if(anchor.dataset.historyHoverToken!==token || !anchor.matches(':hover'))return;
+
+            const current=String(profile?.currentHandle||'').trim();
             const history=Array.isArray(profile?.history)?profile.history:[];
-            // 没有真正的历史 ID 时不展示悬浮卡。
-            const distinct=[...new Set(history.map(x=>String(x?.handle||'').trim()).filter(Boolean))];
-            if(distinct.length<2)return;
+            const names=[...new Set(
+                history.map(x=>String(x?.handle||'').trim()).filter(name=>name && name!==current)
+            )];
+            if(!names.length)return;
+
             let tip=document.getElementById('commentHistoryHover');
-            if(!tip){tip=document.createElement('div');tip.id='commentHistoryHover';tip.className='comment-history-hover';document.body.appendChild(tip);}
+            if(!tip){
+                tip=document.createElement('div');
+                tip.id='commentHistoryHover';
+                tip.className='comment-history-hover';
+                document.body.appendChild(tip);
+            }
             tip.innerHTML='';
-            const head=document.createElement('div');head.className='comment-history-hover-title';head.textContent='历史 ID';
+            const head=document.createElement('div');
+            head.className='comment-history-hover-title';
+            head.textContent='历史 ID';
             tip.appendChild(head);
-            distinct.slice(0,8).forEach(name=>{const row=document.createElement('div');row.className='comment-history-hover-row';row.textContent=name;tip.appendChild(row);});
+
+            names.slice(0,8).forEach(name=>{
+                const row=document.createElement('div');
+                row.className='comment-history-hover-row';
+                row.textContent=name;
+                tip.appendChild(row);
+            });
+
             const r=anchor.getBoundingClientRect();
             let left=r.left, top=r.bottom+7;
-            tip.style.left='0px';tip.style.top='0px';tip.classList.add('is-visible');
+            tip.style.left='0px'; tip.style.top='0px';
+            tip.classList.add('is-visible');
             const tr=tip.getBoundingClientRect();
-            if(left+tr.width>window.innerWidth-8)left=window.innerWidth-tr.width-8;
-            if(top+tr.height>window.innerHeight-8)top=r.top-tr.height-7;
-            tip.style.left=Math.max(8,left)+'px';tip.style.top=Math.max(8,top)+'px';
+            if(left+tr.width>window.innerWidth-8) left=window.innerWidth-tr.width-8;
+            if(top+tr.height>window.innerHeight-8) top=r.top-tr.height-7;
+            tip.style.left=Math.max(8,left)+'px';
+            tip.style.top=Math.max(8,top)+'px';
+        };
+
+        window.loadEditorIdentityHistory = async function(){
+            const list=document.getElementById('editorIdentityHistoryList');
+            if(!list)return;
+            list.innerHTML='<div class="text-[11px] text-slate-400">正在读取…</div>';
+
+            const ownerToken=window.getEditorOwnerToken?.() || '';
+            if(!ownerToken){
+                list.innerHTML='<div class="text-[11px] text-slate-400">暂无历史 ID</div>';
+                return;
+            }
+
+            try{
+                const data=await timelineApiPost('getOwnIdentityHistory',{ownerToken},{auth:false,timeoutMs:12000});
+                const profile=data?.profile||{};
+                const current=String(profile.currentHandle||window.getStoredEditorIdentity?.()||'').trim();
+                const history=Array.isArray(profile.history)?profile.history:[];
+                const names=[...new Set(
+                    history.map(x=>String(x?.handle||'').trim()).filter(name=>name && name!==current)
+                )];
+
+                list.innerHTML='';
+                if(!names.length){
+                    list.innerHTML='<div class="text-[11px] text-slate-400">暂无历史 ID</div>';
+                    return;
+                }
+
+                names.forEach(name=>{
+                    const row=document.createElement('div');
+                    row.className='px-2.5 py-2 rounded-lg bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 break-all';
+                    row.textContent=name;
+                    list.appendChild(row);
+                });
+            }catch(e){
+                console.warn('历史 ID 读取失败:',e);
+                list.innerHTML='<div class="text-[11px] text-rose-500">历史 ID 读取失败</div>';
+            }
         };
 
         window.initCommentBoard = function(eventId, root=document){
