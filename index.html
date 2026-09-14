@@ -573,11 +573,6 @@
         .xiaoqinger-rich-editor:empty::before{content:attr(data-placeholder);color:#94a3b8;pointer-events:none}
         .xiaoqinger-rich-editor span,.xiaoqinger-rich-editor font{line-height:inherit}
         @media(max-width:639px){
-            /* 手机端打开详情页时隐藏小晴儿；电脑和较宽平板不受影响。 */
-            body:has(#fullscreenViewer:not(.hidden)) #xiaoqingerSimplePet{
-                display:none !important;
-            }
-
 #xiaoqingerSimplePet{right:42px;bottom:12px;width:98px;height:124px}#xiaoqingerSimpleSpeech{right:0;font-size:10px;max-width:min(230px,calc(100vw - 24px))}}
 
 
@@ -8975,9 +8970,45 @@
         window.multiOpenDeepMediaPreview=function(eventId,segIndex,index,startTime=0){window.resetAllDetailVideos?.();const ev=window.findEventById(eventId),obj=ev?.timeSegments?.[segIndex]?.videos?.[index];if(!obj)return;let m=document.getElementById('deepMediaPreviewModal');if(!m){m=document.createElement('div');m.id='deepMediaPreviewModal';m.className='fixed inset-0 z-[360] hidden bg-slate-950/95 p-3 sm:p-6 flex items-center justify-center';document.body.appendChild(m);}const src=obj.blobUrl||obj.url||'';m.innerHTML=`<button onclick="closeDeepMediaPreview()" class="absolute top-5 right-5 z-20 w-10 h-10 rounded-full bg-slate-800 text-white"><i class="fa-solid fa-xmark"></i></button><div data-deep-preview-stage class="max-w-5xl max-h-[90vh] w-full h-full flex items-center justify-center cursor-pointer"><video src="${window.deepEsc(src)}" controls playsinline autoplay class="max-w-full max-h-[88vh] rounded-xl bg-black"></video></div>`;const stage=m.querySelector('[data-deep-preview-stage]'),video=stage?.querySelector('video');const go=()=>{try{video.currentTime=Math.max(0,Number(startTime)||0)}catch(_){}video?.play().catch(()=>{})};if(video?.readyState>=1)go();else video?.addEventListener('loadedmetadata',go,{once:true});stage?.addEventListener('dblclick',e=>{e.preventDefault();e.stopPropagation();video?.pause();window.multiDeepWarningOpen(eventId,segIndex,'video',index);});m.classList.remove('hidden');};
         window.openMultiDeepDescriptionViewer=function(eventId,segIndex,type,index){const ev=window.findEventById(eventId),obj=ev?.timeSegments?.[segIndex]?.[type==='image'?'images':'videos']?.[index];if(!obj?.deepDescription)return;const fakeId='__multi_deep_'+String(eventId)+'_'+segIndex+'_'+type+'_'+index;const fake={id:fakeId,deepDescriptionEnabled:true,images:type==='image'?[obj]:[],videos:type==='video'?[obj]:[]};window.events.push(fake);try{window.openDeepDescriptionViewer(type,0,fakeId);}finally{setTimeout(()=>{const i=window.events.findIndex(e=>String(e.id)===fakeId);if(i>=0)window.events.splice(i,1);},0);}};
 
+
+        window.isPhoneLikeDevice = function(){
+            try{
+                const uaMobile = navigator.userAgentData?.mobile === true || /Mobi|Android|iPhone|iPod/i.test(navigator.userAgent || '');
+                const touch = (navigator.maxTouchPoints || 0) > 0 || 'ontouchstart' in window;
+                const sw = Number(screen?.width || window.innerWidth || 0);
+                const sh = Number(screen?.height || window.innerHeight || 0);
+                const shortSide = Math.min(sw || Infinity, sh || Infinity);
+                // 手机横屏时 CSS 视口可能大于 639px，因此以设备短边为主；
+                // 宽屏平板通常短边明显大于 600px，保持原状。
+                return uaMobile || (touch && shortSide <= 600);
+            }catch(_){
+                return window.innerWidth <= 639;
+            }
+        };
+
+        window.syncXiaoqingerForDetail = function(detailOpen){
+            const pet=document.getElementById('xiaoqingerSimplePet');
+            if(!pet)return;
+            if(detailOpen && window.isPhoneLikeDevice?.()){
+                if(pet.dataset.detailPrevDisplay === undefined){
+                    pet.dataset.detailPrevDisplay = pet.style.display || '';
+                }
+                pet.style.setProperty('display','none','important');
+            }else{
+                const prev=pet.dataset.detailPrevDisplay;
+                pet.style.removeProperty('display');
+                if(prev){
+                    pet.style.display=prev;
+                }
+                delete pet.dataset.detailPrevDisplay;
+            }
+        };
+
         window.openReadOnlyFullscreen = function(eventId, fromStackDate = null) {
+            document.body.classList.add('mobile-detail-open');
+            window.syncXiaoqingerForDetail?.(true);
             const stackModal=document.getElementById('stackManagerModal');if(stackModal)stackModal.classList.add('hidden');
-            const event=window.findEventById?window.findEventById(eventId):window.events.find(e=>String(e.id)===String(eventId));if(!event)return;eventId=event.id;
+            const event=window.findEventById?window.findEventById(eventId):window.events.find(e=>String(e.id)===String(eventId));if(!event){document.body.classList.remove('mobile-detail-open');window.syncXiaoqingerForDetail?.(false);return;}eventId=event.id;
             if(event.timeMode==='multi' && Array.isArray(event.timeSegments)){
                 let viewer=document.getElementById('fullscreenViewer');if(!viewer){viewer=document.createElement('div');viewer.id='fullscreenViewer';viewer.className='fixed inset-0 bg-slate-950/90 text-white z-50 overflow-y-auto backdrop-blur-md p-3 sm:p-8 flex flex-col items-center';viewer.addEventListener('click',e=>{if(e.target===viewer)window.closeReadOnlyFullscreen(viewer.dataset.fromStackDate||'');});document.body.appendChild(viewer);}viewer.dataset.fromStackDate=fromStackDate||'';
                 const segs=event.timeSegments.slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
@@ -9025,6 +9056,8 @@
         };
 
         window.closeReadOnlyFullscreen = function(fromStackDate = '') {
+            document.body.classList.remove('mobile-detail-open');
+            window.syncXiaoqingerForDetail?.(false);
             window.closeEventCommentWindow?.();
             window.commentHideHistoryHover?.();
             const viewer = document.getElementById('fullscreenViewer');
@@ -11397,6 +11430,10 @@
         };
 
         window.onresize = () => {
+            const detailViewer=document.getElementById('fullscreenViewer');
+            if(detailViewer && !detailViewer.classList.contains('hidden')){
+                window.syncXiaoqingerForDetail?.(true);
+            }
             window.renderSvgConnections();
             const pet = document.getElementById('xiaoqingerSimplePet');
             if (pet && pet.style.left) {
