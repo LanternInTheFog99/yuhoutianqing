@@ -779,11 +779,12 @@
         .event-comment-time{font-size:9px;color:#64748b;white-space:nowrap}
         .event-comment-anon{font-size:9px;color:#94a3b8}
         .event-comment-content{margin-top:6px;font-size:12px;line-height:1.65;color:#e2e8f0;white-space:pre-wrap;overflow-wrap:anywhere}
-        .event-comment-actions{display:flex;align-items:center;gap:8px;margin-top:7px}
-        .event-comment-action-link{border:0;background:transparent;color:#94a3b8;font-size:9px;cursor:pointer;padding:0}
+        .event-comment-actions{display:flex;align-items:center;justify-content:flex-end;gap:12px;margin-top:7px;width:100%}
+        .event-comment-action-link{border:0;background:transparent;color:#94a3b8;font-size:14px;line-height:1;cursor:pointer;padding:3px 2px;min-width:20px;min-height:20px;display:inline-flex;align-items:center;justify-content:center;gap:4px}
         .event-comment-action-link:hover{color:#c7d2fe}
-        .event-comment-action-link.danger:hover{color:#fda4af}
+        .event-comment-action-link.danger{color:#f87171 !important}.event-comment-action-link.danger i{color:#f87171 !important}.event-comment-action-link.danger:hover,.event-comment-action-link.danger:hover i{color:#ef4444 !important}
         .event-comment-action-link.like-active{color:#ef4444;font-weight:800}.event-comment-action-link.like-active i{color:#ef4444}
+        .event-comment-action-link.reply-active{color:#60a5fa;font-weight:800}.event-comment-action-link.reply-active i{color:#60a5fa}
         .event-comment-item.notification-target{animation:commentTargetPulse 1.6s ease}
         @keyframes commentTargetPulse{0%,100%{box-shadow:none}35%{box-shadow:0 0 0 3px rgba(99,102,241,.35)}}
         .notification-list{display:flex;flex-direction:column;gap:8px}
@@ -892,6 +893,12 @@
         }
         #eventCommentWindow .event-comment-compose{border-color:#e2e8f0;background:#f8fafc}
         #eventCommentWindow .event-comment-replying{background:#eef2ff;border-color:#c7d2fe;color:#4338ca}
+        @media (max-width: 639px){
+            /* 手机端回复时压缩回复状态栏，避免“收起评论框”被新增状态内容挤出可视区域。 */
+            #eventCommentWindow .event-comment-replying{margin-bottom:6px;padding:4px 7px;min-height:26px}
+            #eventCommentWindow .event-comment-replying [data-comment-reply-label]{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+            #eventCommentWindow .event-comment-replying [data-comment-reply-cancel]{font-size:11px;min-width:auto;min-height:18px;padding:1px 2px;white-space:nowrap}
+        }
         #eventCommentWindow .event-comment-char{color:#94a3b8}
         #eventCommentWindow .event-comment-empty{color:#94a3b8;border-color:#cbd5e1}
         #eventCommentWindow .event-comment-item{border-color:#e2e8f0;background:#fff}
@@ -971,6 +978,18 @@
                 max-height:50vh !important;
                 resize:none !important;
                 border-radius:18px 18px 0 0 !important;
+                /* 与手机端详情页上移保持同一节奏：从底部半屏平滑向上展开，收起时反向恢复。 */
+                transition:height .18s ease,max-height .18s ease,border-radius .18s ease !important;
+                will-change:height,max-height,border-radius;
+            }
+            /* 手机端打开评论输入框时，评论区临时扩展为全屏；收起或发布完成后恢复半屏。
+               保持 bottom:0，仅改变高度，让窗口自然从底部向上展开，避免 top:auto -> 0 无法产生过渡。 */
+            #eventCommentWindow.mobile-compose-open{
+                height:100vh !important;
+                height:100dvh !important;
+                max-height:100vh !important;
+                max-height:100dvh !important;
+                border-radius:0 !important;
             }
             #eventCommentWindow .comment-window-titlebar{
                 cursor:default !important;
@@ -3955,10 +3974,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
         window._editingFromStackDate = null;
         window._isEditingFromStack = false;
-
-        window.getMultiTimeSegments = function(ev) {
-            return (ev && ev.timeMode === 'multi' && Array.isArray(ev.timeSegments)) ? ev.timeSegments : [];
-        };
         window.getMultiEventDisplayDate = function(segments) {
             const dates = (segments || []).map(x => window.normalizePartialDate(String(x?.date || ''))).filter(Boolean).sort();
             if (!dates.length) return '';
@@ -4501,15 +4516,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if (container.scrollLeft < 0) container.scrollLeft = 0;
         };
 
-        window.filterByTag = function(tag) {
-            if (!tag) return;
-            if (window.tagFilterSelected.length === 1 && window.tagFilterSelected[0] === tag && window.tagFilterMode === 'include') {
-                window.clearTagFilter();
-                return;
-            }
-            window.toggleTagDraft(tag);
-        };
-
         window.clearTagFilter = function() {
             window.activeTagFilter = null;
             window.tagFilterSelected = [];
@@ -4943,22 +4949,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 modal.classList.add('hidden');
             }
             window._stackFocusIndex = null;
-            window._editingFromStackDate = null;
-            window._isEditingFromStack = false;
-        };
-
-        window.closeStackManagerModalWithoutReset = function() {
-            if (window._stackSaving) {
-                window.showToast('正在保存中…请稍候再关闭', 'info');
-                return;
-            }
-            const modal = document.getElementById('stackManagerModal');
-            if (modal) {
-                modal.querySelectorAll('.stack-card').forEach(c => {
-                    if (typeof window.stopPreviewSlideshow === 'function') window.stopPreviewSlideshow(c, true);
-                });
-                modal.classList.add('hidden');
-            }
             window._editingFromStackDate = null;
             window._isEditingFromStack = false;
         };
@@ -6062,10 +6052,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             window.deepDescriptionEnabledDraft=!window.deepDescriptionEnabledDraft;
             window.deepSyncEnabledToggle();
         };
-        window.deepDisableDescription = function(){
-            window.deepDescriptionEnabledDraft=false;
-            window.deepSyncEnabledToggle();
-        };
         window.deepWriteCanvasToTarget=function(){
             const t=window.deepCanvasTarget,st=window.deepCanvasState;if(!t||!st)return false;
             const obj=t.multi?window.multiDeepMediaObject?.(t.segIndex,t.type,t.index):window.deepMediaObject?.(t.type,t.index);if(!obj)return false;
@@ -6474,9 +6460,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.deepGetConnectorExact=function(sourceId,targetId){
             return window.deepCanvasState?.items?.find(x=>x.type==='connector' && String(x.sourceId)===String(sourceId) && String(x.targetId)===String(targetId)) || null;
         };
-        window.deepGetConnectorByPair=function(a,b){
-            return window.deepGetConnectorExact(a,b) || window.deepGetConnectorExact(b,a) || null;
-        };
         window.deepToggleConnectMode=function(){
             window.deepDeactivateDrawTools?.(); window.deepTextTool=false; window.deepSetTextToolsExpanded?.(false); document.getElementById('deepTextToolBtn')?.classList.remove('active');
             window.deepConnectMode=!window.deepConnectMode; window.deepConnectPending=[];
@@ -6519,10 +6502,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const both=m.querySelector('#deepConnectorBoth');
             if(both)both.onclick=()=>{deepPushUndo();connector.direction='both';window.deepCanvasSelected=connector.id;finish();window.showToast('已创建双向联结','success');};
             m.classList.remove('hidden');
-        };
-        window.deepAskRemoveConnector=function(connectorId){
-            const connector=window.deepCanvasState?.items?.find(x=>x.id===connectorId&&x.type==='connector');
-            if(connector)window.deepAskExistingConnector(connector,{reverseAttempt:false});
         };
         window.deepUpdateConnectorControls=function(){
             const it=window.deepCanvasState?.items?.find(x=>x.id===window.deepCanvasSelected&&x.type==='connector');
@@ -6780,16 +6759,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             }
             if(child.parentNode===ancestor)window.splitElementAroundChild(ancestor,child);
             return ancestor;
-        };
-        window.findDecorationAncestor=function(node,root){
-            let el=node?.parentElement||null;
-            while(el&&el!==root&&root.contains(el)){
-                const tag=(el.tagName||'').toLowerCase();
-                const line=(el.style?.textDecorationLine||el.style?.textDecoration||'').toLowerCase();
-                if(tag==='u'||tag==='s'||tag==='strike'||/underline|line-through/.test(line))return el;
-                el=el.parentElement;
-            }
-            return null;
         };
         window.applyExactOpacityToSelection=function(root,range,attr,pct){
             if(!root||!range||range.collapsed)return null;
@@ -7092,12 +7061,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 window.clearSelectedFormatFeedback?.('deep');
                 ['deepAlignLeftBtn','deepAlignCenterBtn','deepAlignRightBtn'].forEach(id=>document.getElementById(id)?.classList.remove('selected-text-format-active'));
             }
-        };
-        window.deepGetTopLevelTextLine=function(root,node){
-            if(!root||!node)return null;
-            let el=node.nodeType===1?node:node.parentElement;
-            while(el&&el.parentElement&&el.parentElement!==root)el=el.parentElement;
-            return el&&el!==root?el:null;
         };
         window.deepHandleTextEditorKeydown=function(event,item,content){
             if(!event||event.key!=='Enter'||event.defaultPrevented||event.isComposing||!item||!content)return;
@@ -9882,9 +9845,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if (titleInput) titleInput.value = '';
             window.renderVideoPreviews();
         };
-        window.updateVideoTitle = function(index, value) {
-            if (window.editingVideos[index]) window.editingVideos[index].title = String(value || '').trim();
-        };
 
         window.confirmEditAttachmentDelete=function(kind,onConfirm){
             const labels={
@@ -10667,21 +10627,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             window.renderLinkPreviews();
         };
 
-        window.updateWebLink = function(index, field, value) {
-            if (!window.editingLinks[index]) return;
-            window.editingLinks[index][field] = (value || '').trim();
-        };
-
-        window.moveWebLink = function(index, delta) {
-            const j = index + delta;
-            if (j < 0 || j >= window.editingLinks.length) return;
-            const arr = window.editingLinks;
-            const tmp = arr[index];
-            arr[index] = arr[j];
-            arr[j] = tmp;
-            window.renderLinkPreviews();
-        };
-
         window.getAnimatedCropPreviewHtml = function(imgObj) {
             const src = imgObj?.originalFull || imgObj?.original || imgObj?.outer || '';
             const c = imgObj?.crop;
@@ -10719,21 +10664,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 window.editingImageFiles.splice(index, 1);
                 window.renderMicroPreviews();
             });
-        };
-
-        window.currentEditDateIsMultiEvent = function() {
-            let dateStr = '';
-            const isRange = document.getElementById('isRangeToggle')?.checked;
-            if (isRange) {
-                const s = document.getElementById('editStartDate')?.value || '';
-                const e = document.getElementById('editEndDate')?.value || '';
-                if (s && e) dateStr = `${s}至${e}`;
-            } else {
-                dateStr = document.getElementById('editDate')?.value || window.editingEventDate || '';
-            }
-            if (!dateStr) return false;
-            const count = window.events.filter(ev => ev.date === dateStr).length;
-            return count >= 2;
         };
 
         window.openCropModal = function(index) {
@@ -11049,25 +10979,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             return !!(value && value.enabled !== false && window.deepCanvasHasContent?.(value));
         };
 
-        window.deepDescriptionFingerprint = function(value) {
-            if (!value) return 'none';
-            const items = Array.isArray(value.items) ? value.items : [];
-            const itemMarks = items.map(item => ({
-                type: item?.type || 'unknown',
-                id: String(item?.id || ''),
-                srcLength: typeof item?.src === 'string' ? item.src.length : 0,
-                textLength: typeof item?.html === 'string' ? item.html.length : (typeof item?.text === 'string' ? item.text.length : 0),
-                sourceId: String(item?.sourceId || ''),
-                targetId: String(item?.targetId || '')
-            }));
-            return JSON.stringify({
-                enabled: value.enabled !== false,
-                width: Number(value.width) || 0,
-                height: Number(value.height) || 0,
-                itemMarks
-            });
-        };
-
         window.toggleDeepDescriptionFeature = function(enabled) {
             window.deepDescriptionEnabledDraft = !!enabled;
             window.renderMicroPreviews();
@@ -11193,7 +11104,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const sw = document.getElementById('activityAnonymousSwitch');
             if (sw) sw.checked = !!value;
         };
-        window.toggleActivityAnonymous = function(){ window.setActivityAnonymous(!window.isActivityAnonymous()); };
         // 评论区与活动日志共用同一 ID，仅匿名状态保持页面独立。
         window.COMMON_USER_ID_KEY = window.EDITOR_ID_STORAGE_KEY;
         window.getCommonUserId = function(){
@@ -11303,26 +11213,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 window.currentEditorIdentity = '';
             }
             return window.currentEditorIdentity;
-        };
-
-
-        window.ensureEditorIdentity = function() {
-            if (!window.isCloudSynced) return false;
-            const stored = window.getStoredEditorIdentity();
-            if (stored) return true;
-
-            const modal = document.getElementById('editorIdentityModal');
-            const input = document.getElementById('editorIdentityInput');
-            const err = document.getElementById('editorIdentityError');
-            const title = document.getElementById('editorIdentityTitle');
-            const cancel = document.getElementById('editorIdentityCancelBtn');
-            if (title) title.textContent = '设置 ID';
-            if (input) input.value = '';
-            err?.classList.add('hidden');
-            cancel?.classList.remove('hidden');
-            modal?.classList.remove('hidden');
-            setTimeout(() => input?.focus(), 30);
-            return false;
         };
 
         window.openEditorIdentityEditor = function() {
@@ -12569,12 +12459,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         };
 
         // 评论区不再创建/维护第二套身份。唯一身份就是用户设置中的 ID + ownerToken。
-        window.commentCredentials = function(){
-            return {
-                userId: window.getCommonUserId?.() || '',
-                ownerToken: window.getEditorOwnerToken?.() || ''
-            };
-        };
 
         window.commentHumanError = function(error){
             const code = String(error?.code || error?.message || '');
@@ -12665,6 +12549,10 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             panel.classList.toggle('is-open',next);
             btn.setAttribute('aria-expanded',next?'true':'false');
             if(label)label.textContent=next?'收起评论框':'发表评论';
+            /* 仅手机端：进入评论输入状态时评论区占满屏幕，退出输入状态后恢复底部半屏。 */
+            if(window.matchMedia?.('(max-width: 639px)').matches){
+                document.getElementById('eventCommentWindow')?.classList.toggle('mobile-compose-open',next);
+            }
             if(next && focus) requestAnimationFrame(()=>board.querySelector('[data-comment-text]')?.focus());
         };
 
@@ -12777,21 +12665,47 @@ const like=document.createElement('button');
             like.title=message?.likedByMe?'取消点赞':'点赞';
             like.onclick=()=>window.commentToggleLike(board,message,like);
             actions.appendChild(like);
-const reply=document.createElement('button'); reply.type='button'; reply.className='event-comment-action-link'; reply.textContent='回复';
+const reply=document.createElement('button'); reply.type='button'; reply.className='event-comment-action-link'+(String(board._commentReplyId||'')===String(message.id||'')?' reply-active':''); reply.innerHTML='<i class="fa-regular fa-comment-dots"></i>'; reply.title='回复'; reply.setAttribute('aria-label','回复');
             reply.onclick=()=>{
-                board._commentReplyId=String(message.id||'');
+                const messageId=String(message.id||'');
+                const isSameReply=String(board._commentReplyId||'')===messageId;
+                const composeOpen=!!board.querySelector('[data-comment-compose-panel]')?.classList.contains('is-open');
+                /* 回复状态被收起后，再点同一回复图标只重新展开，不取消回复。 */
+                if(isSameReply && !composeOpen){
+                    window.commentSetComposeOpen(board,true,false);
+                    const bar=board.querySelector('[data-comment-replying]');
+                    const label=board.querySelector('[data-comment-reply-label]');
+                    if(label) label.textContent=`正在回复 ${board._commentReplyName || (message?.author?.displayName || '这条评论')}`;
+                    bar?.classList.add('is-visible');
+                    reply.classList.add('reply-active');
+                    return;
+                }
+                /* 回复框已展开时，再点同一图标才取消回复。 */
+                if(isSameReply){
+                    board._commentReplyId='';
+                    board._commentReplyName='';
+                    reply.classList.remove('reply-active');
+                    board.querySelector('[data-comment-replying]')?.classList.remove('is-visible');
+                    return;
+                }
+                board._commentReplyId=messageId;
                 board._commentReplyName=message?.author?.displayName || '这条评论';
+                board.querySelectorAll('.event-comment-action-link.reply-active').forEach(el=>el.classList.remove('reply-active'));
+                reply.classList.add('reply-active');
                 window.commentSetComposeOpen(board,true,false);
                 const bar=board.querySelector('[data-comment-replying]');
                 const label=board.querySelector('[data-comment-reply-label]');
                 if(label) label.textContent=`正在回复 ${board._commentReplyName}`;
                 bar?.classList.add('is-visible');
-                board.querySelector('[data-comment-text]')?.focus();
+                /* 手机端不自动唤起键盘，避免键盘把“收起评论框”挤出屏幕；其他端保持原行为。 */
+                if(!window.matchMedia?.('(max-width: 639px)').matches){
+                    board.querySelector('[data-comment-text]')?.focus();
+                }
             };
             actions.appendChild(reply);
 
             if (window.commentCanDelete(message)) {
-                const del=document.createElement('button'); del.type='button'; del.className='event-comment-action-link danger'; del.textContent='删除';
+                const del=document.createElement('button'); del.type='button'; del.className='event-comment-action-link danger'; del.innerHTML='<i class="fa-regular fa-trash-can"></i>'; del.title='删除'; del.setAttribute('aria-label','删除');
                 del.onclick=()=>window.commentDelete(board,message.id);
                 actions.appendChild(del);
             }
@@ -13002,6 +12916,7 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
                 const char=board.querySelector('[data-comment-char]');if(char)char.textContent='0 / 500';
                 board._commentReplyId=null;board._commentReplyName='';
                 board.querySelector('[data-comment-replying]')?.classList.remove('is-visible');
+                board.querySelectorAll('.event-comment-action-link.reply-active').forEach(el=>el.classList.remove('reply-active'));
                 await window.commentLoadMessages(board);
                 window.commentSetComposeOpen(board,false,false);
             }catch(e){window.commentBoardError(board,window.commentHumanError(e));}
@@ -13125,7 +13040,10 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
             const returnToInteraction=window._notificationReturnToHelp===true;
             if(returnToInteraction)window._notificationReturnToHelp=false;
             const win=document.getElementById('eventCommentWindow');
-            if(win)win.classList.add('hidden');
+            if(win){
+                win.classList.remove('mobile-compose-open');
+                win.classList.add('hidden');
+            }
             document.getElementById('fullscreenViewer')?.classList.remove('mobile-comments-open');
             if(returnToInteraction){
                 document.body.classList.remove('notification-comment-open');
@@ -13301,6 +13219,7 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
                 board.querySelector('[data-comment-reply-cancel]')?.addEventListener('click',()=>{
                     board._commentReplyId=null;board._commentReplyName='';
                     board.querySelector('[data-comment-replying]')?.classList.remove('is-visible');
+                    board.querySelectorAll('.event-comment-action-link.reply-active').forEach(el=>el.classList.remove('reply-active'));
                 });
                 void window.commentLoadIdentity(board);
                 void window.commentLoadMessages(board);
