@@ -1899,13 +1899,18 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.isMainEditRoom = window.currentRoomId === window.MAIN_EDIT_ROOM_ID;
 
         window.invalidateRoomAccess = function(){
-            if(window._invalidRoomAccess) return;
             window._invalidRoomAccess=true;
             document.documentElement.classList.add('invalid-room-access');
+            if(window._invalidRoomAccessStopped) return;
+            window._invalidRoomAccessStopped=true;
             try{ window.stop?.(); }catch(_){}
             try{ window._timelineVersionPollTimer && clearInterval(window._timelineVersionPollTimer); }catch(_){}
+            try{ window._notificationBadgeTimer && clearInterval(window._notificationBadgeTimer); }catch(_){}
+            try{ window._invalidRoomControllers?.forEach(controller=>controller.abort()); }catch(_){}
+            try{ window._invalidRoomControllers?.clear(); }catch(_){}
             window.cloudWriteReady=false;
             window.isCloudSynced=false;
+            window._syncStatusType='invalid';
             document.querySelectorAll('[id*="xiaoqinger" i],[class*="xiaoqinger" i],img[alt="小晴儿"]').forEach(el=>{
                 el.style.setProperty('display','none','important');
                 el.style.setProperty('visibility','hidden','important');
@@ -2779,8 +2784,11 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
         window._syncStatusType = 'syncing';
 
+        window._invalidRoomControllers = window._invalidRoomControllers || new Set();
         async function timelineApiFetch(path, timeoutMs = 20000) {
+            if(window._invalidRoomAccess) throw Object.assign(new Error('此链接无效'),{code:'invalid_room_link'});
             const controller = new AbortController();
+            window._invalidRoomControllers.add(controller);
             const timer = setTimeout(() => controller.abort(), timeoutMs);
             try {
                 const sep = path.includes('?') ? '&' : '?';
@@ -2807,12 +2815,15 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 return data;
             } finally {
                 clearTimeout(timer);
+                window._invalidRoomControllers?.delete(controller);
             }
         }
 
 
         async function timelineApiPost(action, payload = {}, { auth = 'edit', timeoutMs = 25000 } = {}) {
+            if(window._invalidRoomAccess) throw Object.assign(new Error('此链接无效'),{code:'invalid_room_link'});
             const controller = new AbortController();
+            window._invalidRoomControllers.add(controller);
             const timer = setTimeout(() => controller.abort(), timeoutMs);
             try {
                 const headers = { 'Accept':'application/json', 'Content-Type':'application/json' };
@@ -2855,7 +2866,10 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 }
                 if (data.version) window._cloudbaseTimelineVersion = String(data.version);
                 return data;
-            } finally { clearTimeout(timer); }
+            } finally {
+                clearTimeout(timer);
+                window._invalidRoomControllers?.delete(controller);
+            }
         }
 
         window.ensureRoomAccess = async function(){
@@ -2935,6 +2949,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         };
 
         window.startTimelineVersionPolling = function() {
+            if(window._invalidRoomAccess) return;
             if (window._timelineVersionPollTimer) clearInterval(window._timelineVersionPollTimer);
             window._timelineVersionPollTimer = setInterval(async () => {
                 if (window.timelineCloudSource !== 'cloudbase') return;
@@ -3072,6 +3087,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         }
 
         async function initAppAndCloudSync() {
+            if(window._invalidRoomAccess){ window.invalidateRoomAccess?.(); return; }
             window.updateLockButtonUI();
             initBgmAudioPlayer();
             initScrollEdges();
@@ -3108,7 +3124,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         }
 
         function updateSyncStatus(type, text) {
-            if(window._invalidRoomAccess && type==='error') return;
+            if(window._invalidRoomAccess) return;
             const previousType = window._syncStatusType;
             if (type === 'syncing') {
                 window._syncingStartedFromSynced = previousType === 'synced' || !!window.isCloudSynced;
@@ -11528,10 +11544,13 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         };
         document.addEventListener('keydown', e => { if (e.key === 'Escape') { const tn=document.getElementById('thanksNoteModal'); if(tn && !tn.classList.contains('hidden')) { closeThanksNote(); return; } const h=document.getElementById('helpModal'); if(h && !h.classList.contains('hidden')) closeHelpModal(); const v=document.getElementById('fullscreenViewer'); if(v && !v.classList.contains('hidden')) closeReadOnlyFullscreen(); } });
 
-        setTimeout(()=>window.refreshNotificationBadge?.(),1200);
-        window._notificationBadgeTimer=window._notificationBadgeTimer||setInterval(()=>window.refreshNotificationBadge?.(),45000);
+        if(!window._invalidRoomAccess){
+            setTimeout(()=>{ if(!window._invalidRoomAccess) window.refreshNotificationBadge?.(); },1200);
+            window._notificationBadgeTimer=window._notificationBadgeTimer||setInterval(()=>{ if(!window._invalidRoomAccess) window.refreshNotificationBadge?.(); },45000);
+        }
 
         window.showToast = function(text, type = "info") {
+            if(window._invalidRoomAccess) return;
             const toastBox = document.getElementById('toastBox');
             const toastText = document.getElementById('toastText');
             const toastIcon = document.getElementById('toastIcon');
@@ -12188,16 +12207,19 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 console.warn('小晴儿本体初始化失败:', e);
             }
         };
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', window.bootXiaoqingerLocalPet, { once:true });
-        } else {
-            window.bootXiaoqingerLocalPet();
+        if(!window._invalidRoomAccess){
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', ()=>{ if(!window._invalidRoomAccess) window.bootXiaoqingerLocalPet?.(); }, { once:true });
+            } else {
+                window.bootXiaoqingerLocalPet();
+            }
+            // 再做两次独立兜底，不依赖任何云端同步流程。
+            setTimeout(()=>{ if(!window._invalidRoomAccess) window.bootXiaoqingerLocalPet?.(); }, 0);
+            setTimeout(()=>{ if(!window._invalidRoomAccess) window.bootXiaoqingerLocalPet?.(); }, 1200);
         }
-        // 再做两次独立兜底，不依赖任何云端同步流程。
-        setTimeout(window.bootXiaoqingerLocalPet, 0);
-        setTimeout(window.bootXiaoqingerLocalPet, 1200);
 
         window.onload = () => {
+            if(window._invalidRoomAccess){ window.invalidateRoomAccess?.(); return; }
             window.bootXiaoqingerLocalPet?.();
             if(window.forceMobileBrowseMode?.()) window.updateLockButtonUI?.();
             initAppAndCloudSync();
