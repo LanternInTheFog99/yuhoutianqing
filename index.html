@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="xiaoqinger-favicon.png">
     <title>雨后天晴</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -285,7 +286,9 @@
         .media-drag-item { transition: transform .15s ease, opacity .15s ease, box-shadow .15s ease; }
         .media-drag-item.media-dragging { opacity: .45; transform: scale(.985); }
         .node-title-area.conn-label-overlap-dim { opacity: .28 !important; transition: opacity .2s ease; }
-        .rich-color-choice.is-selected { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #6366f1 !important; transform: scale(1.08); }
+        .rich-color-choice.is-selected { box-shadow:0 0 0 2px #fff,0 0 0 4px #4f46e5 !important; transform:scale(1.12); position:relative; z-index:2; }
+        .rich-color-choice.is-selected::after{content:'✓';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;text-shadow:0 1px 2px #000;font-size:12px;font-weight:800;}
+        .rich-color-choice[title='#ffffff'].is-selected::after{color:#111;text-shadow:none;}
 
         .selected-text-format-active {
             background: #eef2ff !important;
@@ -731,6 +734,11 @@
         .event-comment-board{margin-top:28px;padding-top:24px;border-top:1px solid #1e293b;color:#e2e8f0}
         .event-comment-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
         .event-comment-title{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:800;color:#f8fafc}
+        .event-comment-head-actions{display:flex;align-items:center;gap:7px}
+        .event-comment-sort-toggle{display:inline-flex;align-items:center;justify-content:center;gap:5px;height:27px;border:1px solid #e2e8f0;background:#ffffff;color:#475569;border-radius:8px;padding:0 9px;font-size:10px;font-weight:700;cursor:pointer;transition:.15s ease;white-space:nowrap;box-shadow:0 1px 2px rgba(15,23,42,.08)}
+        .event-comment-sort-toggle i{font-size:9px;color:#6366f1}
+        .event-comment-sort-toggle:hover{background:#f8fafc;border-color:#cbd5e1;color:#334155}
+        .event-comment-sort-toggle:active{transform:translateY(1px)}
         .event-comment-count{font-size:10px;font-weight:700;color:#a5b4fc;background:rgba(99,102,241,.13);border:1px solid rgba(129,140,248,.22);padding:2px 7px;border-radius:9999px}
         .event-comment-identity{border:1px solid #334155;background:rgba(15,23,42,.72);border-radius:14px;padding:11px 12px;margin-bottom:12px}
         .event-comment-identity-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -775,6 +783,20 @@
         .event-comment-action-link{border:0;background:transparent;color:#94a3b8;font-size:9px;cursor:pointer;padding:0}
         .event-comment-action-link:hover{color:#c7d2fe}
         .event-comment-action-link.danger:hover{color:#fda4af}
+        .event-comment-action-link.like-active{color:#ef4444;font-weight:800}.event-comment-action-link.like-active i{color:#ef4444}
+        .event-comment-item.notification-target{animation:commentTargetPulse 1.6s ease}
+        @keyframes commentTargetPulse{0%,100%{box-shadow:none}35%{box-shadow:0 0 0 3px rgba(99,102,241,.35)}}
+        .notification-list{display:flex;flex-direction:column;gap:8px}
+        .notification-item{width:100%;text-align:left;border:1px solid #e2e8f0;background:#fff;border-radius:12px;padding:10px 11px;cursor:pointer}
+        .notification-item:hover{border-color:#a5b4fc;background:#f8faff}
+        .notification-item.unread{border-color:#c7d2fe;background:#eef2ff}
+        .notification-title{font-size:11px;font-weight:800;color:#334155}
+        .notification-time{font-size:9px;color:#94a3b8;margin-top:3px}
+        #helpNotificationDot{position:absolute;right:-3px;top:-3px;width:12px;height:12px;border-radius:9999px;background:#ef4444;border:2px solid #fff;display:none}
+        #helpNotificationDot.is-visible{display:block}
+        #helpActivityNotificationDot{position:absolute;right:7px;top:5px;width:10px;height:10px;border-radius:9999px;background:#ef4444;border:2px solid #fff;display:none}
+        #helpActivityNotificationDot.is-visible{display:block}
+        body.notification-comment-open #fullscreenViewer [data-detail-shell] > button[onclick^="closeReadOnlyFullscreen"]{display:none !important;}
         .event-comment-loading{padding:18px;text-align:center;color:#94a3b8;font-size:11px}
         .event-comment-error{padding:9px 10px;border-radius:9px;background:rgba(127,29,29,.2);border:1px solid rgba(248,113,113,.22);color:#fecaca;font-size:10px;margin-bottom:9px}
         .event-comment-profile-card{position:fixed;inset:0;z-index:260;background:rgba(2,6,23,.72);backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center;padding:16px}
@@ -922,6 +944,12 @@
                 height:34px !important;
                 padding:0 9px !important;
             }
+            /* 仅手机端重大里程碑详情：给“重大里程碑”和评论按钮留出更多横向间距。 */
+            #fullscreenViewer [data-detail-shell].detail-has-major .detail-window-comments-btn{
+                right:50px !important;
+                padding-left:7px !important;
+                padding-right:7px !important;
+            }
             #fullscreenViewer [data-detail-shell] > button[onclick^="closeReadOnlyFullscreen"]{
                 top:16px !important;
                 right:8px !important;
@@ -1031,8 +1059,40 @@
         /* 用户设置独立固定在最右端，不参与原功能按钮组布局。 */
 
 </style>
+
+<style id="invalidRoomAccessStyle">
+html.invalid-room-access body > *:not(#invalidRoomAccessOverlay){filter:grayscale(1);opacity:.45;pointer-events:none !important;user-select:none !important}
+html.invalid-room-access #xiaoqingerContainer,
+html.invalid-room-access #xiaoqingerDialogueEditorBtn,
+html.invalid-room-access #xiaoqinger,
+html.invalid-room-access [id*="xiaoqinger" i],
+html.invalid-room-access [class*="xiaoqinger" i]{display:none !important;visibility:hidden !important;opacity:0 !important}
+#invalidRoomAccessOverlay{position:fixed;inset:0;z-index:2147483647;display:none;align-items:center;justify-content:center;background:rgba(241,245,249,.80);backdrop-filter:grayscale(1) blur(1.5px);pointer-events:all}
+html.invalid-room-access #invalidRoomAccessOverlay{display:flex}
+#invalidRoomAccessOverlay .invalid-room-card{font-size:24px;line-height:1.25;font-weight:800;color:#475569;background:rgba(255,255,255,.96);border:1px solid #cbd5e1;border-radius:16px;padding:20px 30px;box-shadow:0 10px 32px rgba(15,23,42,.12);letter-spacing:.02em}
+</style>
+<script id="earlyInvalidRoomGuard">
+(function(){
+  try{
+    var q=new URLSearchParams(location.search);
+    var room=(q.get('room')||'default').trim()||'default';
+    var access=(q.get('access')||'').trim();
+    if(room!=='07201218' && !access){
+      document.documentElement.classList.add('invalid-room-access','invalid-room-access-early');
+      window._invalidRoomAccess=true;
+    }
+  }catch(_){}
+})();
+</script>
+<style id="earlyXiaoqingerKill">
+html.invalid-room-access [id*="xiaoqinger" i],
+html.invalid-room-access [class*="xiaoqinger" i],
+html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility:hidden !important;opacity:0 !important}
+</style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
+<div id="invalidRoomAccessOverlay" aria-live="assertive" aria-label="此链接无效"><div class="invalid-room-card">此链接无效</div></div>
+
 <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm relative">
         <div class="max-w-6xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2">
             <div class="flex items-center gap-2 sm:gap-3 shrink-0">
@@ -1097,7 +1157,7 @@
             </div>
 
             <div class="flex items-center gap-2 shrink-0">
-                <button onclick="openHelpModal()" title="查看使用说明与更新日志" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 flex items-center gap-1.5 transition-all">
+                <button id="helpOpenBtn" onclick="openHelpModal()" title="查看使用说明与更新日志" class="relative px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 flex items-center gap-1.5 transition-all"><span id="helpNotificationDot" aria-label="有未读通知"></span>
                     <i class="fa-solid fa-circle-question"></i>
                     <span>使用说明</span>
                 </button>
@@ -1284,11 +1344,12 @@
             </div>
 
             <div class="mb-4">
-                <label class="block text-xs font-bold text-slate-700 mb-1">当前空间 ID (Room)</label>
+                <label class="block text-xs font-bold text-slate-700 mb-1">分享目标空间 ID (Room)</label>
                 <div class="flex gap-2">
-                    <input type="text" id="shareRoomInput" placeholder="公共空间 (default)" class="flex-grow px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
-                    <button onclick="switchRoomFromInput()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg text-xs font-medium shrink-0">切换/创建空间</button>
+                    <input type="text" id="shareRoomInput" placeholder="输入要分享的空间 ID" class="flex-grow px-3 py-2 border border-slate-300 bg-white rounded-lg text-xs text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
+                    <button type="button" onclick="generateSecureShareLink()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg text-xs font-medium shrink-0">生成链接</button>
                 </div>
+
             </div>
 
             <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 mb-4">
@@ -1473,22 +1534,21 @@
             </div>
             <div class="flex border-b border-slate-200 bg-slate-50 px-3 pt-2 shrink-0">
                 <button id="helpTabUsage" type="button" onclick="switchHelpTab('usage')" class="flex-1 max-w-[160px] px-3 sm:px-4 py-2.5 rounded-t-lg text-xs font-semibold bg-white text-indigo-700 border border-b-0 border-slate-200">使用说明</button>
+                <button id="helpTabActivity" type="button" onclick="switchHelpTab('activity')" class="hidden relative flex-1 max-w-[160px] px-3 sm:px-4 py-2.5 rounded-t-lg text-xs font-semibold text-slate-500 hover:text-slate-700"><span id="helpActivityNotificationDot" aria-label="有未读互动"></span><span id="helpTabActivityLabel">活动日志</span></button>
                 <button id="helpTabChangelog" type="button" onclick="switchHelpTab('changelog')" class="flex-1 max-w-[160px] px-3 sm:px-4 py-2.5 rounded-t-lg text-xs font-semibold text-slate-500 hover:text-slate-700">更新日志</button>
-                <button id="helpTabActivity" type="button" onclick="switchHelpTab('activity')" class="hidden flex-1 max-w-[160px] px-3 sm:px-4 py-2.5 rounded-t-lg text-xs font-semibold text-slate-500 hover:text-slate-700">活动日志</button>
                 <button id="helpTabThanks" type="button" onclick="switchHelpTab('thanks')" class="flex-1 max-w-[160px] px-3 sm:px-4 py-2.5 rounded-t-lg text-xs font-semibold text-slate-500 hover:text-slate-700">感谢名单</button>
             </div>
             <div id="helpUsagePanel" class="overflow-y-auto p-5 text-xs text-slate-600 leading-7">
                 <div class="border border-slate-200 rounded-xl p-5 bg-gradient-to-r from-pink-50 via-purple-50 to-sky-50">
                 <p class="text-slate-800 mb-5 text-sm leading-7 font-bold">本网站旨在为鱼丁们创造一个可以时刻回顾禹欣的很多「值得纪念的美好事件」的环境，以下为使用说明：</p>
                 <div id="helpBrowseUsage" class="space-y-5">
-                    <div><h4 class="font-bold text-slate-800 mb-1">1. 浏览时间线</h4><p>进入网站后，可以直接通过时间线查看已经记录的事件。使用“密度”可以调整节点间距；“滑速”用于调整鼠标进入时间线左右边缘时的自动滚动速度，也可以使用滚轮和两侧按钮浏览更早或更晚的内容。</p></div>
-                    <div><h4 class="font-bold text-slate-800 mb-1">2. 预览与事件详情</h4><p>将鼠标悬停在时间线节点附近可以查看事件预览；点击节点即可进入详情，详情中可以先查看该事件收录的图片、动图、视频和网址附件，再阅读详细经过与描述。</p></div>
-                    <div><h4 class="font-bold text-slate-800 mb-1">3. 查看媒体</h4><p>详情中的图片、动图和视频可以通过单击或双击来进一步查看。</p></div>
-                    <div><h4 class="font-bold text-slate-800 mb-1">4. 使用评论区</h4><p>打开事件详情后，点击右上方的“评论区”按钮即可查看该事件的评论；点击“发表评论”可以展开输入区，并可选择使用自己的 ID 或匿名发表评论。</p></div>
-                    <div><h4 class="font-bold text-slate-800 mb-1">5. 节点之间的逻辑关系</h4><p>部分事件之间存在逻辑连线或关联。在时间线上查看相关节点时，可以结合节点之间显示的连接关系理解事件之间的前后、补充或关联关系。</p></div>
-                    <div><h4 class="font-bold text-slate-800 mb-1">6. 搜索事件</h4><p>使用时间线右侧的搜索框输入内容，时间线会随着输入实时筛选并显示匹配的事件。</p></div>
-                    <div><h4 class="font-bold text-slate-800 mb-1">7. tag功能</h4><p>打开 tag 库后可以按 tag 筛选时间线内容，并可选择“包含 / 排除”以及“任一 / 全部”等匹配方式，筛选生效后，时间线只会显示符合当前筛选条件的事件。</p></div>
-                    <div><h4 class="font-bold text-slate-800 mb-1">8. 背景音乐</h4><p>顶部“背景音乐”可以播放网站设置的背景音乐。播放有声视频时，背景音乐会自动暂停；视频停止后会根据原来的播放状态恢复。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">1. 浏览时间线</h4><p>进入网站后，可以通过时间线查看已经记录的事件；将鼠标悬停在时间线节点附近可以查看事件预览。使用“密度”可以调整节点间距；使用“滑速”可以调整边缘自动滚动速度。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">2. 事件详情页</h4><p>点击节点即可进入该事件的详情页，其中可以查看该事件收录的各类信息，而图片、动图和视频等可以通过单击或双击来进一步查看。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">3. 评论区与互动通知</h4><p>打开事件详情页后，点击右上方的“评论区”按钮即可查看关于该事件的评论；点击“发表评论”可以发布评论，支持匿名发布功能；可以点赞或回复自己与他人的评论，发布的评论被点赞或回复后会收到互动通知，点击对应通知可直接定位到相关评论区。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">4. 节点之间的逻辑关系</h4><p>部分事件之间存在逻辑连线或关联。在时间线上查看相关节点时，可以结合节点之间显示的连接关系理解事件之间的前后、补充或关联关系。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">5. 搜索事件</h4><p>使用时间线右侧的搜索框输入内容，时间线会随着输入实时筛选并显示匹配的事件。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">6. tag功能</h4><p>打开 tag 库后可以按 tag 筛选时间线内容，并可选择“包含 / 排除”以及“任一 / 全部”等匹配方式，筛选生效后，时间线只会显示符合当前筛选条件的事件。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">7. 背景音乐</h4><p>顶部“背景音乐”可以播放网站设置的背景音乐。播放有声视频时，背景音乐会自动暂停；视频停止后会根据原来的播放状态恢复。</p></div>
                     <p class="pt-1 text-slate-500">另：想自己上手编辑的话可以call作者给权限喵</p>
                 </div>
 
@@ -1524,108 +1584,115 @@
             </div>
             <!--
               AI 编辑维护说明：更新日志书写、归类与合并规范
-              1. 更新日志统一采用“增加了……功能 / 增加了……的功能 / 移除了……功能 / 移除了……的功能 / 优化了……功能 / 优化了……的功能 / 修复了……的问题”等书面句式，并根据所描述内容的层级决定是否使用“的”。
-              2. “的”的使用规则：若描述的是一个完整、独立的大功能本身，通常不加“的”，例如“增加了感谢名单功能”；若描述的是某个大功能内部的具体子功能、子模块、交互、状态或问题，则应使用“的”连接具体内容与“功能/问题”，例如“优化了时间线边缘自动滑动的功能”“修复了感谢名单不显示的问题”。更新日志正文不为这些功能名称额外添加中文引号。
-              3. 同一功能或同一板块在同一版本内发生多次调整时，应归并为一条能够概括最终结果的更新内容，不因用户分多轮提出需求而重复记录。
-              4. 若后续仅对刚刚已经作为本次新功能写入更新日志的功能进行完善、参数调整、交互细化，或修复由本次改动直接引出的缺陷，不新增日志条目；应直接维护原条目，使其准确描述最终实现状态。
-              5. 若修改对象是此前版本已经存在的旧功能，即使本次没有新增功能，只要对旧功能进行了实质性的优化、修复、增加或移除，仍应记录到当前更新日志。
-              6. 因本次开发过程中的新改动临时引入、随后在同一轮开发中修复的 bug，不单独写入更新日志；日志只记录最终版本中用户能够实际感知的有效变化。
-              7. 若后续需求删除、撤销或缩减了本次已经写入更新日志的功能，必须同步删除或改写对应日志，确保更新日志始终与最终代码中实际存在的功能一致。
-              8. 时间线界面的浏览模式与编辑模式若存在重复的更新日志区域，同一项时间线公共功能的日志内容须同步维护，避免两个面板描述不一致。
-              9. 时间线界面的更新日志与深入描述界面的更新日志相互独立，不进行内容同步。时间线更新日志不得记录仅与深入描述功能相关的更新；深入描述更新日志也只记录深入描述界面及其内部功能的更新。
-              10. 在深入描述界面的更新日志中，因日志所在界面已经明确限定功能范围，描述其内部更新时不再额外添加“深入描述”作为大功能前缀，应直接记录具体子功能或问题，例如“优化了文字编辑的功能”，而不是“优化了深入描述文字编辑的功能”。
+              1. 更新日志以准确、自然、简洁的书面中文为第一原则。先判断实际更新对象、功能层级和改动性质，再决定具体句式，不为了统一格式而强制添加“功能”“的功能”等词。
+              2. 根据改动性质选择合适的表达。新增内容通常使用“增加了……”，改善已有内容通常使用“优化了……”或“调整了……”，解决异常使用“修复了……的问题”，删除已有内容使用“移除了……”。具体措辞可以根据语义调整，以自然通顺为准。
+              3. 只有实际属于功能的对象才使用“功能”一词。图标、样式、布局、显示效果、提示、状态、数据结构等不属于独立功能时，应直接描述实际对象。例如写“增加了网页图标”“优化了移动端显示效果”，不写“增加了网页图标功能”“优化了移动端显示效果”。
+              4. 书写前应判断功能层级。如果 A 是一个完整的大功能，B 是隶属于 A 的一个实际小功能，并且本次更新的对象是 B，则优先使用“A 内的 B 功能”来明确层级。例如“增加了评论区内的点赞功能”“优化了时间线内的边缘自动滑动功能”“增加了事件详情页内的大图快捷切换功能”。
+              5. “内的”只用于表达明确的“大功能 → 小功能”关系，不用于普通属性或描述。若后半部分只是大功能的显示效果、布局、样式、交互、提示、状态、数据结构等方面，则直接描述，不使用“内的”。例如写“优化了事件详情页显示效果”“调整了评论区窗口布局”，不写“优化了事件详情页内的显示效果”“调整了评论区内的窗口布局”。
+              6. 功能名称和更新对象优先采用自然的名词或名词化表达。当同一含义既可以写成“动作 + 对象”，也可以自然地概括为一个功能名称时，优先使用更像名称的表达，使句子结构更清楚。例如优先写“网址自动识别功能”，而不是“自动识别网址的功能”。但不为了名词化而生造词语；若动作式表达明显更加自然，则仍使用自然表达。
+              7. 对于没有必要强调父级功能、且无法自然概括为名词型功能名称的独立能力，可以使用“……的功能”。“功能”“的功能”“内的……功能”均不是固定模板，应根据实际语义、功能层级和中文习惯选择。
+              8. 优先采用能够完整表达含义的最简洁句子。若删除多余的“功能”“的功能”等词后含义不变且表达更自然，应使用简洁版本；但如果相关对象本身确实是一个功能，保留“功能”能够使语义或层级更准确，则应保留。
+              9. 同一功能或同一主题在同一版本内发生多次调整时，可以合并为一条，但前提是合并后仍然自然、清晰。若一句话需要堆叠多个“并、与、以及”，或者同时包含多个相对独立的新增、优化、修复内容，应拆分为多条，不为了减少条目数量而强行合并。
+              10. 更新日志只描述最终版本中用户能够实际感知或有实际意义的变化，不记录开发过程、临时实现、内部迁移步骤，以及本轮开发中新改动临时产生后又在同一轮被修复的问题。
+              11. 若后续只是继续完善本次已经写入更新日志的同一项改动，例如调整参数、细化交互或完善刚新增的功能，应直接维护原条目，使其准确描述最终结果，而不是重复增加相似日志。若修改的是此前版本已经存在的内容，则应根据实际变化正常记录。
+              12. 若后续需求删除、撤销或缩减了本次已经记录的改动，必须同步删除或改写对应日志，使更新日志始终反映最终实际保留的内容。
+              13. 时间线编辑模式的更新日志作为时间线更新日志的完整版本。凡是属于时间线界面的有效更新，无论主要影响浏览还是编辑，都应记录在编辑模式更新日志中，不因为某项更新主要面向浏览模式而从编辑模式中省略。
+              14. 时间线浏览模式的更新日志由编辑模式的完整日志筛选得到。与浏览、查看、互动等体验有关，或浏览模式用户能够实际感知的更新，应同步显示；若某项更新明显只与编辑操作有关，对浏览模式没有实际作用，则可以不在浏览模式中显示。例如“增加了网址自动识别功能”主要服务于内容编辑，因此可以只显示在编辑模式更新日志中。
+              15. 判断一项日志是否应出现在浏览模式时，应以该变化对浏览模式用户是否具有实际意义为标准，而不是简单根据功能所在模块判断。若一个编辑相关改动最终也改变了浏览模式中的显示或使用体验，则浏览模式仍应保留；只有与浏览模式基本无关的内容才进行削减。
+              16. 时间线浏览模式与编辑模式的日志不要求逐条完全一致：编辑模式负责完整记录，浏览模式负责在此基础上进行适当精简。两者共有的条目在措辞、日期和内容上应保持一致，不应出现同一项更新在两个模式中被写成不同版本的情况。
+              17. 时间线界面的更新日志与深入描述界面的更新日志始终相互独立。上述“编辑模式完整版、浏览模式精简版”的关系只适用于时间线界面内部，不延伸到深入描述界面。时间线更新日志不记录仅属于深入描述界面的变化，深入描述更新日志也不因为某项内容出现在时间线编辑模式中而进行同步。
+              18. 在深入描述界面的更新日志中，由于日志所在界面已经明确限定功能范围，通常不再重复添加“深入描述”作为父级名称。若更新的是其中的小功能，直接描述该小功能即可；若描述的是样式、布局、交互、显示效果等，则同样按照上述语义规则自然书写。
             -->
             <div id="helpChangelogPanel" class="hidden overflow-y-auto p-5 text-xs text-slate-600 leading-relaxed">
                 <div id="helpBrowseChangelog">
                 <div class="border border-green-300 rounded-xl p-4 bg-green-50">
                     <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.15</span><span class="px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-semibold">本次更新</span></div>
-                    <div class="space-y-2 leading-7 mb-3"><p>移除了仅离线功能</p><p>优化了移动端显示的功能</p></div>
+                    <div class="space-y-2 leading-7 mb-3"><p>移除了仅离线模式</p><p>优化了移动端显示效果</p><p>增加了评论区内的点赞与排序功能</p><p>增加了互动通知功能</p><p>增加了网页图标</p></div>
                     <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.14</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
-                    <div class="space-y-2 leading-7 mb-3"><p>增加了评论区功能</p><p>优化了时间线搜索的功能</p><p>优化了评论区窗口显示与交互的功能</p></div>
+                    <div class="space-y-2 leading-7 mb-3"><p>增加了评论区功能</p><p>优化了时间线内的搜索功能</p><p>优化了评论区窗口显示与交互</p></div>
                     <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.11</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
-                    <div class="space-y-2 leading-7 mb-3"><p>增加了自动识别网址的功能</p><p>修复了云端同步异常的问题</p></div>
+                    <div class="space-y-2 leading-7 mb-3"><p>修复了云端同步异常的问题</p></div>
                     <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.09</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
                     <div class="space-y-2 leading-7 mb-3"><p>增加了小晴儿互动功能</p></div></div>
                     <div class="border-t border-green-200 pt-3">
 <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.06</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
-                    <div class="space-y-2 leading-7 mb-3"><p>增加了多时间事件功能</p><p>优化了时间线边缘自动滑动的功能</p><p>优化了时间线节点状态显示的功能</p><p>修复了同期事件集合节点在连线重排时显示异常的问题</p></div>
+                    <div class="space-y-2 leading-7 mb-3"><p>增加了多时间事件功能</p><p>优化了时间线内的边缘自动滑动功能</p><p>优化了时间线节点状态显示</p><p>修复了同期事件集合节点在连线重排时显示异常的问题</p></div>
                     <div class="border-t border-green-200 pt-3">
 <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.04</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
                     <div class="space-y-2 leading-7 mb-3">
-                        <p>增加了云端同步成功提示的功能</p>
-                        <p>优化了时间线连线信息显示的功能</p>
-                        <p>增加了逻辑连线搜索与编辑的功能</p>
+                        <p>增加了云端同步成功提示</p>
+                        <p>优化了时间线连线信息显示</p>
+                        <p>增加了逻辑连线内的搜索功能</p>
                         <p>修复了单视频时间线预览无法循环播放的问题</p>
                     </div>
                     </div>
                     <div class="border-t border-green-200 pt-3">
                     <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.03</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
-                    <div class="space-y-2 leading-7 mb-3"><p>优化了移动端时间线交互的功能</p></div>
+                    <div class="space-y-2 leading-7 mb-3"><p>优化了移动端时间线交互</p></div>
                     </div>
                     <div class="border-t border-green-200 pt-3">
                     <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.02</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
                     <div class="space-y-2 leading-7 mb-3">
-                        <p>优化了详细描述中文字编辑的功能</p>
                         
-                        <p>优化了事件视频播放及预览的功能</p>
                         
-                        <p>优化了同期事件集合中详细描述预览与实时更新的功能</p>
-                        <p>增加了移动端仅能使用浏览模式的功能</p>
+                        <p>优化了事件内的视频播放与预览功能</p>
+                        
+                        <p>优化了同期事件集合内的详细描述预览与实时更新功能</p>
+                        <p>增加了移动端仅使用浏览模式的限制</p>
                     </div>
                     </div>
                     
-                    <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.30</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>优化了事件详情页功能</p><p>增加了事件详情页中大图快捷切换的功能</p><p>修复了感谢名单无法显示的问题</p><p>优化了使用说明功能</p></div></div>
-                    <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.29</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>修复了网址二次编辑窗口层级异常的问题</p></div></div>
-                    <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.27</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>增加了详细描述中文字悬停显现的功能</p><p>优化了时间线预览功能</p><p>优化了详细描述中文字样式设置的功能</p><p>修复了浏览模式详情页文字显示异常的问题</p><p>移除了时间线预览中播放视频前展示封面的功能</p></div></div>
-                    <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.26</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>增加了事件详情页大图查看时视频状态处理的功能</p><p>优化了日期输入功能</p><p>优化了时间线边缘自动滑动的功能</p><p>修复了添加图片后时间线预览图无法显示的问题</p><p>增加了媒体拖拽排序的功能</p><p>增加了视频预览时长独立调整的功能</p></div></div>
-                    <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.25</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>优化了同期事件集合功能</p><p>优化了时间线边缘滑动的功能</p><p>增加了离线模式中自动加载预置数据包的功能</p><p>修复了离线模式下时间线边缘滑动失效的问题</p><p>修复了事件预览与同期事件集合卡片显示异常的问题</p><p>修复了云端 CDN 受限时页面空白的问题</p></div></div>
-                    <div class="border-t border-green-200 pt-3 text-slate-500"><div class="flex items-center gap-2 mb-1"><span class="font-bold text-indigo-700">2026.08.24</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-1 leading-7"><p>修复了退出事件详情页后视频仍继续播放的问题</p><p>移除了时间线视图中右侧连线按钮的功能</p><p>增加了视频附件中标题编辑的功能</p></div></div>
+                    <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.30</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>优化了事件详情页功能</p><p>增加了事件详情页内的大图快捷切换功能</p><p>修复了感谢名单无法显示的问题</p><p>优化了使用说明</p></div></div>
+                    <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.27</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>增加了详细描述内的文字悬停显示功能</p><p>优化了时间线预览功能</p><p>修复了浏览模式详情页文字显示异常的问题</p><p>移除了时间线预览内的视频播放前封面展示</p></div></div>
+                    <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.26</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>增加了事件详情页内的大图查看视频状态处理功能</p><p>优化了时间线内的边缘自动滑动功能</p><p>修复了添加图片后时间线预览图无法显示的问题</p></div></div>
+                    <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.25</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>优化了同期事件集合功能</p><p>优化了时间线内的边缘滑动功能</p><p>增加了离线模式内的预置数据包自动加载功能</p><p>修复了离线模式下时间线边缘滑动失效的问题</p><p>修复了事件预览与同期事件集合卡片显示异常的问题</p><p>修复了云端 CDN 受限时页面空白的问题</p></div></div>
+                    <div class="border-t border-green-200 pt-3 text-slate-500"><div class="flex items-center gap-2 mb-1"><span class="font-bold text-indigo-700">2026.08.24</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-1 leading-7"><p>修复了退出事件详情页后视频仍继续播放的问题</p><p>移除了时间线视图右侧的连线按钮</p></div></div>
                     </div>
                 </div>
             </div><div id="helpEditChangelog" class="hidden">
                 <div class="border border-green-300 rounded-xl p-4 bg-green-50">
                     <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.15</span><span class="px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-semibold">本次更新</span></div>
-                    <div class="space-y-2 leading-7 mb-3"><p>移除了仅离线功能</p></div>
+                    <div class="space-y-2 leading-7 mb-3"><p>移除了仅离线模式</p><p>优化了移动端显示效果</p><p>增加了评论区内的点赞与排序功能</p><p>增加了互动通知功能</p><p>增加了网页图标</p></div>
                     <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.14</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
-                    <div class="space-y-2 leading-7 mb-3"><p>增加了评论区功能</p><p>优化了时间线搜索的功能</p><p>优化了评论区窗口显示与交互的功能</p></div>
+                    <div class="space-y-2 leading-7 mb-3"><p>增加了评论区功能</p><p>优化了时间线内的搜索功能</p><p>优化了评论区窗口显示与交互</p></div>
                     <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.11</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
-                    <div class="space-y-2 leading-7 mb-3"><p>增加了自动识别网址的功能</p><p>修复了云端同步异常的问题</p></div>
+                    <div class="space-y-2 leading-7 mb-3"><p>增加了网址自动识别功能</p><p>修复了云端同步异常的问题</p></div>
                     <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.09</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
-                    <div class="space-y-2 leading-7 mb-3"><p>增加了小晴儿互动功能</p><p>优化了多时间事件删除时间的功能</p></div></div>
+                    <div class="space-y-2 leading-7 mb-3"><p>增加了小晴儿互动功能</p><p>优化了多时间事件内的时间删除功能</p></div></div>
                     <div class="border-t border-green-200 pt-3">
 <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.06</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
-                    <div class="space-y-2 leading-7 mb-3"><p>增加了多时间事件功能</p><p>优化了时间线边缘自动滑动的功能</p><p>优化了时间线节点状态显示的功能</p><p>修复了同期事件集合节点在连线重排时显示异常的问题</p></div>
+                    <div class="space-y-2 leading-7 mb-3"><p>增加了多时间事件功能</p><p>优化了时间线内的边缘自动滑动功能</p><p>优化了时间线节点状态显示</p><p>修复了同期事件集合节点在连线重排时显示异常的问题</p></div>
                     <div class="border-t border-green-200 pt-3">
 <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.04</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
                     <div class="space-y-2 leading-7 mb-3">
-                        <p>增加了云端同步成功提示的功能</p>
-                        <p>优化了时间线连线信息显示的功能</p>
-                        <p>增加了逻辑连线搜索与编辑的功能</p>
+                        <p>增加了云端同步成功提示</p>
+                        <p>优化了时间线连线信息显示</p>
+                        <p>增加了逻辑连线内的搜索与编辑功能</p>
                         <p>修复了单视频时间线预览无法循环播放的问题</p>
                     </div>
                     </div>
                     <div class="border-t border-green-200 pt-3">
                     <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.03</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
-                    <div class="space-y-2 leading-7 mb-3"><p>优化了移动端时间线交互的功能</p></div>
+                    <div class="space-y-2 leading-7 mb-3"><p>优化了移动端时间线交互</p></div>
                     </div>
                     <div class="border-t border-green-200 pt-3">
                     <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.02</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
                     <div class="space-y-2 leading-7 mb-3">
-                        <p>优化了详细描述中文字编辑的功能</p>
+                        <p>优化了详细描述内的文字编辑功能</p>
                         
-                        <p>优化了普通事件中视频播放及预览的功能</p>
+                        <p>优化了普通事件内的视频播放与预览功能</p>
                         
-                        <p>优化了同期事件集合中详细描述预览与实时更新的功能</p>
-                        <p>增加了移动端仅能使用浏览模式的功能</p>
+                        <p>优化了同期事件集合内的详细描述预览与实时更新功能</p>
+                        <p>增加了移动端仅使用浏览模式的限制</p>
                     </div>
                     </div>
                     
-                    <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.30</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>优化了事件详情页功能</p><p>增加了事件详情页中大图快捷切换的功能</p><p>修复了感谢名单无法显示的问题</p><p>优化了使用说明功能</p></div></div>
+                    <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.30</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>优化了事件详情页功能</p><p>增加了事件详情页内的大图快捷切换功能</p><p>修复了感谢名单无法显示的问题</p><p>优化了使用说明</p></div></div>
                     <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.29</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>修复了网址二次编辑窗口层级异常的问题</p></div></div>
-                    <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.27</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>增加了详细描述中文字悬停显现的功能</p><p>优化了时间线预览功能</p><p>优化了详细描述中文字样式设置的功能</p><p>修复了浏览模式详情页文字显示异常的问题</p><p>移除了时间线预览中播放视频前展示封面的功能</p></div></div>
-                    <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.26</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>增加了事件详情页大图查看时视频状态处理的功能</p><p>优化了日期输入功能</p><p>优化了时间线边缘自动滑动的功能</p><p>修复了添加图片后时间线预览图无法显示的问题</p><p>增加了媒体拖拽排序的功能</p><p>增加了视频预览时长独立调整的功能</p></div></div>
-                    <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.25</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>优化了同期事件集合功能</p><p>优化了时间线边缘滑动的功能</p><p>增加了离线模式中自动加载预置数据包的功能</p><p>修复了离线模式下时间线边缘滑动失效的问题</p><p>修复了事件预览与同期事件集合卡片显示异常的问题</p><p>修复了云端 CDN 受限时页面空白的问题</p></div></div>
-                    <div class="border-t border-green-200 pt-3 text-slate-500"><div class="flex items-center gap-2 mb-1"><span class="font-bold text-indigo-700">2026.08.24</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-1 leading-7"><p>修复了退出事件详情页后视频仍继续播放的问题</p><p>移除了时间线视图中右侧连线按钮的功能</p><p>增加了视频附件中标题编辑的功能</p></div></div>
+                    <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.27</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>增加了详细描述内的文字悬停显示功能</p><p>优化了时间线预览功能</p><p>优化了详细描述内的文字样式设置功能</p><p>修复了浏览模式详情页文字显示异常的问题</p><p>移除了时间线预览内的视频播放前封面展示</p></div></div>
+                    <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.26</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>增加了事件详情页内的大图查看视频状态处理功能</p><p>优化了日期输入</p><p>优化了时间线内的边缘自动滑动功能</p><p>修复了添加图片后时间线预览图无法显示的问题</p><p>增加了媒体拖拽排序功能</p><p>增加了视频预览时长独立调整功能</p></div></div>
+                    <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.25</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>优化了同期事件集合功能</p><p>优化了时间线内的边缘滑动功能</p><p>增加了离线模式内的预置数据包自动加载功能</p><p>修复了离线模式下时间线边缘滑动失效的问题</p><p>修复了事件预览与同期事件集合卡片显示异常的问题</p><p>修复了云端 CDN 受限时页面空白的问题</p></div></div>
+                    <div class="border-t border-green-200 pt-3 text-slate-500"><div class="flex items-center gap-2 mb-1"><span class="font-bold text-indigo-700">2026.08.24</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-1 leading-7"><p>修复了退出事件详情页后视频仍继续播放的问题</p><p>移除了时间线视图右侧的连线按钮</p><p>增加了视频附件内的标题编辑功能</p></div></div>
                     </div>
                 </div>
             </div></div><div id="helpActivityPanel" class="hidden overflow-y-auto p-5 text-xs text-slate-600 leading-relaxed">
@@ -1633,7 +1700,7 @@
                     <div class="flex items-start justify-between gap-3 mb-3">
                         <div>
                             <h4 class="text-base font-bold text-slate-800">活动日志</h4>
-                            <p class="text-[11px] text-slate-500 mt-0.5">记录成功同步至云端的事件、Tag 与背景音乐修改。</p>
+                            <p class="text-[11px] text-slate-500 mt-0.5">记录成功同步至云端的用户活动。</p>
                         </div>
                         <div class="shrink-0 flex items-center gap-2">
                             <span class="text-[10px] text-slate-500">匿名</span>
@@ -1645,6 +1712,13 @@
                     </div>
                     <div id="activityLogList" class="space-y-2">
                         <div class="text-center text-slate-400 py-8">正在读取活动日志...</div>
+                    </div>
+                    <div id="notificationListWrap" class="hidden">
+                        <div class="flex items-start justify-between gap-3 mb-3">
+                            <div><h4 class="text-base font-bold text-slate-800">互动通知</h4><p class="text-[11px] text-slate-500 mt-0.5">汇总与你的评论相关的点赞与回复互动。</p></div>
+                            
+                        </div>
+                        <div id="notificationList" class="notification-list"><div class="text-center text-slate-400 py-8">正在读取互动通知...</div></div>
                     </div>
                 </div>
             </div>
@@ -1801,8 +1875,37 @@
     <script type="module">
         const urlParams = new URLSearchParams(window.location.search);
         window.currentRoomId = (urlParams.get('room') || 'default').trim() || 'default';
+        window.roomAccessToken = (urlParams.get('access') || '').trim();
+        window.MAIN_EDIT_ROOM_ID = '07201218';
+        window.isMainEditRoom = window.currentRoomId === window.MAIN_EDIT_ROOM_ID;
 
-        // 每个 room 都是独立的 CloudBase 协同空间；没有 room 参数时使用 default 空间。
+        window.invalidateRoomAccess = function(){
+            if(window._invalidRoomAccess) return;
+            window._invalidRoomAccess=true;
+            document.documentElement.classList.add('invalid-room-access');
+            try{ window.stop?.(); }catch(_){}
+            try{ window._timelineVersionPollTimer && clearInterval(window._timelineVersionPollTimer); }catch(_){}
+            window.cloudWriteReady=false;
+            window.isCloudSynced=false;
+            document.querySelectorAll('[id*="xiaoqinger" i],[class*="xiaoqinger" i],img[alt="小晴儿"]').forEach(el=>{
+                el.style.setProperty('display','none','important');
+                el.style.setProperty('visibility','hidden','important');
+                el.style.setProperty('opacity','0','important');
+                try{ el.remove(); }catch(_){}
+            });
+            const toast=document.getElementById('toastBox');
+            if(toast) toast.classList.add('hidden');
+            if(!window._invalidRoomObserver){
+                window._invalidRoomObserver=new MutationObserver(()=>{
+                    if(!window._invalidRoomAccess) return;
+                    document.querySelectorAll('[id*="xiaoqinger" i],[class*="xiaoqinger" i],img[alt="小晴儿"]').forEach(el=>{try{el.remove();}catch(_){}});
+                    const t=document.getElementById('toastBox'); if(t) t.classList.add('hidden');
+                });
+                window._invalidRoomObserver.observe(document.documentElement,{childList:true,subtree:true});
+            }
+        };
+
+        // 每个 room 都是独立的 CloudBase 协同空间；访问凭证与 room 绑定，手动修改 room 无法进入其他空间。
         const TIMELINE_API_BASE = 'https://message-board-d6gyou26356c94cad-1474370265.ap-shanghai.app.tcloudbase.com';
         const TIMELINE_EVENT_PAGE_LIMIT = 5;
         const timelineEditTokenKey = () => `yht_timeline_edit_token_session:${window.currentRoomId}`;
@@ -2651,7 +2754,7 @@
                 await timelineApiPost('backupAuth', { password }, { auth:false, timeoutMs:12000 });
                 window.exportTimelineBackup();
             } catch (err) {
-                window.showToast?.(err?.code === 'bad_password' ? '备份密钥错误' : '备份授权失败，请稍后重试', 'error');
+                window.showToast?.(err?.code === 'bad_password' ? '备份密钥错误' : '备份授权失败，请稍候重试', 'error');
             }
         };
 
@@ -2662,7 +2765,7 @@
             const timer = setTimeout(() => controller.abort(), timeoutMs);
             try {
                 const sep = path.includes('?') ? '&' : '?';
-                const roomPath = `${path}${sep}room=${encodeURIComponent(window.currentRoomId || 'default')}`;
+                const roomPath = `${path}${sep}room=${encodeURIComponent(window.currentRoomId || 'default')}&access=${encodeURIComponent(window.roomAccessToken || '')}`;
                 const response = await fetch(TIMELINE_API_BASE + roomPath, {
                     method: 'GET',
                     cache: 'no-store',
@@ -2674,6 +2777,12 @@
                 try { data = raw ? JSON.parse(raw) : null; }
                 catch (_) { throw new Error(`CloudBase 返回了无法解析的数据（HTTP ${response.status}）`); }
                 if (!response.ok || !data?.ok) {
+                    if(data?.error==='room_access_required' || data?.error==='wrong_room'){
+                        window.invalidateRoomAccess?.();
+                        const err=new Error('此链接无效');
+                        err.code='invalid_room_link';
+                        throw err;
+                    }
                     throw new Error(data?.message || data?.error || `CloudBase HTTP ${response.status}`);
                 }
                 return data;
@@ -2699,7 +2808,7 @@
                 }
                 const response = await fetch(TIMELINE_API_BASE + '/timeline', {
                     method:'POST', cache:'no-store', signal:controller.signal, headers,
-                    body: JSON.stringify({ room: window.currentRoomId || 'default', action, ...payload })
+                    body: JSON.stringify({ room: window.currentRoomId || 'default', accessToken: window.roomAccessToken || '', action, ...payload })
                 });
                 const raw = await response.text();
                 let data = null;
@@ -2715,6 +2824,12 @@
                     }
                 }
                 if (!response.ok || !data?.ok) {
+                    if(data?.error==='room_access_required' || data?.error==='wrong_room'){
+                        window.invalidateRoomAccess?.();
+                        const err=new Error('此链接无效');
+                        err.code='invalid_room_link';
+                        throw err;
+                    }
                     const err = new Error(data?.message || data?.error || `CloudBase HTTP ${response.status}`);
                     err.code = data?.error || `HTTP_${response.status}`;
                     throw err;
@@ -2723,6 +2838,29 @@
                 return data;
             } finally { clearTimeout(timer); }
         }
+
+        window.ensureRoomAccess = async function(){
+            if(window.roomAccessToken) return true;
+            if(!window.isMainEditRoom){
+                window.invalidateRoomAccess?.();
+                return false;
+            }
+            const password=window.prompt('主空间首次安全升级，请输入编辑密码：');
+            if(password===null) return false;
+            try{
+                const data=await timelineApiPost('bootstrapRoomAccess',{password},{auth:false,timeoutMs:12000});
+                const token=String(data?.accessToken||'');
+                if(!token) return false;
+                const params=new URLSearchParams(window.location.search);
+                if(window.currentRoomId!=='default') params.set('room',window.currentRoomId); else params.delete('room');
+                params.set('access',token);
+                window.location.replace(window.location.pathname+'?'+params.toString()+window.location.hash);
+                return false;
+            }catch(e){
+                window.showToast?.(e?.code==='bad_password'?'编辑密码错误':'无法取得空间访问权限','error');
+                return false;
+            }
+        };
 
         // 写入状态与“是否已连接云端”分离：保存期间仍保持编辑能力，避免按钮/功能被反复禁用。
         window._timelinePendingWrites = 0;
@@ -2798,6 +2936,10 @@
         };
 
         async function loadTimelineFromCloudBase() {
+            if(!window.roomAccessToken){
+                await window.ensureRoomAccess?.();
+                return false;
+            }
             const fetchWithRetry = async (path, timeoutMs = 20000, attempts = 2) => {
                 let lastErr = null;
                 for (let i = 0; i < attempts; i++) {
@@ -2942,11 +3084,12 @@
                 window.timelineCloudSource = 'cloudbase';
                 window.cloudWriteReady = false;
                 updateSyncStatus('error', '云端同步失败');
-                window.showToast?.(`云端读取失败：${err?.message || '未知错误'}`, 'error');
+                if(!window._invalidRoomAccess) window.showToast?.(`云端读取失败：${err?.message || '未知错误'}`, 'error');
             }
         }
 
         function updateSyncStatus(type, text) {
+            if(window._invalidRoomAccess && type==='error') return;
             const previousType = window._syncStatusType;
             if (type === 'syncing') {
                 window._syncingStartedFromSynced = previousType === 'synced' || !!window.isCloudSynced;
@@ -3757,19 +3900,39 @@
                 localStorage.setItem('yuhoutianqing_isLocked', 'true');
                 window.updateLockButtonUI();
                 if (err?.code === 'bad_password') window.showToast("密码错误", "error");
-                else window.showToast("编辑授权失败，请稍后重试", "error");
+                else window.showToast("编辑授权失败，请稍候重试", "error");
             }
         };
 
-        window.openShareModal = function() {
-            if (window.isLocked || !window.isCloudSynced || !window.cloudWriteReady) return;
-            const roomInput = document.getElementById('shareRoomInput');
-            const urlInput = document.getElementById('shareUrlInput');
-            if (roomInput) roomInput.value = window.currentRoomId === 'default' ? '' : window.currentRoomId;
-
-            const shareUrl = window.location.origin + window.location.pathname + (window.currentRoomId !== 'default' ? `?room=${encodeURIComponent(window.currentRoomId)}` : '');
-            if (urlInput) urlInput.value = shareUrl;
+        window.openShareModal = async function() {
+            if (!window.isMainEditRoom || window.isLocked || !window.isCloudSynced || !window.cloudWriteReady) return;
+            const roomInput=document.getElementById('shareRoomInput');
+            const urlInput=document.getElementById('shareUrlInput');
+            if(roomInput) roomInput.value=window.currentRoomId;
+            if(urlInput) urlInput.value='';
             document.getElementById('shareModal')?.classList.remove('hidden');
+            await window.generateSecureShareLink();
+        };
+
+        window.generateSecureShareLink = async function(){
+            if(!window.isMainEditRoom) return;
+            const roomInput=document.getElementById('shareRoomInput');
+            const urlInput=document.getElementById('shareUrlInput');
+            const targetRoom=(roomInput?.value||'').trim() || window.MAIN_EDIT_ROOM_ID;
+            if(urlInput) urlInput.value='正在生成安全分享链接…';
+            try{
+                const data=await timelineApiPost('createShareAccess',{targetRoom},{auth:true,timeoutMs:12000});
+                const token=String(data?.accessToken||'');
+                const safeRoom=String(data?.targetRoom||targetRoom);
+                if(!token) throw new Error('未收到访问凭证');
+                const params=new URLSearchParams();
+                params.set('room',safeRoom);
+                params.set('access',token);
+                if(urlInput) urlInput.value=window.location.origin+window.location.pathname+'?'+params.toString();
+            }catch(e){
+                if(urlInput) urlInput.value='';
+                window.showToast?.('安全分享链接生成失败，请稍候重试','error');
+            }
         };
 
         window.closeShareModal = function() {
@@ -3788,13 +3951,7 @@
             }
         };
 
-        window.switchRoomFromInput = function() {
-            const roomInput = document.getElementById('shareRoomInput');
-            const newRoom = roomInput ? roomInput.value.trim() : '';
-            const targetRoom = newRoom || 'default';
-            const newUrl = window.location.origin + window.location.pathname + (targetRoom !== 'default' ? `?room=${encodeURIComponent(targetRoom)}` : '');
-            window.location.href = newUrl;
-        };
+
 
         window._editingFromStackDate = null;
         window._isEditingFromStack = false;
@@ -5825,7 +5982,7 @@
                     <button type="button" onclick="deepAddUrl()" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs" title="在画布中放置可点击的网址"><i class="fa-solid fa-globe mr-1"></i>网址</button>
                     <button type="button" onclick="deepToggleTextTool()" id="deepTextToolBtn" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs"><i class="fa-solid fa-font mr-1"></i>文字</button>
                     <button type="button" onclick="deepToggleConnectMode()" id="deepConnectBtn" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs" title="建立联结；选中已有箭头后可直接拖动箭头调整弯曲"><i class="fa-solid fa-link mr-1"></i>联结</button>
-                    <div class="relative"><button type="button" onclick="deepToggleDraw()" id="deepDrawBtn" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs"><i class="fa-solid fa-pencil mr-1"></i>画笔</button><div id="deepDrawPanel" class="hidden absolute left-0 sm:left-1/2 sm:-translate-x-1/2 top-9 z-[360] w-72 p-3 bg-white border border-slate-200 rounded-xl shadow-xl" style="max-width:calc(100vw - 16px);max-height:70vh;overflow-y:auto;overscroll-behavior:contain"><div class="text-[10px] font-semibold text-slate-500 mb-2">画笔设置</div><div class="flex items-center justify-center gap-3 mb-2"><button type="button" id="deepDrawModePen" onclick="deepSetDrawSubtool('pen')" class="deep-draw-mode-btn active" title="画笔"><i class="fa-solid fa-pencil"></i></button><button type="button" id="deepDrawModeEraser" onclick="deepSetDrawSubtool('eraser')" class="deep-draw-mode-btn" title="橡皮擦"><i class="fa-solid fa-eraser"></i></button><button type="button" id="deepDrawModeSelect" onclick="deepSetDrawSubtool('select')" class="deep-draw-mode-btn" title="选中移动"><i class="fa-solid fa-arrow-pointer"></i></button></div><div id="deepDrawSelectHint" class="hidden mb-3 rounded-lg bg-slate-50 border border-slate-200 px-2.5 py-2 text-[10px] leading-5 text-slate-500">单击选择一整笔，再次拖动可移动。圈选可移动局部内容。</div><label id="deepDrawSharedSizeRow" class="text-[10px] text-slate-500 flex items-center gap-2 mb-3"><span id="deepDrawSharedSizeLabel">画笔大小</span><input id="deepDrawSharedSize" type="range" min="1" max="24" step="1" value="4" oninput="deepSetSharedDrawSize(this.value)" class="flex-1"><span id="deepDrawSharedSizeValue" class="w-7 text-right font-mono">4</span></label><button type="button" id="deepDrawShapeAssistBtn" onclick="deepToggleDrawShapeAssist()" class="mb-3 px-1.5 py-1 rounded-md text-[10px] font-semibold text-slate-600 flex items-center gap-1.5"><span class="deep-draw-shape-switch"></span><span>图形矫正</span></button><div id="deepDrawPenOptions"><div class="text-[10px] text-slate-500 mb-2 flex items-center gap-2"><span>颜色</span><span id="deepDrawColorSwatch" class="inline-block w-4 h-4 rounded-full border border-slate-200" style="background:#334155"></span><span class="text-[9px] text-slate-400">点击下方颜色即可更改</span></div><div id="deepDrawColorPalette"><div class="grid grid-cols-7 gap-2">${['#0f172a','#334155','#64748b','#dc2626','#ea580c','#f59e0b','#16a34a','#059669','#0284c7','#2563eb','#4f46e5','#7c3aed','#db2777','#ffffff'].map(c=>`<button type="button" onclick="deepPickDrawColor('${c}',false)" class="w-6 h-6 rounded-full border border-slate-200 deep-color-choice" style="background:${c}" title="${c}"></button>`).join('')}</div><div class="flex items-center gap-2 mt-3 pt-2 border-t"><span class="text-[10px] text-slate-500">自定义</span><input id="deepDrawCustomColor" type="color" value="#334155" class="w-7 h-7 p-0 border-0"><button type="button" onclick="deepApplyDrawCustomColor()" class="ml-auto px-2 py-1 rounded bg-indigo-600 text-white text-[10px]">使用</button></div></div></div></div></div>
+                    <div class="relative"><button type="button" onclick="deepToggleDraw()" id="deepDrawBtn" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs"><i class="fa-solid fa-pencil mr-1"></i>画笔</button><div id="deepDrawPanel" class="hidden absolute left-0 sm:left-1/2 sm:-translate-x-1/2 top-9 z-[360] w-72 p-3 bg-white border border-slate-200 rounded-xl shadow-xl" style="max-width:calc(100vw - 16px);max-height:70vh;overflow-y:auto;overscroll-behavior:contain"><div class="text-[10px] font-semibold text-slate-500 mb-2">画笔设置</div><div class="flex items-center justify-center gap-3 mb-2"><button type="button" id="deepDrawModePen" onclick="deepSetDrawSubtool('pen')" class="deep-draw-mode-btn active" title="画笔"><i class="fa-solid fa-pencil"></i></button><button type="button" id="deepDrawModeEraser" onclick="deepSetDrawSubtool('eraser')" class="deep-draw-mode-btn" title="橡皮擦"><i class="fa-solid fa-eraser"></i></button><button type="button" id="deepDrawModeSelect" onclick="deepSetDrawSubtool('select')" class="deep-draw-mode-btn" title="选中移动"><i class="fa-solid fa-arrow-pointer"></i></button></div><div id="deepDrawSelectHint" class="hidden mb-3 rounded-lg bg-slate-50 border border-slate-200 px-2.5 py-2 text-[10px] leading-5 text-slate-500">单击选择一整笔，再次拖动可移动。圈选可移动局部内容。</div><label id="deepDrawSharedSizeRow" class="text-[10px] text-slate-500 flex items-center gap-2 mb-3"><span id="deepDrawSharedSizeLabel">画笔大小</span><input id="deepDrawSharedSize" type="range" min="1" max="24" step="1" value="4" oninput="deepSetSharedDrawSize(this.value)" class="flex-1"><span id="deepDrawSharedSizeValue" class="w-7 text-right font-mono">4</span></label><button type="button" id="deepDrawShapeAssistBtn" onclick="deepToggleDrawShapeAssist()" class="mb-3 px-1.5 py-1 rounded-md text-[10px] font-semibold text-slate-600 flex items-center gap-1.5"><span class="deep-draw-shape-switch"></span><span>图形矫正</span></button><div id="deepDrawPenOptions"><div class="text-[10px] text-slate-500 mb-2 flex items-center gap-2"><span>颜色</span><span id="deepDrawColorSwatch" class="inline-block w-4 h-4 rounded-full border border-slate-200" style="background:#334155"></span><span class="text-[9px] text-slate-400">点击下方颜色即可更改</span></div><div id="deepDrawColorPalette"><div class="grid grid-cols-7 gap-2">${['#0f172a','#334155','#64748b','#dc2626','#ea580c','#f59e0b','#16a34a','#059669','#0284c7','#2563eb','#4f46e5','#7c3aed','#db2777','#ffffff'].map(c=>`<button type="button" onclick="deepPickDrawColor('${c}',true)" class="w-6 h-6 rounded-full border border-slate-200 deep-color-choice" style="background:${c}" title="${c}"></button>`).join('')}</div><div class="flex items-center gap-2 mt-3 pt-2 border-t"><span class="text-[10px] text-slate-500">自定义</span><input id="deepDrawCustomColor" type="color" value="#334155" class="w-7 h-7 p-0 border-0"><button type="button" onclick="deepApplyDrawCustomColor()" class="ml-auto px-2 py-1 rounded bg-indigo-600 text-white text-[10px]">使用</button></div></div></div></div></div>
                     <div id="deepTextTools" class="deep-toolbar-expand">
                     <div class="relative">
                         <button id="deepBorderToolBtn" type="button" disabled onclick="deepOpenColorPalette('border')" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs opacity-40 cursor-not-allowed">
@@ -6069,6 +6226,11 @@
             const showLog=tab==='changelog';
             usage?.classList.toggle('hidden',showLog);
             log?.classList.toggle('hidden',!showLog);
+            const activePanel=showLog?log:usage;
+            if(activePanel){
+                activePanel.scrollTop=0;
+                activePanel.querySelectorAll('[class*="overflow-y-auto"], [class*="overflow-auto"]').forEach(el=>{el.scrollTop=0;});
+            }
             [usageBtn,logBtn].forEach(btn=>btn?.classList.remove('bg-white','text-indigo-700','border','border-b-0','border-slate-200'));
             (showLog?logBtn:usageBtn)?.classList.add('bg-white','text-indigo-700','border','border-b-0','border-slate-200');
         };
@@ -6098,19 +6260,19 @@
                     <div class="border border-green-300 rounded-xl p-4 bg-green-50">
                         <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.11</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">本次更新</span></div>
                         <div class="space-y-2 leading-7 mb-3">
-                            <p>优化了画笔颜色与文字颜色选择的功能</p>
+                            <p>优化了画笔与文字颜色选择</p>
                             <p>优化了画布缩放后的区域操作与媒体插入位置</p>
-                            <p>增加了双向联结的功能</p>
-                            <p>增加了区域复制的功能</p>
-                            <p>优化了文字框功能键显示的功能</p>
-                            <p>优化了撤回与重做的功能</p>
-                            <p>增加了自动识别网址的功能</p>
+                            <p>增加了双向联结功能</p>
+                            <p>增加了区域复制功能</p>
+                            <p>优化了文字框功能键显示</p>
+                            <p>优化了撤回与重做功能</p>
+                            <p>增加了网址自动识别功能</p>
                         </div>
-                        <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.03</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>增加了图层管理的功能</p><p>优化了文字工具界面的功能</p><p>优化了无边框文字框显示的功能</p><p>增加了浏览模式中文字选择的功能</p><p>优化了画笔模式下区域交互的功能</p></div></div>
-                        <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.02</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>优化了文字编辑的功能</p><p>优化了文字框与边框设置的功能</p><p>优化了视频播放及预览的功能</p><p>增加了视频封面、媒体加载提示与网址区域的功能</p></div></div>
-                        <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.01</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>优化了画笔图形矫正的功能</p><p>增加了画笔笔迹选中与移动的功能</p><p>优化了画笔工具界面的功能</p><p>优化了媒体截选区域显示的功能</p></div></div>
-                        <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.30</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>优化了媒体截选的功能</p><p>优化了画笔功能</p><p>增加了画笔中橡皮擦的功能</p></div></div>
-                        <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.29</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>优化了文字工具的功能</p></div></div>
+                        <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.03</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>增加了图层管理功能</p><p>优化了文字工具界面</p><p>优化了无边框文字框显示</p><p>增加了浏览模式内的文字选择功能</p><p>优化了画笔模式下的区域交互</p></div></div>
+                        <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.02</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>优化了文字编辑功能</p><p>优化了文字框与边框设置功能</p><p>优化了视频播放与预览功能</p><p>增加了视频封面、媒体加载提示与网址区域</p></div></div>
+                        <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.01</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>优化了画笔内的图形矫正功能</p><p>增加了画笔内的笔迹选中与移动功能</p><p>优化了画笔工具界面</p><p>优化了媒体截选区域显示</p></div></div>
+                        <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.30</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>优化了媒体截选功能</p><p>优化了画笔功能</p><p>增加了画笔内的橡皮擦功能</p></div></div>
+                        <div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.08.29</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>优化了文字工具</p></div></div>
                         <div class="border-t border-green-200 pt-3 text-slate-500"><div class="flex items-center gap-2 mb-1"><span class="font-bold text-indigo-700">2026.08.27</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-1 leading-7"><p>增加了该功能</p></div></div>
                     </div>
                 </div>
@@ -9045,7 +9207,7 @@
             let videosHtml='';if(detailHasVideos){videosHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-video mr-1"></i>事件视频</h4><div data-detail-videos>${event.videos.map((v,vidx)=>{const vUrl=typeof v==='object'?(v.blobUrl||v.url):v,vCover=typeof v==='object'?(v.cover||''):'',vTitle=typeof v==='object'?(v.title||v.name||''):'',vType=typeof v==='object'&&v.mime?`type="${v.mime}"`:'';const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(v?.deepDescription);return `<div data-detail-video-card data-detail-video-index="${vidx}" data-detail-video-deep="${hasDeep?'1':'0'}" class="bg-black rounded-xl overflow-hidden border border-slate-800 ${hasDeep?'cursor-pointer':''}">${vTitle?`<div data-detail-video-title class="px-3 py-2 bg-slate-900 text-xs font-semibold text-slate-200 border-b border-slate-800">${escapeHtml(vTitle)}</div>`:''}<div data-detail-video-stage class="relative bg-black overflow-hidden"><video ${vCover?`poster="${vCover}"`:''} playsinline webkit-playsinline preload="metadata" class="block bg-black object-contain"><source src="${vUrl}" ${vType}></video>${hasDeep?'<span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">🐢</span><span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">✌🏻</span>':''}</div></div>`;}).join('')}</div></div>`;}
             let linksHtml='';if(event.links&&event.links.length>0){linksHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-link mr-1"></i>跳转网址</h4><div class="flex flex-wrap gap-2">${event.links.map(l=>`<a href="${l.url}" target="_blank" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-indigo-300 hover:text-indigo-200 px-3 py-2 rounded-xl text-xs transition-colors"><i class="fa-solid fa-globe"></i><span class="font-medium">${l.title||l.url}</span></a>`).join('')}</div></div>`;}
             const descriptionHtml=detailHasDescription?`<div data-detail-description class="border-t border-slate-800 pt-6 mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">事件经过与描述</h4><div class="event-description-html text-sm sm:text-base leading-relaxed whitespace-pre-wrap">${window.prepareDescriptionForView?window.prepareDescriptionForView(event.description):event.description}</div></div>`:'';
-            viewer.innerHTML=`<div data-detail-shell class="max-w-3xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-10 shadow-2xl relative"><div class="detail-window-dragbar" data-detail-drag-handle><i class="fa-solid fa-grip-lines"></i><span>点击此处拖动详情页</span></div><button type="button" onclick="window.openEventCommentWindow('${event.id}')" class="detail-window-comments-btn"><i class="fa-regular fa-comments"></i><span>评论区</span></button><button onclick="closeReadOnlyFullscreen('${fromStackDate?fromStackDate.replace(/'/g,"\\'"):''}')" class="absolute top-3 right-4 sm:top-4 sm:right-6 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full flex items-center justify-center transition-colors"><i class="fa-solid fa-xmark text-lg"></i></button><div class="flex items-center gap-3 mb-2"><span class="text-xs font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full font-semibold">${window.formatDisplayDate(event.date)}</span>${event.type==='major'?'<span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full">重大里程碑</span>':''}</div><h1 class="text-xl sm:text-2xl font-bold text-white mb-3 tracking-wide">${event.title}</h1><div data-detail-body>${imagesHtml}${videosHtml}${linksHtml}${descriptionHtml}</div></div>`;
+            viewer.innerHTML=`<div data-detail-shell class="${event.type==='major'?'detail-has-major ':''}max-w-3xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-10 shadow-2xl relative"><div class="detail-window-dragbar" data-detail-drag-handle><i class="fa-solid fa-grip-lines"></i><span>点击此处拖动详情页</span></div><button type="button" onclick="window.openEventCommentWindow('${event.id}')" class="detail-window-comments-btn"><i class="fa-regular fa-comments"></i><span>评论区</span></button><button onclick="closeReadOnlyFullscreen('${fromStackDate?fromStackDate.replace(/'/g,"\\'"):''}')" class="absolute top-3 right-4 sm:top-4 sm:right-6 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full flex items-center justify-center transition-colors"><i class="fa-solid fa-xmark text-lg"></i></button><div class="flex items-center gap-3 mb-2"><span class="text-xs font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full font-semibold">${window.formatDisplayDate(event.date)}</span>${event.type==='major'?'<span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full">重大里程碑</span>':''}</div><h1 class="text-xl sm:text-2xl font-bold text-white mb-3 tracking-wide">${event.title}</h1><div data-detail-body>${imagesHtml}${videosHtml}${linksHtml}${descriptionHtml}</div></div>`;
             // 首次打开详情时先完成媒体布局，再让整个详情页参与绘制，避免媒体以块级默认宽度闪现一帧。
             viewer.style.visibility='hidden';
             viewer.classList.remove('hidden');
@@ -9056,6 +9218,7 @@
         };
 
         window.closeReadOnlyFullscreen = function(fromStackDate = '') {
+            if(window._notificationReturnToHelp!==true)document.body.classList.remove('notification-comment-open');
             document.body.classList.remove('mobile-detail-open');
             window.syncXiaoqingerForDetail?.(false);
             window.closeEventCommentWindow?.();
@@ -9296,14 +9459,40 @@
             window.showToast('图片链接已添加', 'success');
         };
 
-        window.openEditModal = function(eventId = null) {
-            // Keep the shared rich-text editor ID unique: single-time and multi-time editors must never coexist in the DOM.
-            const _multiModalForSingle = document.getElementById('multiTimeEventModal');
-            if (_multiModalForSingle) {
-                _multiModalForSingle.classList.add('hidden');
-                _multiModalForSingle.classList.remove('flex');
-                _multiModalForSingle.innerHTML = '';
+
+        window._activeEditLockEventId = window._activeEditLockEventId || '';
+        window._editLockHeartbeatTimer = window._editLockHeartbeatTimer || null;
+        window.acquireEventEditLock = async function(eventId){
+            if(eventId===null||eventId===undefined||eventId==='')return true;
+            try{
+                await timelineApiPost('acquireEditLock',{
+                    eventId:String(eventId),
+                    ownerToken:window.getEditorOwnerToken?.()||'',
+                    userName:window.getCommonUserId?.()||'其他用户'
+                },{auth:'edit',timeoutMs:12000});
+                window._activeEditLockEventId=String(eventId);
+                clearInterval(window._editLockHeartbeatTimer);
+                window._editLockHeartbeatTimer=setInterval(async()=>{
+                    const id=window._activeEditLockEventId;if(!id)return;
+                    try{await timelineApiPost('heartbeatEditLock',{eventId:id,ownerToken:window.getEditorOwnerToken?.()||''},{auth:'edit',timeoutMs:10000});}
+                    catch(_){}
+                },30000);
+                return true;
+            }catch(e){
+                if(e?.code==='edit_locked') window.showToast('有其他人正在编辑此事件，请稍候再试','error');
+                else window.showToast('暂时无法确认事件编辑状态，请稍候再试','error');
+                return false;
             }
+        };
+        window.releaseEventEditLock = async function(eventId=null){
+            const id=String(eventId||window._activeEditLockEventId||'');
+            if(!id)return;
+            if(String(window._activeEditLockEventId||'')===id)window._activeEditLockEventId='';
+            clearInterval(window._editLockHeartbeatTimer);window._editLockHeartbeatTimer=null;
+            try{await timelineApiPost('releaseEditLock',{eventId:id,ownerToken:window.getEditorOwnerToken?.()||''},{auth:'edit',timeoutMs:8000});}catch(_){}
+        };
+
+        window.openEditModal = async function(eventId = null) {
             window.richResetOpacitySelection?.();
             window.richSelectionRange = null;
             window.richOpacitySpan = null;
@@ -9313,6 +9502,13 @@
                 window.showToast(window.isCloudSynced ? '当前处于浏览模式，请先解锁编辑模式' : '请先等待右上角显示"已同步云端"后再编辑', 'error');
                 return;
             }
+            const isEdit = eventId !== null && eventId !== undefined && eventId !== '';
+            let event = isEdit ? (window.findEventById(eventId) || window.events.find(e => String(e.id) === String(eventId))) : null;
+            if (isEdit && !event) {
+                window.showToast('未找到该事件', 'error');
+                return;
+            }
+            if(isEdit && !(await window.acquireEventEditLock(eventId))) return;
             let modal = document.getElementById('editModal');
             if (!modal) {
                 modal = document.createElement('div');
@@ -9320,12 +9516,11 @@
                 modal.className = "fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-2 sm:p-4 overflow-y-auto";
                 document.body.appendChild(modal);
             }
-
-            const isEdit = eventId !== null && eventId !== undefined && eventId !== '';
-            let event = isEdit ? (window.findEventById(eventId) || window.events.find(e => String(e.id) === String(eventId))) : null;
-            if (isEdit && !event) {
-                window.showToast('未找到该事件', 'error');
-                return;
+            const _multiModalForSingle = document.getElementById('multiTimeEventModal');
+            if (_multiModalForSingle) {
+                _multiModalForSingle.classList.add('hidden');
+                _multiModalForSingle.classList.remove('flex');
+                _multiModalForSingle.innerHTML = '';
             }
             if (!event) {
                 event = {
@@ -9606,6 +9801,7 @@
         window.closeEditModal = function() {
             const returnStackDate=window._isEditingFromStack ? window._editingFromStackDate : null;
             const editedEventId=window.editingEventId;
+            void window.releaseEventEditLock?.(editedEventId);
             const editModal = document.getElementById('editModal');
             if (editModal) editModal.classList.add('hidden');
             window.editingConnections = [];
@@ -11368,9 +11564,21 @@
             const modeActivityPanel=document.getElementById('helpActivityPanel');
             if(browseLog)browseLog.classList.toggle('hidden',editing);
             if(editLog)editLog.classList.toggle('hidden',!editing);
-            if(activityTab) activityTab.classList.toggle('hidden', !editing);
-            if(modeActivityPanel && !editing) modeActivityPanel.classList.add('hidden');
-            window.renderActivityLogs?.();
+            if(activityTab){
+                activityTab.classList.remove('hidden');
+                const activityLabel=document.getElementById('helpTabActivityLabel');
+                if(activityLabel)activityLabel.textContent=editing?'活动日志':'互动通知';
+                const activityDot=document.getElementById('helpActivityNotificationDot');
+                if(activityDot)activityDot.classList.toggle('hidden',editing);
+            }
+            const activityCard=modeActivityPanel?.querySelector('.border.border-indigo-200');
+            const activityHeader=activityCard?.querySelector('.flex.items-start.justify-between');
+            const activityList=document.getElementById('activityLogList');
+            const notificationWrap=document.getElementById('notificationListWrap');
+            if(activityHeader)activityHeader.classList.toggle('hidden',!editing);
+            if(activityList)activityList.classList.toggle('hidden',!editing);
+            if(notificationWrap)notificationWrap.classList.toggle('hidden',editing);
+            if(editing) window.renderActivityLogs?.();
             switchHelpTab('usage');
             modal.classList.remove('hidden');
             const usagePanel = document.getElementById('helpUsagePanel');
@@ -11398,7 +11606,19 @@
                 thanks: document.getElementById('helpTabThanks')
             };
             let active = panels[tab] ? tab : 'usage';
-            if (active === 'activity' && window.isLocked) active = 'usage';
+            if(active==='activity' && window.isLocked) window.loadNotifications?.();
+            if(active==='activity' && window.isLocked){
+                // 进入“互动通知”即视为已读：只更新当前界面状态，后台静默落库。
+                // 不再次重载列表，避免“通知 → 空白 → 通知”的二次闪烁。
+                document.getElementById('helpNotificationDot')?.classList.remove('is-visible');
+                document.getElementById('helpActivityNotificationDot')?.classList.remove('is-visible');
+                document.querySelectorAll('#notificationList .notification-item.unread').forEach(el=>el.classList.remove('unread'));
+                const ownerToken=window.getEditorOwnerToken?.()||'';
+                if(ownerToken){
+                    timelineApiPost('markAllNotificationsRead',{ownerToken},{auth:false,timeoutMs:12000}).catch(()=>{});
+                }
+            }
+            
             Object.values(panels).forEach(el => {
                 if (!el) return;
                 el.classList.add('hidden');
@@ -11410,10 +11630,16 @@
             if (panel) {
                 panel.classList.remove('hidden');
                 panel.style.removeProperty('display');
+                // 每次重新进入任一帮助页签，都从顶部开始，不继承上一次滚动位置。
+                panel.scrollTop = 0;
+                panel.querySelectorAll('[class*="overflow-y-auto"], [class*="overflow-auto"]').forEach(el => { el.scrollTop = 0; });
             }
             button?.classList.add('bg-white','text-indigo-700','border','border-b-0','border-slate-200');
         };
         document.addEventListener('keydown', e => { if (e.key === 'Escape') { const tn=document.getElementById('thanksNoteModal'); if(tn && !tn.classList.contains('hidden')) { closeThanksNote(); return; } const h=document.getElementById('helpModal'); if(h && !h.classList.contains('hidden')) closeHelpModal(); const v=document.getElementById('fullscreenViewer'); if(v && !v.classList.contains('hidden')) closeReadOnlyFullscreen(); } });
+
+        setTimeout(()=>window.refreshNotificationBadge?.(),1200);
+        window._notificationBadgeTimer=window._notificationBadgeTimer||setInterval(()=>window.refreshNotificationBadge?.(),45000);
 
         window.showToast = function(text, type = "info") {
             const toastBox = document.getElementById('toastBox');
@@ -11863,7 +12089,7 @@
                 try {
                     await window.authenticateXiaoqingerEditor?.(password);
                 } catch (err) {
-                    window.showToast?.(err?.code === 'bad_password' ? '台词编辑密钥错误' : '台词编辑授权失败，请稍后重试', 'error');
+                    window.showToast?.(err?.code === 'bad_password' ? '台词编辑密钥错误' : '台词编辑授权失败，请稍候重试', 'error');
                     return;
                 }
             }
@@ -12292,6 +12518,7 @@
         window.multiAddSegment=function(){window.multiPersistCurrentPage();window.multiTimeDraft.push(window.multiNewSegment());window.multiTimePage=window.multiTimeDraft.length;window.multiRenderEditorShell();};
 
         window.closeMultiTimeEventModal=function(){
+            if(window.multiTimeIsEdit) void window.releaseEventEditLock?.(window.multiTimeEditingId);
             const modal=document.getElementById('multiTimeEventModal');
             if(!modal)return;
             window.richResetOpacitySelection?.();
@@ -12303,7 +12530,23 @@
             // Remove the shared rich editor DOM so it cannot conflict with the single-time editor.
             modal.innerHTML='';
         };
-        window.openMultiTimeEventModal=function(eventId=null){if(!window.canEditNow()){window.showToast('当前无法编辑','error');return;}const isEdit=eventId!==null&&eventId!==undefined&&eventId!=='';const old=isEdit?window.findEventById(eventId):null;if(isEdit&&(!old||old.timeMode!=='multi')){window.openEditModal(eventId);return;}const ev=old||{id:Date.now(),title:'',type:'minor',tags:[],timeMode:'multi',timeSegments:[window.multiNewSegment()],deepDescriptionEnabled:false};window.multiTimeEditingId=ev.id;window.multiTimeIsEdit=isEdit;window.multiTimeDeepEnabledDraft=ev.deepDescriptionEnabled===true;window.multiTimeDraft=window.multiNormalizeDraft(JSON.parse(JSON.stringify((ev.timeSegments&&ev.timeSegments.length)?ev.timeSegments:[window.multiNewSegment()])));window.multiTimeGeneralDraft={title:ev.title||'',type:ev.type||'minor',tags:Array.isArray(ev.tags)?ev.tags.slice():[]};window.multiTimeConnections=isEdit?window.getEditingConnectionsForEvent(ev.id):[];window.multiTimePage=0;window.richResetOpacitySelection?.();window.richSelectionRange=null;window.richOpacitySpan=null;const singleEdit=document.getElementById('editModal');if(singleEdit){singleEdit.classList.add('hidden');singleEdit.innerHTML='';}let modal=document.getElementById('multiTimeEventModal');if(!modal){modal=document.createElement('div');modal.id='multiTimeEventModal';modal.className='fixed inset-0 z-[105] bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-2 sm:p-4 overflow-y-auto';document.body.appendChild(modal);}modal.classList.remove('hidden');modal.classList.add('flex');window.multiRenderEditorShell();};
+        window.openMultiTimeEventModal=async function(eventId=null){
+            if(!window.canEditNow()){window.showToast('当前无法编辑','error');return;}
+            const isEdit=eventId!==null&&eventId!==undefined&&eventId!=='';
+            const old=isEdit?window.findEventById(eventId):null;
+            if(isEdit&&(!old||old.timeMode!=='multi')){window.openEditModal(eventId);return;}
+            if(isEdit && !(await window.acquireEventEditLock(eventId)))return;
+            const ev=old||{id:Date.now(),title:'',type:'minor',tags:[],timeMode:'multi',timeSegments:[window.multiNewSegment()],deepDescriptionEnabled:false};
+            window.multiTimeEditingId=ev.id;window.multiTimeIsEdit=isEdit;window.multiTimeDeepEnabledDraft=ev.deepDescriptionEnabled===true;
+            window.multiTimeDraft=window.multiNormalizeDraft(JSON.parse(JSON.stringify((ev.timeSegments&&ev.timeSegments.length)?ev.timeSegments:[window.multiNewSegment()])));
+            window.multiTimeGeneralDraft={title:ev.title||'',type:ev.type||'minor',tags:Array.isArray(ev.tags)?ev.tags.slice():[]};
+            window.multiTimeConnections=isEdit?window.getEditingConnectionsForEvent(ev.id):[];window.multiTimePage=0;
+            window.richResetOpacitySelection?.();window.richSelectionRange=null;window.richOpacitySpan=null;
+            const singleEdit=document.getElementById('editModal');if(singleEdit){singleEdit.classList.add('hidden');singleEdit.innerHTML='';}
+            let modal=document.getElementById('multiTimeEventModal');
+            if(!modal){modal=document.createElement('div');modal.id='multiTimeEventModal';modal.className='fixed inset-0 z-[105] bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-2 sm:p-4 overflow-y-auto';document.body.appendChild(modal);}
+            modal.classList.remove('hidden');modal.classList.add('flex');window.multiRenderEditorShell();
+        };
         window.saveMultiTimeEvent=function(){window.multiPersistCurrentPage();const title=String(window.multiTimeGeneralDraft?.title||'').trim();if(!title){window.showToast('请填写事件名称','error');window.multiTimePage=0;window.multiRenderCurrentPage();return;}const segs=window.multiNormalizeDraft(JSON.parse(JSON.stringify(window.multiTimeDraft||[])));for(const seg of segs){const d=window.normalizePartialDate(String(seg.date||''));if(!d){window.showToast('请为每个时间填写有效日期','error');return;}seg.date=d;seg.subtitle=String(seg.subtitle||'').trim();seg.description=String(seg.description||'');}segs.sort((a,b)=>String(a.date).localeCompare(String(b.date)));const date=window.getMultiEventDisplayDate(segs);const existing=window.findEventById(window.multiTimeEditingId);window.pendingSaveData={id:window.multiTimeEditingId,title,date,type:window.multiTimeGeneralDraft.type||'minor',tags:window.multiTimeGeneralDraft.tags||[],timeMode:'multi',timeSegments:segs,deepDescriptionEnabled:!!window.multiTimeDeepEnabledDraft,images:[],videos:[],links:[],description:'',connections:window.multiTimeConnections||[],_isEdit:!!window.multiTimeIsEdit};if(existing&&Number.isFinite(Number(existing.stackOrder)))window.pendingSaveData.stackOrder=existing.stackOrder;document.getElementById('confirmSaveModal')?.classList.remove('hidden');};
 
         window.multiRenderSegments=function(){ window.multiRenderCurrentPage?.(); };
@@ -12347,7 +12590,9 @@
             };
             if (map[code]) return map[code];
             if (!navigator.onLine) return '当前网络不可用，留言板需要联网。';
-            return code === 'bad_type' || code === 'bad_action' ? '评论后端版本未更新，请重新部署新的 index.js。' : '评论区暂时无法连接，请稍后再试。';
+            if(code === 'bad_type' || code === 'bad_action') return '评论后端版本未更新，请重新部署新的 index.js。';
+            if(code === 'collection_not_found' || code === 'DATABASE_COLLECTION_NOT_EXIST') return '评论集合尚未创建，请确认 timeline_comments 已存在。';
+            return '评论区暂时无法连接，请稍候再试。';
         };
 
         window.commentOwnIdsKey = function(){
@@ -12375,7 +12620,13 @@
             return `<section class="event-comment-board" data-comment-board data-event-id="${id}">
                 <div class="event-comment-head">
                     <div class="event-comment-title"><i class="fa-regular fa-comments text-indigo-600"></i><span>评论区</span><span class="event-comment-count" data-comment-count>0</span></div>
-                    <button type="button" class="event-comment-btn" data-comment-refresh><i class="fa-solid fa-rotate-right mr-1"></i>刷新</button>
+                    <div class="event-comment-head-actions">
+                        <button type="button" class="event-comment-sort-toggle" data-comment-sort-toggle aria-label="切换评论排序" title="点击切换排序">
+                            <i class="fa-solid fa-arrow-down-wide-short"></i>
+                            <span data-comment-sort-label>按时间</span>
+                        </button>
+                        <button type="button" class="event-comment-btn" data-comment-refresh><i class="fa-solid fa-rotate-right mr-1"></i>刷新</button>
+                    </div>
                 </div>
                 <div data-comment-error></div>
                 <div class="event-comment-list" data-comment-list>
@@ -12519,7 +12770,14 @@
 
             const content=document.createElement('div'); content.className='event-comment-content'; content.textContent=String(message.content||'');
             const actions=document.createElement('div'); actions.className='event-comment-actions';
-            const reply=document.createElement('button'); reply.type='button'; reply.className='event-comment-action-link'; reply.textContent='回复';
+const like=document.createElement('button');
+            like.type='button';
+            like.className='event-comment-action-link'+(message?.likedByMe?' like-active':'');
+            like.innerHTML=`<i class="${message?.likedByMe?'fa-solid':'fa-regular'} fa-heart"></i> <span>${Number(message?.likeCount)||0}</span>`;
+            like.title=message?.likedByMe?'取消点赞':'点赞';
+            like.onclick=()=>window.commentToggleLike(board,message,like);
+            actions.appendChild(like);
+const reply=document.createElement('button'); reply.type='button'; reply.className='event-comment-action-link'; reply.textContent='回复';
             reply.onclick=()=>{
                 board._commentReplyId=String(message.id||'');
                 board._commentReplyName=message?.author?.displayName || '这条评论';
@@ -12539,6 +12797,28 @@
             }
             item.append(meta,content,actions);
             return item;
+        };
+
+        window.commentSortModeKey = 'yht_comment_sort_mode';
+        window.commentGetSortMode = function(){
+            const mode=localStorage.getItem(window.commentSortModeKey);
+            return mode==='hot'?'hot':'time';
+        };
+        window.commentSetSortMode = function(board,mode){
+            const next=mode==='hot'?'hot':'time';
+            localStorage.setItem(window.commentSortModeKey,next);
+            const label=board?.querySelector('[data-comment-sort-label]');
+            if(label) label.textContent=next==='hot'?'按热度':'按时间';
+            const toggle=board?.querySelector('[data-comment-sort-toggle]');
+            if(toggle) toggle.dataset.sortMode=next;
+            if(board?._commentMessages) window.commentRenderMessages(board,board._commentMessages);
+        };
+        window.commentCompareMessages = function(a,b,mode){
+            if(mode==='hot'){
+                const likes=(Number(b?.likeCount)||0)-(Number(a?.likeCount)||0);
+                if(likes) return likes;
+            }
+            return (Number(b?.createdAt)||0)-(Number(a?.createdAt)||0);
         };
 
         window.commentRenderMessages = function(board, messages){
@@ -12561,6 +12841,13 @@
                     children.get(pid).push(m);
                 }else roots.push(m);
             });
+            const mode=window.commentGetSortMode();
+            const sortLabel=board.querySelector('[data-comment-sort-label]');
+            if(sortLabel) sortLabel.textContent=mode==='hot'?'按热度':'按时间';
+            const sortToggle=board.querySelector('[data-comment-sort-toggle]');
+            if(sortToggle) sortToggle.dataset.sortMode=mode;
+            roots.sort((a,b)=>window.commentCompareMessages(a,b,mode));
+            children.forEach(items=>items.sort((a,b)=>window.commentCompareMessages(a,b,'time')));
             const rendered=new Set();
             const appendTree=(m,depth=0)=>{
                 if(!m || rendered.has(String(m.id)))return;
@@ -12572,15 +12859,114 @@
             rows.forEach(m=>{if(!rendered.has(String(m.id)))appendTree(m,m.parentId?1:0);});
         };
 
+
+        window.commentToggleLike = async function(board,message,button){
+            const currentId=window.getCommonUserId?.() || '';
+            if(!currentId){
+                window.commentBoardError(board,'点赞需要先在最右侧“用户设置”填写 ID。');
+                window.openEditorIdentityEditor?.();
+                return;
+            }
+            if(button)button.disabled=true;
+            try{
+                const data=await timelineApiPost('commentLike',{
+                    eventId:String(board.dataset.eventId||''),
+                    commentId:String(message?.id||''),
+                    ownerToken:window.getEditorOwnerToken?.() || '',
+                    identityName:currentId,
+                    liked:!message?.likedByMe
+                },{auth:false,timeoutMs:12000});
+                message.likedByMe=!!data?.liked;
+                message.likeCount=Number(data?.likeCount)||0;
+                if(button){
+                    button.classList.toggle('like-active',message.likedByMe);
+                    button.innerHTML=`<i class="${message.likedByMe?'fa-solid':'fa-regular'} fa-heart"></i> <span>${message.likeCount}</span>`;
+                    button.title=message.likedByMe?'取消点赞':'点赞';
+                }
+                if(window.commentGetSortMode()==='hot') window.commentRenderMessages(board,board._commentMessages||[]);
+                window.refreshNotificationBadge?.();
+            }catch(e){ window.commentBoardError(board,window.commentHumanError(e)); }
+            finally{if(button)button.disabled=false;}
+        };
+
+        window.notificationFormatActors=function(actors){
+            const names=(Array.isArray(actors)?actors:[]).map(x=>String(x?.displayName||'').trim()).filter(Boolean);
+            if(names.length<=3)return names.join('、');
+            return names.slice(0,3).join('、')+' 等 '+names.length+' 人';
+        };
+        window.loadNotifications=async function(){
+            const list=document.getElementById('notificationList');
+            if(!list)return;
+            const ownerToken=window.getEditorOwnerToken?.()||'';
+            if(!ownerToken){list.innerHTML='<div class="text-center text-slate-400 py-8">暂无互动通知</div>';return;}
+            const hadItems=!!list.querySelector('.notification-item');
+            if(!hadItems) list.innerHTML='<div class="text-center text-slate-400 py-8">正在读取互动通知...</div>';
+            try{
+                const data=await timelineApiPost('getNotifications',{ownerToken},{auth:false,timeoutMs:12000});
+                const items=Array.isArray(data?.items)?data.items:[];
+                list.innerHTML='';
+                if(!items.length){list.innerHTML='<div class="text-center text-slate-400 py-8">暂无互动通知</div>';return;}
+                items.forEach(n=>{
+                    const btn=document.createElement('button');btn.type='button';btn.className='notification-item'+(n.read===true?'':' unread');
+                    const actors=window.notificationFormatActors(n.actors)||'有人';
+                    const title=document.createElement('div');title.className='notification-title';
+                    title.textContent=n.type==='reply' ? `${actors} 回复了你的评论` : `${actors} 赞了你的评论`;
+                    const time=document.createElement('div');time.className='notification-time';time.textContent=window.commentFormatTime(n.updatedAt||n.createdAt);
+                    btn.append(title,time);
+                    btn.onclick=()=>window.openNotificationTarget(n);
+                    list.appendChild(btn);
+                });
+            }catch(e){list.innerHTML='<div class="text-center text-rose-500 py-8">互动通知读取失败</div>';}
+        };
+        window.refreshNotificationBadge=async function(){
+            const dot=document.getElementById('helpNotificationDot');
+            const tabDot=document.getElementById('helpActivityNotificationDot');
+            if(!dot && !tabDot)return;
+            const ownerToken=window.getEditorOwnerToken?.()||'';
+            if(!ownerToken){dot?.classList.remove('is-visible');tabDot?.classList.remove('is-visible');return;}
+            try{
+                const data=await timelineApiPost('getNotifications',{ownerToken},{auth:false,timeoutMs:10000});
+                const hasUnread=(Number(data?.unreadCount)||0)>0;
+                dot?.classList.toggle('is-visible',hasUnread);
+                tabDot?.classList.toggle('is-visible',hasUnread);
+            }catch(_){}
+        };
+        window.markAllNotificationsRead=async function(){
+            const ownerToken=window.getEditorOwnerToken?.()||'';if(!ownerToken)return;
+            try{await timelineApiPost('markAllNotificationsRead',{ownerToken},{auth:false,timeoutMs:12000});}catch(_){}
+            await window.loadNotifications?.();await window.refreshNotificationBadge?.();
+        };
+        window.openNotificationTarget=async function(n){
+            const ownerToken=window.getEditorOwnerToken?.()||'';
+            if(n?._id && ownerToken){try{await timelineApiPost('markNotificationRead',{ownerToken,id:n._id},{auth:false,timeoutMs:12000});}catch(_){}}
+            window.closeHelpModal?.();
+            const eventId=String(n?.eventId||'');const commentId=String(n?.commentId||'');
+            if(!eventId)return;
+            window._notificationReturnToHelp=true;
+            document.body.classList.add('notification-comment-open');
+            window._pendingCommentTargetId=commentId;
+            window.openReadOnlyFullscreen?.(eventId);
+            setTimeout(()=>window.openEventCommentWindow?.(eventId),60);
+            window.refreshNotificationBadge?.();
+        };
+
         window.commentLoadMessages = async function(board){
             if(!board?.isConnected)return;
             const eventId=String(board.dataset.eventId||'');
             const list=board.querySelector('[data-comment-list]');
             if(list) list.innerHTML='<div class="event-comment-loading"><i class="fa-solid fa-circle-notch fa-spin mr-1"></i>正在加载评论…</div>';
             try{
-                const data=await timelineApiFetch('/timeline?type=comments&eventId='+encodeURIComponent(eventId),12000);
+                const data=await timelineApiFetch('/timeline?type=comments&eventId='+encodeURIComponent(eventId)+'&ownerToken='+encodeURIComponent(window.getEditorOwnerToken?.()||''),12000);
                 board._commentMessages=Array.isArray(data.messages)?data.messages:[];
                 window.commentRenderMessages(board,board._commentMessages);
+                if(window._pendingCommentTargetId){
+                    const targetId=String(window._pendingCommentTargetId);
+                    window._pendingCommentTargetId='';
+                    requestAnimationFrame(()=>{
+                        const node=board.querySelector(`[data-message-id="${CSS.escape(targetId)}"]`);
+                        if(node){node.classList.add('notification-target');node.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>node.classList.remove('notification-target'),1800);}
+                    });
+                }
             }catch(e){
                 if(list){list.innerHTML='';const d=document.createElement('div');d.className='event-comment-error';d.textContent=window.commentHumanError(e);list.appendChild(d);}
             }
@@ -12736,9 +13122,19 @@
         };
 
         window.closeEventCommentWindow = function(){
+            const returnToInteraction=window._notificationReturnToHelp===true;
+            if(returnToInteraction)window._notificationReturnToHelp=false;
             const win=document.getElementById('eventCommentWindow');
             if(win)win.classList.add('hidden');
             document.getElementById('fullscreenViewer')?.classList.remove('mobile-comments-open');
+            if(returnToInteraction){
+                document.body.classList.remove('notification-comment-open');
+                window.closeReadOnlyFullscreen?.();
+                setTimeout(()=>{
+                    window.openHelpModal?.();
+                    window.switchHelpTab?.('activity');
+                },30);
+            }
         };
 
         window.openEventCommentWindow = function(eventId){
@@ -12762,6 +13158,8 @@
             const body=document.createElement('div');body.className='comment-window-body';body.innerHTML=window.renderCommentBoardShell(eventId);
             const resizer=document.createElement('div');resizer.className='comment-window-resizer';resizer.setAttribute('aria-hidden','true');
             win.append(bar,body,resizer);
+            // 评论区每次重新打开都回到顶部初始位置。
+            body.scrollTop=0;
 
             const isNarrowPhone=window.matchMedia?.('(max-width: 639px)').matches;
             if(isNarrowPhone){
@@ -12890,6 +13288,11 @@
                 text?.addEventListener('input',()=>{if(char)char.textContent=`${text.value.length} / 500`;});
                 board.querySelector('[data-comment-send]')?.addEventListener('click',()=>window.commentSend(board));
                 board.querySelector('[data-comment-refresh]')?.addEventListener('click',()=>window.commentLoadMessages(board));
+            board.querySelector('[data-comment-sort-toggle]')?.addEventListener('click',()=>{
+                const current=window.commentGetSortMode();
+                window.commentSetSortMode(board,current==='hot'?'time':'hot');
+            });
+            window.commentSetSortMode(board,window.commentGetSortMode());
                 board.querySelector('[data-comment-compose-toggle]')?.addEventListener('click',()=>{
                     const panel=board.querySelector('[data-comment-compose-panel]');
                     const open=!panel?.classList.contains('is-open');
