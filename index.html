@@ -1218,91 +1218,48 @@
 
         }
 
+
         @media (max-width:639px){
-            .tryRearrangeOnHover,
-            .rearrange-visible,
-            .multiTimeGeneralDraft,
-            .multiTimeDraft,
-            .addRange,
-            .toggleDateRangeMode,
-            .deepRangeFromTextSelectionSnapshot,
-            .time-range,
-            .multi-time,
-            .richGetActiveTextRange,
-            .multiTimeConnections,
-            .getRangeAt,
-            .setRearrangeEdgeScrolling,
-            .range,
-            .createRange,
-            .double-dot,
-            ._xiaoqingerRichRange,
-            .saveMultiTimeEvent,
-            .is-double,
-            .richSelectionRange,
-            .multiTimePage,
-            .timeline-dot-multi,
-            .closeMultiTimeEventModal,
-            .openMultiTimeEventModal,
-            .multiTimePage-1,
-            .deepSavedTextRange,
-            .rangeCount,
-            .exitRearrange,
-            .multiTimeIsEdit,
-            .removeAllRanges,
-            .cloneRange,
-            .multiTimeEditingId,
-            .rearrange-anchor,
-            .multiMediaId,
-            .rearrange-active,
-            .getMultiEventDisplayDate,
-            .multiTimeDeepEnabledDraft{
-                /* 实际存在的复合时间线节点在手机端至少保持更清晰的可视尺寸 */
-                min-height:14px;
+            body.mobile-node-preview-active .deep-connector-hit,
+            .deep-connector-layer,
+            .deep-connector-path,
+            .deepAskExistingConnector,
+            .deepConnectorGeometry,
+            .deepGetConnectorExact,
+            .deepUpdateConnectorControls,
+            .deepUpdateConnectors,
+            .event-preview-line{
+                display:block !important;
+                visibility:visible !important;
+                opacity:1 !important;
             }
         }
 
         @media (max-width:639px){
-            /* 双圆点：只放大被实际识别出的两个组成圆点 */
-            .phone-real-double-part{
-                transform:scale(1.22) !important;
-                transform-origin:center !important;
+            /* 只在检测到顶部真实碰撞时调整，不影响正常情况 */
+            #fullscreenViewer [data-detail-shell].phone-top-collision{
+                padding-top:58px !important;
             }
-
-            /* 时间区间：明显拉长并压扁；普通单圆点不受影响 */
-            .phone-real-range-node:not(.phone-real-double-node){
-                min-width:36px !important;
-                width:36px !important;
-                min-height:7px !important;
-                height:7px !important;
-                border-radius:999px !important;
-            }
-            .phone-real-range-part{
-                min-width:36px !important;
-                width:36px !important;
-                min-height:7px !important;
-                height:7px !important;
-                border-radius:999px !important;
-            }
-
-            /* 顶部正常时保持原布局；检测到真实碰撞后才进入安全换行 */
-            #fullscreenViewer [data-detail-header].phone-header-collision{
+            #fullscreenViewer [data-detail-shell].phone-top-collision [data-detail-header]{
+                position:absolute !important;
+                left:10px !important;
+                right:10px !important;
+                top:10px !important;
+                width:auto !important;
                 display:flex !important;
                 flex-wrap:wrap !important;
                 align-items:center !important;
-                justify-content:flex-start !important;
-                gap:7px 9px !important;
-                width:100% !important;
-                max-width:100% !important;
+                justify-content:flex-end !important;
+                gap:6px 9px !important;
                 box-sizing:border-box !important;
             }
-            #fullscreenViewer [data-detail-header].phone-header-collision > *{
+            #fullscreenViewer [data-detail-shell].phone-top-collision [data-detail-header] > *{
                 position:relative !important;
                 left:auto !important;
                 right:auto !important;
                 top:auto !important;
                 transform:none !important;
                 flex:0 0 auto !important;
-                max-width:100% !important;
             }
         }
 </style>
@@ -2125,96 +2082,55 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 <audio id="globalBgmAudio" style="display: none;"></audio>
 
     <script type="module">
-        // 手机端独立视野密度：不修改原有 zoomLevel/密度档位，也不改变节点尺寸。
-        window.phoneViewportDensityScale = 0.84;
-        window.applyPhoneViewportDensity = function(){
-            if(!window.isPhoneLikeDevice?.())return;
-            const root=document.querySelector('#timelineContainer,#timeline,.timeline-container');
-            if(!root)return;
-            root.style.setProperty('--phone-viewport-density-scale',String(window.phoneViewportDensityScale||1));
-        };
-
-        window.refreshPhoneCompositeNodes=function(root){
-            if(!window.isPhoneLikeDevice?.())return;
-            root=root||document.querySelector('#timelineContainer,#timeline,.timeline-container')||document;
-            const nodes=root.querySelectorAll('.event-dot,.timeline-dot,[data-event-dot],.event-node,.timeline-node');
-            nodes.forEach(node=>{
-                node.classList.remove('phone-real-double-node','phone-real-range-node');
-                [...node.children].forEach(ch=>ch.classList.remove('phone-real-double-part','phone-real-range-part'));
-
-                const visible=[...node.children].filter(ch=>{
-                    const s=getComputedStyle(ch),r=ch.getBoundingClientRect();
-                    return s.display!=='none'&&s.visibility!=='hidden'&&r.width>2&&r.height>2;
-                });
-                const round=visible.filter(ch=>{
-                    const r=ch.getBoundingClientRect();
-                    return r.width<=22&&r.height<=22&&r.width/r.height>.72&&r.width/r.height<1.38;
-                });
-                if(round.length>=2){
-                    node.classList.add('phone-real-double-node');
-                    round.slice(0,2).forEach(ch=>ch.classList.add('phone-real-double-part'));
-                }
-
-                const own=
-node.getBoundingClientRect();
-                let rangePart=null;
-                if(own.width/Math.max(own.height,1)>1.5) rangePart=node;
-                if(!rangePart){
-                    rangePart=visible.find(ch=>{
-                        const r=ch.getBoundingClientRect();
-                        return r.width/Math.max(r.height,1)>1.5;
-                    })||null;
-                }
-                if(rangePart){
-                    node.classList.add('phone-real-range-node');
-                    if(rangePart!==node)rangePart.classList.add('phone-real-range-part');
-                }
+        window.restorePhonePreviewConnector=function(){
+            if(!window.isPhoneLikeDevice?.() || !document.body.classList.contains('mobile-node-preview-active'))return;
+            const root=document.querySelector('#timelineContainer,#timeline,.timeline-container')||document;
+            root.querySelectorAll('[class*="preview"][class*="line"],[class*="connector"],[data-preview-line]').forEach(el=>{
+                el.style.setProperty('display','block','important');
+                el.style.setProperty('visibility','visible','important');
+                el.style.setProperty('opacity','1','important');
             });
         };
 
-        window.reflowPhoneDetailHeader=function(root){
+        window.fixPhoneDetailTopCollision=function(){
             if(!window.isPhoneLikeDevice?.())return;
-            root=root||document.getElementById('fullscreenViewer');
-            const h=root?.querySelector?.('[data-detail-header]');
-            if(!h)return;
-            h.classList.remove('phone-header-collision');
-            const els=[...h.children].filter(el=>el.offsetParent!==null);
-            let hit=h.scrollWidth>h.clientWidth+1;
+            const viewer=document.getElementById('fullscreenViewer');
+            const shell=viewer?.querySelector?.('[data-detail-shell]');
+            if(!shell)return;
+            shell.classList.remove('phone-top-collision');
+
+            const sr=shell.getBoundingClientRect();
+            const els=[...shell.querySelectorAll('button,[role="button"],[data-detail-date],[data-detail-time],.milestone-badge')]
+                .filter(el=>{
+                    const r=el.getBoundingClientRect(),s=getComputedStyle(el);
+                    return s.display!=='none'&&s.visibility!=='hidden'&&r.width>0&&r.height>0&&r.top<sr.top+110;
+                });
+            let hit=false;
             for(let i=0;i<els.length&&!hit;i++){
                 const a=els[i].getBoundingClientRect();
-                if(a.left<16||a.right>innerWidth-16){hit=true;break;}
                 for(let j=i+1;j<els.length;j++){
                     const b=els[j].getBoundingClientRect();
-                    const vertical=Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top);
-                    const horizontal=Math.min(a.right,b.right)-Math.max(a.left,b.left);
-                    if(vertical>2&&horizontal>0){hit=true;break;}
+                    const ox=Math.min(a.right,b.right)-Math.max(a.left,b.left);
+                    const oy=Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top);
+                    if(ox>0&&oy>0){hit=true;break;}
+                    // 同一行间隙过窄也视为碰撞
+                    if(Math.abs(a.top-b.top)<8){
+                        const gap=Math.max(a.left,b.left)-Math.min(a.right,b.right);
+                        if(gap>=0&&gap<7){hit=true;break;}
+                    }
                 }
             }
-            if(hit)h.classList.add('phone-header-collision');
+            shell.classList.toggle('phone-top-collision',hit);
         };
+        window.addEventListener('resize',()=>requestAnimationFrame(()=>window.fixPhoneDetailTopCollision?.()));
 
         if(window.isPhoneLikeDevice?.()){
-            const phoneRefresh=()=>{
-                window.applyPhoneViewportDensity?.();
-                window.refreshPhoneCompositeNodes?.();
-                requestAnimationFrame(()=>window.reflowPhoneDetailHeader?.());
-            };
-            window.addEventListener('resize',phoneRefresh);
-            setTimeout(phoneRefresh,0);
-            const root=document.querySelector('#timelineContainer,#timeline,.timeline-container');
-            if(root){
-                let raf=0;
-                new MutationObserver(()=>{
-                    cancelAnimationFrame(raf);
-                    raf=requestAnimationFrame(phoneRefresh);
-                }).observe(root,{childList:true,subtree:true});
-            }
             const viewer=document.getElementById('fullscreenViewer');
             if(viewer){
-                let hraf=0;
+                let phoneTopRAF=0;
                 new MutationObserver(()=>{
-                    cancelAnimationFrame(hraf);
-                    hraf=requestAnimationFrame(()=>window.reflowPhoneDetailHeader?.(viewer));
+                    cancelAnimationFrame(phoneTopRAF);
+                    phoneTopRAF=requestAnimationFrame(()=>window.fixPhoneDetailTopCollision?.());
                 }).observe(viewer,{childList:true,subtree:true,characterData:true});
             }
         }
