@@ -9863,37 +9863,46 @@ viewer.style.visibility='';
             const lb=document.getElementById('lightboxModal');if(!lb)return;
             lb.dataset.deepEventId=deepEventId||'';lb.dataset.deepType=deepType||'';lb.dataset.deepIndex=String(window.currentLightboxIndex);delete lb.dataset.multiDeepEventId;delete lb.dataset.multiDeepSegment;delete lb.dataset.multiDeepType;
             lb._openedAt = performance.now();
+            window._resetLightboxImageNodeCache?.();
             lb.classList.remove('hidden');
             updateLightboxDisplay();
         };
+        // v116: keep one real <img> node per lightbox item for the lifetime of this open lightbox.
+        // Animated GIFs are never assigned a new src when moving away/back, so their decoder/surface
+        // is not destroyed by switching to a JPG/PNG. This fixes the cross-browser "GIF disappears
+        // after left/right navigation" issue without cache-busting or mobile-only workarounds.
+        window._resetLightboxImageNodeCache = function(){
+            const old=window._lightboxImageNodeCache;
+            if(old instanceof Map){ old.forEach(n=>{try{n.remove();}catch(_){}}); }
+            window._lightboxImageNodeCache=new Map();
+        };
         function updateLightboxDisplay() {
-            let lightboxImg=document.getElementById('lightboxImg'),counter=document.getElementById('lightboxCounter'),prevBtn=document.getElementById('lightboxPrevBtn'),nextBtn=document.getElementById('lightboxNextBtn'),lb=document.getElementById('lightboxModal');if(!lightboxImg||!lb)return;
-            const total=window.currentLightboxImages.length,currentSrc=window.currentLightboxImages[window.currentLightboxIndex];if(lb.dataset.deepEventId||lb.dataset.multiDeepEventId)lb.dataset.deepIndex=String(window.currentLightboxIndex);
+            let placeholder=document.getElementById('lightboxImg'),counter=document.getElementById('lightboxCounter'),prevBtn=document.getElementById('lightboxPrevBtn'),nextBtn=document.getElementById('lightboxNextBtn'),lb=document.getElementById('lightboxModal');if(!placeholder||!lb)return;
+            const total=window.currentLightboxImages.length,currentSrc=String(window.currentLightboxImages[window.currentLightboxIndex]||'');if(lb.dataset.deepEventId||lb.dataset.multiDeepEventId)lb.dataset.deepIndex=String(window.currentLightboxIndex);
             if(counter)counter.innerText=total>1?`${window.currentLightboxIndex+1} / ${total}`:'';
             if(prevBtn&&nextBtn){prevBtn.style.display=total>1?'flex':'none';nextBtn.style.display=total>1?'flex':'none';}
-
-            // v114 mobile: the previous detach/hide/re-attach cycle was itself the source
-            // of the persistent black GIF surface. Keep the same <img> and assign the requested
-            // URL directly, exactly like desktop. In particular, never hide the element while
-            // waiting for a large animated image's load event: a large GIF may start painting
-            // frames long before its final load event fires.
-            window._mobileLightboxLoadToken=(Number(window._mobileLightboxLoadToken)||0)+1;
-            lightboxImg.onload=null;
-            lightboxImg.onerror=null;
-            lightboxImg.style.opacity='1';
-            lightboxImg.style.visibility='visible';
-            const rawLightboxSrc=String(currentSrc||'');
-            const isAnimatedGif=/\.gif(?:$|[?#])/i.test(rawLightboxSrc);
-            if(isAnimatedGif){
-                // v115: Chromium/WebView can keep a dead decoded GIF surface after the same <img>
-                // has shown another image. This also happens on desktop, so it is not a narrow-screen
-                // issue. A direct open works because it is a fresh resource load. Reproduce that exact
-                // condition whenever the lightbox displays a GIF by giving this lightbox load a unique
-                // cache key. The underlying event URL is NOT changed or saved.
-                const sep=rawLightboxSrc.includes('?')?'&':'?';
-                lightboxImg.src=rawLightboxSrc+sep+'__timeline_lb='+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7);
-            }else if(lightboxImg.getAttribute('src')!==rawLightboxSrc){
-                lightboxImg.src=rawLightboxSrc;
+            if(!(window._lightboxImageNodeCache instanceof Map)) window._lightboxImageNodeCache=new Map();
+            const cache=window._lightboxImageNodeCache;
+            const key=String(window.currentLightboxIndex)+'\n'+currentSrc;
+            let node=cache.get(key);
+            if(!node){
+                node=document.createElement('img');
+                node.className=placeholder.className;
+                node.style.cssText=placeholder.style.cssText||'';
+                node.style.opacity='1';node.style.visibility='visible';
+                node.decoding='async';node.draggable=false;
+                node.src=currentSrc;
+                cache.set(key,node);
+            }
+            // Keep inactive nodes detached but alive. Do not clear their src: in Chromium/WebView and
+            // desktop Chromium that is the operation that invalidates an animated GIF's decoded surface.
+            const parent=placeholder.parentNode;
+            if(!parent)return;
+            if(placeholder!==node){
+                placeholder.removeAttribute('id');
+                try{placeholder.remove();}catch(_){}
+                node.id='lightboxImg';
+                parent.insertBefore(node,counter||null);
             }
         }
 
@@ -9921,6 +9930,7 @@ viewer.style.visibility='';
                 return;
             }
             if(_lb){_lb.classList.add('hidden');delete _lb.dataset.multiDeepEventId;delete _lb.dataset.multiDeepSegment;delete _lb.dataset.multiDeepType;}
+            window._resetLightboxImageNodeCache?.();
             window.lightboxPausedVideoStates=[];
         };
 
