@@ -174,6 +174,7 @@
         /* Mobile timeline controls: desktop behavior remains unchanged. */
         @media (max-width: 639px) {
             .scroll-edge {
+                width:34px;
                 pointer-events: auto;
                 touch-action: manipulation;
             }
@@ -939,12 +940,13 @@
         @media(max-width:639px){
             /* 手机详情页默认居中；不允许拖动，也不再显示“点击此处拖动详情页”的说明/分隔线。 */
             #fullscreenViewer [data-detail-shell]{
-                left:8px !important;
-                right:8px !important;
+                left:16px !important;
+                right:16px !important;
                 top:50% !important;
                 transform:translateY(-50%) !important;
                 width:auto !important;
-                max-height:calc(100vh - 24px) !important;
+                max-height:calc(100vh - 32px) !important;
+                max-height:calc(100dvh - 32px) !important;
                 touch-action:pan-y !important;
                 transition:top .18s ease,transform .18s ease,max-height .18s ease;
             }
@@ -952,9 +954,9 @@
 
             /* 打开评论区后，详情页自动移到屏幕上方，给底部半屏评论区让出空间。 */
             #fullscreenViewer.mobile-comments-open [data-detail-shell]{
-                top:8px !important;
+                top:16px !important;
                 transform:none !important;
-                max-height:calc(50vh - 16px) !important;
+                max-height:calc(50vh - 24px) !important;
             }
 
             /* 手机端将评论按钮与关闭按钮下移，与左侧日期标签的垂直位置对齐。 */
@@ -2078,7 +2080,14 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.isCloudSynced = false;
         try { localStorage.removeItem('yuhoutianqing_pending_events'); } catch (_) {}
         window.canEditNow = function() { return !window.isMobileEditingDevice() && !window.isLocked && window.isCloudSynced && window.cloudWriteReady && window.hasTimelineEditToken?.(); };
-        window.zoomLevel = 3;
+        window.zoomLevel = (function(){
+            try{
+                const sw=Number(screen?.width||window.innerWidth||0), sh=Number(screen?.height||window.innerHeight||0);
+                const shortSide=Math.min(sw||Infinity,sh||Infinity);
+                const phone=(navigator.userAgentData?.mobile===true)||/Mobi|Android|iPhone|iPod/i.test(navigator.userAgent||'')||(((navigator.maxTouchPoints||0)>0||'ontouchstart' in window)&&shortSide<=600);
+                return phone?2:3;
+            }catch(_){return window.innerWidth<=639?2:3;}
+        })();
         window.edgeScrollSpeed = (function() {
             const v = Number(localStorage.getItem('yuhoutianqing_edgeScrollSpeed'));
             if (!v || isNaN(v)) return 5;
@@ -3489,7 +3498,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
             window.setEdgeScrollSpeed(window.edgeScrollSpeed);
 
-            const EDGE_PX = 56;
+            const EDGE_PX = window.isPhoneLikeDevice?.() ? 34 : 56;
             let pointerX = null;
             let pointerY = null;
             let direction = 0;
