@@ -3060,10 +3060,23 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         };
         // v111: request an authorized temporary read URL from timeline-api for frame extraction.
         // Normal playback still uses the HTTP gateway; only canvas/frame capture uses this URL.
-        window.getCloudMediaCaptureUrl = async function(cloudPath){
-            const data=await timelineApiPost('getMediaCaptureUrl',{cloudPath},{auth:'edit',timeoutMs:20000});
-            if(!data?.url) throw new Error(data?.message||'未取得视频读取地址');
-            return data.url;
+        // v117: frame extraction no longer fetches COS/CloudBase URLs in the browser.
+        // timeline-api reads the private object server-side and streams it back with our own CORS headers.
+        window.getCloudMediaCaptureBlob = async function(cloudPath){
+            const token=window.getTimelineEditToken?.()||'';
+            if(!token) throw new Error('EDIT_AUTH_REQUIRED');
+            const qs=new URLSearchParams({room:window.currentRoomId||'default',cloudPath:String(cloudPath||'')});
+            const r=await fetch(TIMELINE_API_BASE+'/timeline/media-capture?'+qs.toString(),{
+                method:'GET',cache:'no-store',credentials:'omit',headers:{Authorization:'Bearer '+token}
+            });
+            if(!r.ok){
+                let msg='HTTP '+r.status;
+                try{const j=await r.json();msg=j?.message||j?.error||msg;}catch(_){}
+                throw new Error(msg);
+            }
+            const blob=await r.blob();
+            if(!blob||!blob.size) throw new Error('empty_video_blob');
+            return blob;
         };
         window._cloudUploadNotice = function(text, show=true){
             let el=document.getElementById('cloudMediaUploadNotice');
@@ -9912,7 +9925,18 @@ viewer.style.visibility='';
         window.changeLightboxImage = function(direction) {
             const total = window.currentLightboxImages.length;
             if (total <= 1) return;
-            window.currentLightboxIndex = (window.currentLightboxIndex + direction + total) % total;
+            // v117: an animated GIF must restart after it leaves the current lightbox view.
+            // Destroy only the GIF node being left; ordinary images remain cached. Returning to the
+            // GIF creates a fresh <img> with the original URL, so animation starts from frame 1.
+            const oldIndex=window.currentLightboxIndex;
+            const oldSrc=String(window.currentLightboxImages[oldIndex]||'');
+            window.currentLightboxIndex = (oldIndex + direction + total) % total;
+            if(/\.gif(?:$|[?#])/i.test(oldSrc) && window._lightboxImageNodeCache instanceof Map){
+                const key=String(oldIndex)+'\n'+oldSrc;
+                const oldNode=window._lightboxImageNodeCache.get(key);
+                window._lightboxImageNodeCache.delete(key);
+                if(oldNode){try{oldNode.removeAttribute('id');oldNode.src='';oldNode.remove();}catch(_){}}
+            }
             updateLightboxDisplay();
         };
         if(!window._lightboxShortcutBound){
@@ -10604,11 +10628,7 @@ viewer.style.visibility='';
                 window._cloudUploadNotice?.('正在读取视频封面…', true);
                 (async()=>{
                     try{
-                        const captureUrl=await window.getCloudMediaCaptureUrl(vidObj.cloudPath);
-                        const r=await fetch(captureUrl,{mode:'cors',credentials:'omit'});
-                        if(!r.ok) throw new Error('HTTP '+r.status);
-                        const blob=await r.blob();
-                        if(!blob || !blob.size) throw new Error('empty_video_blob');
+                        const blob=await window.getCloudMediaCaptureBlob(vidObj.cloudPath);
                         if(player._cloudCropObjectUrl) URL.revokeObjectURL(player._cloudCropObjectUrl);
                         player._cloudCropObjectUrl=URL.createObjectURL(blob);
                         window._cloudUploadNotice?.('',false);
@@ -10682,13 +10702,14 @@ viewer.style.visibility='';
                 // Convert any remote source to an authorized, CORS-fetched Blob URL first.
                 if (/^https?:/i.test(src)) {
                     const targetForSource=window.editingVideos[activeVideoCropIndex];
-                    let readableUrl=src;
+                    let rb;
                     if(targetForSource?.cloudPath){
-                        readableUrl=await window.getCloudMediaCaptureUrl(targetForSource.cloudPath);
+                        rb=await window.getCloudMediaCaptureBlob(targetForSource.cloudPath);
+                    }else{
+                        const rr=await fetch(src,{mode:'cors',credentials:'omit'});
+                        if(!rr.ok) throw new Error('capture_blob_fetch_http_'+rr.status);
+                        rb=await rr.blob();
                     }
-                    const rr=await fetch(readableUrl,{mode:'cors',credentials:'omit'});
-                    if(!rr.ok) throw new Error('capture_blob_fetch_http_'+rr.status);
-                    const rb=await rr.blob();
                     if(!rb || !rb.size) throw new Error('capture_blob_empty');
                     if(player._captureSafeObjectUrl){try{URL.revokeObjectURL(player._captureSafeObjectUrl)}catch(_){}}
                     player._captureSafeObjectUrl=URL.createObjectURL(rb);
