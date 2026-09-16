@@ -1154,6 +1154,21 @@
                 box-shadow:0 4px 14px rgba(0,0,0,.28)!important;touch-action:manipulation!important;
             }
         }
+
+        @media (max-width:639px){
+            /* 仅重大里程碑 / 长时间范围事件。普通事件、平板、电脑不变。 */
+            #fullscreenViewer .phone-special-detail-compact .phone-special-top-item{
+                font-size:10px !important;
+                line-height:1.1 !important;
+            }
+            #fullscreenViewer .phone-special-detail-compact button.phone-special-top-item,
+            #fullscreenViewer .phone-special-detail-compact [role="button"].phone-special-top-item{
+                font-size:10px !important;
+                min-height:23px !important;
+                height:auto !important;
+                padding:2px 5px !important;
+            }
+        }
 </style>
 
 <style id="invalidRoomAccessStyle">
@@ -1974,6 +1989,47 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 <audio id="globalBgmAudio" style="display: none;"></audio>
 
     <script type="module">
+        window.applyPhoneSpecialDetailCompact=function(root){
+            if(!window.isPhoneLikeDevice?.())return;
+            root=root||document.getElementById('fullscreenViewer');
+            const shell=root?.querySelector?.('[data-detail-shell]')||root?.querySelector?.('.detail-panel,.event-detail,.detail-content');
+            if(!shell)return;
+            const sr=shell.getBoundingClientRect();
+            const leaves=[...shell.querySelectorAll('*')].filter(el=>{
+                const r=el.getBoundingClientRect(),s=getComputedStyle(el);
+                return el.children.length===0 && s.display!=='none' && s.visibility!=='hidden' &&
+                       r.width>0 && r.height>0 && r.top>=sr.top && r.top<sr.top+115;
+            });
+            const texts=leaves.map(el=>(el.textContent||'').trim()).filter(Boolean);
+            const milestone=texts.some(t=>t.includes('重大里程碑'));
+            const range=texts.some(t=>
+                /(?:\d{4}[./-]\d{1,2}(?:[./-]\d{1,2})?|\d{1,2}[./-]\d{1,2})\s*(?:-|–|—|~|～|至)\s*(?:\d{4}[./-]\d{1,2}(?:[./-]\d{1,2})?|\d{1,2}[./-]\d{1,2})/.test(t)
+            );
+            shell.classList.toggle('phone-special-detail-compact',milestone||range);
+
+            // 直接标记顶部实际信息/操作元素，避免之前因为 data-detail-header 不存在而“特殊情况没缩小”。
+            shell.querySelectorAll('.phone-special-top-item').forEach(el=>el.classList.remove('phone-special-top-item'));
+            if(milestone||range){
+                const buttons=[...shell.querySelectorAll('button,[role="button"]')];
+                [...leaves,...buttons].forEach(el=>{
+                    const r=el.getBoundingClientRect();
+                    if(r.top>=sr.top && r.top<sr.top+115)el.classList.add('phone-special-top-item');
+                });
+            }
+        };
+
+        if(window.isPhoneLikeDevice?.()){
+            const viewer=document.getElementById('fullscreenViewer');
+            if(viewer){
+                let compactRAF=0;
+                new MutationObserver(()=>{
+                    cancelAnimationFrame(compactRAF);
+                    compactRAF=requestAnimationFrame(()=>window.applyPhoneSpecialDetailCompact?.(viewer));
+                }).observe(viewer,{childList:true,subtree:true,characterData:true});
+            }
+            window.addEventListener('resize',()=>requestAnimationFrame(()=>window.applyPhoneSpecialDetailCompact?.()));
+        }
+
         const urlParams = new URLSearchParams(window.location.search);
         window.currentRoomId = (urlParams.get('room') || 'default').trim() || 'default';
         window.roomAccessToken = (urlParams.get('access') || '').trim();
