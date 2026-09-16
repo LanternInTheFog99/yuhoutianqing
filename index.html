@@ -1208,6 +1208,12 @@
                 visibility:hidden !important;
             }
         }
+
+        .delayed-media-loading-hint{position:absolute;inset:0;z-index:8;display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(15,23,42,.56);color:#e2e8f0;font-size:11px;font-weight:600;pointer-events:none}
+        @media(max-width:639px){
+            #fullscreenViewer [data-detail-image-card]{max-width:calc(50% - 6px) !important}
+            #fullscreenViewer [data-detail-video-card]{max-width:100% !important}
+        }
 </style>
 
 <style id="invalidRoomAccessStyle">
@@ -1589,6 +1595,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             </div>
         </div>
     </div>
+<div id="deletingModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[115] hidden flex items-center justify-center p-4">
+ <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center"><div class="w-14 h-14 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center text-2xl mx-auto mb-3"><i class="fa-solid fa-spinner fa-spin"></i></div><h3 class="font-bold text-slate-800 text-base mb-1">正在删除...</h3><p class="text-xs text-slate-500">请稍候，正在同步删除结果</p><div class="mt-4 w-full bg-slate-200 rounded-full h-1.5 overflow-hidden"><div id="deletingProgressBar" class="bg-rose-600 h-full rounded-full transition-all duration-300" style="width:0%"></div></div></div>
+</div>
 <div id="cropModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[120] hidden flex items-center justify-center p-2 sm:p-4">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl max-w-3xl w-full p-4 sm:p-6 text-white flex flex-col items-center">
             <div class="flex items-center justify-between w-full pb-3 border-b border-slate-800 mb-3">
@@ -1694,7 +1703,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 <p class="text-slate-800 mb-5 text-sm leading-7 font-bold">本网站旨在为鱼丁们创造一个可以时刻回顾禹欣的很多「值得纪念的美好事件」的环境，以下为使用说明：</p>
                 <div id="helpBrowseUsage" class="space-y-5">
                     <div><h4 class="font-bold text-slate-800 mb-1">1. 浏览时间线</h4><p>进入网站后，可以通过时间线查看已经记录的事件；将鼠标悬停在时间线节点附近可以查看事件预览。使用“密度”可以调整节点间距；使用“滑速”可以调整边缘自动滚动速度。</p></div>
-                    <div><h4 class="font-bold text-slate-800 mb-1">2. 事件详情页</h4><p>点击节点即可进入该事件的详情页，其中可以查看该事件收录的各类信息，而图片、动图和视频等可以通过单击或双击来进一步查看。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">2. 事件详情页</h4><p>点击节点即可进入该事件的详情页，其中可以查看该事件收录的各类信息，而图片、动图和视频等可以通过单击或双击来进一步查看；点击详情页窗口外的空白处可以直接退出详情页。</p></div>
                     <div><h4 class="font-bold text-slate-800 mb-1">3. 评论区与互动通知</h4><p>打开事件详情页后，点击右上方的“评论区”按钮即可查看关于该事件的评论；点击“发表评论”可以发布评论，支持匿名发布功能；可以点赞或回复自己与他人的评论，发布的评论被点赞或回复后会收到互动通知，点击对应通知可直接定位到相关评论区。</p></div>
                     <div><h4 class="font-bold text-slate-800 mb-1">4. 节点之间的逻辑关系</h4><p>部分事件之间存在逻辑连线或关联。在时间线上查看相关节点时，可以结合节点之间显示的连接关系理解事件之间的前后、补充或关联关系。</p></div>
                     <div><h4 class="font-bold text-slate-800 mb-1">5. 搜索事件</h4><p>使用时间线右侧的搜索框输入内容，时间线会随着输入实时筛选并显示匹配的事件。</p></div>
@@ -1757,7 +1766,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             <div id="helpChangelogPanel" class="hidden overflow-y-auto p-5 text-xs text-slate-600 leading-relaxed">
                 <div id="helpBrowseChangelog">
                 <div class="border border-green-300 rounded-xl p-4 bg-green-50"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.16</span><span class="px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-semibold">本次更新</span></div>
-                    <div class="space-y-2 leading-7 mb-3"><p>优化了手机端事件详情页内的视频播放与显示功能</p><p>优化了手机端媒体加载速度</p><p>增加了小晴儿摸头互动功能</p></div>
+                    <div class="space-y-2 leading-7 mb-3"><p>优化了手机端事件详情页内的视频播放与显示功能</p><p>优化了手机端事件详情页内的媒体布局</p><p>优化了手机端同期事件集合的加载性能</p><p>优化了手机端事件详情页退出时的显示效果</p><p>增加了媒体加载状态提示</p><p>优化了手机端媒体加载速度</p><p>增加了小晴儿摸头互动功能</p></div>
                     <div class="border-t border-green-200 pt-3">
                     <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.15</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
                     <div class="space-y-2 leading-7 mb-3"><p>移除了仅离线模式</p><p>优化了移动端显示效果</p><p>增加了评论区内的点赞与排序功能</p><p>增加了互动通知功能</p><p>增加了网页图标</p></div>
@@ -1804,7 +1813,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 </div>
             </div><div id="helpEditChangelog" class="hidden">
                 <div class="border border-green-300 rounded-xl p-4 bg-green-50"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.16</span><span class="px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-semibold">本次更新</span></div>
-                    <div class="space-y-2 leading-7 mb-3"><p>优化了手机端事件详情页内的视频播放与显示功能</p><p>优化了手机端媒体加载速度</p><p>增加了编辑密码错误冷却功能</p><p>增加了小晴儿摸头互动功能</p></div>
+                    <div class="space-y-2 leading-7 mb-3"><p>优化了手机端事件详情页内的视频播放与显示功能</p><p>优化了手机端事件详情页内的媒体布局</p><p>优化了手机端同期事件集合的加载性能</p><p>优化了手机端事件详情页退出时的显示效果</p><p>增加了媒体加载状态提示</p><p>优化了手机端媒体加载速度</p><p>增加了编辑密码错误冷却功能</p><p>优化了事件删除反馈与时间线刷新</p><p>增加了小晴儿摸头互动功能</p></div>
                     <div class="border-t border-green-200 pt-3">
                     <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.15</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
                     <div class="space-y-2 leading-7 mb-3"><p>移除了仅离线模式</p><p>优化了移动端显示效果</p><p>增加了评论区内的点赞与排序功能</p><p>增加了互动通知功能</p><p>增加了网页图标</p></div>
@@ -2028,6 +2037,38 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 <audio id="globalBgmAudio" style="display: none;"></audio>
 
     <script type="module">
+        window.bindDelayedMediaLoadingHint=function(root){
+            if(!root)return;
+            root.querySelectorAll('img').forEach(img=>{
+                if(img.dataset.delayedLoadingBound==='1'||img.complete||img.naturalWidth>0)return;
+                img.dataset.delayedLoadingBound='1';
+                const host=img.closest('[data-detail-image-card],.deep-canvas-media,.deep-read-media,.deep-media-item')||img.parentElement;
+                if(!host)return;
+                if(getComputedStyle(host).position==='static')host.style.position='relative';
+                let hint=null,finished=false;
+                const done=()=>{
+                    if(finished)return;
+                    finished=true;clearTimeout(timer);clearInterval(visualCheck);hint?.remove();
+                };
+                const visualReady=()=>img.naturalWidth>0&&img.naturalHeight>0;
+                const timer=setTimeout(()=>{
+                    if(img.complete||visualReady())return done();
+                    hint=document.createElement('div');hint.className='delayed-media-loading-hint';
+                    hint.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i><span>加载中…</span>';host.appendChild(hint);
+                },900);
+                const visualCheck=setInterval(()=>{if(visualReady())done();},100);
+                img.addEventListener('load',done,{once:true});
+                img.addEventListener('error',done,{once:true});
+                if(typeof img.decode==='function')img.decode().then(done).catch(()=>{});
+            });
+        };
+        new MutationObserver(muts=>{
+            muts.forEach(m=>m.addedNodes?.forEach(n=>{
+                if(n.nodeType===1 && (n.matches?.('#fullscreenViewer,#deepReadCanvasModal,#deepReadMediaLightbox,.deep-readonly-canvas,.deep-canvas-media')||n.querySelector?.('[data-detail-image],.deep-canvas-media img')))
+                    window.bindDelayedMediaLoadingHint?.(n);
+            }));
+        }).observe(document.body,{childList:true,subtree:true});
+
         const urlParams = new URLSearchParams(window.location.search);
         window.currentRoomId = (urlParams.get('room') || 'default').trim() || 'default';
         window.roomAccessToken = (urlParams.get('access') || '').trim();
@@ -4523,11 +4564,58 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 const targetEvent = window.findEventById?.(targetId) || window.events.find(e => String(e.id) === String(targetId));
                 const logInfo = { id: targetId, title: targetEvent?.title || '未命名事件' };
                 window.closeConfirmModal();
-                window.closeEditModal();
-                window.closeMultiTimeEventModal?.();
-                const cloudDeleted = await window.deleteEventFromCloud(targetId);
-                if (cloudDeleted) await window.writeActivityLog?.('delete', logInfo);
-                window.showToast("删除成功", "info");
+                const timelineBeforeDelete=document.getElementById('timelineContainer');
+                const wasNearTimelineRight=!!timelineBeforeDelete &&
+                    (timelineBeforeDelete.scrollWidth-timelineBeforeDelete.clientWidth-timelineBeforeDelete.scrollLeft)<80;
+                const dm=document.getElementById('deletingModal'),db=document.getElementById('deletingProgressBar');
+                dm?.classList.remove('hidden');if(db)db.style.width='25%';
+                try{
+                    if(db)setTimeout(()=>db.style.width='55%',250);
+                    const cloudDeleted=await window.deleteEventFromCloud(targetId);
+                    if(!cloudDeleted)throw new Error('delete failed');
+                    if(db)db.style.width='85%';
+                    await window.writeActivityLog?.('delete',logInfo);
+                    window.closeEditModal();window.closeMultiTimeEventModal?.();
+
+                    // 删除成功后重建时间线，并先释放连线 SVG 的旧尺寸。
+                    const tc=document.getElementById('timelineContainer');
+                    const oldScrollLeft=tc?.scrollLeft||0;
+                    const oldSvg=document.getElementById('svgConnectionsGroup');
+                    if(oldSvg)oldSvg.innerHTML='';
+                    const svgOverlay=document.getElementById('timelineSvgOverlay');
+                    if(svgOverlay){
+                        // 必须连 SVG 自身的旧尺寸一起归零；只清空 <g> 不会释放它撑出的旧 scrollWidth。
+                        svgOverlay.style.width='0px';
+                        svgOverlay.style.height='0px';
+                        svgOverlay.setAttribute('width','0');
+                        svgOverlay.setAttribute('height','0');
+                    }
+
+                    // 清空旧时间线，释放已删除末端事件留下的布局宽度。
+                    const oldTrack=document.getElementById('timelineNodesTrack');
+                    if(oldTrack){
+                        oldTrack.innerHTML='<div id="timelineMainAxis" class="absolute left-0 right-0 h-1 bg-slate-300 rounded-full z-0 pointer-events-none"></div>';
+                        oldTrack.style.width='';
+                        oldTrack.style.minWidth='';
+                    }
+                    if(tc)tc.scrollLeft=0;
+
+                    // 按当前 events 完整重绘。
+                    window.renderEvents?.();
+
+                    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+                        const freshTc=document.getElementById('timelineContainer');
+                        if(freshTc){
+                            // 此处的 scrollWidth 已不再包含删除前 SVG 的旧宽度。
+                            const maxScroll=Math.max(0,freshTc.scrollWidth-freshTc.clientWidth);
+                            freshTc.scrollLeft=wasNearTimelineRight ? maxScroll : Math.min(oldScrollLeft,maxScroll);
+                        }
+                        // 最后才按新的 container.scrollWidth 重新建立 SVG 尺寸。
+                        window.renderSvgConnections?.();
+                    }));
+                    if(db)db.style.width='100%';await new Promise(r=>setTimeout(r,220));dm?.classList.add('hidden');
+                    window.showToast("删除成功","info");
+                }catch(_){dm?.classList.add('hidden');window.showToast("删除失败，请重试","error");}
             }
         };
 
@@ -4948,6 +5036,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 });
 
                 nodeContainer.addEventListener('mouseenter', (ev) => {
+                    if (window.isPhoneLikeDevice?.() && performance.now() < (window._suppressTimelinePreviewUntil || 0)) return;
                     if (rearrangeState.active && rearrangeState.anchorNode !== nodeContainer) {
                         window.exitRearrange();
                         return;
@@ -4990,10 +5079,14 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 const track = document.getElementById('timelineNodesTrack');
                 const container = document.getElementById('timelineContainer');
                 if (axisLine && track) {
-                    const fullW = Math.max(track.scrollWidth, track.offsetWidth, container ? container.scrollWidth : 0);
-                    axisLine.style.left = '0';
-                    axisLine.style.right = 'auto';
-                    axisLine.style.width = fullW + 'px';
+                    // 轴线只跟随当前实际节点内容宽度，不再读取可能暂时保留旧值的 container.scrollWidth。
+                    const nodes=[...track.querySelectorAll('.timeline-node-container')];
+                    const tr=track.getBoundingClientRect();
+                    const last=nodes[nodes.length-1];
+                    const fullW=last?Math.max(track.clientWidth,Math.ceil(last.getBoundingClientRect().right-tr.left)):track.clientWidth;
+                    axisLine.style.left='0';
+                    axisLine.style.right='auto';
+                    axisLine.style.width=fullW+'px';
 
                     if (firstNode && container) {
                         const firstDateStr = groupEntries.length > 0 ? groupEntries[0][0] : '';
@@ -5052,6 +5145,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             }
 
             const canReorder = !window.isLocked;
+            const initialStackFocus = (typeof window._stackFocusIndex === 'number' && window._stackFocusIndex >= 0 && window._stackFocusIndex < items.length) ? window._stackFocusIndex : 0;
+            const phoneStackLazy = !!window.isPhoneLikeDevice?.();
             const hint = canReorder
                 ? '拖拽卡片调整顺序，左上角数字为实际顺序'
                 : '左右滑动或滚动鼠标切换，点击中心卡片查看详情';
@@ -5077,7 +5172,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
                     <div id="stackCardsWrapper" class="relative w-full flex-grow flex items-center justify-center overflow-hidden my-auto" style="height: 420px; perspective: 800px;">
                         ${items.map((event, idx) => {
-                            const slideMedia = window.getEventPreviewMedia(event, false);
+                            const fullSlideMedia = window.getEventPreviewMedia(event, false);
+                            const slideMedia = (!phoneStackLazy || idx===initialStackFocus) ? fullSlideMedia : fullSlideMedia.slice(0,1);
                             const slideSrcs = slideMedia.map(m => m.cover || m.src).filter(Boolean);
                             const firstImgSrc = slideSrcs[0] || null;
                             const slideJson = JSON.stringify(slideMedia).replace(/"/g, '&quot;');
@@ -5086,6 +5182,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                                 <div class="stack-card bg-white rounded-2xl overflow-hidden shadow-2xl border border-slate-300 flex flex-col select-none"
                                      data-index="${idx}"
                                      data-event-id="${event.id}"
+                                     data-stack-media-lazy="${phoneStackLazy && idx!==initialStackFocus ? '1':'0'}"
                                      ${dragAttr}
                                      onclick="handleStackCardClick(event, '${String(event.id).replace(/'/g, "\\'")}', '${String(event.date || '').replace(/'/g, "\\'")}')"
                                      style="width: 220px; height: 320px; position: absolute; left: 50%; top: 50%; margin-left: -110px; margin-top: -160px; transform-origin: center center; transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.25s ease; cursor: ${canReorder ? 'grab' : 'pointer'};">
@@ -5233,6 +5330,18 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             cards.forEach((card, idx) => {
                 if (typeof window.startPreviewSlideshow !== 'function') return;
                 if (idx === activeIndex) {
+                    if(window.isPhoneLikeDevice?.() && card.dataset.stackMediaLazy==='1'){
+                        const eventId=card.dataset.eventId;
+                        const ev=window.findEventById?.(eventId)||window.events.find(e=>String(e.id)===String(eventId));
+                        const media=ev?window.getEventPreviewMedia(ev,false):[];
+                        const img=card.querySelector('.preview-slide-img');
+                        if(img){
+                            img._slideMedia=media;img._slideSrcs=media.map(m=>m.cover||m.src).filter(Boolean);
+                            const first=media[0];
+                            if(first)img.src=first.type==='video'?(first.cover||first.src||''):(first.src||first.cover||'');
+                        }
+                        card.dataset.stackMediaLazy='0';
+                    }
                     window.startPreviewSlideshow(card, { noCrossfade: true });
                 } else {
                     window.stopPreviewSlideshow(card, true);
@@ -9076,11 +9185,12 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if(imageRow){
                 const count=imageCards.length;
                 const imageH=170;
-                const cols=Math.min(5,Math.max(1,count));
+                const isNarrowPhone=window.matchMedia?.('(max-width:639px)').matches;
+                const cols=isNarrowPhone?Math.min(2,Math.max(1,count)):Math.min(5,Math.max(1,count));
                 const maxCellW=(shellWidth-gap*(cols-1))/cols;
                 // 所有图片保持完全相同的卡片尺寸。图片较少时优先利用横向空间，
                 // 但将卡片宽高比限制在较自然的范围内，避免横向拉得过长。
-                const cardW=Math.max(1,Math.min(maxCellW,imageH*1.65));
+                const cardW=isNarrowPhone?maxCellW:Math.max(1,Math.min(maxCellW,imageH*1.65));
                 imageRow.style.display='flex';
                 imageRow.style.flexWrap='wrap';
                 imageRow.style.justifyContent='flex-start';
@@ -9224,18 +9334,10 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
         window.openMobileVideoPage=function(src,title){
             if(!src)return;
-            let absoluteSrc='';
-            try{absoluteSrc=new URL(String(src),document.baseURI).href;}catch(_){absoluteSrc=String(src);}
-            // 只触发一次新标签页导航。部分手机浏览器 window.open 成功后仍会返回 null，
-            // v69 因此又执行一次链接兜底，造成连续打开两个相同视频页。
-            const a=document.createElement('a');
-            a.href=absoluteSrc;
-            a.target='_blank';
-            a.rel='noopener';
-            a.style.display='none';
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
+            let absoluteSrc='';try{absoluteSrc=new URL(String(src),document.baseURI).href;}catch(_){absoluteSrc=String(src);}
+            const esc=s=>String(s||'').replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
+            const page=`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>${esc(title||'视频')}</title><style>html,body{margin:0;width:100%;height:100%;background:#000;color:#fff;font-family:system-ui}body{display:flex;align-items:center;justify-content:center}.wrap{width:100%;position:relative}.wait{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#000;color:#cbd5e1;font-size:14px}.ready .wait{display:none}video{display:block;width:100%;max-height:100vh;object-fit:contain;background:#000}</style></head><body><div class="wrap"><video playsinline webkit-playsinline preload="auto"><source src="${esc(absoluteSrc)}"></video><div class="wait">正在加载画面…</div></div><script>const w=document.querySelector('.wrap'),v=document.querySelector('video');v.controls=false;v.addEventListener('canplay',()=>{w.classList.add('ready');v.controls=true},{once:true});v.addEventListener('error',()=>{document.querySelector('.wait').textContent='视频加载失败'},{once:true});<\/script></body></html>`;
+            const u=URL.createObjectURL(new Blob([page],{type:'text/html'}));const a=document.createElement('a');a.href=u;a.target='_blank';a.rel='noopener';a.style.display='none';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000);
         };
 
         window.prepareMobileDetailVideo=function(video){
@@ -9503,13 +9605,22 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
             viewer.style.visibility='hidden';
             viewer.classList.remove('hidden');
             window.fitEventDetailMedia(viewer);
+            window.bindDelayedMediaLoadingHint?.(viewer);
             viewer.style.visibility='';
             window.bindDetailVideoBehavior(viewer,event.id);
             window.initFloatingDetailWindow(viewer);const refit=()=>window.fitEventDetailMedia(viewer);viewer.querySelectorAll('[data-detail-image]').forEach(img=>{if(!img.complete)img.addEventListener('load',refit,{once:true});});viewer.querySelectorAll('[data-detail-video-card] video').forEach(video=>{if(!video.videoWidth)video.addEventListener('loadedmetadata',refit,{once:true});});if(viewer._detailResizeHandler)window.removeEventListener('resize',viewer._detailResizeHandler);viewer._detailResizeHandler=refit;window.addEventListener('resize',refit);requestAnimationFrame(()=>requestAnimationFrame(refit));
         };
 
         window.closeReadOnlyFullscreen = function(fromStackDate = '') {
-            if(window.isPhoneLikeDevice?.())window.destroyMobileDetailVideos?.();
+            if(window.isPhoneLikeDevice?.()){
+                window._suppressTimelinePreviewUntil=performance.now()+520;
+                window.clearRelatedConnectionPreviews?.();
+                document.querySelectorAll('.timeline-node-container').forEach(node=>{
+                    node.classList.remove('force-hover','conn-related-preview');
+                    window.stopPreviewSlideshow?.(node,true);
+                });
+                window.destroyMobileDetailVideos?.();
+            }
             if(window._notificationReturnToHelp!==true)document.body.classList.remove('notification-comment-open');
             document.body.classList.remove('mobile-detail-open');
             // 退出详情页时彻底停止详情/大图/深入描述里的媒体请求与音频层。
