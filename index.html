@@ -1215,23 +1215,8 @@
             #fullscreenViewer [data-detail-video-card]{max-width:100% !important}
         }
 
-        @media(max-width:639px){
-            /* 真机 tap 会产生 sticky :hover；手机端不再让 CSS hover 直接显示预览。 */
-            .timeline-node-container .timeline-hover-tooltip{
-                opacity:0 !important;
-                visibility:hidden !important;
-                pointer-events:none !important;
-            }
-            .timeline-node-container.phone-preview-active .timeline-hover-tooltip,
-            .timeline-node-container.phone-preview-active.force-hover .timeline-hover-tooltip{
-                opacity:1 !important;
-                visibility:visible !important;
-                display:block !important;
-            }
-        }
-
-        @media(max-width:639px){
-            .timeline-node-container.force-hover.phone-preview-active .timeline-hover-tooltip{
+@media(max-width:639px){
+            .timeline-node-container.force-hover .timeline-hover-tooltip{
                 display:block !important;
                 opacity:1 !important;
                 visibility:visible !important;
@@ -8920,62 +8905,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             state.items=(state.items||[]).filter(x=>x.type!=='arrow');
 
             const phoneDeep=!!window.isPhoneLikeDevice?.();
-            const phoneDeepQueue=[];
-            let phoneDeepPumpTimer=null;
-            const startPhoneDeepImage=(entry)=>{
-                if(!entry||entry.started)return;
-                entry.started=true;
-                const {img,src}=entry;
-                img.src=src;
-                window.bindDelayedMediaLoadingHint?.(img.parentElement||img);
-                const advance=()=>schedulePhoneDeepPump();
-                img.addEventListener('load',advance,{once:true});
-                img.addEventListener('error',advance,{once:true});
-            };
-            const pumpPhoneDeepImages=()=>{
-                if(!phoneDeep)return;
-                const vr=viewport.getBoundingClientRect();
-                let firstPending=-1;
-                for(let i=0;i<phoneDeepQueue.length;i++){
-                    const entry=phoneDeepQueue[i];
-                    if(entry.started)continue;
-                    if(firstPending<0)firstPending=i;
-                    const r=entry.img.getBoundingClientRect();
-                    // 当前可视区以及上下约一屏范围内直接开始。
-                    if(r.top<vr.bottom+viewport.clientHeight*.55 && r.bottom>vr.top-viewport.clientHeight*.55){
-                        startPhoneDeepImage(entry);
-                    }
-                }
-                // 如果当前附近没有触发到足够的图片，再从最靠前的未加载项开始，
-                // 最多额外预取 2 张，避免大量 GitHub 媒体同时抢手机带宽。
-                let extra=0;
-                for(let i=Math.max(0,firstPending);i<phoneDeepQueue.length&&extra<2;i++){
-                    const entry=phoneDeepQueue[i];
-                    if(!entry.started){startPhoneDeepImage(entry);extra++;}
-                }
-            };
-            const schedulePhoneDeepPump=()=>{
-                clearTimeout(phoneDeepPumpTimer);
-                phoneDeepPumpTimer=setTimeout(pumpPhoneDeepImages,80);
-            };
-            if(phoneDeep){
-                viewport.addEventListener('scroll',schedulePhoneDeepPump,{passive:true});
-            }
-            const bindDeepReadImage=(img,src)=>{
-                if(!img)return;
-                img.decoding='async';
-                if(!phoneDeep){
-                    img.loading='lazy';
-                    img.src=src;
-                    window.bindDelayedMediaLoadingHint?.(img.parentElement||img);
-                    return;
-                }
-                // 手机端不把 src 提前交给浏览器，统一由小队列控制请求节奏。
-                img.loading='eager';
-                phoneDeepQueue.push({img,src,started:false});
-                schedulePhoneDeepPump();
-                requestAnimationFrame(()=>requestAnimationFrame(schedulePhoneDeepPump));
-            };
+            let deepImageObserver=null;
+            if(phoneDeep&&'IntersectionObserver' in window){deepImageObserver=new IntersectionObserver(entries=>{entries.forEach(entry=>{if(!entry.isIntersecting)return;const img=entry.target,src=img.dataset.deepLazySrc;if(src&&!img.getAttribute('src')){img.src=src;delete img.dataset.deepLazySrc;}deepImageObserver.unobserve(img);});},{root:viewport,rootMargin:'500px 350px',threshold:.01});}
+            const bindDeepReadImage=(img,src)=>{if(!img)return;img.loading='lazy';img.decoding='async';if(phoneDeep&&deepImageObserver){img.removeAttribute('src');img.dataset.deepLazySrc=src;deepImageObserver.observe(img);}else img.src=src;};
 
             const resetReadInlineVideos=(exceptHost=null)=>{
                 st.querySelectorAll('.deep-canvas-media').forEach(host=>{
