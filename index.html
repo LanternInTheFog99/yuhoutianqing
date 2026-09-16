@@ -1096,6 +1096,36 @@
             .mobile-video-launch{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:15;width:44px;height:44px;border:0;border-radius:9999px;background:rgba(15,23,42,.76);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.28);touch-action:manipulation}
             .mobile-video-launch.is-playing{opacity:.5}
         }
+
+        @media (max-width:639px){
+            .mobile-video-placeholder{
+                position:relative;width:100%;min-height:150px;aspect-ratio:16/9;
+                display:flex;align-items:center;justify-content:center;
+                overflow:hidden;background:#020617;border-radius:10px;touch-action:pan-y;
+            }
+            .mobile-video-placeholder .mobile-video-open{
+                width:48px;height:48px;border:0;border-radius:9999px;
+                display:flex;align-items:center;justify-content:center;
+                background:rgba(15,23,42,.78);color:#fff;font-size:17px;
+                box-shadow:0 5px 16px rgba(0,0,0,.28);touch-action:manipulation;
+            }
+            #mobileVideoModal{
+                position:fixed;inset:0;z-index:10050;background:#000;
+                display:flex;align-items:center;justify-content:center;
+                overscroll-behavior:contain;touch-action:none;
+            }
+            #mobileVideoModal.hidden{display:none!important}
+            #mobileVideoModal video{
+                display:block;width:100%;height:100%;max-width:100vw;max-height:100dvh;
+                object-fit:contain;background:#000;
+            }
+            #mobileVideoClose{
+                position:fixed;right:14px;top:max(14px,env(safe-area-inset-top));
+                z-index:10052;width:40px;height:40px;border:0;border-radius:9999px;
+                display:flex;align-items:center;justify-content:center;
+                background:rgba(15,23,42,.72);color:#fff;font-size:17px;
+            }
+        }
 </style>
 
 <style id="invalidRoomAccessStyle">
@@ -9092,69 +9122,74 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if(!detailViewer)return;
             detailViewer.querySelectorAll('[data-detail-video-card] video').forEach(video=>{if(video!==except)window.resetDetailVideoToCover(video);});
         };
-        window.destroyMobileDetailVideos=function(){
-            document.querySelectorAll('video[data-mobile-detail-video="1"]').forEach(video=>{
-                try{video.pause();video.currentTime=0;}catch(_){}
-                video.classList.remove('mobile-video-playing');
-                const stage=video.closest('[data-detail-video-stage]')||video.parentElement;
-                const btn=stage?.querySelector('.mobile-video-launch');
-                if(btn){btn.classList.remove('is-playing');btn.innerHTML='<i class="fa-solid fa-play"></i>';}
-            });
+        window.closeMobileVideoPlayer=function(){
+            const modal=document.getElementById('mobileVideoModal');
+            const player=document.getElementById('mobileVideoPlayer');
+            if(player){
+                try{player.pause();player.currentTime=0;}catch(_){}
+                try{player.removeAttribute('src');player.load();}catch(_){}
+            }
+            if(modal){modal.classList.add('hidden');modal.setAttribute('aria-hidden','true');}
         };
+        window.destroyMobileDetailVideos=window.closeMobileVideoPlayer;
+
+        window.openMobileVideoPlayer=function(src){
+            if(!window.isPhoneLikeDevice?.()||!src)return;
+            const modal=document.getElementById('mobileVideoModal');
+            const player=document.getElementById('mobileVideoPlayer');
+            if(!modal||!player)return;
+            window.closeMobileVideoPlayer();
+            player.src=src;
+            modal.classList.remove('hidden');modal.setAttribute('aria-hidden','false');
+            // 只有这个明确的用户点击会调用 play；详情页滑动/大图开关都不会碰 video。
+            player.play().catch(()=>{});
+        };
+
         window.prepareMobileDetailVideo=function(video){
             if(!window.isPhoneLikeDevice?.()||!video)return false;
-            if(video.dataset.mobileDetailVideo==='1')return true;
             const stage=video.closest('[data-detail-video-stage]')||video.parentElement;
             if(!stage)return false;
-            video.dataset.mobileDetailVideo='1';
-            video.controls=false;
-            video.playsInline=true;
-            video.setAttribute('playsinline','');
-            video.setAttribute('webkit-playsinline','');
-            video.style.pointerEvents='none';
-            video.style.touchAction='pan-y';
-            video.style.width='100%';
-            video.style.height='auto';
-            video.style.maxWidth='100%';
-            video.style.maxHeight='none';
-            video.style.objectFit='contain';
+            const src=video.currentSrc||video.getAttribute('src')||video.querySelector('source')?.getAttribute('src')||'';
+            if(!src)return false;
 
-            let btn=stage.querySelector('.mobile-video-launch');
-            if(!btn){
-                btn=document.createElement('button');
-                btn.type='button';btn.className='mobile-video-launch';
-                btn.innerHTML='<i class="fa-solid fa-play"></i>';
-                stage.appendChild(btn);
-            }
-            const sync=()=>{
-                const playing=!video.paused&&!video.ended;
-                btn.classList.toggle('is-playing',playing);
-                btn.innerHTML=playing?'<i class="fa-solid fa-pause"></i>':'<i class="fa-solid fa-play"></i>';
-            };
-            btn.onclick=e=>{
-                e.preventDefault();e.stopPropagation();
-                if(video.paused||video.ended){
-                    document.querySelectorAll('video[data-mobile-detail-video="1"]').forEach(other=>{if(other!==video)try{other.pause();}catch(_){}});
-                    video.play().catch(()=>{});
-                }else video.pause();
-            };
-            video.addEventListener('loadedmetadata',()=>{
-                if(video.videoWidth>0&&video.videoHeight>0){
-                    stage.style.aspectRatio=`${video.videoWidth} / ${video.videoHeight}`;
-                    video.style.aspectRatio=`${video.videoWidth} / ${video.videoHeight}`;
-                }
-            });
-            video.addEventListener('play',sync);
-            video.addEventListener('pause',sync);
-            video.addEventListener('ended',sync);
-            sync();
+            // 用纯 DOM 占位替代详情页中的 video。手机详情滚动层里从此不存在可被浏览器劫持的 video。
+            const holder=document.createElement('div');
+            holder.className='mobile-video-placeholder';
+            holder.dataset.detailVideoStage='1';
+            if(video.videoWidth>0&&video.videoHeight>0)holder.style.aspectRatio=`${video.videoWidth}/${video.videoHeight}`;
+            const btn=document.createElement('button');
+            btn.type='button';btn.className='mobile-video-open';
+            btn.innerHTML='<i class="fa-solid fa-play"></i>';
+            btn.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();window.openMobileVideoPlayer(src);});
+            holder.appendChild(btn);
+
+            // metadata 只用来取得比例；不播放。拿到后立刻释放临时探针。
+            const probe=document.createElement('video');
+            probe.preload='metadata';probe.muted=true;probe.playsInline=true;
+            probe.addEventListener('loadedmetadata',()=>{
+                if(probe.videoWidth&&probe.videoHeight)holder.style.aspectRatio=`${probe.videoWidth}/${probe.videoHeight}`;
+                try{probe.removeAttribute('src');probe.load();}catch(_){}
+            },{once:true});
+            probe.src=src;
+
+            video.replaceWith(holder);
             return true;
         };
+
+        queueMicrotask(()=>{
+            const modal=document.getElementById('mobileVideoModal');
+            const close=document.getElementById('mobileVideoClose');
+            if(modal){
+                modal.addEventListener('pointerdown',e=>e.stopPropagation());
+                modal.addEventListener('click',e=>e.stopPropagation());
+            }
+            if(close)close.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();window.closeMobileVideoPlayer?.();});
+        });
 
         window.bindDetailVideoBehavior = function(viewer,eventId){
 const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
             videos.forEach(video=>{
-                if(window.isPhoneLikeDevice?.())window.prepareMobileDetailVideo(video);
+                if(window.isPhoneLikeDevice?.() && window.prepareMobileDetailVideo(video))return;
                 const card=video.closest('[data-detail-video-card]');
                 const hoverCapable=!!window.matchMedia?.('(hover:hover)').matches;
                 const phone=!!window.isPhoneLikeDevice?.();
@@ -13572,5 +13607,10 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
 
 
 
+
+    <div id="mobileVideoModal" class="hidden" aria-hidden="true">
+        <video id="mobileVideoPlayer" playsinline webkit-playsinline controls preload="metadata"></video>
+        <button id="mobileVideoClose" type="button" aria-label="关闭视频"><i class="fa-solid fa-xmark"></i></button>
+    </div>
 </body>
 </html>
