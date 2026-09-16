@@ -9882,12 +9882,18 @@ viewer.style.visibility='';
             lightboxImg.onerror=null;
             lightboxImg.style.opacity='1';
             lightboxImg.style.visibility='visible';
-            if(lightboxImg.getAttribute('src')!==String(currentSrc||'')){
-                lightboxImg.src=currentSrc;
-            } else if(window.isPhoneLikeDevice?.() && /\.gif(?:$|[?#])/i.test(String(currentSrc||''))){
-                // When navigating away and back the src normally differs and is reassigned above.
-                // If the browser kept the same URL, leave the already decoded GIF surface intact
-                // rather than forcing a destructive reload.
+            const rawLightboxSrc=String(currentSrc||'');
+            const isAnimatedGif=/\.gif(?:$|[?#])/i.test(rawLightboxSrc);
+            if(isAnimatedGif){
+                // v115: Chromium/WebView can keep a dead decoded GIF surface after the same <img>
+                // has shown another image. This also happens on desktop, so it is not a narrow-screen
+                // issue. A direct open works because it is a fresh resource load. Reproduce that exact
+                // condition whenever the lightbox displays a GIF by giving this lightbox load a unique
+                // cache key. The underlying event URL is NOT changed or saved.
+                const sep=rawLightboxSrc.includes('?')?'&':'?';
+                lightboxImg.src=rawLightboxSrc+sep+'__timeline_lb='+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7);
+            }else if(lightboxImg.getAttribute('src')!==rawLightboxSrc){
+                lightboxImg.src=rawLightboxSrc;
             }
         }
 
@@ -10616,7 +10622,7 @@ viewer.style.visibility='';
             const modal = document.getElementById('videoCropModal');
             const player = document.getElementById('videoCropPlayer');
             if (modal) modal.classList.add('hidden');
-            if (player) { player.pause(); if(player._cloudCropObjectUrl){try{URL.revokeObjectURL(player._cloudCropObjectUrl)}catch(_){} player._cloudCropObjectUrl='';} }
+            if (player) { player.pause(); if(player._cloudCropObjectUrl){try{URL.revokeObjectURL(player._cloudCropObjectUrl)}catch(_){} player._cloudCropObjectUrl='';} if(player._captureSafeObjectUrl){try{URL.revokeObjectURL(player._captureSafeObjectUrl)}catch(_){} player._captureSafeObjectUrl='';} }
             activeVideoCropIndex = -1;
         };
 
@@ -10657,9 +10663,28 @@ viewer.style.visibility='';
                 // independent decoder from the exact same Blob URL, seek it to the selected time,
                 // and draw that decoder instead. Fresh local uploads and reopened cloud videos now
                 // use the same capture path.
-                const src = String(player.currentSrc || player.src || '');
+                let src = String(player._cloudCropObjectUrl || player.currentSrc || player.src || '');
                 if (!src) throw new Error('capture_source_missing');
                 const wantedTime = Math.max(0, Number(player.currentTime) || 0);
+
+                // v115: never let canvas draw a decoder whose source is http(s). Even if the visible
+                // player can play it, one redirect or a response without ACAO taints the canvas.
+                // Convert any remote source to an authorized, CORS-fetched Blob URL first.
+                if (/^https?:/i.test(src)) {
+                    const targetForSource=window.editingVideos[activeVideoCropIndex];
+                    let readableUrl=src;
+                    if(targetForSource?.cloudPath){
+                        readableUrl=await window.getCloudMediaCaptureUrl(targetForSource.cloudPath);
+                    }
+                    const rr=await fetch(readableUrl,{mode:'cors',credentials:'omit'});
+                    if(!rr.ok) throw new Error('capture_blob_fetch_http_'+rr.status);
+                    const rb=await rr.blob();
+                    if(!rb || !rb.size) throw new Error('capture_blob_empty');
+                    if(player._captureSafeObjectUrl){try{URL.revokeObjectURL(player._captureSafeObjectUrl)}catch(_){}}
+                    player._captureSafeObjectUrl=URL.createObjectURL(rb);
+                    src=player._captureSafeObjectUrl;
+                }
+                if(!/^blob:/i.test(src) && !/^data:/i.test(src)) throw new Error('capture_source_not_local_blob');
                 capturePlayer = document.createElement('video');
                 capturePlayer.muted = true;
                 capturePlayer.playsInline = true;
@@ -10717,7 +10742,7 @@ viewer.style.visibility='';
                 window.showToast("截选完成，已应用当前画面","success");
                 window.closeVideoCropModal();
             } catch(err) {
-                console.error('视频封面截取失败(v114):',err);
+                console.error('视频封面截取失败(v115):',err);
                 // Keep the concrete reason visible if this browser still rejects a frame; this is
                 // intentionally diagnostic rather than collapsing every failure into one message.
                 window.showToast("当前画面截取失败："+String(err?.message||err).slice(0,100),"error");
