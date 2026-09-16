@@ -5058,7 +5058,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 });
 
                 nodeContainer.addEventListener('mouseenter', (ev) => {
-                    if (window.isPhoneLikeDevice?.()) return;
                     if (rearrangeState.active && rearrangeState.anchorNode !== nodeContainer) {
                         window.exitRearrange();
                         return;
@@ -5079,34 +5078,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         window.showRelatedConnectionPreviews(items.map(e => e.id), nodeContainer);
                     }
                 });
-
-                if(window.isPhoneLikeDevice?.()){
-                    let phoneStatePreview=false;
-                    const syncPhoneActivePreview=()=>{
-                        // 使用页面原本的节点激活状态，不额外制造一次“点击”。
-                        const active=nodeContainer.classList.contains('active')||
-                                     nodeContainer.classList.contains('selected')||
-                                     nodeContainer.classList.contains('is-active')||
-                                     nodeContainer.getAttribute('aria-selected')==='true'||
-                                     !!nodeContainer.querySelector('.active,.selected,.is-active');
-                        if(active&&!phoneStatePreview){
-                            phoneStatePreview=true;
-                            nodeContainer.classList.add('phone-preview-active','force-hover');
-                            window.startPreviewSlideshow(nodeContainer,{noCrossfade:true});
-                        }else if(!active&&phoneStatePreview){
-                            phoneStatePreview=false;
-                            nodeContainer.classList.remove('phone-preview-active','force-hover');
-                            window.stopPreviewSlideshow(nodeContainer,true);
-                        }
-                    };
-                    const phoneActiveObserver=new MutationObserver(syncPhoneActivePreview);
-                    phoneActiveObserver.observe(nodeContainer,{attributes:true,attributeFilter:['class','aria-selected'],subtree:true});
-                    // 真机长按后浏览器通常会在 touchend 前后更新既有激活状态，延后一帧同步。
-                    nodeContainer.addEventListener('focusin',()=>{if(!phoneStatePreview){phoneStatePreview=true;nodeContainer.classList.add('phone-preview-active','force-hover');window.startPreviewSlideshow(nodeContainer,{noCrossfade:true});}});
-                    nodeContainer.addEventListener('focusout',()=>requestAnimationFrame(syncPhoneActivePreview));
-                    nodeContainer.addEventListener('touchend',()=>requestAnimationFrame(syncPhoneActivePreview),{passive:true});
-                    nodeContainer.addEventListener('touchcancel',()=>requestAnimationFrame(syncPhoneActivePreview),{passive:true});
-                }
 
                 nodeContainer.addEventListener('mouseleave', () => {
                     items.forEach(e => window.highlightConnectionsForEvent(e.id, false));
@@ -8949,14 +8920,61 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             state.items=(state.items||[]).filter(x=>x.type!=='arrow');
 
             const phoneDeep=!!window.isPhoneLikeDevice?.();
-            const bindDeepReadImage=(img,src)=>{
-                if(!img)return;
-                img.loading='lazy';
-                img.decoding='async';
-                // 真机二次窗口中直接保留 src，让浏览器自行决定何时请求；
-                // 避免人工 IntersectionObserver 只触发第一张、后续图片永远没有 src。
+            const phoneDeepQueue=[];
+            let phoneDeepPumpTimer=null;
+            const startPhoneDeepImage=(entry)=>{
+                if(!entry||entry.started)return;
+                entry.started=true;
+                const {img,src}=entry;
                 img.src=src;
                 window.bindDelayedMediaLoadingHint?.(img.parentElement||img);
+                const advance=()=>schedulePhoneDeepPump();
+                img.addEventListener('load',advance,{once:true});
+                img.addEventListener('error',advance,{once:true});
+            };
+            const pumpPhoneDeepImages=()=>{
+                if(!phoneDeep)return;
+                const vr=viewport.getBoundingClientRect();
+                let firstPending=-1;
+                for(let i=0;i<phoneDeepQueue.length;i++){
+                    const entry=phoneDeepQueue[i];
+                    if(entry.started)continue;
+                    if(firstPending<0)firstPending=i;
+                    const r=entry.img.getBoundingClientRect();
+                    // 当前可视区以及上下约一屏范围内直接开始。
+                    if(r.top<vr.bottom+viewport.clientHeight*.55 && r.bottom>vr.top-viewport.clientHeight*.55){
+                        startPhoneDeepImage(entry);
+                    }
+                }
+                // 如果当前附近没有触发到足够的图片，再从最靠前的未加载项开始，
+                // 最多额外预取 2 张，避免大量 GitHub 媒体同时抢手机带宽。
+                let extra=0;
+                for(let i=Math.max(0,firstPending);i<phoneDeepQueue.length&&extra<2;i++){
+                    const entry=phoneDeepQueue[i];
+                    if(!entry.started){startPhoneDeepImage(entry);extra++;}
+                }
+            };
+            const schedulePhoneDeepPump=()=>{
+                clearTimeout(phoneDeepPumpTimer);
+                phoneDeepPumpTimer=setTimeout(pumpPhoneDeepImages,80);
+            };
+            if(phoneDeep){
+                viewport.addEventListener('scroll',schedulePhoneDeepPump,{passive:true});
+            }
+            const bindDeepReadImage=(img,src)=>{
+                if(!img)return;
+                img.decoding='async';
+                if(!phoneDeep){
+                    img.loading='lazy';
+                    img.src=src;
+                    window.bindDelayedMediaLoadingHint?.(img.parentElement||img);
+                    return;
+                }
+                // 手机端不把 src 提前交给浏览器，统一由小队列控制请求节奏。
+                img.loading='eager';
+                phoneDeepQueue.push({img,src,started:false});
+                schedulePhoneDeepPump();
+                requestAnimationFrame(()=>requestAnimationFrame(schedulePhoneDeepPump));
             };
 
             const resetReadInlineVideos=(exceptHost=null)=>{
@@ -9665,7 +9683,7 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
                 window._suppressTimelinePreviewUntil=performance.now()+520;
                 window.clearRelatedConnectionPreviews?.();
                 document.querySelectorAll('.timeline-node-container').forEach(node=>{
-                    node.classList.remove('force-hover','conn-related-preview','phone-preview-active');
+                    node.classList.remove('force-hover','conn-related-preview');
                     window.stopPreviewSlideshow?.(node,true);
                 });
                 window.destroyMobileDetailVideos?.();
