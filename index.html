@@ -6783,39 +6783,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 if(live)live.classList.remove('hidden');
             },450);
         };
-        // v124: shared delayed media busy notice. It intentionally stays invisible for quick
-        // operations so cached/fast media never causes a distracting flash. The visual language
-        // matches the existing "深入描述 -> 插入媒体" loading notice and is shared by all devices.
-        window._delayedMediaNoticeSeq = 0;
-        window.beginDelayedMediaNotice = function(text='正在加载媒体，请稍候…', delay=650){
-            const token=++window._delayedMediaNoticeSeq;
-            let box=document.getElementById('globalDelayedMediaNotice');
-            if(!box){
-                box=document.createElement('div');
-                box.id='globalDelayedMediaNotice';
-                box.className='fixed left-1/2 top-20 -translate-x-1/2 z-[470] hidden rounded-xl border border-indigo-200 bg-white/95 px-4 py-2.5 shadow-xl backdrop-blur text-xs font-semibold text-indigo-700 flex items-center gap-2';
-                box.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i><span data-global-media-loading-text></span>';
-                document.body.appendChild(box);
-            }
-            const timer=setTimeout(()=>{
-                if(token!==window._delayedMediaNoticeSeq)return;
-                const live=document.getElementById('globalDelayedMediaNotice');
-                if(!live)return;
-                const label=live.querySelector('[data-global-media-loading-text]');
-                if(label)label.textContent=text;
-                live.classList.remove('hidden');
-            },Math.max(0,Number(delay)||650));
-            let ended=false;
-            return function(){
-                if(ended)return; ended=true; clearTimeout(timer);
-                if(token===window._delayedMediaNoticeSeq){
-                    const live=document.getElementById('globalDelayedMediaNotice');
-                    if(live)live.classList.add('hidden');
-                    window._delayedMediaNoticeSeq++;
-                }
-            };
-        };
-
         window.deepAddMedia = async function(){
             window.deepDeactivateDrawTools?.(); window.deepTextTool=false; window.deepSetTextToolsExpanded?.(false); window.deepConnectMode=false; window.deepConnectPending=[];
             document.getElementById('deepTextToolBtn')?.classList.remove('active'); 
@@ -9955,12 +9922,7 @@ viewer.style.visibility='';
                 node.style.cssText=placeholder.style.cssText||'';
                 node.style.opacity='1';node.style.visibility='visible';
                 node.decoding='async';node.draggable=false;
-                const isAnimatedGif=/\.gif(?:$|[?#])/i.test(currentSrc);
-                const stopGifLoading=isAnimatedGif?(window.beginDelayedMediaNotice?.('正在加载动图…',650)||(()=>{})):(()=>{});
-                node.addEventListener('load',stopGifLoading,{once:true});
-                node.addEventListener('error',stopGifLoading,{once:true});
                 node.src=currentSrc;
-                if(node.complete)stopGifLoading();
                 cache.set(key,node);
             }
             // Keep inactive nodes detached but alive. Do not clear their src: in Chromium/WebView and
@@ -10658,7 +10620,6 @@ viewer.style.visibility='';
             const modal = document.getElementById('videoCropModal');
             const player = document.getElementById('videoCropPlayer');
             if (!modal || !player) return;
-            const stopCropLoading = window.beginDelayedMediaNotice?.('正在读取视频画面…', 650) || (()=>{});
 
             try { player.pause(); } catch (_) {}
             player.removeAttribute('src');
@@ -10668,7 +10629,6 @@ viewer.style.visibility='';
             let opened = false;
             const reveal = () => {
                 if (opened) return; opened = true;
-                stopCropLoading();
                 modal.classList.remove('hidden');
                 const dur = Number(player.duration);
                 if (Number.isFinite(dur) && dur > 0 && Number(player.currentTime) === 0) {
@@ -10695,7 +10655,6 @@ viewer.style.visibility='';
                     player._cloudCaptureStreamUrl=streamUrl;
                     attach(streamUrl);
                 }catch(err){
-                    stopCropLoading();
                     console.error('云端视频封面流地址生成失败:',err);
                     window.showToast?.('视频封面读取失败：'+String(err?.message||err).slice(0,120),'error');
                 }
@@ -10703,7 +10662,6 @@ viewer.style.visibility='';
                 attach(String(vidObj.url || ''));
             }
             player.addEventListener('error', () => {
-                stopCropLoading();
                 modal.classList.remove('hidden');
                 window.showToast?.('视频封面读取失败，请稍后重试', 'error');
             }, {once:true});
@@ -10746,9 +10704,6 @@ viewer.style.visibility='';
                 return;
             }
 
-            const stopCaptureSaving = window.beginDelayedMediaNotice?.('正在保存视频封面…', 650) || (()=>{});
-            const captureButton = document.querySelector('#videoCropModal button[onclick*="confirmVideoFrameCapture"]');
-            if(captureButton){captureButton.disabled=true;captureButton.classList.add('opacity-60','cursor-wait');}
             let capturePlayer = null;
             try {
                 // v114: do not draw from the visible crop player after a saved/cloud video has
@@ -10856,8 +10811,6 @@ viewer.style.visibility='';
                     alert(lines.join('\n'));
                 }else window.showToast(base.slice(0,180),"error");
             } finally {
-                stopCaptureSaving();
-                if(captureButton){captureButton.disabled=false;captureButton.classList.remove('opacity-60','cursor-wait');}
                 if(capturePlayer){try{capturePlayer.pause();capturePlayer.removeAttribute('src');capturePlayer.load();capturePlayer.remove();}catch(_){}}
             }
         };
