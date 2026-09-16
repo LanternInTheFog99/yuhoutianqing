@@ -3182,7 +3182,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             await load(); return modal;
         };
         window.addCloudAssetToSingleImage=function(a){if(!a)return;window.editingImageFiles.push({mediaId:'img_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,9),original:a.url,originalFull:a.url,outer:a.url,inner:a.url,collection:a.url,isAnimated:a.folder==='gif',crop:null,cloudPath:a.cloudPath||''});window.renderMicroPreviews?.();};
-        window.addCloudAssetToSingleVideo=function(a){if(!a)return;window.editingVideos.push({mediaId:'vid_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,9),url:a.url,previewDuration:4,blobUrl:'',cover:'',mime:a.mime||'video/mp4',name:a.originalName||'',title:String(a.originalName||'').replace(/\.[^.]+$/,''),cloudPath:a.cloudPath||''});window.renderVideoPreviews?.();};
+        window.addCloudAssetToSingleVideo=function(a){if(!a)return;window.editingVideos.push({mediaId:'vid_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,9),url:a.url,previewDuration:4,blobUrl:'',cover:'',mime:a.mime||'video/mp4',name:a.originalName||'',title:'',cloudPath:a.cloudPath||''});window.renderVideoPreviews?.();};
         window.addCloudAssetToMulti=function(seg,kind,a){const s=window.multiTimeDraft?.[seg];if(!s||!a)return;if(kind==='image')s.images.push(window.multiNormalizeImage({mediaId:window.multiMediaId(),originalFull:a.url,original:a.url,outer:a.url,inner:a.url,collection:a.url,isAnimated:a.folder==='gif',deepDescription:null,cloudPath:a.cloudPath||''}));else s.videos.push(window.multiNormalizeVideo({url:a.url,blobUrl:'',cover:'',title:String(a.originalName||'').replace(/\.[^.]+$/,''),mime:a.mime||'',previewDuration:4,deepDescription:null,cloudPath:a.cloudPath||''}));window.multiRenderCurrentPage?.();};
 
         window.ensureRoomAccess = async function(){
@@ -4420,7 +4420,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     const media=await window.uploadLargeMediaToCloudBase(file);
                     const src=media.url;
                     if(kind==='image') window.multiTimeDraft[i].images.push(window.multiNormalizeImage({mediaId:window.multiMediaId(),originalFull:src,original:src,outer:src,inner:src,collection:src,isAnimated:/gif|webp/i.test(file.type||file.name||''),deepDescription:null,cloudPath:media.cloudPath||''}));
-                    else window.multiTimeDraft[i].videos.push(window.multiNormalizeVideo({url:src,blobUrl:'',cover:'',title:file.name||'',mime:file.type||'',previewDuration:4,deepDescription:null,cloudPath:media.cloudPath||''}));
+                    else window.multiTimeDraft[i].videos.push(window.multiNormalizeVideo({url:src,blobUrl:'',cover:'',title:'',mime:file.type||'',previewDuration:4,deepDescription:null,cloudPath:media.cloudPath||''}));
                     window.multiRenderCurrentPage?.();
                 }catch(err){ console.warn(err); window._cloudUploadNotice?.('',false); window.showToast(err?.message||'文件上传失败','error'); }
             }
@@ -4913,26 +4913,22 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             }
             const query = String(document.getElementById('searchInput')?.value || '').trim().toLocaleLowerCase('zh-CN');
             if (query) {
-                const searchableText = value => {
+                // v131: recursively collect readable event text.  This avoids search silently
+                // missing content when event/multi-time/tag structures gain new nested fields.
+                const searchableText = (value, key='') => {
                     if (value == null) return '';
-                    if (Array.isArray(value)) return value.map(searchableText).join(' ');
+                    if (Array.isArray(value)) return value.map(v => searchableText(v, key)).join(' ');
                     if (typeof value === 'object') {
-                        // tag 兼容字符串与 {name/id} 两种结构；其它对象只提取可读字段。
-                        return [value.name, value.id, value.title, value.description, value.text, value.label]
-                            .filter(v => v != null).map(searchableText).join(' ');
+                        return Object.entries(value).map(([k,v]) => searchableText(v,k)).join(' ');
                     }
-                    return String(value)
-                        .replace(/<[^>]*>/g, ' ')
-                        .replace(/&nbsp;/gi, ' ')
-                        .toLocaleLowerCase('zh-CN');
+                    if (typeof value === 'string') {
+                        // Media blobs/URLs are not useful search text and can be extremely large.
+                        if (/^(data:|blob:|https?:\/\/|cloud:\/\/)/i.test(value) && /^(url|src|cover|original|originalFull|outer|inner|collection|blobUrl|cloudPath)$/i.test(key)) return '';
+                        return value.replace(/<[^>]*>/g,' ').replace(/&nbsp;/gi,' ').toLocaleLowerCase('zh-CN');
+                    }
+                    return String(value).toLocaleLowerCase('zh-CN');
                 };
-                list = list.filter(e => {
-                    const multiText = Array.isArray(e?.timeSegments)
-                        ? e.timeSegments.map(seg => [seg?.date, seg?.title, seg?.description, seg?.tags]).flatMap(v => Array.isArray(v) ? v : [v])
-                        : [];
-                    const haystack = [e?.title, e?.description, e?.tags, multiText].map(searchableText).join(' ');
-                    return haystack.includes(query);
-                });
+                list = list.filter(e => searchableText(e).includes(query));
             }
             return list;
         };
@@ -9824,7 +9820,7 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
             const detailHasImages=Array.isArray(event.images)&&event.images.length>0,detailHasVideos=Array.isArray(event.videos)&&event.videos.length>0,detailDescriptionText=String(event.description||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/gi,' ').trim(),detailHasDescription=!!detailDescriptionText;
             let viewer=document.getElementById('fullscreenViewer');if(!viewer){viewer=document.createElement('div');viewer.id='fullscreenViewer';viewer.className='fixed inset-0 bg-slate-950/90 text-white z-50 overflow-y-auto backdrop-blur-md p-3 sm:p-8 flex flex-col items-center';viewer.addEventListener('click',e=>{if(e.target===viewer)window.closeReadOnlyFullscreen(viewer.dataset.fromStackDate||'');});document.body.appendChild(viewer);}viewer.dataset.fromStackDate=fromStackDate||'';viewer.dataset.eventId=String(event.id||'');
             let imagesHtml='';if(detailHasImages){const fullSrcList=event.images.map(imgObj=>typeof imgObj==='string'?imgObj:(imgObj.originalFull||imgObj.original||imgObj.outer||imgObj.inner||imgObj.collection||''));imagesHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">事件配图</h4><div data-detail-images>${event.images.map((imgObj,idx)=>{const thumbSrc=typeof imgObj==='string'?imgObj:(imgObj.inner||imgObj.original||imgObj.originalFull||imgObj.outer||imgObj.collection);const listStr=JSON.stringify(fullSrcList).replace(/"/g,'&quot;');const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(imgObj?.deepDescription);return `<div data-detail-image-card onpointerdown="if(window.isPhoneLikeDevice?.()){mobileDetailTapStart(event,this)}else if(event.isPrimary&&event.button===0){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openLightbox(${listStr},${idx},'${event.id}','image'),this._mobileOpenedAt=performance.now())}" onpointermove="if(window.isPhoneLikeDevice?.())mobileDetailTapMove(event,this)" onpointerup="if(window.isPhoneLikeDevice?.()&&mobileDetailTapEnd(event,this)){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openLightbox(${listStr},${idx},'${event.id}','image'))}" onclick="if(window.isPhoneLikeDevice?.()){event.preventDefault();event.stopPropagation();mobileDetailTapOpen(this,()=>{window.suspendMobileDetailVideosForOverlay?.();openLightbox(${listStr},${idx},'${event.id}','image')})}" class="group relative bg-transparent rounded-xl overflow-hidden border border-slate-800 cursor-pointer shadow-md hover:border-indigo-500 transition-colors"><img data-detail-image data-full-src="${fullSrcList[idx]||thumbSrc}" loading="lazy" decoding="async" ${window.isPhoneLikeDevice?.()?`data-phone-src="${thumbSrc}" style="visibility:hidden"`:`src="${thumbSrc}"`} class="block group-hover:scale-[1.02] transition-all duration-300">${hasDeep?'<span class="absolute right-1.5 bottom-1.5 z-10 text-[13px] sm:text-sm opacity-0 group-hover:opacity-45 transition-opacity pointer-events-none select-none drop-shadow" aria-hidden="true">🐢✌🏻</span>':''}</div>`;}).join('')}</div></div>`;}
-            let videosHtml='';if(detailHasVideos){videosHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-video mr-1"></i>事件视频</h4><div data-detail-videos>${event.videos.map((v,vidx)=>{const vUrl=typeof v==='object'?(v.blobUrl||v.url):v,vCover=typeof v==='object'?(v.cover||''):'',vTitle=typeof v==='object'?(v.title||v.name||''):'',vType=typeof v==='object'&&v.mime?`type="${v.mime}"`:'';const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(v?.deepDescription);return `<div data-detail-video-card data-detail-video-index="${vidx}" data-detail-video-deep="${hasDeep?'1':'0'}" class="bg-black rounded-xl overflow-hidden border border-slate-800 ${hasDeep?'cursor-pointer':''}">${vTitle?`<div data-detail-video-title class="px-3 py-2 bg-slate-900 text-xs font-semibold text-slate-200 border-b border-slate-800">${escapeHtml(vTitle)}</div>`:''}<div data-detail-video-stage class="relative bg-black overflow-hidden"><video ${vCover?`poster="${vCover}"`:''} playsinline webkit-playsinline preload="none" class="block bg-black object-contain"><source src="${vUrl}" ${vType}></video>${hasDeep?'<span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">🐢</span><span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">✌🏻</span>':''}</div></div>`;}).join('')}</div></div>`;}
+            let videosHtml='';if(detailHasVideos){videosHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-video mr-1"></i>事件视频</h4><div data-detail-videos>${event.videos.map((v,vidx)=>{const vUrl=typeof v==='object'?(v.blobUrl||v.url):v,vCover=typeof v==='object'?(v.cover||''):'',vTitle=typeof v==='object'?(v.title||''):'',vType=typeof v==='object'&&v.mime?`type="${v.mime}"`:'';const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(v?.deepDescription);return `<div data-detail-video-card data-detail-video-index="${vidx}" data-detail-video-deep="${hasDeep?'1':'0'}" class="bg-black rounded-xl overflow-hidden border border-slate-800 ${hasDeep?'cursor-pointer':''}">${vTitle?`<div data-detail-video-title class="px-3 py-2 bg-slate-900 text-xs font-semibold text-slate-200 border-b border-slate-800">${escapeHtml(vTitle)}</div>`:''}<div data-detail-video-stage class="relative bg-black overflow-hidden"><video ${vCover?`poster="${vCover}"`:''} playsinline webkit-playsinline preload="none" class="block bg-black object-contain"><source src="${vUrl}" ${vType}></video>${hasDeep?'<span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">🐢</span><span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">✌🏻</span>':''}</div></div>`;}).join('')}</div></div>`;}
             let linksHtml='';if(event.links&&event.links.length>0){linksHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-link mr-1"></i>跳转网址</h4><div class="flex flex-wrap gap-2">${event.links.map(l=>`<a href="${l.url}" target="_blank" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-indigo-300 hover:text-indigo-200 px-3 py-2 rounded-xl text-xs transition-colors"><i class="fa-solid fa-globe"></i><span class="font-medium">${l.title||l.url}</span></a>`).join('')}</div></div>`;}
             const descriptionHtml=detailHasDescription?`<div data-detail-description class="border-t border-slate-800 pt-6 mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">事件经过与描述</h4><div class="event-description-html text-sm sm:text-base leading-relaxed whitespace-pre-wrap">${window.prepareDescriptionForView?window.prepareDescriptionForView(event.description):event.description}</div></div>`:'';
             viewer.innerHTML=`<div data-detail-shell class="${event.type==='major'?'detail-has-major ':''}${/(?:\d{4}[./-]\d{1,2}(?:[./-]\d{1,2})?|\d{1,2}[./-]\d{1,2})\s*(?:–|—|~|～|至|\s+-\s+)\s*(?:\d{4}[./-]\d{1,2}(?:[./-]\d{1,2})?|\d{1,2}[./-]\d{1,2})/.test(String(event.date||''))?'detail-has-range ':''}max-w-3xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-10 shadow-2xl relative"><div class="detail-window-dragbar" data-detail-drag-handle><i class="fa-solid fa-grip-lines"></i><span>点击此处拖动详情页</span></div><button type="button" onclick="window.openEventCommentWindow('${event.id}')" class="detail-window-comments-btn"><i class="fa-regular fa-comments"></i><span>评论区</span></button><button onclick="closeReadOnlyFullscreen('${fromStackDate?fromStackDate.replace(/'/g,"\\'"):''}')" class="absolute top-3 right-4 sm:top-4 sm:right-6 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full flex items-center justify-center transition-colors"><i class="fa-solid fa-xmark text-lg"></i></button><div class="flex items-center gap-3 mb-2"><span class="text-xs font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full font-semibold">${window.formatDisplayDate(event.date)}</span>${event.type==='major'?'<span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full">重大里程碑</span>':''}</div><h1 class="text-xl sm:text-2xl font-bold text-white mb-3 tracking-wide">${event.title}</h1><div data-detail-body>${imagesHtml}${videosHtml}${linksHtml}${descriptionHtml}</div></div>`;
@@ -10332,7 +10328,7 @@ viewer.style.visibility='';
                     url: v.url || '',
                     blobUrl: v.blobUrl || '',
                     cover: v.cover || '',
-                    title: v.title || v.name || '',
+                    title: v.title || '',
                     mime: v.mime || '',
                     name: v.name || '',
                     previewDuration: window.normalizeVideoPreviewDuration(v.previewDuration, 4),
@@ -10592,7 +10588,7 @@ viewer.style.visibility='';
                         cover: '',
                         mime: f.type || 'video/mp4',
                         name: f.name || '',
-                        title: f.name ? f.name.replace(/\.[^.]+$/, '') : '',
+                        title: '',
                         cloudPath: media.cloudPath||''
                     });
                     window.renderVideoPreviews();
@@ -14334,8 +14330,8 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
    if(window.isLocked){window.showToast?.('请先解锁编辑模式','error');return;}
    let modal=document.getElementById('legacyMediaMigrationModal');
    if(!modal){modal=document.createElement('div');modal.id='legacyMediaMigrationModal';modal.className='fixed inset-0 z-[520] bg-slate-950/70 backdrop-blur-sm p-3 sm:p-6';document.body.appendChild(modal);}
-   const rows=[];(window.events||[]).forEach(ev=>collectInEvent(ev).forEach(x=>rows.push({event:ev,eventId:ev.id,eventTitle:ev.title||ev.date||'未命名事件',oldUrl:x.url})));
-   modal.innerHTML=`<div class="w-full h-full bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden"><div class="px-4 sm:px-6 py-4 border-b flex items-center gap-3"><div><div class="font-bold text-slate-800">旧媒体直链迁移</div><div class="text-[11px] text-slate-500 mt-1">仅用于迁移现有外部图片 / 动图 / 视频直链；不会作为以后新增直链的入口。</div></div><button type="button" data-close class="ml-auto w-9 h-9 rounded-full hover:bg-slate-100"><i class="fa-solid fa-xmark"></i></button></div><div class="px-4 sm:px-6 py-3 border-b bg-slate-50 flex gap-2"><input data-search class="flex-1 px-3 py-2 rounded-lg border text-xs" placeholder="搜索事件名或旧网址"><span class="text-xs text-slate-500 self-center">共 ${rows.length} 项</span></div><div data-list class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3"></div><div class="px-4 sm:px-6 py-3 border-t flex justify-end"><button data-save type="button" class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-xs font-semibold">保存全部修改</button></div></div>`;
+   const rows=[];(window.events||[]).forEach(ev=>collectInEvent(ev).forEach(x=>rows.push({kind:'event',event:ev,eventId:ev.id,eventTitle:ev.title||ev.date||'未命名事件',oldUrl:x.url}))); (window.bgmPlaylist||[]).forEach(song=>{const u=String(song?.url||'');if(isHttp(u)&&!isCloud(u))rows.push({kind:'music',song,eventTitle:'背景音乐 · '+(song.name||'未命名音乐'),oldUrl:u});});
+   modal.innerHTML=`<div class="w-full h-full bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden"><div class="px-4 sm:px-6 py-4 border-b flex items-center gap-3"><div><div class="font-bold text-slate-800">旧媒体直链迁移</div><div class="text-[11px] text-slate-500 mt-1">仅用于迁移现有外部图片 / 动图 / 视频 / 背景音乐直链；不会作为以后新增直链的入口。</div></div><button type="button" data-close class="ml-auto w-9 h-9 rounded-full hover:bg-slate-100"><i class="fa-solid fa-xmark"></i></button></div><div class="px-4 sm:px-6 py-3 border-b bg-slate-50 flex gap-2"><input data-search class="flex-1 px-3 py-2 rounded-lg border text-xs" placeholder="搜索事件名或旧网址"><span class="text-xs text-slate-500 self-center">共 ${rows.length} 项</span></div><div data-list class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3"></div><div class="px-4 sm:px-6 py-3 border-t flex justify-end"><button data-save type="button" class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-xs font-semibold">保存全部修改</button></div></div>`;
    const close=()=>modal.remove();modal.querySelector('[data-close]').onclick=close;
    const list=modal.querySelector('[data-list]'), search=modal.querySelector('[data-search]');
    const render=()=>{const q=search.value.trim().toLowerCase();const shown=rows.map((r,i)=>({...r,i})).filter(r=>!q||String(r.eventTitle).toLowerCase().includes(q)||r.oldUrl.toLowerCase().includes(q));list.innerHTML=shown.length?shown.map(r=>`<div class="border rounded-xl p-3"><div class="text-xs font-bold text-slate-700 mb-2">${esc(r.eventTitle)}</div><div class="text-[10px] text-slate-400 break-all mb-2">旧：${esc(r.oldUrl)}</div><input data-row="${r.i}" class="w-full px-3 py-2 rounded-lg border text-xs" placeholder="粘贴新的 CloudBase 直链"></div>`).join(''):'<div class="text-center text-sm text-slate-400 py-16">没有检测到需要迁移的外部媒体直链</div>';};
@@ -14343,11 +14339,11 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
    modal.querySelector('[data-save]').onclick=async()=>{
      const changes=[];modal.querySelectorAll('[data-row]').forEach(inp=>{const nu=inp.value.trim();if(nu&&isHttp(nu)){const r=rows[Number(inp.dataset.row)];if(r)changes.push({...r,newUrl:nu});}});
      if(!changes.length){window.showToast?.('还没有填写新的直链','error');return;}
-     const changedEvents=new Set();
+     const changedEvents=new Set(), changedSongs=new Set();
      const replaceAll=(node,oldUrl,newUrl)=>{if(Array.isArray(node)){for(let i=0;i<node.length;i++){if(node[i]===oldUrl)node[i]=newUrl;else if(node[i]&&typeof node[i]==='object')replaceAll(node[i],oldUrl,newUrl);}return;}if(node&&typeof node==='object'){for(const k of Object.keys(node)){if(node[k]===oldUrl)node[k]=newUrl;else if(node[k]&&typeof node[k]==='object')replaceAll(node[k],oldUrl,newUrl);}}};
-     changes.forEach(c=>{replaceAll(c.event,c.oldUrl,c.newUrl);changedEvents.add(c.event);});
+     changes.forEach(c=>{if(c.kind==='music'&&c.song){c.song.url=c.newUrl;changedSongs.add(c.song);}else if(c.event){replaceAll(c.event,c.oldUrl,c.newUrl);changedEvents.add(c.event);}});
      const btn=modal.querySelector('[data-save]');btn.disabled=true;btn.textContent='正在保存…';
-     try{for(const ev of changedEvents)await window.saveEventToCloud(ev);window.showToast?.(`已迁移 ${changes.length} 项媒体直链`,'success');close();}
+     try{for(const ev of changedEvents)await window.saveEventToCloud(ev);for(const song of changedSongs)await window.timelineApiWrite('upsertBgm',{bgm:song});window.renderBgmPlaylist?.();window.showToast?.(`已迁移 ${changes.length} 项媒体直链`,'success');close();}
      catch(e){window.showToast?.('部分迁移保存失败，请检查后重试','error');btn.disabled=false;btn.textContent='保存全部修改';}
    };
  };
