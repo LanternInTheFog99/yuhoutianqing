@@ -9872,31 +9872,22 @@ viewer.style.visibility='';
             if(counter)counter.innerText=total>1?`${window.currentLightboxIndex+1} / ${total}`:'';
             if(prevBtn&&nextBtn){prevBtn.style.display=total>1?'flex':'none';nextBtn.style.display=total>1?'flex':'none';}
 
-            // v113 mobile: do not replace the <img> node. Some mobile browsers render a newly
-            // inserted large GIF as a black surface. Reuse the proven working node, but fully
-            // detach/re-attach its source when navigating so a GIF that was switched away from
-            // gets a fresh decode cycle.
-            if(window.isPhoneLikeDevice?.()){
-                window._mobileLightboxLoadToken=(Number(window._mobileLightboxLoadToken)||0)+1; const token=window._mobileLightboxLoadToken;
-                lightboxImg.onload=()=>{if(token!==window._mobileLightboxLoadToken)return;lightboxImg.style.opacity='1';lightboxImg.style.visibility='visible';};
-                lightboxImg.onerror=()=>{if(token!==window._mobileLightboxLoadToken)return;lightboxImg.style.opacity='1';lightboxImg.style.visibility='visible';};
-                lightboxImg.style.opacity='0';
-                lightboxImg.style.visibility='hidden';
-                lightboxImg.removeAttribute('src');
-                // Force the old decoded surface to detach before assigning the next source.
-                void lightboxImg.offsetWidth;
-                requestAnimationFrame(()=>requestAnimationFrame(()=>{
-                    if(token!==window._mobileLightboxLoadToken)return;
-                    lightboxImg.src=currentSrc;
-                    // Cached normal images may already be complete; GIFs will reveal on load.
-                    if(lightboxImg.complete && lightboxImg.naturalWidth){
-                        lightboxImg.style.opacity='1';lightboxImg.style.visibility='visible';
-                    }
-                }));
-            }else{
+            // v114 mobile: the previous detach/hide/re-attach cycle was itself the source
+            // of the persistent black GIF surface. Keep the same <img> and assign the requested
+            // URL directly, exactly like desktop. In particular, never hide the element while
+            // waiting for a large animated image's load event: a large GIF may start painting
+            // frames long before its final load event fires.
+            window._mobileLightboxLoadToken=(Number(window._mobileLightboxLoadToken)||0)+1;
+            lightboxImg.onload=null;
+            lightboxImg.onerror=null;
+            lightboxImg.style.opacity='1';
+            lightboxImg.style.visibility='visible';
+            if(lightboxImg.getAttribute('src')!==String(currentSrc||'')){
                 lightboxImg.src=currentSrc;
-                lightboxImg.style.opacity='1';
-                lightboxImg.style.visibility='visible';
+            } else if(window.isPhoneLikeDevice?.() && /\.gif(?:$|[?#])/i.test(String(currentSrc||''))){
+                // When navigating away and back the src normally differs and is reassigned above.
+                // If the browser kept the same URL, leave the already decoded GIF surface intact
+                // rather than forcing a destructive reload.
             }
         }
 
@@ -10653,52 +10644,85 @@ viewer.style.visibility='';
             if (activeVideoCropIndex < 0) return;
             const player = document.getElementById('videoCropPlayer');
             if (!player) return;
-
-            if (player.readyState < 2 || !player.videoWidth || !player.videoHeight) {
-                window.showToast("请先播放或拖动到需要截取的画面，再点击截取", "error");
+            if (player.readyState < 1 || !Number.isFinite(Number(player.currentTime))) {
+                window.showToast("视频画面尚未准备好，请稍候再试", "error");
                 return;
             }
 
+            let capturePlayer = null;
             try {
-                // v112: readyState>=2 does not guarantee that the seeked frame is drawable.
-                // Wait for the browser to present a real video frame before drawing to canvas.
-                await window.waitForVideoCropFrame(player);
-                if(!player.videoWidth || !player.videoHeight) throw new Error('video_frame_not_ready');
+                // v114: do not draw from the visible crop player after a saved/cloud video has
+                // gone through load -> seek -> pause several times. Some mobile engines display
+                // that player correctly but expose no drawable frame to canvas. Create a fresh,
+                // independent decoder from the exact same Blob URL, seek it to the selected time,
+                // and draw that decoder instead. Fresh local uploads and reopened cloud videos now
+                // use the same capture path.
+                const src = String(player.currentSrc || player.src || '');
+                if (!src) throw new Error('capture_source_missing');
+                const wantedTime = Math.max(0, Number(player.currentTime) || 0);
+                capturePlayer = document.createElement('video');
+                capturePlayer.muted = true;
+                capturePlayer.playsInline = true;
+                capturePlayer.preload = 'auto';
+                capturePlayer.style.position='fixed';
+                capturePlayer.style.left='-10000px';
+                capturePlayer.style.top='0';
+                capturePlayer.style.width='2px';
+                capturePlayer.style.height='2px';
+                capturePlayer.src = src;
+                document.body.appendChild(capturePlayer);
 
-                // v113: several mobile/WebView engines can display a Blob-backed video but return
-                // null from canvas.toBlob() while paused. Briefly ask the decoder to present the
-                // selected frame, pause again, then use the same toDataURL path that already worked
-                // for freshly-uploaded local videos. Keep the canvas modest to avoid memory spikes.
-                const wasPaused=player.paused;
-                try{
-                    player.muted=true;
-                    const pp=player.play();
-                    if(pp&&typeof pp.catch==='function')await pp.catch(()=>{});
-                    await new Promise(r=>setTimeout(r,90));
-                    player.pause();
-                    await window.waitForVideoCropFrame(player);
-                }catch(_){}
-                const canvas = document.createElement('canvas');
+                await new Promise((resolve,reject)=>{
+                    let done=false;
+                    const ok=()=>{if(done)return;done=true;cleanup();resolve();};
+                    const bad=()=>{if(done)return;done=true;cleanup();reject(new Error('capture_decoder_load_failed'));};
+                    const cleanup=()=>{capturePlayer.removeEventListener('loadedmetadata',ok);capturePlayer.removeEventListener('error',bad);};
+                    capturePlayer.addEventListener('loadedmetadata',ok,{once:true});
+                    capturePlayer.addEventListener('error',bad,{once:true});
+                    capturePlayer.load();
+                    if(capturePlayer.readyState>=1) ok();
+                    setTimeout(()=>{if(!done)bad();},10000);
+                });
+
+                const dur=Number(capturePlayer.duration);
+                const seekTo=Number.isFinite(dur)&&dur>0 ? Math.min(wantedTime,Math.max(0,dur-0.03)) : wantedTime;
+                await new Promise((resolve,reject)=>{
+                    let done=false;
+                    const ok=()=>{if(done)return;done=true;cleanup();resolve();};
+                    const bad=()=>{if(done)return;done=true;cleanup();reject(new Error('capture_seek_failed'));};
+                    const cleanup=()=>{capturePlayer.removeEventListener('seeked',ok);capturePlayer.removeEventListener('error',bad);};
+                    capturePlayer.addEventListener('seeked',ok,{once:true});
+                    capturePlayer.addEventListener('error',bad,{once:true});
+                    try{ capturePlayer.currentTime=seekTo; }catch(e){ bad(); return; }
+                    setTimeout(()=>{if(!done && capturePlayer.readyState>=2)ok(); else if(!done)bad();},10000);
+                });
+                await window.waitForVideoCropFrame(capturePlayer);
+                if(!capturePlayer.videoWidth || !capturePlayer.videoHeight) throw new Error('capture_frame_dimensions_missing');
+
+                const canvas=document.createElement('canvas');
                 const maxSide=window.isPhoneLikeDevice?.()?960:1600;
-                const scale=Math.min(1,maxSide/Math.max(player.videoWidth,player.videoHeight));
-                canvas.width=Math.max(1,Math.round(player.videoWidth*scale));
-                canvas.height=Math.max(1,Math.round(player.videoHeight*scale));
-                const ctx = canvas.getContext('2d',{alpha:false,willReadFrequently:false});
-                if(!ctx) throw new Error('canvas_context_failed');
-                ctx.drawImage(player, 0, 0, canvas.width, canvas.height);
-                let frameDataUrl='';
-                try{ frameDataUrl=canvas.toDataURL('image/jpeg',0.84); }catch(e){ throw new Error('canvas_export_failed:'+String(e?.message||e)); }
-                if(!frameDataUrl || !frameDataUrl.startsWith('data:image/') || frameDataUrl.length<100) throw new Error('frame_encode_failed');
-                const target = window.editingVideos[activeVideoCropIndex];
-                if (!target) return;
-                target.cover = frameDataUrl;
-                target.previewCover = frameDataUrl;
+                const scale=Math.min(1,maxSide/Math.max(capturePlayer.videoWidth,capturePlayer.videoHeight));
+                canvas.width=Math.max(1,Math.round(capturePlayer.videoWidth*scale));
+                canvas.height=Math.max(1,Math.round(capturePlayer.videoHeight*scale));
+                const ctx=canvas.getContext('2d',{alpha:false});
+                if(!ctx) throw new Error('capture_canvas_context_failed');
+                ctx.drawImage(capturePlayer,0,0,canvas.width,canvas.height);
+                const frameDataUrl=canvas.toDataURL('image/jpeg',0.84);
+                if(!frameDataUrl || !frameDataUrl.startsWith('data:image/') || frameDataUrl.length<100) throw new Error('capture_frame_encode_failed');
+                const target=window.editingVideos[activeVideoCropIndex];
+                if(!target) throw new Error('capture_target_missing');
+                target.cover=frameDataUrl;
+                target.previewCover=frameDataUrl;
                 window.renderVideoPreviews();
-                window.showToast("截选完成，已应用当前画面", "success");
+                window.showToast("截选完成，已应用当前画面","success");
                 window.closeVideoCropModal();
-            } catch (err) {
-                console.error('视频封面截取失败:', err);
-                window.showToast("当前画面截取失败，请重新打开截选器后再试", "error");
+            } catch(err) {
+                console.error('视频封面截取失败(v114):',err);
+                // Keep the concrete reason visible if this browser still rejects a frame; this is
+                // intentionally diagnostic rather than collapsing every failure into one message.
+                window.showToast("当前画面截取失败："+String(err?.message||err).slice(0,100),"error");
+            } finally {
+                if(capturePlayer){try{capturePlayer.pause();capturePlayer.removeAttribute('src');capturePlayer.load();capturePlayer.remove();}catch(_){}}
             }
         };
 
