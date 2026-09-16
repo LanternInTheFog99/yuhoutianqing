@@ -9266,6 +9266,24 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.mobileDetailTapMove=function(e,el){const s=el?._mobileTap;if(!s||s.id!==e.pointerId)return;if(Math.hypot(e.clientX-s.x,e.clientY-s.y)>=9)el._mobileTap=null;};
         window.mobileDetailTapOpen=function(el,openFn){if(!window.isPhoneLikeDevice?.())return false;const now=performance.now();if(now-Number(el?._mobileOpenedAt||0)<450)return true;if(typeof openFn==='function')openFn();if(el)el._mobileOpenedAt=now;return true;};
 
+
+        // v109: 触控设备统一的大图兜底。部分移动浏览器在大 GIF 解码时会丢失 pointerup，
+        // 因此在 capture click 阶段直接根据卡片索引打开 lightbox；窄屏布局规则不受影响。
+        if(!window._mobileDetailImageCaptureBound){
+            window._mobileDetailImageCaptureBound=true;
+            document.addEventListener('click',e=>{
+                if(!window.isPhoneLikeDevice?.())return;
+                const card=e.target?.closest?.('[data-detail-image-card]');
+                if(!card)return;
+                const viewer=card.closest('#fullscreenViewer');
+                if(!viewer||viewer.classList.contains('hidden'))return;
+                e.preventDefault();e.stopPropagation();
+                const cards=[...viewer.querySelectorAll('[data-detail-image-card]')];
+                const idx=Math.max(0,cards.indexOf(card));
+                const imgs=cards.map(c=>c.querySelector('[data-detail-image]')).map(img=>img?.dataset?.phoneSrc||img?.currentSrc||img?.src||'').filter(Boolean);
+                if(imgs.length) window.openLightbox(imgs,Math.min(idx,imgs.length-1),viewer.dataset?.eventId||null,'image');
+            },true);
+        }
         window.fitEventDetailMedia = function(viewer){
             if(!viewer||viewer.classList.contains('hidden'))return;
             const shell=viewer.querySelector('[data-detail-shell]');if(!shell)return;
@@ -9429,20 +9447,23 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         };
         window.closeMobileVideoPlayer=window.destroyMobileDetailVideos;
 
+        window.closeMobileVideoOverlay=function(){
+            const m=document.getElementById('mobileVideoOverlay');
+            if(!m)return;
+            m.querySelectorAll('video').forEach(v=>{try{v.pause();v.currentTime=0;v.removeAttribute('src');v.load();}catch(_){}});
+            m.classList.add('hidden');
+            m.innerHTML='';
+        };
         window.openMobileVideoPage=function(src,title){
             if(!src)return;
-            let absoluteSrc='';
-            try{absoluteSrc=new URL(String(src),document.baseURI).href;}catch(_){absoluteSrc=String(src);}
-            // 只触发一次新标签页导航。部分手机浏览器 window.open 成功后仍会返回 null，
-            // v69 因此又执行一次链接兜底，造成连续打开两个相同视频页。
-            const a=document.createElement('a');
-            a.href=absoluteSrc;
-            a.target='_blank';
-            a.rel='noopener';
-            a.style.display='none';
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
+            window.resetAllDetailVideos?.();
+            let m=document.getElementById('mobileVideoOverlay');
+            if(!m){m=document.createElement('div');m.id='mobileVideoOverlay';m.className='fixed inset-0 z-[560] hidden bg-black flex items-center justify-center p-2';document.body.appendChild(m);}
+            m.innerHTML=`<button type="button" data-mobile-video-close class="absolute top-4 right-4 z-20 w-11 h-11 rounded-full bg-slate-800/90 text-white"><i class="fa-solid fa-xmark"></i></button><video controls autoplay playsinline webkit-playsinline class="max-w-full max-h-full bg-black" src="${window.deepEsc?.(String(src))||String(src).replace(/&/g,'&amp;').replace(/"/g,'&quot;')}"></video>`;
+            m.querySelector('[data-mobile-video-close]')?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();window.closeMobileVideoOverlay();});
+            m.addEventListener('click',e=>{if(e.target===m)window.closeMobileVideoOverlay();},{once:true});
+            m.classList.remove('hidden');
+            m.querySelector('video')?.play().catch(()=>{});
         };
 
         window.prepareMobileDetailVideo=function(video){
@@ -9671,7 +9692,7 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
             const stackModal=document.getElementById('stackManagerModal');if(stackModal)stackModal.classList.add('hidden');
             const event=window.findEventById?window.findEventById(eventId):window.events.find(e=>String(e.id)===String(eventId));if(!event){document.body.classList.remove('mobile-detail-open');window.syncXiaoqingerForDetail?.(false);return;}eventId=event.id;
             if(event.timeMode==='multi' && Array.isArray(event.timeSegments)){
-                let viewer=document.getElementById('fullscreenViewer');if(!viewer){viewer=document.createElement('div');viewer.id='fullscreenViewer';viewer.className='fixed inset-0 bg-slate-950/90 text-white z-50 overflow-y-auto backdrop-blur-md p-3 sm:p-8 flex flex-col items-center';viewer.addEventListener('click',e=>{if(e.target===viewer)window.closeReadOnlyFullscreen(viewer.dataset.fromStackDate||'');});document.body.appendChild(viewer);}viewer.dataset.fromStackDate=fromStackDate||'';
+                let viewer=document.getElementById('fullscreenViewer');if(!viewer){viewer=document.createElement('div');viewer.id='fullscreenViewer';viewer.className='fixed inset-0 bg-slate-950/90 text-white z-50 overflow-y-auto backdrop-blur-md p-3 sm:p-8 flex flex-col items-center';viewer.addEventListener('click',e=>{if(e.target===viewer)window.closeReadOnlyFullscreen(viewer.dataset.fromStackDate||'');});document.body.appendChild(viewer);}viewer.dataset.fromStackDate=fromStackDate||'';viewer.dataset.eventId=String(event.id||'');
                 const segs=event.timeSegments.slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
                 const cols=segs.map((seg,si)=>{
                     const imageList=seg.images||[];
@@ -9701,7 +9722,7 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
                 viewer.classList.remove('hidden');window.bindDetailVideoBehavior(viewer,event.id);window.initMultiDetailScroller?.();window.initFloatingDetailWindow(viewer);return;
             }
             const detailHasImages=Array.isArray(event.images)&&event.images.length>0,detailHasVideos=Array.isArray(event.videos)&&event.videos.length>0,detailDescriptionText=String(event.description||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/gi,' ').trim(),detailHasDescription=!!detailDescriptionText;
-            let viewer=document.getElementById('fullscreenViewer');if(!viewer){viewer=document.createElement('div');viewer.id='fullscreenViewer';viewer.className='fixed inset-0 bg-slate-950/90 text-white z-50 overflow-y-auto backdrop-blur-md p-3 sm:p-8 flex flex-col items-center';viewer.addEventListener('click',e=>{if(e.target===viewer)window.closeReadOnlyFullscreen(viewer.dataset.fromStackDate||'');});document.body.appendChild(viewer);}viewer.dataset.fromStackDate=fromStackDate||'';
+            let viewer=document.getElementById('fullscreenViewer');if(!viewer){viewer=document.createElement('div');viewer.id='fullscreenViewer';viewer.className='fixed inset-0 bg-slate-950/90 text-white z-50 overflow-y-auto backdrop-blur-md p-3 sm:p-8 flex flex-col items-center';viewer.addEventListener('click',e=>{if(e.target===viewer)window.closeReadOnlyFullscreen(viewer.dataset.fromStackDate||'');});document.body.appendChild(viewer);}viewer.dataset.fromStackDate=fromStackDate||'';viewer.dataset.eventId=String(event.id||'');
             let imagesHtml='';if(detailHasImages){const fullSrcList=event.images.map(imgObj=>typeof imgObj==='string'?imgObj:(imgObj.originalFull||imgObj.original||imgObj.outer||imgObj.inner||imgObj.collection||''));imagesHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">事件配图</h4><div data-detail-images>${event.images.map((imgObj,idx)=>{const thumbSrc=typeof imgObj==='string'?imgObj:(imgObj.inner||imgObj.original||imgObj.originalFull||imgObj.outer||imgObj.collection);const listStr=JSON.stringify(fullSrcList).replace(/"/g,'&quot;');const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(imgObj?.deepDescription);return `<div data-detail-image-card onpointerdown="if(window.isPhoneLikeDevice?.()){mobileDetailTapStart(event,this)}else if(event.isPrimary&&event.button===0){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openLightbox(${listStr},${idx},'${event.id}','image'),this._mobileOpenedAt=performance.now())}" onpointermove="if(window.isPhoneLikeDevice?.())mobileDetailTapMove(event,this)" onpointerup="if(window.isPhoneLikeDevice?.()&&mobileDetailTapEnd(event,this)){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openLightbox(${listStr},${idx},'${event.id}','image'))}" onclick="if(window.isPhoneLikeDevice?.()){event.preventDefault();event.stopPropagation();mobileDetailTapOpen(this,()=>{window.suspendMobileDetailVideosForOverlay?.();openLightbox(${listStr},${idx},'${event.id}','image')})}" class="group relative bg-transparent rounded-xl overflow-hidden border border-slate-800 cursor-pointer shadow-md hover:border-indigo-500 transition-colors"><img data-detail-image loading="lazy" decoding="async" ${window.isPhoneLikeDevice?.()?`data-phone-src="${thumbSrc}" style="visibility:hidden"`:`src="${thumbSrc}"`} class="block group-hover:scale-[1.02] transition-all duration-300">${hasDeep?'<span class="absolute right-1.5 bottom-1.5 z-10 text-[13px] sm:text-sm opacity-0 group-hover:opacity-45 transition-opacity pointer-events-none select-none drop-shadow" aria-hidden="true">🐢✌🏻</span>':''}</div>`;}).join('')}</div></div>`;}
             let videosHtml='';if(detailHasVideos){videosHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-video mr-1"></i>事件视频</h4><div data-detail-videos>${event.videos.map((v,vidx)=>{const vUrl=typeof v==='object'?(v.blobUrl||v.url):v,vCover=typeof v==='object'?(v.cover||''):'',vTitle=typeof v==='object'?(v.title||v.name||''):'',vType=typeof v==='object'&&v.mime?`type="${v.mime}"`:'';const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(v?.deepDescription);return `<div data-detail-video-card data-detail-video-index="${vidx}" data-detail-video-deep="${hasDeep?'1':'0'}" class="bg-black rounded-xl overflow-hidden border border-slate-800 ${hasDeep?'cursor-pointer':''}">${vTitle?`<div data-detail-video-title class="px-3 py-2 bg-slate-900 text-xs font-semibold text-slate-200 border-b border-slate-800">${escapeHtml(vTitle)}</div>`:''}<div data-detail-video-stage class="relative bg-black overflow-hidden"><video ${vCover?`poster="${vCover}"`:''} playsinline webkit-playsinline preload="none" class="block bg-black object-contain"><source src="${vUrl}" ${vType}></video>${hasDeep?'<span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">🐢</span><span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">✌🏻</span>':''}</div></div>`;}).join('')}</div></div>`;}
             let linksHtml='';if(event.links&&event.links.length>0){linksHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-link mr-1"></i>跳转网址</h4><div class="flex flex-wrap gap-2">${event.links.map(l=>`<a href="${l.url}" target="_blank" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-indigo-300 hover:text-indigo-200 px-3 py-2 rounded-xl text-xs transition-colors"><i class="fa-solid fa-globe"></i><span class="font-medium">${l.title||l.url}</span></a>`).join('')}</div></div>`;}
@@ -9732,6 +9753,7 @@ viewer.style.visibility='';
         };
 
         window.closeReadOnlyFullscreen = function(fromStackDate = '') {
+            window.closeMobileVideoOverlay?.();
             if(window.isPhoneLikeDevice?.()){
                 window._suppressTimelinePreviewUntil=performance.now()+520;
                 window.clearRelatedConnectionPreviews?.();
@@ -10463,37 +10485,57 @@ viewer.style.visibility='';
             player.load();
 
             const localSrc = String(vidObj.blobUrl || '');
-            const cropSrc = localSrc || (vidObj.cloudPath ? window.cloudMediaCropUrl(vidObj.cloudPath) : String(vidObj.url || ''));
-            // crossOrigin must be set before src. Blob/Data URLs do not need it; remote sources do.
-            if (/^(blob:|data:)/i.test(cropSrc)) player.removeAttribute('crossorigin');
-            else player.setAttribute('crossorigin', 'anonymous');
-
             let opened = false;
             const reveal = () => {
                 if (opened) return; opened = true;
                 modal.classList.remove('hidden');
-                // Move away from an all-black first frame when possible, but keep the user's ability to seek back to 0.
                 const dur = Number(player.duration);
                 if (Number.isFinite(dur) && dur > 0 && Number(player.currentTime) === 0) {
                     try { player.currentTime = Math.min(0.08, Math.max(0, dur / 100)); } catch (_) {}
                 }
             };
-            player.addEventListener('loadedmetadata', reveal, {once:true});
-            player.addEventListener('loadeddata', reveal, {once:true});
+            const attach = src => {
+                player.removeAttribute('crossorigin');
+                player.addEventListener('loadedmetadata', reveal, {once:true});
+                player.addEventListener('loadeddata', reveal, {once:true});
+                player.src = src;
+                player.load();
+                if (player.readyState >= 1) reveal();
+            };
+            if (localSrc) {
+                attach(localSrc);
+            } else if (vidObj.cloudPath) {
+                // 已保存的云端视频：先通过已配置 CORS 的 COS/CDN 地址 fetch 成 Blob，
+                // 再交给 video/canvas。这样既不会被 attachment 响应影响，也不会污染 canvas。
+                modal.classList.remove('hidden');
+                window._cloudUploadNotice?.('正在读取视频封面…', true);
+                fetch(window.cloudMediaCropUrl(vidObj.cloudPath), {mode:'cors', credentials:'omit'})
+                    .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.blob(); })
+                    .then(blob=>{
+                        if (player._cloudCropObjectUrl) URL.revokeObjectURL(player._cloudCropObjectUrl);
+                        player._cloudCropObjectUrl = URL.createObjectURL(blob);
+                        window._cloudUploadNotice?.('', false);
+                        attach(player._cloudCropObjectUrl);
+                    })
+                    .catch(()=>{
+                        window._cloudUploadNotice?.('', false);
+                        // 最后退回正常播放网关；至少允许用户读取/拖动，若浏览器禁止 canvas 会在截取时提示。
+                        attach(String(vidObj.url || window.cloudMediaPublicUrl(vidObj.cloudPath)));
+                    });
+            } else {
+                attach(String(vidObj.url || ''));
+            }
             player.addEventListener('error', () => {
                 modal.classList.remove('hidden');
                 window.showToast?.('视频封面读取失败，请稍后重试', 'error');
             }, {once:true});
-            player.src = cropSrc;
-            player.load();
-            if (player.readyState >= 1) reveal();
         };
 
         window.closeVideoCropModal = function() {
             const modal = document.getElementById('videoCropModal');
             const player = document.getElementById('videoCropPlayer');
             if (modal) modal.classList.add('hidden');
-            if (player) player.pause();
+            if (player) { player.pause(); if(player._cloudCropObjectUrl){try{URL.revokeObjectURL(player._cloudCropObjectUrl)}catch(_){} player._cloudCropObjectUrl='';} }
             activeVideoCropIndex = -1;
         };
 
