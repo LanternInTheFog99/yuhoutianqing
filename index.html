@@ -3052,6 +3052,12 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.cloudMediaPublicUrl = function(cloudPath){
             return TIMELINE_API_BASE.replace(/\/+$/,'') + '/' + String(cloudPath||'').replace(/^\/+/, '');
         };
+        // v107: use the storage CDN origin for frame extraction. The HTTP gateway is kept for normal playback,
+        // while the storage origin can participate in canvas capture after COS CORS is configured.
+        window.CLOUD_MEDIA_CROP_ORIGIN = 'https://6d65-message-board-d6gyou26356c94cad-1474370265.tcb.qcloud.la';
+        window.cloudMediaCropUrl = function(cloudPath){
+            return window.CLOUD_MEDIA_CROP_ORIGIN.replace(/\/+$/,'') + '/' + String(cloudPath||'').replace(/^\/+/, '');
+        };
         window._cloudUploadNotice = function(text, show=true){
             let el=document.getElementById('cloudMediaUploadNotice');
             if(!el){
@@ -10370,7 +10376,9 @@ viewer.style.visibility='';
                         mediaId: 'vid_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9),
                         url: media.url,
                         previewDuration: 4,
-                        blobUrl: '',
+                        // Keep a local Blob URL for this editing session so cover seeking/capture is instant and never depends on the remote gateway.
+                        // prepareEventForCloud intentionally does not persist blobUrl.
+                        blobUrl: URL.createObjectURL(f),
                         cover: '',
                         mime: f.type || 'video/mp4',
                         name: f.name || '',
@@ -10448,10 +10456,35 @@ viewer.style.visibility='';
             const player = document.getElementById('videoCropPlayer');
             if (!modal || !player) return;
 
-            player.setAttribute('crossorigin', 'anonymous');
-            player.src = vidObj.blobUrl || vidObj.url;
-            modal.classList.remove('hidden');
+            try { player.pause(); } catch (_) {}
+            player.removeAttribute('src');
             player.load();
+
+            const localSrc = String(vidObj.blobUrl || '');
+            const cropSrc = localSrc || (vidObj.cloudPath ? window.cloudMediaCropUrl(vidObj.cloudPath) : String(vidObj.url || ''));
+            // crossOrigin must be set before src. Blob/Data URLs do not need it; remote sources do.
+            if (/^(blob:|data:)/i.test(cropSrc)) player.removeAttribute('crossorigin');
+            else player.setAttribute('crossorigin', 'anonymous');
+
+            let opened = false;
+            const reveal = () => {
+                if (opened) return; opened = true;
+                modal.classList.remove('hidden');
+                // Move away from an all-black first frame when possible, but keep the user's ability to seek back to 0.
+                const dur = Number(player.duration);
+                if (Number.isFinite(dur) && dur > 0 && Number(player.currentTime) === 0) {
+                    try { player.currentTime = Math.min(0.08, Math.max(0, dur / 100)); } catch (_) {}
+                }
+            };
+            player.addEventListener('loadedmetadata', reveal, {once:true});
+            player.addEventListener('loadeddata', reveal, {once:true});
+            player.addEventListener('error', () => {
+                modal.classList.remove('hidden');
+                window.showToast?.('视频封面读取失败，请稍后重试', 'error');
+            }, {once:true});
+            player.src = cropSrc;
+            player.load();
+            if (player.readyState >= 1) reveal();
         };
 
         window.closeVideoCropModal = function() {
