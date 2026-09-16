@@ -1282,7 +1282,10 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     <i class="fa-solid fa-tags text-slate-500"></i>
                     <span id="mobileTagLabel" class="hidden md:inline">tag库</span>
                 </button>
-<button id="xiaoqingerDialogueEditorBtn" onclick="requestXiaoqingerDialogueEditor()" title="" aria-label="小晴儿台词编辑" class="fixed right-10 bottom-2 z-[80] w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-slate-400/20 hover:text-slate-500/80 hover:bg-slate-200/60 transition-all opacity-25 hover:opacity-100">
+<button id="legacyMediaMigrationBtn" type="button" onclick="openLegacyMediaMigration()" title="" aria-label="迁移旧直链" class="fixed right-[4.5rem] bottom-2 z-[80] w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-slate-400/20 hover:text-slate-500/80 hover:bg-slate-200/60 transition-all opacity-25 hover:opacity-100">
+                    <i class="fa-solid fa-arrow-right-arrow-left"></i>
+                </button>
+                <button id="xiaoqingerDialogueEditorBtn" onclick="requestXiaoqingerDialogueEditor()" title="" aria-label="小晴儿台词编辑" class="fixed right-10 bottom-2 z-[80] w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-slate-400/20 hover:text-slate-500/80 hover:bg-slate-200/60 transition-all opacity-25 hover:opacity-100">
                     <i class="fa-solid fa-comment-dots"></i>
                 </button>
                 <button id="manualBackupBtn" onclick="requestTimelineBackup()" title="" aria-label="导出 JSON 备份" class="fixed right-2 bottom-2 z-[80] w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-slate-400/20 hover:text-slate-500/80 hover:bg-slate-200/60 transition-all opacity-25 hover:opacity-100">
@@ -10353,14 +10356,14 @@ viewer.style.visibility='';
                             </div>
                             <label class="block text-xs font-bold text-slate-700"><i class="fa-solid fa-photo-film text-indigo-600 mr-1"></i>媒体与网址附件</label>
                             
-                            <div>
-                                <div class="border-2 border-dashed border-slate-300 rounded-xl p-3 text-center hover:bg-white transition-colors cursor-pointer" onclick="document.getElementById('editFileInput').click()">
-                                    <i class="fa-solid fa-image text-xl text-indigo-500 mb-1 block"></i>
-                                    <span class="text-xs text-slate-600 font-medium">点击添加图片</span>
+                            <div class="space-y-2">
+                                <span class="block text-[11px] font-bold text-slate-600">添加图片</span>
+                                <div class="flex gap-2">
+                                    <button type="button" onclick="document.getElementById('editFileInput').click()" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-xs text-slate-700 flex items-center gap-1"><i class="fa-solid fa-upload text-indigo-600"></i> 本地上传图片</button>
+                                    <button type="button" onclick="openCloudMediaLibrary({folder:'picture',onSelect:addCloudAssetToSingleImage})" class="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-indigo-600 flex items-center gap-1"><i class="fa-solid fa-cloud"></i> 云端选择</button>
                                     <input type="file" id="editFileInput" multiple accept="image/*" class="hidden" onchange="handleLocalImageUpload(event)">
                                 </div>
-                                <div class="flex gap-2 mt-2 justify-center"><button type="button" onclick="document.getElementById('imageFileInput').click()" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-xs text-slate-700 flex items-center gap-1"><i class="fa-solid fa-upload text-indigo-600"></i> 本地上传图片</button><button type="button" onclick="openCloudMediaLibrary({folder:'picture',onSelect:addCloudAssetToSingleImage})" class="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-indigo-600 flex items-center gap-1"><i class="fa-solid fa-cloud"></i> 云端选择</button></div>
-                                <div id="imageMicroPreviews" class="flex flex-wrap gap-2 mt-2"></div>
+                                <div id="imageMicroPreviews" class="flex flex-wrap gap-2"></div>
                             </div>
 
                             <div class="space-y-2 pt-2 border-t border-slate-200">
@@ -13323,10 +13326,10 @@ viewer.style.visibility='';
                 <div class="space-y-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
                     <label class="block text-xs font-bold text-slate-700"><i class="fa-solid fa-photo-film text-indigo-600 mr-1"></i>媒体与网址附件</label>
 
-                    <div>
-                        <div class="border-2 border-dashed border-slate-300 rounded-xl p-3 text-center hover:bg-white transition-colors"><i class="fa-solid fa-image text-xl text-indigo-500 mb-1 block"></i><span class="text-xs text-slate-600 font-medium">添加图片</span><input type="file" id="multiImageFile_${segIndex}" multiple accept="image/*" class="hidden" onchange="multiAddFiles(${segIndex},'image',this.files);this.value=''"></div>
-                        <div class="flex gap-2 mt-2"><button type="button" onclick="document.getElementById('multiImageFile_${segIndex}').click()" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-xs text-slate-700 flex items-center gap-1"><i class="fa-solid fa-upload text-indigo-600"></i> 本地上传图片</button><button type="button" onclick="openCloudMediaLibrary({folder:'picture',onSelect:a=>addCloudAssetToMulti(${segIndex},'image',a)})" class="px-2.5 py-1.5 bg-white border rounded-lg text-[11px] text-indigo-600"><i class="fa-solid fa-cloud mr-1"></i>云端选择</button></div>
-                        <div class="flex flex-wrap gap-2 mt-2">${images||'<span class="text-[11px] text-slate-400">暂无图片</span>'}</div>
+                    <div class="space-y-2">
+                        <span class="block text-[11px] font-bold text-slate-600">添加图片</span>
+                        <div class="flex gap-2"><button type="button" onclick="document.getElementById('multiImageFile_${segIndex}').click()" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-xs text-slate-700 flex items-center gap-1"><i class="fa-solid fa-upload text-indigo-600"></i> 本地上传图片</button><button type="button" onclick="openCloudMediaLibrary({folder:'picture',onSelect:a=>addCloudAssetToMulti(${segIndex},'image',a)})" class="px-2.5 py-1.5 bg-white border rounded-lg text-[11px] text-indigo-600"><i class="fa-solid fa-cloud mr-1"></i>云端选择</button><input type="file" id="multiImageFile_${segIndex}" multiple accept="image/*" class="hidden" onchange="multiAddFiles(${segIndex},'image',this.files);this.value=''"></div>
+                        <div class="flex flex-wrap gap-2">${images||'<span class="text-[11px] text-slate-400">暂无图片</span>'}</div>
                     </div>
                     <div class="space-y-2 pt-2 border-t border-slate-200">
                         <span class="block text-[11px] font-bold text-slate-600">添加视频</span>
@@ -14261,8 +14264,7 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
 
 
 
-<!-- v126 temporary external-media migration tool -->
-<button id="legacyMediaMigrationBtn" type="button" onclick="openLegacyMediaMigration()" class="hidden fixed right-4 top-20 z-[900] px-4 py-2.5 rounded-full bg-indigo-700 hover:bg-indigo-800 text-white shadow-2xl ring-2 ring-white text-xs font-semibold"><i class="fa-solid fa-arrow-right-arrow-left mr-1.5"></i>迁移旧直链</button>
+<!-- temporary external-media migration tool -->
 <script>
 (function(){
  const isCloud=u=>/\.app\.tcloudbase\.com\//i.test(u)||/^cloud:\/\//i.test(u);
@@ -14306,8 +14308,6 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
      catch(e){window.showToast?.('部分迁移保存失败，请检查后重试','error');btn.disabled=false;btn.textContent='保存全部修改';}
    };
  };
- function syncBtn(){const b=document.getElementById('legacyMediaMigrationBtn');if(!b)return;const editable=!window.isLocked || !!window.hasTimelineEditToken?.();b.classList.toggle('hidden',!editable);}
- setInterval(syncBtn,700);setTimeout(syncBtn,100);
 })();
 </script>
 
