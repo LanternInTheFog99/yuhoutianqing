@@ -9872,24 +9872,27 @@ viewer.style.visibility='';
             if(counter)counter.innerText=total>1?`${window.currentLightboxIndex+1} / ${total}`:'';
             if(prevBtn&&nextBtn){prevBtn.style.display=total>1?'flex':'none';nextBtn.style.display=total>1?'flex':'none';}
 
-            // v112 mobile: large GIFs can stop repainting when one <img> node is reused while
-            // navigating left/right. Recreate the image node on touch devices so returning to a
-            // GIF always starts a fresh decode/render cycle instead of showing a blank stale node.
+            // v113 mobile: do not replace the <img> node. Some mobile browsers render a newly
+            // inserted large GIF as a black surface. Reuse the proven working node, but fully
+            // detach/re-attach its source when navigating so a GIF that was switched away from
+            // gets a fresh decode cycle.
             if(window.isPhoneLikeDevice?.()){
-                const fresh=lightboxImg.cloneNode(false);
-                fresh.removeAttribute('src');
-                fresh.style.opacity='0';
-                fresh.style.visibility='hidden';
-                lightboxImg.replaceWith(fresh);
-                lightboxImg=fresh;
-                // Preserve deep-description double-click behavior after replacing the node.
-                lightboxImg.addEventListener('dblclick',e=>{ e.stopPropagation(); const box=document.getElementById('lightboxModal'); const idx=Number(box?.dataset.deepIndex||0); const mid=box?.dataset.multiDeepEventId; if(mid){window.multiDeepWarningOpen(mid,Number(box.dataset.multiDeepSegment||0),box.dataset.multiDeepType||'image',idx);return;} const id=box?.dataset.deepEventId; const type=box?.dataset.deepType; if(id&&type) window.deepWarningOpen(type,idx,id); });
-                requestAnimationFrame(()=>{
-                    lightboxImg.onload=()=>{lightboxImg.style.opacity='1';lightboxImg.style.visibility='visible';};
-                    lightboxImg.onerror=()=>{lightboxImg.style.opacity='1';lightboxImg.style.visibility='visible';};
+                window._mobileLightboxLoadToken=(Number(window._mobileLightboxLoadToken)||0)+1; const token=window._mobileLightboxLoadToken;
+                lightboxImg.onload=()=>{if(token!==window._mobileLightboxLoadToken)return;lightboxImg.style.opacity='1';lightboxImg.style.visibility='visible';};
+                lightboxImg.onerror=()=>{if(token!==window._mobileLightboxLoadToken)return;lightboxImg.style.opacity='1';lightboxImg.style.visibility='visible';};
+                lightboxImg.style.opacity='0';
+                lightboxImg.style.visibility='hidden';
+                lightboxImg.removeAttribute('src');
+                // Force the old decoded surface to detach before assigning the next source.
+                void lightboxImg.offsetWidth;
+                requestAnimationFrame(()=>requestAnimationFrame(()=>{
+                    if(token!==window._mobileLightboxLoadToken)return;
                     lightboxImg.src=currentSrc;
-                    if(lightboxImg.complete){lightboxImg.style.opacity='1';lightboxImg.style.visibility='visible';}
-                });
+                    // Cached normal images may already be complete; GIFs will reveal on load.
+                    if(lightboxImg.complete && lightboxImg.naturalWidth){
+                        lightboxImg.style.opacity='1';lightboxImg.style.visibility='visible';
+                    }
+                }));
             }else{
                 lightboxImg.src=currentSrc;
                 lightboxImg.style.opacity='1';
@@ -10662,26 +10665,30 @@ viewer.style.visibility='';
                 await window.waitForVideoCropFrame(player);
                 if(!player.videoWidth || !player.videoHeight) throw new Error('video_frame_not_ready');
 
+                // v113: several mobile/WebView engines can display a Blob-backed video but return
+                // null from canvas.toBlob() while paused. Briefly ask the decoder to present the
+                // selected frame, pause again, then use the same toDataURL path that already worked
+                // for freshly-uploaded local videos. Keep the canvas modest to avoid memory spikes.
+                const wasPaused=player.paused;
+                try{
+                    player.muted=true;
+                    const pp=player.play();
+                    if(pp&&typeof pp.catch==='function')await pp.catch(()=>{});
+                    await new Promise(r=>setTimeout(r,90));
+                    player.pause();
+                    await window.waitForVideoCropFrame(player);
+                }catch(_){}
                 const canvas = document.createElement('canvas');
-                const maxSide=window.isPhoneLikeDevice?.()?1280:1920;
+                const maxSide=window.isPhoneLikeDevice?.()?960:1600;
                 const scale=Math.min(1,maxSide/Math.max(player.videoWidth,player.videoHeight));
                 canvas.width=Math.max(1,Math.round(player.videoWidth*scale));
                 canvas.height=Math.max(1,Math.round(player.videoHeight*scale));
-                const ctx = canvas.getContext('2d',{alpha:false});
+                const ctx = canvas.getContext('2d',{alpha:false,willReadFrequently:false});
                 if(!ctx) throw new Error('canvas_context_failed');
                 ctx.drawImage(player, 0, 0, canvas.width, canvas.height);
-
-                // toBlob avoids the large synchronous allocation of canvas.toDataURL on mobile.
-                const frameBlob=await new Promise((resolve,reject)=>{
-                    try{canvas.toBlob(b=>b?resolve(b):reject(new Error('canvas_blob_failed')),'image/jpeg',0.88);}catch(e){reject(e);}
-                });
-                const frameDataUrl=await new Promise((resolve,reject)=>{
-                    const fr=new FileReader();
-                    fr.onload=()=>resolve(String(fr.result||''));
-                    fr.onerror=()=>reject(fr.error||new Error('frame_read_failed'));
-                    fr.readAsDataURL(frameBlob);
-                });
-                if(!frameDataUrl.startsWith('data:image/')) throw new Error('frame_encode_failed');
+                let frameDataUrl='';
+                try{ frameDataUrl=canvas.toDataURL('image/jpeg',0.84); }catch(e){ throw new Error('canvas_export_failed:'+String(e?.message||e)); }
+                if(!frameDataUrl || !frameDataUrl.startsWith('data:image/') || frameDataUrl.length<100) throw new Error('frame_encode_failed');
                 const target = window.editingVideos[activeVideoCropIndex];
                 if (!target) return;
                 target.cover = frameDataUrl;
