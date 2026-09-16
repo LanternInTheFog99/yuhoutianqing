@@ -1766,7 +1766,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             <div id="helpChangelogPanel" class="hidden overflow-y-auto p-5 text-xs text-slate-600 leading-relaxed">
                 <div id="helpBrowseChangelog">
                 <div class="border border-green-300 rounded-xl p-4 bg-green-50"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.16</span><span class="px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-semibold">本次更新</span></div>
-                    <div class="space-y-2 leading-7 mb-3"><p>优化了手机端事件详情页内的视频播放与显示功能</p><p>优化了手机端事件详情页内的媒体布局</p><p>优化了手机端同期事件集合的加载性能</p><p>优化了手机端事件详情页退出时的显示效果</p><p>增加了媒体加载状态提示</p><p>优化了手机端媒体加载速度</p><p>增加了小晴儿摸头互动功能</p></div>
+                    <div class="space-y-2 leading-7 mb-3"><p>优化了手机端事件详情页内的视频播放与显示功能</p><p>优化了事件详情页内的视频互斥播放功能</p><p>优化了手机端事件详情页内的媒体布局</p><p>优化了手机端同期事件集合的按需加载性能</p><p>优化了手机端事件详情页退出时的显示效果</p><p>增加并优化了媒体加载状态提示</p><p>优化了手机端媒体加载速度</p><p>增加了小晴儿摸头互动功能</p></div>
                     <div class="border-t border-green-200 pt-3">
                     <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.15</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
                     <div class="space-y-2 leading-7 mb-3"><p>移除了仅离线模式</p><p>优化了移动端显示效果</p><p>增加了评论区内的点赞与排序功能</p><p>增加了互动通知功能</p><p>增加了网页图标</p></div>
@@ -1813,7 +1813,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 </div>
             </div><div id="helpEditChangelog" class="hidden">
                 <div class="border border-green-300 rounded-xl p-4 bg-green-50"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.16</span><span class="px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-semibold">本次更新</span></div>
-                    <div class="space-y-2 leading-7 mb-3"><p>优化了手机端事件详情页内的视频播放与显示功能</p><p>优化了手机端事件详情页内的媒体布局</p><p>优化了手机端同期事件集合的加载性能</p><p>优化了手机端事件详情页退出时的显示效果</p><p>增加了媒体加载状态提示</p><p>优化了手机端媒体加载速度</p><p>增加了编辑密码错误冷却功能</p><p>优化了事件删除反馈与时间线刷新</p><p>增加了小晴儿摸头互动功能</p></div>
+                    <div class="space-y-2 leading-7 mb-3"><p>优化了手机端事件详情页内的视频播放与显示功能</p><p>优化了事件详情页内的视频互斥播放功能</p><p>优化了手机端事件详情页内的媒体布局</p><p>优化了手机端同期事件集合的按需加载性能</p><p>优化了手机端事件详情页退出时的显示效果</p><p>增加并优化了媒体加载状态提示</p><p>优化了手机端媒体加载速度</p><p>增加了编辑密码错误冷却功能</p><p>优化了事件删除反馈与时间线刷新</p><p>增加了小晴儿摸头互动功能</p></div>
                     <div class="border-t border-green-200 pt-3">
                     <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.15</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
                     <div class="space-y-2 leading-7 mb-3"><p>移除了仅离线模式</p><p>优化了移动端显示效果</p><p>增加了评论区内的点赞与排序功能</p><p>增加了互动通知功能</p><p>增加了网页图标</p></div>
@@ -2037,29 +2037,32 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 <audio id="globalBgmAudio" style="display: none;"></audio>
 
     <script type="module">
+        window.mobileFastMediaUrl=function(url){
+            const src=String(url||'');
+            if(!window.isPhoneLikeDevice?.())return src;
+            const m=src.match(/^https:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/([^/]+)\/(.+)$/i);
+            return m?`https://raw.githubusercontent.com/${m[1]}/${m[2]}/${m[3]}/${m[4]}`:src;
+        };
+
         window.bindDelayedMediaLoadingHint=function(root){
             if(!root)return;
             root.querySelectorAll('img').forEach(img=>{
-                if(img.dataset.delayedLoadingBound==='1'||img.complete||img.naturalWidth>0)return;
+                if(img.dataset.delayedLoadingBound==='1'||img.complete)return;
                 img.dataset.delayedLoadingBound='1';
-                const host=img.closest('[data-detail-image-card],.deep-canvas-media,.deep-read-media,.deep-media-item')||img.parentElement;
+                const host=img.closest('[data-detail-image-card],.deep-canvas-media,.deep-read-media,.deep-media-item,.deep-video-cover-layer')||img.parentElement;
                 if(!host)return;
                 if(getComputedStyle(host).position==='static')host.style.position='relative';
                 let hint=null,finished=false;
                 const done=()=>{
-                    if(finished)return;
-                    finished=true;clearTimeout(timer);clearInterval(visualCheck);hint?.remove();
+                    if(finished)return;finished=true;clearTimeout(timer);hint?.remove();
                 };
-                const visualReady=()=>img.naturalWidth>0&&img.naturalHeight>0;
                 const timer=setTimeout(()=>{
-                    if(img.complete||visualReady())return done();
+                    if(img.complete)return done();
                     hint=document.createElement('div');hint.className='delayed-media-loading-hint';
                     hint.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i><span>加载中…</span>';host.appendChild(hint);
-                },900);
-                const visualCheck=setInterval(()=>{if(visualReady())done();},100);
+                },700);
                 img.addEventListener('load',done,{once:true});
                 img.addEventListener('error',done,{once:true});
-                if(typeof img.decode==='function')img.decode().then(done).catch(()=>{});
             });
         };
         new MutationObserver(muts=>{
@@ -5036,7 +5039,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 });
 
                 nodeContainer.addEventListener('mouseenter', (ev) => {
-                    if (window.isPhoneLikeDevice?.() && performance.now() < (window._suppressTimelinePreviewUntil || 0)) return;
+                    if (window.isPhoneLikeDevice?.()) return;
                     if (rearrangeState.active && rearrangeState.anchorNode !== nodeContainer) {
                         window.exitRearrange();
                         return;
@@ -5057,6 +5060,31 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         window.showRelatedConnectionPreviews(items.map(e => e.id), nodeContainer);
                     }
                 });
+
+                if(window.isPhoneLikeDevice?.()){
+                    let phonePreviewTimer=null,phonePreviewActive=false,phonePreviewStart=null;
+                    const cancelPhonePreview=()=>{
+                        if(phonePreviewTimer){clearTimeout(phonePreviewTimer);phonePreviewTimer=null;}
+                        if(phonePreviewActive){phonePreviewActive=false;window.stopPreviewSlideshow(nodeContainer,true);}
+                        phonePreviewStart=null;
+                    };
+                    nodeContainer.addEventListener('pointerdown',e=>{
+                        if(e.pointerType==='mouse'||!e.isPrimary)return;
+                        phonePreviewStart={id:e.pointerId,x:e.clientX,y:e.clientY};
+                        phonePreviewTimer=setTimeout(()=>{
+                            phonePreviewTimer=null;
+                            if(!phonePreviewStart)return;
+                            phonePreviewActive=true;
+                            window.startPreviewSlideshow(nodeContainer);
+                        },360);
+                    },{passive:true});
+                    nodeContainer.addEventListener('pointermove',e=>{
+                        const s=phonePreviewStart;if(!s||s.id!==e.pointerId)return;
+                        if(Math.hypot(e.clientX-s.x,e.clientY-s.y)>10)cancelPhonePreview();
+                    },{passive:true});
+                    nodeContainer.addEventListener('pointerup',cancelPhonePreview,{passive:true});
+                    nodeContainer.addEventListener('pointercancel',cancelPhonePreview,{passive:true});
+                }
 
                 nodeContainer.addEventListener('mouseleave', () => {
                     items.forEach(e => window.highlightConnectionsForEvent(e.id, false));
@@ -5172,8 +5200,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
                     <div id="stackCardsWrapper" class="relative w-full flex-grow flex items-center justify-center overflow-hidden my-auto" style="height: 420px; perspective: 800px;">
                         ${items.map((event, idx) => {
-                            const fullSlideMedia = window.getEventPreviewMedia(event, false);
-                            const slideMedia = (!phoneStackLazy || idx===initialStackFocus) ? fullSlideMedia : fullSlideMedia.slice(0,1);
+                            const slideMedia = (phoneStackLazy && idx!==initialStackFocus) ? [] : window.getEventPreviewMedia(event, false);
                             const slideSrcs = slideMedia.map(m => m.cover || m.src).filter(Boolean);
                             const firstImgSrc = slideSrcs[0] || null;
                             const slideJson = JSON.stringify(slideMedia).replace(/"/g, '&quot;');
@@ -8077,7 +8104,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             host.querySelector('.deep-video-cover-play')?.remove();
             host.querySelector('.deep-video-cover-edit')?.remove();
             const video=document.createElement('video');
-            video.src=item.src;video.playsInline=true;video.setAttribute('playsinline','');video.preload='metadata';
+            video.src=window.mobileFastMediaUrl(item.src);video.playsInline=true;video.setAttribute('playsinline','');video.preload='metadata';
             host.insertBefore(video,host.firstChild);
             const c=item.crop||{scale:1,offsetX:0,offsetY:0,stretchX:1,stretchY:1};
             const apply=()=>{const scale=Math.max(.01,Number(c.scale)||1),sx=Math.max(.85,Math.min(1.15,Number(c.stretchX)||1)),sy=Math.max(.85,Math.min(1.15,Number(c.stretchY)||1));video.style.width='auto';video.style.height='auto';video.style.left='50%';video.style.top='50%';video.style.transform=`translate(-50%,-50%) translate(${Number(c.offsetX)||0}px,${Number(c.offsetY)||0}px) scale(${scale}) scale(${sx},${sy})`;};
@@ -8089,7 +8116,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.deepRenderVideoCover=function(host,item,readOnly=false){
             if(!host||!item)return;
             const cover=document.createElement('div');cover.className='deep-video-cover-layer';
-            if(item.cover)cover.innerHTML=`<img src="${window.deepEsc(item.cover)}" alt="视频封面">`;
+            if(item.cover)cover.innerHTML=`<img src="${window.deepEsc(window.mobileFastMediaUrl(item.cover))}" alt="视频封面">`;
             else cover.innerHTML=`<div class="deep-video-cover-placeholder"><span><i class="fa-solid fa-video mr-1"></i>视频</span></div>`;
             host.appendChild(cover);
             const play=document.createElement('button');play.type='button';play.className='deep-video-cover-play';play.innerHTML='<i class="fa-solid fa-play"></i>';play.title='播放视频';
@@ -8133,7 +8160,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             host.addEventListener('mouseleave',hideControls);
             host.addEventListener('focusin',showControls);
             host.addEventListener('focusout',hideControls);
-            video.addEventListener('play',()=>{sync();});
+            video.addEventListener('play',()=>{document.querySelectorAll('#deepReadCanvasModal video,#deepReadMediaLightbox video').forEach(v=>{if(v!==video)try{v.pause();}catch(_){}});sync();});
             video.addEventListener('pause',()=>{sync();});
             video.addEventListener('ended',()=>{sync();});
             ['loadedmetadata','durationchange','timeupdate'].forEach(type=>video.addEventListener(type,sync));
@@ -8916,8 +8943,14 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
             const phoneDeep=!!window.isPhoneLikeDevice?.();
             let deepImageObserver=null;
-            if(phoneDeep&&'IntersectionObserver' in window){deepImageObserver=new IntersectionObserver(entries=>{entries.forEach(entry=>{if(!entry.isIntersecting)return;const img=entry.target,src=img.dataset.deepLazySrc;if(src&&!img.getAttribute('src')){img.src=src;delete img.dataset.deepLazySrc;}deepImageObserver.unobserve(img);});},{root:viewport,rootMargin:'500px 350px',threshold:.01});}
-            const bindDeepReadImage=(img,src)=>{if(!img)return;img.loading='lazy';img.decoding='async';if(phoneDeep&&deepImageObserver){img.removeAttribute('src');img.dataset.deepLazySrc=src;deepImageObserver.observe(img);}else img.src=src;};
+            if(phoneDeep&&'IntersectionObserver' in window){deepImageObserver=new IntersectionObserver(entries=>{entries.forEach(entry=>{if(!entry.isIntersecting)return;const img=entry.target,src=img.dataset.deepLazySrc;if(src&&!img.getAttribute('src')){img.src=src;delete img.dataset.deepLazySrc;}deepImageObserver.unobserve(img);});},{root:viewport,rootMargin:'900px 600px',threshold:.01});}
+            const bindDeepReadImage=(img,src)=>{
+                if(!img)return;
+                src=window.mobileFastMediaUrl(src);
+                img.loading=phoneDeep?'eager':'lazy';img.decoding='async';
+                if(phoneDeep&&deepImageObserver){img.removeAttribute('src');img.dataset.deepLazySrc=src;deepImageObserver.observe(img);}else img.src=src;
+                window.bindDelayedMediaLoadingHint?.(img.parentElement||img);
+            };
 
             const resetReadInlineVideos=(exceptHost=null)=>{
                 st.querySelectorAll('.deep-canvas-media').forEach(host=>{
@@ -8943,7 +8976,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     document.body.appendChild(lm);
                 }
                 const isVideo=item.mediaKind==='video';
-                lm.innerHTML=`<button type="button" class="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-slate-800/90 text-white" onclick="deepCloseReadMediaLightbox()"><i class="fa-solid fa-xmark"></i></button><div class="w-full h-full flex items-center justify-center" onclick="if(event.target===this) deepCloseReadMediaLightbox()">${isVideo?`<video src="${window.deepEsc(item.src)}" controls playsinline autoplay class="max-w-full max-h-[92vh] bg-black rounded-xl"></video>`:`<img src="${window.deepEsc(item.src)}" alt="大图查看" class="max-w-full max-h-[92vh] object-contain rounded-xl">`}</div>`;
+                const largeSrc=window.mobileFastMediaUrl(item.src);
+                lm.innerHTML=`<button type="button" class="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-slate-800/90 text-white" onclick="deepCloseReadMediaLightbox()"><i class="fa-solid fa-xmark"></i></button><div class="w-full h-full flex items-center justify-center" onclick="if(event.target===this) deepCloseReadMediaLightbox()">${isVideo?`<video src="${window.deepEsc(largeSrc)}" controls playsinline autoplay class="max-w-full max-h-[92vh] bg-black rounded-xl"></video>`:`<img src="${window.deepEsc(largeSrc)}" alt="大图查看" class="max-w-full max-h-[92vh] object-contain rounded-xl">`}</div>`;
                 lm.classList.remove('hidden');
                 if(isVideo){
                     const largeVideo=lm.querySelector('video');
@@ -9334,10 +9368,20 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
         window.openMobileVideoPage=function(src,title){
             if(!src)return;
-            let absoluteSrc='';try{absoluteSrc=new URL(String(src),document.baseURI).href;}catch(_){absoluteSrc=String(src);}
-            const esc=s=>String(s||'').replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
-            const page=`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>${esc(title||'视频')}</title><style>html,body{margin:0;width:100%;height:100%;background:#000;color:#fff;font-family:system-ui}body{display:flex;align-items:center;justify-content:center}.wrap{width:100%;position:relative}.wait{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#000;color:#cbd5e1;font-size:14px}.ready .wait{display:none}video{display:block;width:100%;max-height:100vh;object-fit:contain;background:#000}</style></head><body><div class="wrap"><video playsinline webkit-playsinline preload="auto"><source src="${esc(absoluteSrc)}"></video><div class="wait">正在加载画面…</div></div><script>const w=document.querySelector('.wrap'),v=document.querySelector('video');v.controls=false;v.addEventListener('canplay',()=>{w.classList.add('ready');v.controls=true},{once:true});v.addEventListener('error',()=>{document.querySelector('.wait').textContent='视频加载失败'},{once:true});<\/script></body></html>`;
-            const u=URL.createObjectURL(new Blob([page],{type:'text/html'}));const a=document.createElement('a');a.href=u;a.target='_blank';a.rel='noopener';a.style.display='none';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000);
+            let absoluteSrc='';try{absoluteSrc=new URL(window.mobileFastMediaUrl(src),document.baseURI).href;}catch(_){absoluteSrc=window.mobileFastMediaUrl(src);}
+            const page=window.open('about:blank','_blank');
+            if(!page){
+                const a=document.createElement('a');a.href=absoluteSrc;a.target='_blank';a.rel='noopener';a.style.display='none';
+                document.body.appendChild(a);a.click();a.remove();return;
+            }
+            try{
+                page.opener=null;
+                const safeTitle=String(title||'视频').replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
+                const safeSrc=String(absoluteSrc).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+                page.document.open();
+                page.document.write(`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>${safeTitle}</title><style>html,body{margin:0;width:100%;height:100%;background:#000;color:#fff;font-family:system-ui}body{display:flex;align-items:center;justify-content:center}.wrap{width:100%;position:relative}.wait{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#000;color:#cbd5e1;font-size:14px;z-index:2}.ready .wait{display:none}video{display:block;width:100%;max-height:100vh;object-fit:contain;background:#000}</style></head><body><div class="wrap"><video playsinline webkit-playsinline preload="auto"><source src="${safeSrc}"></video><div class="wait">正在加载画面…</div></div><script>const w=document.querySelector('.wrap'),v=document.querySelector('video');v.controls=false;v.autoplay=false;v.addEventListener('canplay',()=>{w.classList.add('ready');v.controls=true},{once:true});v.addEventListener('error',()=>{document.querySelector('.wait').textContent='视频加载失败'},{once:true});<\/script></body></html>`);
+                page.document.close();
+            }catch(_){try{page.location.href=absoluteSrc;}catch(__){}}
         };
 
         window.prepareMobileDetailVideo=function(video){
@@ -9345,7 +9389,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if(video.dataset.mobileExternalVideo==='1')return true;
             const stage=video.closest('[data-detail-video-stage]')||video.parentElement;
             if(!stage)return false;
-            const src=video.currentSrc||video.getAttribute('src')||video.querySelector('source')?.getAttribute('src')||'';
+            const src=window.mobileFastMediaUrl(video.currentSrc||video.getAttribute('src')||video.querySelector('source')?.getAttribute('src')||'');
             if(!src)return false;
 
             video.dataset.mobileExternalVideo='1';
@@ -9418,6 +9462,7 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
                 card?.addEventListener('mouseenter',show);
                 card?.addEventListener('mouseleave',hide);
                 video.addEventListener('loadedmetadata',()=>{if(window.isPhoneLikeDevice?.()&&video.videoWidth>0&&video.videoHeight>0){video.style.aspectRatio=`${video.videoWidth} / ${video.videoHeight}`;const stage=video.closest('[data-detail-video-stage]');if(stage){stage.style.aspectRatio=`${video.videoWidth} / ${video.videoHeight}`;stage.style.height='auto';}}layout();});
+                if(!phone)video.addEventListener('play',()=>window.resetAllDetailVideos(video));
                 video.addEventListener('resize',layout);
                 let clickTimer=null;
                 const inNativeControls=e=>{const r=video.getBoundingClientRect();return r.height>0&&(r.bottom-e.clientY)<=54;};
@@ -9596,8 +9641,8 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
             }
             const detailHasImages=Array.isArray(event.images)&&event.images.length>0,detailHasVideos=Array.isArray(event.videos)&&event.videos.length>0,detailDescriptionText=String(event.description||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/gi,' ').trim(),detailHasDescription=!!detailDescriptionText;
             let viewer=document.getElementById('fullscreenViewer');if(!viewer){viewer=document.createElement('div');viewer.id='fullscreenViewer';viewer.className='fixed inset-0 bg-slate-950/90 text-white z-50 overflow-y-auto backdrop-blur-md p-3 sm:p-8 flex flex-col items-center';viewer.addEventListener('click',e=>{if(e.target===viewer)window.closeReadOnlyFullscreen(viewer.dataset.fromStackDate||'');});document.body.appendChild(viewer);}viewer.dataset.fromStackDate=fromStackDate||'';
-            let imagesHtml='';if(detailHasImages){const fullSrcList=event.images.map(imgObj=>typeof imgObj==='string'?imgObj:(imgObj.originalFull||imgObj.original||imgObj.outer||imgObj.inner||imgObj.collection||''));imagesHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">事件配图</h4><div data-detail-images>${event.images.map((imgObj,idx)=>{const thumbSrc=typeof imgObj==='string'?imgObj:(imgObj.inner||imgObj.original||imgObj.originalFull||imgObj.outer||imgObj.collection);const listStr=JSON.stringify(fullSrcList).replace(/"/g,'&quot;');const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(imgObj?.deepDescription);return `<div data-detail-image-card onpointerdown="if(window.isPhoneLikeDevice?.()){mobileDetailTapStart(event,this)}else if(event.isPrimary&&event.button===0){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openLightbox(${listStr},${idx},'${event.id}','image'))}" onpointermove="if(window.isPhoneLikeDevice?.())mobileDetailTapMove(event,this)" onpointerup="if(window.isPhoneLikeDevice?.()&&mobileDetailTapEnd(event,this)){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openLightbox(${listStr},${idx},'${event.id}','image'))}" onclick="if(window.isPhoneLikeDevice?.()){event.preventDefault();event.stopPropagation()}" class="group relative bg-transparent rounded-xl overflow-hidden border border-slate-800 cursor-pointer shadow-md hover:border-indigo-500 transition-colors"><img data-detail-image loading="lazy" decoding="async" src="${thumbSrc}" class="block group-hover:scale-[1.02] transition-all duration-300">${hasDeep?'<span class="absolute right-1.5 bottom-1.5 z-10 text-[13px] sm:text-sm opacity-0 group-hover:opacity-45 transition-opacity pointer-events-none select-none drop-shadow" aria-hidden="true">🐢✌🏻</span>':''}</div>`;}).join('')}</div></div>`;}
-            let videosHtml='';if(detailHasVideos){videosHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-video mr-1"></i>事件视频</h4><div data-detail-videos>${event.videos.map((v,vidx)=>{const vUrl=typeof v==='object'?(v.blobUrl||v.url):v,vCover=typeof v==='object'?(v.cover||''):'',vTitle=typeof v==='object'?(v.title||v.name||''):'',vType=typeof v==='object'&&v.mime?`type="${v.mime}"`:'';const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(v?.deepDescription);return `<div data-detail-video-card data-detail-video-index="${vidx}" data-detail-video-deep="${hasDeep?'1':'0'}" class="bg-black rounded-xl overflow-hidden border border-slate-800 ${hasDeep?'cursor-pointer':''}">${vTitle?`<div data-detail-video-title class="px-3 py-2 bg-slate-900 text-xs font-semibold text-slate-200 border-b border-slate-800">${escapeHtml(vTitle)}</div>`:''}<div data-detail-video-stage class="relative bg-black overflow-hidden"><video ${vCover?`poster="${vCover}"`:''} playsinline webkit-playsinline preload="none" class="block bg-black object-contain"><source src="${vUrl}" ${vType}></video>${hasDeep?'<span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">🐢</span><span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">✌🏻</span>':''}</div></div>`;}).join('')}</div></div>`;}
+            let imagesHtml='';if(detailHasImages){const fullSrcList=event.images.map(imgObj=>window.mobileFastMediaUrl(typeof imgObj==='string'?imgObj:(imgObj.originalFull||imgObj.original||imgObj.outer||imgObj.inner||imgObj.collection||'')));imagesHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">事件配图</h4><div data-detail-images>${event.images.map((imgObj,idx)=>{const thumbSrc=window.mobileFastMediaUrl(typeof imgObj==='string'?imgObj:(imgObj.inner||imgObj.original||imgObj.originalFull||imgObj.outer||imgObj.collection));const listStr=JSON.stringify(fullSrcList).replace(/"/g,'&quot;');const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(imgObj?.deepDescription);return `<div data-detail-image-card onpointerdown="if(window.isPhoneLikeDevice?.()){mobileDetailTapStart(event,this)}else if(event.isPrimary&&event.button===0){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openLightbox(${listStr},${idx},'${event.id}','image'))}" onpointermove="if(window.isPhoneLikeDevice?.())mobileDetailTapMove(event,this)" onpointerup="if(window.isPhoneLikeDevice?.()&&mobileDetailTapEnd(event,this)){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openLightbox(${listStr},${idx},'${event.id}','image'))}" onclick="if(window.isPhoneLikeDevice?.()){event.preventDefault();event.stopPropagation()}" class="group relative bg-transparent rounded-xl overflow-hidden border border-slate-800 cursor-pointer shadow-md hover:border-indigo-500 transition-colors"><img data-detail-image loading="lazy" decoding="async" src="${thumbSrc}" class="block group-hover:scale-[1.02] transition-all duration-300">${hasDeep?'<span class="absolute right-1.5 bottom-1.5 z-10 text-[13px] sm:text-sm opacity-0 group-hover:opacity-45 transition-opacity pointer-events-none select-none drop-shadow" aria-hidden="true">🐢✌🏻</span>':''}</div>`;}).join('')}</div></div>`;}
+            let videosHtml='';if(detailHasVideos){videosHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-video mr-1"></i>事件视频</h4><div data-detail-videos>${event.videos.map((v,vidx)=>{const vUrl=window.mobileFastMediaUrl(typeof v==='object'?(v.blobUrl||v.url):v),vCover=window.mobileFastMediaUrl(typeof v==='object'?(v.cover||''):''),vTitle=typeof v==='object'?(v.title||v.name||''):'',vType=typeof v==='object'&&v.mime?`type="${v.mime}"`:'';const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(v?.deepDescription);return `<div data-detail-video-card data-detail-video-index="${vidx}" data-detail-video-deep="${hasDeep?'1':'0'}" class="bg-black rounded-xl overflow-hidden border border-slate-800 ${hasDeep?'cursor-pointer':''}">${vTitle?`<div data-detail-video-title class="px-3 py-2 bg-slate-900 text-xs font-semibold text-slate-200 border-b border-slate-800">${escapeHtml(vTitle)}</div>`:''}<div data-detail-video-stage class="relative bg-black overflow-hidden"><video ${vCover?`poster="${vCover}"`:''} playsinline webkit-playsinline preload="none" class="block bg-black object-contain"><source src="${vUrl}" ${vType}></video>${hasDeep?'<span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">🐢</span><span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">✌🏻</span>':''}</div></div>`;}).join('')}</div></div>`;}
             let linksHtml='';if(event.links&&event.links.length>0){linksHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-link mr-1"></i>跳转网址</h4><div class="flex flex-wrap gap-2">${event.links.map(l=>`<a href="${l.url}" target="_blank" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-indigo-300 hover:text-indigo-200 px-3 py-2 rounded-xl text-xs transition-colors"><i class="fa-solid fa-globe"></i><span class="font-medium">${l.title||l.url}</span></a>`).join('')}</div></div>`;}
             const descriptionHtml=detailHasDescription?`<div data-detail-description class="border-t border-slate-800 pt-6 mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">事件经过与描述</h4><div class="event-description-html text-sm sm:text-base leading-relaxed whitespace-pre-wrap">${window.prepareDescriptionForView?window.prepareDescriptionForView(event.description):event.description}</div></div>`:'';
             viewer.innerHTML=`<div data-detail-shell class="${event.type==='major'?'detail-has-major ':''}${/(?:\d{4}[./-]\d{1,2}(?:[./-]\d{1,2})?|\d{1,2}[./-]\d{1,2})\s*(?:–|—|~|～|至|\s+-\s+)\s*(?:\d{4}[./-]\d{1,2}(?:[./-]\d{1,2})?|\d{1,2}[./-]\d{1,2})/.test(String(event.date||''))?'detail-has-range ':''}max-w-3xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-10 shadow-2xl relative"><div class="detail-window-dragbar" data-detail-drag-handle><i class="fa-solid fa-grip-lines"></i><span>点击此处拖动详情页</span></div><button type="button" onclick="window.openEventCommentWindow('${event.id}')" class="detail-window-comments-btn"><i class="fa-regular fa-comments"></i><span>评论区</span></button><button onclick="closeReadOnlyFullscreen('${fromStackDate?fromStackDate.replace(/'/g,"\\'"):''}')" class="absolute top-3 right-4 sm:top-4 sm:right-6 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full flex items-center justify-center transition-colors"><i class="fa-solid fa-xmark text-lg"></i></button><div class="flex items-center gap-3 mb-2"><span class="text-xs font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full font-semibold">${window.formatDisplayDate(event.date)}</span>${event.type==='major'?'<span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full">重大里程碑</span>':''}</div><h1 class="text-xl sm:text-2xl font-bold text-white mb-3 tracking-wide">${event.title}</h1><div data-detail-body>${imagesHtml}${videosHtml}${linksHtml}${descriptionHtml}</div></div>`;
