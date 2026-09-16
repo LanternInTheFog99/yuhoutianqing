@@ -9919,8 +9919,33 @@ viewer.style.visibility='';
         // after left/right navigation" issue without cache-busting or mobile-only workarounds.
         window._resetLightboxImageNodeCache = function(){
             const old=window._lightboxImageNodeCache;
-            if(old instanceof Map){ old.forEach(n=>{try{n.remove();}catch(_){}}); }
+            const current=document.getElementById('lightboxImg');
+            // v129: the cached image can itself be the only #lightboxImg node in the modal.
+            // Removing the cache on close/open used to remove that anchor too, so the next direct
+            // GIF open had no image node for updateLightboxDisplay() to replace and only the counter
+            // remained. Recreate a neutral anchor before disposing cached nodes.
+            if(current && old instanceof Map && Array.from(old.values()).includes(current)){
+                const fresh=document.createElement('img');
+                fresh.id='lightboxImg';
+                fresh.className=current.className||'max-w-full max-h-[82vh] object-contain rounded-lg shadow-2xl';
+                fresh.style.cssText=current.style.cssText||'opacity:0;';
+                const parent=current.parentNode;
+                if(parent) parent.insertBefore(fresh,current);
+            }
+            if(old instanceof Map){ old.forEach(n=>{try{n.removeAttribute('id');n.remove();}catch(_){}}); }
             window._lightboxImageNodeCache=new Map();
+            // Last-resort repair for any older state that already lost the anchor node.
+            if(!document.getElementById('lightboxImg')){
+                const counter=document.getElementById('lightboxCounter');
+                const parent=counter?.parentNode;
+                if(parent){
+                    const fresh=document.createElement('img');
+                    fresh.id='lightboxImg';
+                    fresh.className='max-w-full max-h-[82vh] object-contain rounded-lg shadow-2xl';
+                    fresh.style.opacity='0';
+                    parent.insertBefore(fresh,counter);
+                }
+            }
         };
         function updateLightboxDisplay() {
             let placeholder=document.getElementById('lightboxImg'),counter=document.getElementById('lightboxCounter'),prevBtn=document.getElementById('lightboxPrevBtn'),nextBtn=document.getElementById('lightboxNextBtn'),lb=document.getElementById('lightboxModal');if(!placeholder||!lb)return;
