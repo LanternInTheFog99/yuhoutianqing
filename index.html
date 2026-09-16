@@ -1214,6 +1214,19 @@
             #fullscreenViewer [data-detail-image-card]{max-width:calc(50% - 6px) !important}
             #fullscreenViewer [data-detail-video-card]{max-width:100% !important}
         }
+
+        @media(max-width:639px){
+            /* 真机 tap 会产生 sticky :hover；手机端不再让 CSS hover 直接显示预览。 */
+            .timeline-node-container .timeline-hover-tooltip{
+                opacity:0 !important;
+                visibility:hidden !important;
+                pointer-events:none !important;
+            }
+            .timeline-node-container.phone-preview-active .timeline-hover-tooltip{
+                opacity:1 !important;
+                visibility:visible !important;
+            }
+        }
 </style>
 
 <style id="invalidRoomAccessStyle">
@@ -2037,11 +2050,46 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 <audio id="globalBgmAudio" style="display: none;"></audio>
 
     <script type="module">
+        window.ensurePhoneStackCurrentPreview=function(){
+            if(!window.isPhoneLikeDevice?.())return;
+            const modal=document.getElementById('stackManagerModal');
+            if(!modal||modal.classList.contains('hidden'))return;
+            const cards=[...modal.querySelectorAll('[data-event-id][data-stack-media-lazy]')];
+            if(!cards.length)return;
+            const viewport=modal.querySelector('.overflow-x-auto,.overflow-auto')||modal;
+            const vr=viewport.getBoundingClientRect(),cx=(vr.left+vr.right)/2;
+            let best=null,dist=Infinity;
+            cards.forEach(card=>{
+                const r=card.getBoundingClientRect(),d=Math.abs((r.left+r.right)/2-cx);
+                if(d<dist){dist=d;best=card;}
+            });
+            if(!best||best.dataset.stackMediaLazy!=='1')return;
+            const eventId=best.dataset.eventId;
+            const ev=window.findEventById?.(eventId)||window.events.find(e=>String(e.id)===String(eventId));
+            const media=ev?window.getEventPreviewMedia(ev,false):[];
+            const img=best.querySelector('.preview-slide-img');
+            if(img){
+                img._slideMedia=media;
+                img._slideSrcs=media.map(m=>m.cover||m.src).filter(Boolean);
+                const first=media[0];
+                if(first){
+                    img.src=first.type==='video'?(first.cover||first.src||''):(first.src||first.cover||'');
+                    img.style.opacity='1';img.style.visibility='visible';
+                }
+            }
+            best.dataset.stackMediaLazy='0';
+            window.startPreviewSlideshow?.(best,{noCrossfade:true});
+        };
+        document.addEventListener('scroll',e=>{
+            if(!window.isPhoneLikeDevice?.())return;
+            if(e.target?.closest?.('#stackManagerModal')){
+                clearTimeout(window._phoneStackPreviewTimer);
+                window._phoneStackPreviewTimer=setTimeout(()=>window.ensurePhoneStackCurrentPreview?.(),80);
+            }
+        },true);
+
         window.mobileFastMediaUrl=function(url){
-            const src=String(url||'');
-            if(!window.isPhoneLikeDevice?.())return src;
-            const m=src.match(/^https:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/([^/]+)\/(.+)$/i);
-            return m?`https://raw.githubusercontent.com/${m[1]}/${m[2]}/${m[3]}/${m[4]}`:src;
+            return String(url||'');
         };
 
         window.bindDelayedMediaLoadingHint=function(root){
@@ -5065,7 +5113,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     let phonePreviewTimer=null,phonePreviewActive=false,phonePreviewStart=null;
                     const cancelPhonePreview=()=>{
                         if(phonePreviewTimer){clearTimeout(phonePreviewTimer);phonePreviewTimer=null;}
-                        if(phonePreviewActive){phonePreviewActive=false;window.stopPreviewSlideshow(nodeContainer,true);}
+                        if(phonePreviewActive){phonePreviewActive=false;nodeContainer.classList.remove('phone-preview-active');window.stopPreviewSlideshow(nodeContainer,true);}
                         phonePreviewStart=null;
                     };
                     nodeContainer.addEventListener('pointerdown',e=>{
@@ -5075,6 +5123,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                             phonePreviewTimer=null;
                             if(!phonePreviewStart)return;
                             phonePreviewActive=true;
+                            nodeContainer.classList.add('phone-preview-active');
                             window.startPreviewSlideshow(nodeContainer);
                         },360);
                     },{passive:true});
@@ -5363,12 +5412,19 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         const media=ev?window.getEventPreviewMedia(ev,false):[];
                         const img=card.querySelector('.preview-slide-img');
                         if(img){
-                            img._slideMedia=media;img._slideSrcs=media.map(m=>m.cover||m.src).filter(Boolean);
+                            img._slideMedia=media;
+                            img._slideSrcs=media.map(m=>m.cover||m.src).filter(Boolean);
                             const first=media[0];
-                            if(first)img.src=first.type==='video'?(first.cover||first.src||''):(first.src||first.cover||'');
+                            if(first){
+                                const firstSrc=first.type==='video'?(first.cover||first.src||''):(first.src||first.cover||'');
+                                img.src=firstSrc;
+                                img.style.opacity='1';
+                                img.style.visibility='visible';
+                            }
                         }
                         card.dataset.stackMediaLazy='0';
                     }
+                    // 当前滑到的卡片才开始预览；手机切页后立即显示，不依赖进入详情。
                     window.startPreviewSlideshow(card, { noCrossfade: true });
                 } else {
                     window.stopPreviewSlideshow(card, true);
@@ -8943,11 +8999,10 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
             const phoneDeep=!!window.isPhoneLikeDevice?.();
             let deepImageObserver=null;
-            if(phoneDeep&&'IntersectionObserver' in window){deepImageObserver=new IntersectionObserver(entries=>{entries.forEach(entry=>{if(!entry.isIntersecting)return;const img=entry.target,src=img.dataset.deepLazySrc;if(src&&!img.getAttribute('src')){img.src=src;delete img.dataset.deepLazySrc;}deepImageObserver.unobserve(img);});},{root:viewport,rootMargin:'900px 600px',threshold:.01});}
+            if(phoneDeep&&'IntersectionObserver' in window){deepImageObserver=new IntersectionObserver(entries=>{entries.forEach(entry=>{if(!entry.isIntersecting)return;const img=entry.target,src=img.dataset.deepLazySrc;if(src&&!img.getAttribute('src')){img.src=src;delete img.dataset.deepLazySrc;window.bindDelayedMediaLoadingHint?.(img.parentElement||img);}deepImageObserver.unobserve(img);});},{root:viewport,rootMargin:'500px 350px',threshold:.01});}
             const bindDeepReadImage=(img,src)=>{
                 if(!img)return;
-                src=window.mobileFastMediaUrl(src);
-                img.loading=phoneDeep?'eager':'lazy';img.decoding='async';
+                img.loading='lazy';img.decoding='async';
                 if(phoneDeep&&deepImageObserver){img.removeAttribute('src');img.dataset.deepLazySrc=src;deepImageObserver.observe(img);}else img.src=src;
                 window.bindDelayedMediaLoadingHint?.(img.parentElement||img);
             };
@@ -9661,10 +9716,11 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
                 window._suppressTimelinePreviewUntil=performance.now()+520;
                 window.clearRelatedConnectionPreviews?.();
                 document.querySelectorAll('.timeline-node-container').forEach(node=>{
-                    node.classList.remove('force-hover','conn-related-preview');
+                    node.classList.remove('force-hover','conn-related-preview','phone-preview-active');
                     window.stopPreviewSlideshow?.(node,true);
                 });
                 window.destroyMobileDetailVideos?.();
+                try{document.activeElement?.blur?.();}catch(_){}
             }
             if(window._notificationReturnToHelp!==true)document.body.classList.remove('notification-comment-open');
             document.body.classList.remove('mobile-detail-open');
