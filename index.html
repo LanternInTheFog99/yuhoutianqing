@@ -3066,11 +3066,12 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         // can fail on large response bodies. Instead use an authenticated Range-capable media stream
         // from timeline-api. <video> can seek it normally and, because the proxy returns ACAO, canvas
         // remains exportable.
-        window.getCloudMediaCaptureStreamUrl = function(cloudPath){
-            const token=window.getTimelineEditToken?.()||'';
-            if(!token) throw new Error('EDIT_AUTH_REQUIRED');
-            const qs=new URLSearchParams({room:window.currentRoomId||'default',cloudPath:String(cloudPath||''),token});
-            qs.set('mode','stream');
+        // v122: native <video> Range requests cannot carry Authorization headers.
+        // First exchange the editor bearer token for a five-minute ticket bound to one cloudPath.
+        window.getCloudMediaCaptureStreamUrl = async function(cloudPath){
+            const data=await timelineApiPost('createMediaReadTicket',{cloudPath:String(cloudPath||'')},{auth:'edit',timeoutMs:15000});
+            if(!data?.ticket) throw new Error(data?.message||'MEDIA_TICKET_EMPTY');
+            const qs=new URLSearchParams({room:window.currentRoomId||'default',cloudPath:String(cloudPath||''),ticket:String(data.ticket),mode:'stream'});
             return TIMELINE_API_BASE+'/media?'+qs.toString();
         };
         window.getCloudMediaCaptureDiagnoseUrl = function(cloudPath){
@@ -10611,7 +10612,7 @@ viewer.style.visibility='';
             });
         };
 
-        window.openVideoCropModal = function(index) {
+        window.openVideoCropModal = async function(index) {
             activeVideoCropIndex = index;
             const vidObj = window.editingVideos[index];
             if (!vidObj) return;
@@ -10649,7 +10650,7 @@ viewer.style.visibility='';
                 // Ask timeline-api for an authorized temporary URL, fetch it as Blob, then capture from the same-origin blob URL.
                 modal.classList.remove('hidden');
                 try{
-                    const streamUrl=window.getCloudMediaCaptureStreamUrl(vidObj.cloudPath);
+                    const streamUrl=await window.getCloudMediaCaptureStreamUrl(vidObj.cloudPath);
                     player.crossOrigin='anonymous';
                     player._cloudCaptureStreamUrl=streamUrl;
                     attach(streamUrl);
@@ -10719,7 +10720,7 @@ viewer.style.visibility='';
                 // It is CORS-enabled by timeline-api, so a crossOrigin=anonymous decoder is canvas-safe.
                 const targetForSource=window.editingVideos[activeVideoCropIndex];
                 if(targetForSource?.cloudPath){
-                    src=player._cloudCaptureStreamUrl || window.getCloudMediaCaptureStreamUrl(targetForSource.cloudPath);
+                    src=await window.getCloudMediaCaptureStreamUrl(targetForSource.cloudPath);
                 }
                 if(!src) throw new Error('capture_source_missing');
                 capturePlayer = document.createElement('video');
