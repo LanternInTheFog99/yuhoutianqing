@@ -3062,21 +3062,15 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         // Normal playback still uses the HTTP gateway; only canvas/frame capture uses this URL.
         // v117: frame extraction no longer fetches COS/CloudBase URLs in the browser.
         // timeline-api reads the private object server-side and streams it back with our own CORS headers.
-        window.getCloudMediaCaptureBlob = async function(cloudPath){
+        // v118: do not download the whole remote video with fetch. The HTTP cloud function/gateway
+        // can fail on large response bodies. Instead use an authenticated Range-capable media stream
+        // from timeline-api. <video> can seek it normally and, because the proxy returns ACAO, canvas
+        // remains exportable.
+        window.getCloudMediaCaptureStreamUrl = function(cloudPath){
             const token=window.getTimelineEditToken?.()||'';
             if(!token) throw new Error('EDIT_AUTH_REQUIRED');
-            const qs=new URLSearchParams({room:window.currentRoomId||'default',cloudPath:String(cloudPath||'')});
-            const r=await fetch(TIMELINE_API_BASE+'/timeline/media-capture?'+qs.toString(),{
-                method:'GET',cache:'no-store',credentials:'omit',headers:{Authorization:'Bearer '+token}
-            });
-            if(!r.ok){
-                let msg='HTTP '+r.status;
-                try{const j=await r.json();msg=j?.message||j?.error||msg;}catch(_){}
-                throw new Error(msg);
-            }
-            const blob=await r.blob();
-            if(!blob||!blob.size) throw new Error('empty_video_blob');
-            return blob;
+            const qs=new URLSearchParams({room:window.currentRoomId||'default',cloudPath:String(cloudPath||''),token});
+            return TIMELINE_API_BASE+'/timeline/media-stream?'+qs.toString();
         };
         window._cloudUploadNotice = function(text, show=true){
             let el=document.getElementById('cloudMediaUploadNotice');
@@ -9931,13 +9925,19 @@ viewer.style.visibility='';
             const oldIndex=window.currentLightboxIndex;
             const oldSrc=String(window.currentLightboxImages[oldIndex]||'');
             window.currentLightboxIndex = (oldIndex + direction + total) % total;
-            if(/\.gif(?:$|[?#])/i.test(oldSrc) && window._lightboxImageNodeCache instanceof Map){
-                const key=String(oldIndex)+'\n'+oldSrc;
-                const oldNode=window._lightboxImageNodeCache.get(key);
-                window._lightboxImageNodeCache.delete(key);
-                if(oldNode){try{oldNode.removeAttribute('id');oldNode.src='';oldNode.remove();}catch(_){}}
-            }
+            // First display the destination while the current node still owns #lightboxImg.
+            // v117 removed the current GIF too early, so updateLightboxDisplay() could no longer find
+            // #lightboxImg and the viewer got stuck showing only the counter.
+            const leavingGif=/\.gif(?:$|[?#])/i.test(oldSrc);
+            const oldKey=String(oldIndex)+'\n'+oldSrc;
+            const oldNode=(window._lightboxImageNodeCache instanceof Map)?window._lightboxImageNodeCache.get(oldKey):null;
             updateLightboxDisplay();
+            // Once the destination is installed, discard the detached GIF. Returning creates a fresh
+            // <img> with the original URL, so animation restarts from frame 1.
+            if(leavingGif && window._lightboxImageNodeCache instanceof Map){
+                window._lightboxImageNodeCache.delete(oldKey);
+                if(oldNode && oldNode!==document.getElementById('lightboxImg')){try{oldNode.src='';oldNode.remove();}catch(_){}}
+            }
         };
         if(!window._lightboxShortcutBound){
             window._lightboxShortcutBound=true;
@@ -10625,20 +10625,15 @@ viewer.style.visibility='';
                 // v111: private CloudBase/COS objects cannot be fetched anonymously even when CORS is correct.
                 // Ask timeline-api for an authorized temporary URL, fetch it as Blob, then capture from the same-origin blob URL.
                 modal.classList.remove('hidden');
-                window._cloudUploadNotice?.('正在读取视频封面…', true);
-                (async()=>{
-                    try{
-                        const blob=await window.getCloudMediaCaptureBlob(vidObj.cloudPath);
-                        if(player._cloudCropObjectUrl) URL.revokeObjectURL(player._cloudCropObjectUrl);
-                        player._cloudCropObjectUrl=URL.createObjectURL(blob);
-                        window._cloudUploadNotice?.('',false);
-                        attach(player._cloudCropObjectUrl);
-                    }catch(err){
-                        window._cloudUploadNotice?.('',false);
-                        console.error('云端视频封面授权读取失败:',err);
-                        window.showToast?.('视频封面读取失败：'+String(err?.message||err).slice(0,120),'error');
-                    }
-                })();
+                try{
+                    const streamUrl=window.getCloudMediaCaptureStreamUrl(vidObj.cloudPath);
+                    player.crossOrigin='anonymous';
+                    player._cloudCaptureStreamUrl=streamUrl;
+                    attach(streamUrl);
+                }catch(err){
+                    console.error('云端视频封面流地址生成失败:',err);
+                    window.showToast?.('视频封面读取失败：'+String(err?.message||err).slice(0,120),'error');
+                }
             } else {
                 attach(String(vidObj.url || ''));
             }
@@ -10697,26 +10692,15 @@ viewer.style.visibility='';
                 if (!src) throw new Error('capture_source_missing');
                 const wantedTime = Math.max(0, Number(player.currentTime) || 0);
 
-                // v115: never let canvas draw a decoder whose source is http(s). Even if the visible
-                // player can play it, one redirect or a response without ACAO taints the canvas.
-                // Convert any remote source to an authorized, CORS-fetched Blob URL first.
-                if (/^https?:/i.test(src)) {
-                    const targetForSource=window.editingVideos[activeVideoCropIndex];
-                    let rb;
-                    if(targetForSource?.cloudPath){
-                        rb=await window.getCloudMediaCaptureBlob(targetForSource.cloudPath);
-                    }else{
-                        const rr=await fetch(src,{mode:'cors',credentials:'omit'});
-                        if(!rr.ok) throw new Error('capture_blob_fetch_http_'+rr.status);
-                        rb=await rr.blob();
-                    }
-                    if(!rb || !rb.size) throw new Error('capture_blob_empty');
-                    if(player._captureSafeObjectUrl){try{URL.revokeObjectURL(player._captureSafeObjectUrl)}catch(_){}}
-                    player._captureSafeObjectUrl=URL.createObjectURL(rb);
-                    src=player._captureSafeObjectUrl;
+                // v118: cloud videos deliberately stay on the authenticated Range proxy URL.
+                // It is CORS-enabled by timeline-api, so a crossOrigin=anonymous decoder is canvas-safe.
+                const targetForSource=window.editingVideos[activeVideoCropIndex];
+                if(targetForSource?.cloudPath){
+                    src=player._cloudCaptureStreamUrl || window.getCloudMediaCaptureStreamUrl(targetForSource.cloudPath);
                 }
-                if(!/^blob:/i.test(src) && !/^data:/i.test(src)) throw new Error('capture_source_not_local_blob');
+                if(!src) throw new Error('capture_source_missing');
                 capturePlayer = document.createElement('video');
+                if(/^https?:/i.test(src)) capturePlayer.crossOrigin='anonymous';
                 capturePlayer.muted = true;
                 capturePlayer.playsInline = true;
                 capturePlayer.preload = 'auto';
