@@ -1130,6 +1130,20 @@
         }
 
         @media (max-width:639px){
+            .mobile-video-inline-holder{position:relative!important;width:100%!important;overflow:hidden!important;background:#000!important;touch-action:pan-y!important}
+            .mobile-video-inline-holder video{display:block!important;width:100%!important;height:auto!important;max-width:100%!important;max-height:none!important;object-fit:contain!important;pointer-events:none!important}
+            .mobile-video-inline-holder .mobile-video-open{
+                position:absolute!important;left:50%!important;top:50%!important;right:auto!important;bottom:auto!important;
+                transform:translate(-50%,-50%)!important;z-index:20!important;
+                width:46px!important;height:46px!important;border:0!important;border-radius:9999px!important;
+                display:flex!important;align-items:center!important;justify-content:center!important;
+                background:rgba(15,23,42,.76)!important;color:#fff!important;font-size:16px!important;
+                box-shadow:0 4px 14px rgba(0,0,0,.28)!important;touch-action:manipulation!important;
+            }
+            .mobile-video-inline-holder button:not(.mobile-video-open){display:none!important}
+        }
+
+        @media (max-width:639px){
             .mobile-video-external-holder{position:relative!important;width:100%!important;overflow:hidden!important;background:#000!important;touch-action:pan-y!important}
             .mobile-video-external-holder video{display:block!important;width:100%!important;height:auto!important;max-width:100%!important;object-fit:contain!important;pointer-events:none!important}
             .mobile-video-external-open{
@@ -1142,96 +1156,17 @@
         }
 
         @media (max-width:639px){
-            /* 手机详情框始终完整留在视口内；长内容只在框内滚动 */
-            #fullscreenViewer{
-                overflow:hidden !important;
-                overscroll-behavior:none !important;
+            /* 仅重大里程碑 / 长时间范围事件。普通事件、平板、电脑不变。 */
+            #fullscreenViewer .phone-special-detail-compact .phone-special-top-item{
+                font-size:10px !important;
+                line-height:1.1 !important;
             }
-            #fullscreenViewer [data-detail-shell]{
-                position:fixed !important;
-                left:16px !important;
-                right:16px !important;
-                top:16px !important;
-                bottom:16px !important;
-                width:auto !important;
+            #fullscreenViewer .phone-special-detail-compact button.phone-special-top-item,
+            #fullscreenViewer .phone-special-detail-compact [role="button"].phone-special-top-item{
+                font-size:10px !important;
+                min-height:23px !important;
                 height:auto !important;
-                max-width:none !important;
-                max-height:none !important;
-                transform:none !important;
-                overflow:hidden !important;
-                display:flex !important;
-                flex-direction:column !important;
-                box-sizing:border-box !important;
-            }
-            #fullscreenViewer [data-detail-scroll]{
-                flex:1 1 auto !important;
-                min-height:0 !important;
-                max-height:none !important;
-                overflow-x:hidden !important;
-                overflow-y:auto !important;
-                overscroll-behavior:contain !important;
-                -webkit-overflow-scrolling:touch !important;
-            }
-            /* 顶部信息允许按空间自动换行，避免长日期/重大里程碑/评论区/X 互相挤压 */
-            #fullscreenViewer [data-detail-header]{
-                display:flex !important;
-                flex-wrap:wrap !important;
-                align-items:center !important;
-                column-gap:8px !important;
-                row-gap:6px !important;
-                min-width:0 !important;
-            }
-            #fullscreenViewer [data-detail-header] > *{
-                flex:0 0 auto;
-                max-width:100%;
-            }
-        }
-
-        
-        @media (max-width:639px){
-            #fullscreenViewer [data-detail-header].mobile-detail-header-crowded{
-                row-gap:8px !important;
-            }
-            #fullscreenViewer [data-detail-header].mobile-detail-header-crowded > *{
-                min-width:0 !important;
-            }
-        }
-
-        @media (max-width:639px){
-            /* v72：框体固定在四周 16px，但由框体自身负责纵向滚动，避免 v71 因滚动容器匹配不到而无法下滑 */
-            #fullscreenViewer [data-detail-shell]{
-                overflow-x:hidden !important;
-                overflow-y:auto !important;
-                overscroll-behavior:contain !important;
-                -webkit-overflow-scrolling:touch !important;
-                touch-action:pan-y !important;
-            }
-
-        }
-
-
-        
-
-
-        @media (max-width:639px){
-            /* 仅重大里程碑或时间范围事件：缩小顶部信息；普通事件与其他端完全不变 */
-            #fullscreenViewer [data-detail-shell].phone-special-top-meta [data-detail-header]{
-                font-size:11px !important;
-                line-height:1.2 !important;
-                gap:4px 6px !important;
-                flex-wrap:nowrap !important;
-                white-space:nowrap !important;
-            }
-            #fullscreenViewer [data-detail-shell].phone-special-top-meta [data-detail-header] > *{
-                min-width:0 !important;
-                flex:0 1 auto !important;
-            }
-            #fullscreenViewer [data-detail-shell].phone-special-top-meta [data-detail-header] button,
-            #fullscreenViewer [data-detail-shell].phone-special-top-meta [data-detail-header] [role="button"]{
-                font-size:11px !important;
-                line-height:1.15 !important;
-                min-height:25px !important;
-                padding:3px 6px !important;
+                padding:2px 5px !important;
             }
         }
 </style>
@@ -2054,99 +1989,46 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 <audio id="globalBgmAudio" style="display: none;"></audio>
 
     <script type="module">
-        window.updatePhoneSpecialDetailLayout=function(root){
+        window.applyPhoneSpecialDetailCompact=function(root){
             if(!window.isPhoneLikeDevice?.())return;
             root=root||document.getElementById('fullscreenViewer');
-            const shell=root?.querySelector?.('[data-detail-shell]');
+            const shell=root?.querySelector?.('[data-detail-shell]')||root?.querySelector?.('.detail-panel,.event-detail,.detail-content');
             if(!shell)return;
-
             const sr=shell.getBoundingClientRect();
             const leaves=[...shell.querySelectorAll('*')].filter(el=>{
                 const r=el.getBoundingClientRect(),s=getComputedStyle(el);
-                return el.children.length===0&&s.display!=='none'&&s.visibility!=='hidden'&&r.width>0&&r.height>0&&r.top<sr.top+110;
+                return el.children.length===0 && s.display!=='none' && s.visibility!=='hidden' &&
+                       r.width>0 && r.height>0 && r.top>=sr.top && r.top<sr.top+115;
             });
-            const milestone=leaves.find(el=>(el.textContent||'').trim().includes('重大里程碑'));
-            const range=leaves.find(el=>/\d\s*(?:-|–|—|~|～|至)\s*\d/.test((el.textContent||'').trim()));
-            const special=!!(milestone||range);
-            shell.classList.toggle('phone-special-top-meta',special);
+            const texts=leaves.map(el=>(el.textContent||'').trim()).filter(Boolean);
+            const milestone=texts.some(t=>t.includes('重大里程碑'));
+            const range=texts.some(t=>
+                /(?:\d{4}[./-]\d{1,2}(?:[./-]\d{1,2})?|\d{1,2}[./-]\d{1,2})\s*(?:-|–|—|~|～|至)\s*(?:\d{4}[./-]\d{1,2}(?:[./-]\d{1,2})?|\d{1,2}[./-]\d{1,2})/.test(t)
+            );
+            shell.classList.toggle('phone-special-detail-compact',milestone||range);
 
-            const buttons=[...shell.querySelectorAll('button,[role="button"]')].filter(el=>el.offsetParent!==null);
-            const comment=buttons.find(el=>(el.textContent||el.getAttribute('aria-label')||'').trim().includes('评论区'));
-            if(!comment)return;
-            comment.style.removeProperty('left');
-            comment.style.removeProperty('right');
-            comment.style.removeProperty('transform');
-            if(!special)return;
-
-            const close=buttons.find(el=>{
-                const t=(el.textContent||el.getAttribute('aria-label')||el.title||'').trim();
-                return t==='×'||t==='✕'||t==='关闭'||t.includes('关闭');
-            });
-            if(!close)return;
-
-            const meta=[milestone,range].filter(Boolean);
-            let leftEdge=sr.left+10;
-            meta.forEach(el=>leftEdge=Math.max(leftEdge,el.getBoundingClientRect().right));
-            const closeRect=close.getBoundingClientRect();
-            const cw=comment.getBoundingClientRect().width;
-            const gapArea=Math.max(0,closeRect.left-leftEdge);
-            let left=leftEdge+(gapArea-cw)/2;
-            left=Math.max(leftEdge+5,Math.min(left,closeRect.left-cw-5));
-            comment.style.setProperty('left',`${left-sr.left}px`,'important');
-            comment.style.setProperty('right','auto','important');
-            comment.style.setProperty('transform','none','important');
+            // 直接标记顶部实际信息/操作元素，避免之前因为 data-detail-header 不存在而“特殊情况没缩小”。
+            shell.querySelectorAll('.phone-special-top-item').forEach(el=>el.classList.remove('phone-special-top-item'));
+            if(milestone||range){
+                const buttons=[...shell.querySelectorAll('button,[role="button"]')];
+                [...leaves,...buttons].forEach(el=>{
+                    const r=el.getBoundingClientRect();
+                    if(r.top>=sr.top && r.top<sr.top+115)el.classList.add('phone-special-top-item');
+                });
+            }
         };
 
         if(window.isPhoneLikeDevice?.()){
             const viewer=document.getElementById('fullscreenViewer');
             if(viewer){
-                let specialTopRAF=0;
+                let compactRAF=0;
                 new MutationObserver(()=>{
-                    cancelAnimationFrame(specialTopRAF);
-                    specialTopRAF=requestAnimationFrame(()=>window.updatePhoneSpecialDetailLayout?.(viewer));
+                    cancelAnimationFrame(compactRAF);
+                    compactRAF=requestAnimationFrame(()=>window.applyPhoneSpecialDetailCompact?.(viewer));
                 }).observe(viewer,{childList:true,subtree:true,characterData:true});
             }
-            window.addEventListener('resize',()=>requestAnimationFrame(()=>window.updatePhoneSpecialDetailLayout?.()));
+            window.addEventListener('resize',()=>requestAnimationFrame(()=>window.applyPhoneSpecialDetailCompact?.()));
         }
-
-
-
-        window.resetMobileScrollEdgeVisual=function(){
-            if(!window.isPhoneLikeDevice?.())return;
-            document.querySelectorAll('.scroll-edge').forEach(edge=>{
-                edge.classList.remove('active','hover','is-active','is-hovering','highlight');
-                edge.style.removeProperty('background');
-                edge.style.removeProperty('background-color');
-                edge.style.removeProperty('opacity');
-            });
-        };
-
-        document.addEventListener('pointerdown',e=>{
-            if(!window.isPhoneLikeDevice?.() || e.pointerType!=='touch')return;
-            const timeline=e.target?.closest?.('#timelineContainer,#timeline,#timeline-wrapper,.timeline-container');
-            if(timeline)window.resetMobileScrollEdgeVisual?.();
-        },true);
-        document.addEventListener('touchstart',e=>{
-            if(!window.isPhoneLikeDevice?.())return;
-            const timeline=e.target?.closest?.('#timelineContainer,#timeline,#timeline-wrapper,.timeline-container');
-            if(timeline)window.resetMobileScrollEdgeVisual?.();
-        },{capture:true,passive:true});
-
-        window.fitMobileDetailHeader=function(root){
-            if(!window.isPhoneLikeDevice?.())return;
-            root=root||document.getElementById('fullscreenViewer');
-            const header=root?.querySelector?.('[data-detail-header]');
-            if(!header)return;
-            header.classList.remove('mobile-detail-header-crowded');
-            const kids=[...header.children].filter(el=>el.offsetParent!==null);
-            let crowded=header.scrollWidth>header.clientWidth+2;
-            for(let i=1;i<kids.length&&!crowded;i++){
-                const a=kids[i-1].getBoundingClientRect(),b=kids[i].getBoundingClientRect();
-                if(Math.abs(a.top-b.top)<4 && a.right+6>b.left)crowded=true;
-            }
-            header.classList.toggle('mobile-detail-header-crowded',crowded);
-        };
-        window.addEventListener('resize',()=>window.fitMobileDetailHeader?.());
 
         const urlParams = new URLSearchParams(window.location.search);
         window.currentRoomId = (urlParams.get('room') || 'default').trim() || 'default';
@@ -2266,7 +2148,14 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.isCloudSynced = false;
         try { localStorage.removeItem('yuhoutianqing_pending_events'); } catch (_) {}
         window.canEditNow = function() { return !window.isMobileEditingDevice() && !window.isLocked && window.isCloudSynced && window.cloudWriteReady && window.hasTimelineEditToken?.(); };
-        window.zoomLevel = 3;
+        window.zoomLevel = (function(){
+            try{
+                const sw=Number(screen?.width||window.innerWidth||0), sh=Number(screen?.height||window.innerHeight||0);
+                const shortSide=Math.min(sw||Infinity,sh||Infinity);
+                const phone=(navigator.userAgentData?.mobile===true)||/Mobi|Android|iPhone|iPod/i.test(navigator.userAgent||'')||(((navigator.maxTouchPoints||0)>0||'ontouchstart' in window)&&shortSide<=600);
+                return phone?2:3;
+            }catch(_){return window.innerWidth<=639?2:3;}
+        })();
         window.edgeScrollSpeed = (function() {
             const v = Number(localStorage.getItem('yuhoutianqing_edgeScrollSpeed'));
             if (!v || isNaN(v)) return 5;
@@ -9175,7 +9064,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.mobileDetailTapMove=function(e,el){const s=el?._mobileTap;if(!s||s.id!==e.pointerId)return;if(Math.hypot(e.clientX-s.x,e.clientY-s.y)>=9)el._mobileTap=null;};
 
         window.fitEventDetailMedia = function(viewer){
-            if(window.isPhoneLikeDevice?.())requestAnimationFrame(()=>window.fitMobileDetailHeader?.(viewer));
             if(!viewer||viewer.classList.contains('hidden'))return;
             const shell=viewer.querySelector('[data-detail-shell]');if(!shell)return;
             const imageRow=shell.querySelector('[data-detail-images]');
@@ -9327,7 +9215,14 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             detailViewer.querySelectorAll('[data-detail-video-card] video').forEach(video=>{if(video!==except)window.resetDetailVideoToCover(video);});
         };
         window.suspendMobileDetailVideosForOverlay=function(){};
-        window.destroyMobileDetailVideos=function(){};
+        window.destroyMobileDetailVideos=function(){
+            document.querySelectorAll('video[data-mobile-inline-video="1"]').forEach(video=>{
+                try{video.pause();video.currentTime=0;}catch(_){}
+                const holder=video.closest('.mobile-video-inline-holder');
+                const btn=holder?.querySelector('.mobile-video-open');
+                if(btn){btn.classList.remove('is-playing');btn.innerHTML='<i class="fa-solid fa-play"></i>';btn.style.display='flex';}
+            });
+        };
         window.closeMobileVideoPlayer=window.destroyMobileDetailVideos;
 
         window.openMobileVideoPage=function(src,title){
