@@ -9977,8 +9977,25 @@ viewer.style.visibility='';
             }
         }
 
-        const _deepLightboxImg=document.getElementById('lightboxImg');
-        if(_deepLightboxImg && !_deepLightboxImg.dataset.deepBound){ _deepLightboxImg.dataset.deepBound='1'; _deepLightboxImg.addEventListener('dblclick',e=>{ e.stopPropagation(); const lb=document.getElementById('lightboxModal'); const idx=Number(lb?.dataset.deepIndex||0); const mid=lb?.dataset.multiDeepEventId; if(mid){window.multiDeepWarningOpen(mid,Number(lb.dataset.multiDeepSegment||0),lb.dataset.multiDeepType||'image',idx);return;} const id=lb?.dataset.deepEventId; const type=lb?.dataset.deepType; if(id&&type) window.deepWarningOpen(type,idx,id); }); }
+        // v130: lightbox image nodes are replaced when navigating/restarting GIFs, so binding
+        // dblclick to the original #lightboxImg makes deep-description entry disappear after the
+        // first replacement. Delegate from the stable modal instead so every current image node works.
+        const _deepLightboxModal=document.getElementById('lightboxModal');
+        if(_deepLightboxModal && !_deepLightboxModal.dataset.deepDblclickBound){
+            _deepLightboxModal.dataset.deepDblclickBound='1';
+            _deepLightboxModal.addEventListener('dblclick',e=>{
+                const img=e.target?.closest?.('#lightboxImg');
+                if(!img || !_deepLightboxModal.contains(img)) return;
+                e.preventDefault();e.stopPropagation();
+                const lb=_deepLightboxModal;
+                const idx=Number(lb.dataset.deepIndex||window.currentLightboxIndex||0);
+                const mid=lb.dataset.multiDeepEventId;
+                if(mid){window.multiDeepWarningOpen(mid,Number(lb.dataset.multiDeepSegment||0),lb.dataset.multiDeepType||'image',idx);return;}
+                const id=lb.dataset.deepEventId;
+                const type=lb.dataset.deepType;
+                if(id&&type) window.deepWarningOpen(type,idx,id);
+            });
+        }
 
         window.changeLightboxImage = function(direction) {
             const total = window.currentLightboxImages.length;
