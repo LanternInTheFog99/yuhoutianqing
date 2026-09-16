@@ -4416,7 +4416,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.multiAddFiles=async function(i,kind,files){
             for(const file of Array.from(files||[])){
                 try{
-                    const media=await window.localOrCloudMediaUrl(file);
+                    // 多时间事件媒体采用叠加结构：无论文件大小，一律上传 CloudBase，避免多个 Data URL 累积撑大事件数据。
+                    const media=await window.uploadLargeMediaToCloudBase(file);
                     const src=media.url;
                     if(kind==='image') window.multiTimeDraft[i].images.push(window.multiNormalizeImage({mediaId:window.multiMediaId(),originalFull:src,original:src,outer:src,inner:src,collection:src,isAnimated:/gif|webp/i.test(file.type||file.name||''),deepDescription:null,cloudPath:media.cloudPath||''}));
                     else window.multiTimeDraft[i].videos.push(window.multiNormalizeVideo({url:src,blobUrl:'',cover:'',title:file.name||'',mime:file.type||'',previewDuration:4,deepDescription:null,cloudPath:media.cloudPath||''}));
