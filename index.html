@@ -174,6 +174,7 @@
         /* Mobile timeline controls: desktop behavior remains unchanged. */
         @media (max-width: 639px) {
             .scroll-edge {
+                width:34px;
                 pointer-events: auto;
                 touch-action: manipulation;
             }
@@ -939,12 +940,13 @@
         @media(max-width:639px){
             /* 手机详情页默认居中；不允许拖动，也不再显示“点击此处拖动详情页”的说明/分隔线。 */
             #fullscreenViewer [data-detail-shell]{
-                left:8px !important;
-                right:8px !important;
+                left:16px !important;
+                right:16px !important;
                 top:50% !important;
                 transform:translateY(-50%) !important;
                 width:auto !important;
-                max-height:calc(100vh - 24px) !important;
+                max-height:calc(100vh - 32px) !important;
+                max-height:calc(100dvh - 32px) !important;
                 touch-action:pan-y !important;
                 transition:top .18s ease,transform .18s ease,max-height .18s ease;
             }
@@ -952,9 +954,9 @@
 
             /* 打开评论区后，详情页自动移到屏幕上方，给底部半屏评论区让出空间。 */
             #fullscreenViewer.mobile-comments-open [data-detail-shell]{
-                top:8px !important;
+                top:16px !important;
                 transform:none !important;
-                max-height:calc(50vh - 16px) !important;
+                max-height:calc(50vh - 24px) !important;
             }
 
             /* 手机端将评论按钮与关闭按钮下移，与左侧日期标签的垂直位置对齐。 */
@@ -1095,6 +1097,62 @@
             [data-mobile-video-host]{position:relative!important;overflow:hidden!important;touch-action:pan-y!important;background:#000}
             .mobile-video-launch{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:15;width:44px;height:44px;border:0;border-radius:9999px;background:rgba(15,23,42,.76);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.28);touch-action:manipulation}
             .mobile-video-launch.is-playing{opacity:.5}
+        }
+
+        @media (max-width:639px){
+            .mobile-video-placeholder{
+                position:relative;width:100%;min-height:150px;aspect-ratio:16/9;
+                display:flex;align-items:center;justify-content:center;
+                overflow:hidden;background:#020617;border-radius:10px;touch-action:pan-y;
+            }
+            .mobile-video-placeholder .mobile-video-open{
+                width:48px;height:48px;border:0;border-radius:9999px;
+                display:flex;align-items:center;justify-content:center;
+                background:rgba(15,23,42,.78);color:#fff;font-size:17px;
+                box-shadow:0 5px 16px rgba(0,0,0,.28);touch-action:manipulation;
+            }
+            #mobileVideoModal{
+                position:fixed;inset:0;z-index:10050;background:#000;
+                display:flex;align-items:center;justify-content:center;
+                overscroll-behavior:contain;touch-action:none;
+            }
+            #mobileVideoModal.hidden{display:none!important}
+            #mobileVideoModal video{
+                display:block;width:100%;height:100%;max-width:100vw;max-height:100dvh;
+                object-fit:contain;background:#000;
+            }
+            #mobileVideoClose{
+                position:fixed;right:14px;top:max(14px,env(safe-area-inset-top));
+                z-index:10052;width:40px;height:40px;border:0;border-radius:9999px;
+                display:flex;align-items:center;justify-content:center;
+                background:rgba(15,23,42,.72);color:#fff;font-size:17px;
+            }
+        }
+
+        @media (max-width:639px){
+            .mobile-video-inline-holder{position:relative!important;width:100%!important;overflow:hidden!important;background:#000!important;touch-action:pan-y!important}
+            .mobile-video-inline-holder video{display:block!important;width:100%!important;height:auto!important;max-width:100%!important;max-height:none!important;object-fit:contain!important;pointer-events:none!important}
+            .mobile-video-inline-holder .mobile-video-open{
+                position:absolute!important;left:50%!important;top:50%!important;right:auto!important;bottom:auto!important;
+                transform:translate(-50%,-50%)!important;z-index:20!important;
+                width:46px!important;height:46px!important;border:0!important;border-radius:9999px!important;
+                display:flex!important;align-items:center!important;justify-content:center!important;
+                background:rgba(15,23,42,.76)!important;color:#fff!important;font-size:16px!important;
+                box-shadow:0 4px 14px rgba(0,0,0,.28)!important;touch-action:manipulation!important;
+            }
+            .mobile-video-inline-holder button:not(.mobile-video-open){display:none!important}
+        }
+
+        @media (max-width:639px){
+            .mobile-video-external-holder{position:relative!important;width:100%!important;overflow:hidden!important;background:#000!important;touch-action:pan-y!important}
+            .mobile-video-external-holder video{display:block!important;width:100%!important;height:auto!important;max-width:100%!important;object-fit:contain!important;pointer-events:none!important}
+            .mobile-video-external-open{
+                position:absolute!important;left:50%!important;top:50%!important;transform:translate(-50%,-50%)!important;
+                z-index:20!important;width:48px!important;height:48px!important;border:0!important;border-radius:9999px!important;
+                display:flex!important;align-items:center!important;justify-content:center!important;
+                background:rgba(15,23,42,.76)!important;color:#fff!important;font-size:17px!important;
+                box-shadow:0 4px 14px rgba(0,0,0,.28)!important;touch-action:manipulation!important;
+            }
         }
 </style>
 
@@ -2034,7 +2092,14 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.isCloudSynced = false;
         try { localStorage.removeItem('yuhoutianqing_pending_events'); } catch (_) {}
         window.canEditNow = function() { return !window.isMobileEditingDevice() && !window.isLocked && window.isCloudSynced && window.cloudWriteReady && window.hasTimelineEditToken?.(); };
-        window.zoomLevel = 3;
+        window.zoomLevel = (function(){
+            try{
+                const sw=Number(screen?.width||window.innerWidth||0), sh=Number(screen?.height||window.innerHeight||0);
+                const shortSide=Math.min(sw||Infinity,sh||Infinity);
+                const phone=(navigator.userAgentData?.mobile===true)||/Mobi|Android|iPhone|iPod/i.test(navigator.userAgent||'')||(((navigator.maxTouchPoints||0)>0||'ontouchstart' in window)&&shortSide<=600);
+                return phone?2:3;
+            }catch(_){return window.innerWidth<=639?2:3;}
+        })();
         window.edgeScrollSpeed = (function() {
             const v = Number(localStorage.getItem('yuhoutianqing_edgeScrollSpeed'));
             if (!v || isNaN(v)) return 5;
@@ -3445,7 +3510,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
             window.setEdgeScrollSpeed(window.edgeScrollSpeed);
 
-            const EDGE_PX = 56;
+            const EDGE_PX = window.isPhoneLikeDevice?.() ? 34 : 56;
             let pointerX = null;
             let pointerY = null;
             let direction = 0;
@@ -8554,6 +8619,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         };
         window.closeDeepMediaPreview = function(){ const m=document.getElementById('deepMediaPreviewModal'); if(!m)return; m.querySelectorAll('video').forEach(video=>{try{video.pause();video.currentTime=0;}catch(_){}}); m.classList.add('hidden'); m.innerHTML=''; };
         window.openDeepMediaPreview = function(type,index,eventId,startTime=0){
+            if(window.isPhoneLikeDevice?.())window.suspendMobileDetailVideosForOverlay?.();
             const ev=window.findEventById?window.findEventById(eventId):window.events.find(e=>String(e.id)===String(eventId)); const obj=ev?.[type==='image'?'images':'videos']?.[index]; if(!obj)return;
             const src=type==='image'?(typeof obj==='string'?obj:(obj.originalFull||obj.original||obj.outer||obj.inner||obj.collection||'')):(obj.blobUrl||obj.url||'');
             let m=document.getElementById('deepMediaPreviewModal'); if(!m){m=document.createElement('div');m.id='deepMediaPreviewModal';m.className='fixed inset-0 z-[350] hidden bg-slate-950/95 flex items-center justify-center p-4';document.body.appendChild(m);}
@@ -9092,69 +9158,99 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if(!detailViewer)return;
             detailViewer.querySelectorAll('[data-detail-video-card] video').forEach(video=>{if(video!==except)window.resetDetailVideoToCover(video);});
         };
+        window.suspendMobileDetailVideosForOverlay=function(){};
         window.destroyMobileDetailVideos=function(){
-            document.querySelectorAll('video[data-mobile-detail-video="1"]').forEach(video=>{
+            document.querySelectorAll('video[data-mobile-inline-video="1"]').forEach(video=>{
                 try{video.pause();video.currentTime=0;}catch(_){}
-                video.classList.remove('mobile-video-playing');
-                const stage=video.closest('[data-detail-video-stage]')||video.parentElement;
-                const btn=stage?.querySelector('.mobile-video-launch');
-                if(btn){btn.classList.remove('is-playing');btn.innerHTML='<i class="fa-solid fa-play"></i>';}
+                const holder=video.closest('.mobile-video-inline-holder');
+                const btn=holder?.querySelector('.mobile-video-open');
+                if(btn){btn.classList.remove('is-playing');btn.innerHTML='<i class="fa-solid fa-play"></i>';btn.style.display='flex';}
             });
         };
+        window.closeMobileVideoPlayer=window.destroyMobileDetailVideos;
+
+        window.openMobileVideoPage=function(src,title){
+            if(!src)return;
+            let absoluteSrc='';
+            try{absoluteSrc=new URL(String(src),document.baseURI).href;}catch(_){absoluteSrc=String(src);}
+            // 只触发一次新标签页导航。部分手机浏览器 window.open 成功后仍会返回 null，
+            // v69 因此又执行一次链接兜底，造成连续打开两个相同视频页。
+            const a=document.createElement('a');
+            a.href=absoluteSrc;
+            a.target='_blank';
+            a.rel='noopener';
+            a.style.display='none';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        };
+
         window.prepareMobileDetailVideo=function(video){
             if(!window.isPhoneLikeDevice?.()||!video)return false;
-            if(video.dataset.mobileDetailVideo==='1')return true;
+            if(video.dataset.mobileExternalVideo==='1')return true;
             const stage=video.closest('[data-detail-video-stage]')||video.parentElement;
             if(!stage)return false;
-            video.dataset.mobileDetailVideo='1';
+            const src=video.currentSrc||video.getAttribute('src')||video.querySelector('source')?.getAttribute('src')||'';
+            if(!src)return false;
+
+            video.dataset.mobileExternalVideo='1';
+            // 手机详情页内永远不播放这个 video，只把它作为封面/metadata 容器。
+            video.autoplay=false;
+            video.removeAttribute('autoplay');
+            video.preload='metadata';
             video.controls=false;
+            video.removeAttribute('controls');
+            video.muted=true;
             video.playsInline=true;
             video.setAttribute('playsinline','');
             video.setAttribute('webkit-playsinline','');
             video.style.pointerEvents='none';
-            video.style.touchAction='pan-y';
             video.style.width='100%';
             video.style.height='auto';
-            video.style.maxWidth='100%';
-            video.style.maxHeight='none';
             video.style.objectFit='contain';
 
-            let btn=stage.querySelector('.mobile-video-launch');
-            if(!btn){
-                btn=document.createElement('button');
-                btn.type='button';btn.className='mobile-video-launch';
-                btn.innerHTML='<i class="fa-solid fa-play"></i>';
-                stage.appendChild(btn);
-            }
-            const sync=()=>{
-                const playing=!video.paused&&!video.ended;
-                btn.classList.toggle('is-playing',playing);
-                btn.innerHTML=playing?'<i class="fa-solid fa-pause"></i>':'<i class="fa-solid fa-play"></i>';
-            };
-            btn.onclick=e=>{
-                e.preventDefault();e.stopPropagation();
-                if(video.paused||video.ended){
-                    document.querySelectorAll('video[data-mobile-detail-video="1"]').forEach(other=>{if(other!==video)try{other.pause();}catch(_){}});
-                    video.play().catch(()=>{});
-                }else video.pause();
-            };
-            video.addEventListener('loadedmetadata',()=>{
+            const holder=document.createElement('div');
+            holder.className='mobile-video-external-holder';
+            holder.style.cssText='position:relative;width:100%;overflow:hidden;background:#000;touch-action:pan-y;';
+            stage.replaceChild(holder,video);
+            holder.appendChild(video);
+
+            const applyRatio=()=>{
                 if(video.videoWidth>0&&video.videoHeight>0){
-                    stage.style.aspectRatio=`${video.videoWidth} / ${video.videoHeight}`;
-                    video.style.aspectRatio=`${video.videoWidth} / ${video.videoHeight}`;
+                    holder.style.aspectRatio=`${video.videoWidth}/${video.videoHeight}`;
+                    video.style.aspectRatio=`${video.videoWidth}/${video.videoHeight}`;
                 }
+            };
+            if(video.readyState>=1)applyRatio();
+            video.addEventListener('loadedmetadata',applyRatio);
+
+            const btn=document.createElement('button');
+            btn.type='button';
+            btn.className='mobile-video-external-open';
+            btn.innerHTML='<i class="fa-solid fa-play"></i>';
+            btn.setAttribute('aria-label','打开视频');
+            btn.addEventListener('pointerdown',e=>{e.stopPropagation();});
+            btn.addEventListener('click',e=>{
+                e.preventDefault();e.stopPropagation();
+                // 关键：原页面 video 从不调用 play()
+                window.openMobileVideoPage(src,'视频');
             });
-            video.addEventListener('play',sync);
-            video.addEventListener('pause',sync);
-            video.addEventListener('ended',sync);
-            sync();
+            holder.appendChild(btn);
             return true;
         };
+
+        document.addEventListener('pointerdown',e=>{
+            if(!window.isPhoneLikeDevice?.())return;
+            const imageTarget=e.target?.closest?.('[data-detail-image-card]');
+            if(imageTarget)window.suspendMobileDetailVideosForOverlay?.();
+            const overlay=e.target?.closest?.('#lightboxModal,#deepMediaPreviewModal,#deepReadMediaLightbox,#deepReadCanvasModal');
+            if(overlay)window.destroyMobileDetailVideos?.();
+        },true);
 
         window.bindDetailVideoBehavior = function(viewer,eventId){
 const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
             videos.forEach(video=>{
-                if(window.isPhoneLikeDevice?.())window.prepareMobileDetailVideo(video);
+                if(window.isPhoneLikeDevice?.() && window.prepareMobileDetailVideo(video))return;
                 const card=video.closest('[data-detail-video-card]');
                 const hoverCapable=!!window.matchMedia?.('(hover:hover)').matches;
                 const phone=!!window.isPhoneLikeDevice?.();
@@ -9324,7 +9420,7 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
                     const imgs=imageList.map((im,ii)=>{
                         const thumb=window.multiGetImageThumb(im);
                         const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(im?.deepDescription);
-                        return `<div class="group relative rounded-xl overflow-hidden border border-slate-800 cursor-pointer bg-transparent shadow-md hover:border-indigo-500 transition-colors" style="height:${imageHeight}px;" onpointerdown="if(window.isPhoneLikeDevice?.()){mobileDetailTapStart(event,this)}else if(event.isPrimary&&event.button===0){event.preventDefault();event.stopPropagation();openMultiLightbox('${event.id}',${si},${ii})}" onpointermove="if(window.isPhoneLikeDevice?.())mobileDetailTapMove(event,this)" onpointerup="if(window.isPhoneLikeDevice?.()&&mobileDetailTapEnd(event,this)){event.preventDefault();event.stopPropagation();openMultiLightbox('${event.id}',${si},${ii})}"><img loading="lazy" decoding="async" src="${window.multiEsc(thumb)}" class="block w-full h-full object-cover bg-transparent group-hover:scale-[1.02] transition-all duration-300">${hasDeep?'<span class="absolute right-1.5 bottom-1.5 text-sm opacity-0 group-hover:opacity-45">🐢✌🏻</span>':''}</div>`;
+                        return `<div class="group relative rounded-xl overflow-hidden border border-slate-800 cursor-pointer bg-transparent shadow-md hover:border-indigo-500 transition-colors" style="height:${imageHeight}px;" onpointerdown="if(window.isPhoneLikeDevice?.()){mobileDetailTapStart(event,this)}else if(event.isPrimary&&event.button===0){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openMultiLightbox('${event.id}',${si},${ii}))}" onpointermove="if(window.isPhoneLikeDevice?.())mobileDetailTapMove(event,this)" onpointerup="if(window.isPhoneLikeDevice?.()&&mobileDetailTapEnd(event,this)){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openMultiLightbox('${event.id}',${si},${ii}))}"><img loading="lazy" decoding="async" src="${window.multiEsc(thumb)}" class="block w-full h-full object-cover bg-transparent group-hover:scale-[1.02] transition-all duration-300">${hasDeep?'<span class="absolute right-1.5 bottom-1.5 text-sm opacity-0 group-hover:opacity-45">🐢✌🏻</span>':''}</div>`;
                     }).join('');
                     const imagesBlock=imageCount
                         ? `<div class="grid gap-2" style="grid-template-columns:repeat(${imageCols},minmax(0,1fr));">${imgs}</div>`
@@ -9345,7 +9441,7 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
             }
             const detailHasImages=Array.isArray(event.images)&&event.images.length>0,detailHasVideos=Array.isArray(event.videos)&&event.videos.length>0,detailDescriptionText=String(event.description||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/gi,' ').trim(),detailHasDescription=!!detailDescriptionText;
             let viewer=document.getElementById('fullscreenViewer');if(!viewer){viewer=document.createElement('div');viewer.id='fullscreenViewer';viewer.className='fixed inset-0 bg-slate-950/90 text-white z-50 overflow-y-auto backdrop-blur-md p-3 sm:p-8 flex flex-col items-center';viewer.addEventListener('click',e=>{if(e.target===viewer)window.closeReadOnlyFullscreen(viewer.dataset.fromStackDate||'');});document.body.appendChild(viewer);}viewer.dataset.fromStackDate=fromStackDate||'';
-            let imagesHtml='';if(detailHasImages){const fullSrcList=event.images.map(imgObj=>typeof imgObj==='string'?imgObj:(imgObj.originalFull||imgObj.original||imgObj.outer||imgObj.inner||imgObj.collection||''));imagesHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">事件配图</h4><div data-detail-images>${event.images.map((imgObj,idx)=>{const thumbSrc=typeof imgObj==='string'?imgObj:(imgObj.inner||imgObj.original||imgObj.originalFull||imgObj.outer||imgObj.collection);const listStr=JSON.stringify(fullSrcList).replace(/"/g,'&quot;');const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(imgObj?.deepDescription);return `<div data-detail-image-card onpointerdown="if(window.isPhoneLikeDevice?.()){mobileDetailTapStart(event,this)}else if(event.isPrimary&&event.button===0){event.preventDefault();event.stopPropagation();openLightbox(${listStr},${idx},'${event.id}','image')}" onpointermove="if(window.isPhoneLikeDevice?.())mobileDetailTapMove(event,this)" onpointerup="if(window.isPhoneLikeDevice?.()&&mobileDetailTapEnd(event,this)){event.preventDefault();event.stopPropagation();openLightbox(${listStr},${idx},'${event.id}','image')}" onclick="if(window.isPhoneLikeDevice?.()){event.preventDefault();event.stopPropagation()}" class="group relative bg-transparent rounded-xl overflow-hidden border border-slate-800 cursor-pointer shadow-md hover:border-indigo-500 transition-colors"><img data-detail-image loading="lazy" decoding="async" src="${thumbSrc}" class="block group-hover:scale-[1.02] transition-all duration-300">${hasDeep?'<span class="absolute right-1.5 bottom-1.5 z-10 text-[13px] sm:text-sm opacity-0 group-hover:opacity-45 transition-opacity pointer-events-none select-none drop-shadow" aria-hidden="true">🐢✌🏻</span>':''}</div>`;}).join('')}</div></div>`;}
+            let imagesHtml='';if(detailHasImages){const fullSrcList=event.images.map(imgObj=>typeof imgObj==='string'?imgObj:(imgObj.originalFull||imgObj.original||imgObj.outer||imgObj.inner||imgObj.collection||''));imagesHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">事件配图</h4><div data-detail-images>${event.images.map((imgObj,idx)=>{const thumbSrc=typeof imgObj==='string'?imgObj:(imgObj.inner||imgObj.original||imgObj.originalFull||imgObj.outer||imgObj.collection);const listStr=JSON.stringify(fullSrcList).replace(/"/g,'&quot;');const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(imgObj?.deepDescription);return `<div data-detail-image-card onpointerdown="if(window.isPhoneLikeDevice?.()){mobileDetailTapStart(event,this)}else if(event.isPrimary&&event.button===0){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openLightbox(${listStr},${idx},'${event.id}','image'))}" onpointermove="if(window.isPhoneLikeDevice?.())mobileDetailTapMove(event,this)" onpointerup="if(window.isPhoneLikeDevice?.()&&mobileDetailTapEnd(event,this)){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openLightbox(${listStr},${idx},'${event.id}','image'))}" onclick="if(window.isPhoneLikeDevice?.()){event.preventDefault();event.stopPropagation()}" class="group relative bg-transparent rounded-xl overflow-hidden border border-slate-800 cursor-pointer shadow-md hover:border-indigo-500 transition-colors"><img data-detail-image loading="lazy" decoding="async" src="${thumbSrc}" class="block group-hover:scale-[1.02] transition-all duration-300">${hasDeep?'<span class="absolute right-1.5 bottom-1.5 z-10 text-[13px] sm:text-sm opacity-0 group-hover:opacity-45 transition-opacity pointer-events-none select-none drop-shadow" aria-hidden="true">🐢✌🏻</span>':''}</div>`;}).join('')}</div></div>`;}
             let videosHtml='';if(detailHasVideos){videosHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-video mr-1"></i>事件视频</h4><div data-detail-videos>${event.videos.map((v,vidx)=>{const vUrl=typeof v==='object'?(v.blobUrl||v.url):v,vCover=typeof v==='object'?(v.cover||''):'',vTitle=typeof v==='object'?(v.title||v.name||''):'',vType=typeof v==='object'&&v.mime?`type="${v.mime}"`:'';const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(v?.deepDescription);return `<div data-detail-video-card data-detail-video-index="${vidx}" data-detail-video-deep="${hasDeep?'1':'0'}" class="bg-black rounded-xl overflow-hidden border border-slate-800 ${hasDeep?'cursor-pointer':''}">${vTitle?`<div data-detail-video-title class="px-3 py-2 bg-slate-900 text-xs font-semibold text-slate-200 border-b border-slate-800">${escapeHtml(vTitle)}</div>`:''}<div data-detail-video-stage class="relative bg-black overflow-hidden"><video ${vCover?`poster="${vCover}"`:''} playsinline webkit-playsinline preload="none" class="block bg-black object-contain"><source src="${vUrl}" ${vType}></video>${hasDeep?'<span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">🐢</span><span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">✌🏻</span>':''}</div></div>`;}).join('')}</div></div>`;}
             let linksHtml='';if(event.links&&event.links.length>0){linksHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-link mr-1"></i>跳转网址</h4><div class="flex flex-wrap gap-2">${event.links.map(l=>`<a href="${l.url}" target="_blank" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-indigo-300 hover:text-indigo-200 px-3 py-2 rounded-xl text-xs transition-colors"><i class="fa-solid fa-globe"></i><span class="font-medium">${l.title||l.url}</span></a>`).join('')}</div></div>`;}
             const descriptionHtml=detailHasDescription?`<div data-detail-description class="border-t border-slate-800 pt-6 mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">事件经过与描述</h4><div class="event-description-html text-sm sm:text-base leading-relaxed whitespace-pre-wrap">${window.prepareDescriptionForView?window.prepareDescriptionForView(event.description):event.description}</div></div>`:'';
@@ -9398,6 +9494,7 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
         };
 
         window.openLightbox = function(imagesOrSrc, index = 0, deepEventId = null, deepType = null) {
+            if(window.isPhoneLikeDevice?.())window.suspendMobileDetailVideosForOverlay?.();
             if(window.isPhoneLikeDevice?.())window.destroyMobileDetailVideos?.();
             window.pauseAllDetailVideosForLightbox();
             window.currentLightboxImages=Array.isArray(imagesOrSrc)?imagesOrSrc:[imagesOrSrc];
@@ -13569,6 +13666,8 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
         window.installHeaderModalBackdropClose();
 
 </script>
+
+
 
 
 
