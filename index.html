@@ -1130,20 +1130,6 @@
         }
 
         @media (max-width:639px){
-            .mobile-video-inline-holder{position:relative!important;width:100%!important;overflow:hidden!important;background:#000!important;touch-action:pan-y!important}
-            .mobile-video-inline-holder video{display:block!important;width:100%!important;height:auto!important;max-width:100%!important;max-height:none!important;object-fit:contain!important;pointer-events:none!important}
-            .mobile-video-inline-holder .mobile-video-open{
-                position:absolute!important;left:50%!important;top:50%!important;right:auto!important;bottom:auto!important;
-                transform:translate(-50%,-50%)!important;z-index:20!important;
-                width:46px!important;height:46px!important;border:0!important;border-radius:9999px!important;
-                display:flex!important;align-items:center!important;justify-content:center!important;
-                background:rgba(15,23,42,.76)!important;color:#fff!important;font-size:16px!important;
-                box-shadow:0 4px 14px rgba(0,0,0,.28)!important;touch-action:manipulation!important;
-            }
-            .mobile-video-inline-holder button:not(.mobile-video-open){display:none!important}
-        }
-
-        @media (max-width:639px){
             .mobile-video-external-holder{position:relative!important;width:100%!important;overflow:hidden!important;background:#000!important;touch-action:pan-y!important}
             .mobile-video-external-holder video{display:block!important;width:100%!important;height:auto!important;max-width:100%!important;object-fit:contain!important;pointer-events:none!important}
             .mobile-video-external-open{
@@ -1152,6 +1138,76 @@
                 display:flex!important;align-items:center!important;justify-content:center!important;
                 background:rgba(15,23,42,.76)!important;color:#fff!important;font-size:17px!important;
                 box-shadow:0 4px 14px rgba(0,0,0,.28)!important;touch-action:manipulation!important;
+            }
+        }
+
+        @media (max-width:639px){
+            /* 手机详情框始终完整留在视口内；长内容只在框内滚动 */
+            #fullscreenViewer{
+                overflow:hidden !important;
+                overscroll-behavior:none !important;
+            }
+            #fullscreenViewer [data-detail-shell]{
+                position:fixed !important;
+                left:16px !important;
+                right:16px !important;
+                top:16px !important;
+                bottom:16px !important;
+                width:auto !important;
+                height:auto !important;
+                max-width:none !important;
+                max-height:none !important;
+                transform:none !important;
+                overflow:hidden !important;
+                display:flex !important;
+                flex-direction:column !important;
+                box-sizing:border-box !important;
+            }
+            #fullscreenViewer [data-detail-scroll]{
+                flex:1 1 auto !important;
+                min-height:0 !important;
+                max-height:none !important;
+                overflow-x:hidden !important;
+                overflow-y:auto !important;
+                overscroll-behavior:contain !important;
+                -webkit-overflow-scrolling:touch !important;
+            }
+            /* 顶部信息允许按空间自动换行，避免长日期/重大里程碑/评论区/X 互相挤压 */
+            #fullscreenViewer [data-detail-header]{
+                display:flex !important;
+                flex-wrap:wrap !important;
+                align-items:center !important;
+                column-gap:8px !important;
+                row-gap:6px !important;
+                min-width:0 !important;
+            }
+            #fullscreenViewer [data-detail-header] > *{
+                flex:0 0 auto;
+                max-width:100%;
+            }
+            /* 手机节点稍大，便于按住预览 */
+            .event-dot,.timeline-dot,[data-event-dot]{
+                min-width:14px !important;
+                min-height:14px !important;
+            }
+        }
+
+        @media (max-width:639px){
+            body.mobile-node-preview-active .preview-line,
+            body.mobile-node-preview-active .event-preview-line,
+            body.mobile-node-preview-active [data-preview-line]{
+                display:block !important;
+                visibility:visible !important;
+                opacity:1 !important;
+            }
+        }
+
+        @media (max-width:639px){
+            #fullscreenViewer [data-detail-header].mobile-detail-header-crowded{
+                row-gap:8px !important;
+            }
+            #fullscreenViewer [data-detail-header].mobile-detail-header-crowded > *{
+                min-width:0 !important;
             }
         }
 </style>
@@ -1974,6 +2030,43 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 <audio id="globalBgmAudio" style="display: none;"></audio>
 
     <script type="module">
+        window.resetMobileScrollEdgeVisual=function(){
+            if(!window.isPhoneLikeDevice?.())return;
+            document.querySelectorAll('.scroll-edge').forEach(edge=>{
+                edge.classList.remove('active','hover','is-active','is-hovering','highlight');
+                edge.style.removeProperty('background');
+                edge.style.removeProperty('background-color');
+                edge.style.removeProperty('opacity');
+            });
+        };
+
+        document.addEventListener('pointerdown',e=>{
+            if(!window.isPhoneLikeDevice?.() || e.pointerType!=='touch')return;
+            const timeline=e.target?.closest?.('#timelineContainer,#timeline,#timeline-wrapper,.timeline-container');
+            if(timeline)window.resetMobileScrollEdgeVisual?.();
+        },true);
+        document.addEventListener('touchstart',e=>{
+            if(!window.isPhoneLikeDevice?.())return;
+            const timeline=e.target?.closest?.('#timelineContainer,#timeline,#timeline-wrapper,.timeline-container');
+            if(timeline)window.resetMobileScrollEdgeVisual?.();
+        },{capture:true,passive:true});
+
+        window.fitMobileDetailHeader=function(root){
+            if(!window.isPhoneLikeDevice?.())return;
+            root=root||document.getElementById('fullscreenViewer');
+            const header=root?.querySelector?.('[data-detail-header]');
+            if(!header)return;
+            header.classList.remove('mobile-detail-header-crowded');
+            const kids=[...header.children].filter(el=>el.offsetParent!==null);
+            let crowded=header.scrollWidth>header.clientWidth+2;
+            for(let i=1;i<kids.length&&!crowded;i++){
+                const a=kids[i-1].getBoundingClientRect(),b=kids[i].getBoundingClientRect();
+                if(Math.abs(a.top-b.top)<4 && a.right+6>b.left)crowded=true;
+            }
+            header.classList.toggle('mobile-detail-header-crowded',crowded);
+        };
+        window.addEventListener('resize',()=>window.fitMobileDetailHeader?.());
+
         const urlParams = new URLSearchParams(window.location.search);
         window.currentRoomId = (urlParams.get('room') || 'default').trim() || 'default';
         window.roomAccessToken = (urlParams.get('access') || '').trim();
@@ -9008,6 +9101,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.mobileDetailTapMove=function(e,el){const s=el?._mobileTap;if(!s||s.id!==e.pointerId)return;if(Math.hypot(e.clientX-s.x,e.clientY-s.y)>=9)el._mobileTap=null;};
 
         window.fitEventDetailMedia = function(viewer){
+            if(window.isPhoneLikeDevice?.())requestAnimationFrame(()=>window.fitMobileDetailHeader?.(viewer));
             if(!viewer||viewer.classList.contains('hidden'))return;
             const shell=viewer.querySelector('[data-detail-shell]');if(!shell)return;
             const imageRow=shell.querySelector('[data-detail-images]');
@@ -9159,14 +9253,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             detailViewer.querySelectorAll('[data-detail-video-card] video').forEach(video=>{if(video!==except)window.resetDetailVideoToCover(video);});
         };
         window.suspendMobileDetailVideosForOverlay=function(){};
-        window.destroyMobileDetailVideos=function(){
-            document.querySelectorAll('video[data-mobile-inline-video="1"]').forEach(video=>{
-                try{video.pause();video.currentTime=0;}catch(_){}
-                const holder=video.closest('.mobile-video-inline-holder');
-                const btn=holder?.querySelector('.mobile-video-open');
-                if(btn){btn.classList.remove('is-playing');btn.innerHTML='<i class="fa-solid fa-play"></i>';btn.style.display='flex';}
-            });
-        };
+        window.destroyMobileDetailVideos=function(){};
         window.closeMobileVideoPlayer=window.destroyMobileDetailVideos;
 
         window.openMobileVideoPage=function(src,title){
