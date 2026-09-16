@@ -9122,57 +9122,100 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if(!detailViewer)return;
             detailViewer.querySelectorAll('[data-detail-video-card] video').forEach(video=>{if(video!==except)window.resetDetailVideoToCover(video);});
         };
+        window._mobileVideoState={video:null,holder:null,stage:null};
+
         window.closeMobileVideoPlayer=function(){
             const modal=document.getElementById('mobileVideoModal');
-            const player=document.getElementById('mobileVideoPlayer');
-            if(player){
-                try{player.pause();player.currentTime=0;}catch(_){}
-                try{player.removeAttribute('src');player.load();}catch(_){}
+            const state=window._mobileVideoState||{};
+            const video=state.video;
+            if(video){
+                try{video.pause();video.currentTime=0;}catch(_){}
+                // 保留同一个 video 与 src，不销毁解码对象；放回原占位并隐藏。
+                if(state.holder){
+                    state.holder.appendChild(video);
+                    video.style.display='none';
+                }
             }
+            window._mobileVideoState={video:null,holder:null,stage:null};
             if(modal){modal.classList.add('hidden');modal.setAttribute('aria-hidden','true');}
         };
         window.destroyMobileDetailVideos=window.closeMobileVideoPlayer;
 
-        window.openMobileVideoPlayer=function(src){
-            if(!window.isPhoneLikeDevice?.()||!src)return;
+        window.openMobileVideoPlayer=function(video,holder){
+            if(!window.isPhoneLikeDevice?.()||!video||!holder)return;
             const modal=document.getElementById('mobileVideoModal');
-            const player=document.getElementById('mobileVideoPlayer');
-            if(!modal||!player)return;
+            if(!modal)return;
             window.closeMobileVideoPlayer();
-            player.src=src;
+
+            const oldPlayer=document.getElementById('mobileVideoPlayer');
+            if(oldPlayer)oldPlayer.remove();
+
+            // 直接移动原始 video，而不是重新创建一个播放器。
+            video.id='mobileVideoPlayer';
+            video.style.display='block';
+            video.style.width='100%';
+            video.style.height='100%';
+            video.style.maxWidth='100vw';
+            video.style.maxHeight='100dvh';
+            video.style.objectFit='contain';
+            video.style.background='#000';
+            video.style.pointerEvents='auto';
+            video.controls=true;
+            video.playsInline=true;
+            video.setAttribute('playsinline','');
+            video.setAttribute('webkit-playsinline','');
+            modal.insertBefore(video,document.getElementById('mobileVideoClose'));
+            window._mobileVideoState={video,holder,stage:holder.parentElement};
+
             modal.classList.remove('hidden');modal.setAttribute('aria-hidden','false');
-            // 只有这个明确的用户点击会调用 play；详情页滑动/大图开关都不会碰 video。
-            player.play().catch(()=>{});
+
+            // 等 DOM/合成层完成一帧后再播放，避免部分手机浏览器出现“有声音无画面”。
+            requestAnimationFrame(()=>requestAnimationFrame(()=>{
+                try{
+                    if(video.readyState>=1 && video.videoWidth>0 && video.videoHeight>0){
+                        video.style.aspectRatio=`${video.videoWidth}/${video.videoHeight}`;
+                    }
+                    video.play().catch(()=>{});
+                }catch(_){}
+            }));
         };
 
         window.prepareMobileDetailVideo=function(video){
             if(!window.isPhoneLikeDevice?.()||!video)return false;
             const stage=video.closest('[data-detail-video-stage]')||video.parentElement;
             if(!stage)return false;
-            const src=video.currentSrc||video.getAttribute('src')||video.querySelector('source')?.getAttribute('src')||'';
-            if(!src)return false;
 
-            // 用纯 DOM 占位替代详情页中的 video。手机详情滚动层里从此不存在可被浏览器劫持的 video。
+            // 保留原 video，只在详情页中隐藏；绝不复制/重建媒体源。
             const holder=document.createElement('div');
             holder.className='mobile-video-placeholder';
             holder.dataset.detailVideoStage='1';
-            if(video.videoWidth>0&&video.videoHeight>0)holder.style.aspectRatio=`${video.videoWidth}/${video.videoHeight}`;
+
+            const applyRatio=()=>{
+                if(video.videoWidth>0&&video.videoHeight>0){
+                    holder.style.aspectRatio=`${video.videoWidth}/${video.videoHeight}`;
+                }
+            };
+            if(video.readyState>=1)applyRatio();
+            video.addEventListener('loadedmetadata',applyRatio);
+
             const btn=document.createElement('button');
             btn.type='button';btn.className='mobile-video-open';
             btn.innerHTML='<i class="fa-solid fa-play"></i>';
-            btn.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();window.openMobileVideoPlayer(src);});
+            btn.addEventListener('click',e=>{
+                e.preventDefault();e.stopPropagation();
+                window.openMobileVideoPlayer(video,holder);
+            });
+
+            video.controls=false;
+            video.playsInline=true;
+            video.setAttribute('playsinline','');
+            video.setAttribute('webkit-playsinline','');
+            video.style.display='none';
+
+            // holder 同时保存原 video 和按钮；video 隐藏时不会参与详情页触摸/合成。
+            stage.replaceChild(holder,video);
+            holder.appendChild(video);
             holder.appendChild(btn);
-
-            // metadata 只用来取得比例；不播放。拿到后立刻释放临时探针。
-            const probe=document.createElement('video');
-            probe.preload='metadata';probe.muted=true;probe.playsInline=true;
-            probe.addEventListener('loadedmetadata',()=>{
-                if(probe.videoWidth&&probe.videoHeight)holder.style.aspectRatio=`${probe.videoWidth}/${probe.videoHeight}`;
-                try{probe.removeAttribute('src');probe.load();}catch(_){}
-            },{once:true});
-            probe.src=src;
-
-            video.replaceWith(holder);
             return true;
         };
 
@@ -13609,7 +13652,6 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
 
 
     <div id="mobileVideoModal" class="hidden" aria-hidden="true">
-        <video id="mobileVideoPlayer" playsinline webkit-playsinline controls preload="metadata"></video>
         <button id="mobileVideoClose" type="button" aria-label="关闭视频"><i class="fa-solid fa-xmark"></i></button>
     </div>
 </body>
