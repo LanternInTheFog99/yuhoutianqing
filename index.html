@@ -3072,6 +3072,27 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const qs=new URLSearchParams({room:window.currentRoomId||'default',cloudPath:String(cloudPath||''),token});
             return TIMELINE_API_BASE+'/timeline/media-stream?'+qs.toString();
         };
+        window.getCloudMediaCaptureDiagnoseUrl = function(cloudPath){
+            const token=window.getTimelineEditToken?.()||'';
+            if(!token) throw new Error('EDIT_AUTH_REQUIRED');
+            const qs=new URLSearchParams({room:window.currentRoomId||'default',cloudPath:String(cloudPath||''),token});
+            return TIMELINE_API_BASE+'/timeline/media-stream-diagnose?'+qs.toString();
+        };
+        window.describeVideoElementFailure = function(v){
+            const e=v?.error;
+            return {errorCode:e?.code||0,errorMessage:e?.message||'',networkState:v?.networkState,readyState:v?.readyState,currentSrc:v?.currentSrc||v?.src||''};
+        };
+        window.runCloudVideoCaptureDiagnostic = async function(cloudPath, videoEl){
+            const local=window.describeVideoElementFailure(videoEl);
+            let server=null, fetchError='';
+            try{
+                const r=await fetch(window.getCloudMediaCaptureDiagnoseUrl(cloudPath),{cache:'no-store'});
+                const txt=await r.text();
+                try{server=JSON.parse(txt)}catch(_){server={httpStatus:r.status,raw:txt.slice(0,300)}}
+                if(server && server.httpStatus==null) server.httpStatus=r.status;
+            }catch(e){fetchError=String(e?.message||e)}
+            return {local,server,fetchError};
+        };
         window._cloudUploadNotice = function(text, show=true){
             let el=document.getElementById('cloudMediaUploadNotice');
             if(!el){
@@ -10715,7 +10736,13 @@ viewer.style.visibility='';
                 await new Promise((resolve,reject)=>{
                     let done=false;
                     const ok=()=>{if(done)return;done=true;cleanup();resolve();};
-                    const bad=()=>{if(done)return;done=true;cleanup();reject(new Error('capture_decoder_load_failed'));};
+                    const bad=async()=>{if(done)return;done=true;cleanup();
+                        const target=window.editingVideos[activeVideoCropIndex];
+                        let diag=null;try{if(target?.cloudPath)diag=await window.runCloudVideoCaptureDiagnostic(target.cloudPath,capturePlayer);}catch(_){}
+                        const local=window.describeVideoElementFailure(capturePlayer);
+                        const packed={stage:'decoder_load',local,diag};
+                        const er=new Error('capture_decoder_load_failed');er.captureDiagnostic=packed;reject(er);
+                    };
                     const cleanup=()=>{capturePlayer.removeEventListener('loadedmetadata',ok);capturePlayer.removeEventListener('error',bad);};
                     capturePlayer.addEventListener('loadedmetadata',ok,{once:true});
                     capturePlayer.addEventListener('error',bad,{once:true});
@@ -10760,7 +10787,26 @@ viewer.style.visibility='';
                 console.error('视频封面截取失败(v115):',err);
                 // Keep the concrete reason visible if this browser still rejects a frame; this is
                 // intentionally diagnostic rather than collapsing every failure into one message.
-                window.showToast("当前画面截取失败："+String(err?.message||err).slice(0,100),"error");
+                const base="当前画面截取失败："+String(err?.message||err);
+                if(err?.captureDiagnostic){
+                    const d=err.captureDiagnostic, l=d.local||{}, sd=d.diag?.server||{};
+                    const lines=[base,
+                        `video.error.code: ${l.errorCode??''}`,
+                        `video.error.message: ${l.errorMessage||'(空)'}`,
+                        `networkState: ${l.networkState??''} / readyState: ${l.readyState??''}`,
+                        `诊断接口HTTP: ${sd.httpStatus??'(无)'}`,
+                        `上游HTTP: ${sd.upstreamStatus??'(无)'}`,
+                        `Content-Type: ${sd.headers?.['content-type']||'(无)'}`,
+                        `Content-Length: ${sd.headers?.['content-length']||'(无)'}`,
+                        `Content-Range: ${sd.headers?.['content-range']||'(无)'}`,
+                        `Accept-Ranges: ${sd.headers?.['accept-ranges']||'(无)'}`,
+                        `Content-Disposition: ${sd.headers?.['content-disposition']||'(无)'}`,
+                        `前24字节(hex): ${sd.firstBytesHex||'(无)'}`,
+                        d.diag?.fetchError?`诊断fetch错误: ${d.diag.fetchError}`:''
+                    ].filter(Boolean);
+                    console.error('视频截帧诊断',d);
+                    alert(lines.join('\n'));
+                }else window.showToast(base.slice(0,180),"error");
             } finally {
                 if(capturePlayer){try{capturePlayer.pause();capturePlayer.removeAttribute('src');capturePlayer.load();capturePlayer.remove();}catch(_){}}
             }
