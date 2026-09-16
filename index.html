@@ -9173,15 +9173,16 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if(!src)return;
             let absoluteSrc='';
             try{absoluteSrc=new URL(String(src),document.baseURI).href;}catch(_){absoluteSrc=String(src);}
-            // 直接导航到媒体资源本身。这里不再创建 about:blank，也不创建第二个 video。
-            // 浏览器/百度即使接管播放，也只会发生在新标签页，不会覆盖原详情页。
-            const w=window.open(absoluteSrc,'_blank','noopener');
-            if(!w){
-                // 某些移动浏览器会拦截 _blank；作为兜底，创建普通链接触发一次用户导航。
-                const a=document.createElement('a');
-                a.href=absoluteSrc;a.target='_blank';a.rel='noopener';
-                a.style.display='none';document.body.appendChild(a);a.click();a.remove();
-            }
+            // 只触发一次新标签页导航。部分手机浏览器 window.open 成功后仍会返回 null，
+            // v69 因此又执行一次链接兜底，造成连续打开两个相同视频页。
+            const a=document.createElement('a');
+            a.href=absoluteSrc;
+            a.target='_blank';
+            a.rel='noopener';
+            a.style.display='none';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
         };
 
         window.prepareMobileDetailVideo=function(video){
