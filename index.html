@@ -970,29 +970,48 @@
                 height:34px !important;
                 padding:0 9px !important;
             }
-            /* 仅手机端特殊顶部：重大里程碑或时间范围时缩小显示，普通事件不变。 */
+            /* 手机特殊顶部：时间范围或重大里程碑时明显缩小；两者同时存在时再缩一级。 */
             #fullscreenViewer [data-detail-shell]:is(.detail-has-major,.detail-has-range) > .flex.items-center.gap-3.mb-2{
-                gap:5px !important;
-                padding-right:92px !important;
+                gap:4px !important;
+                padding-right:82px !important;
                 flex-wrap:nowrap !important;
             }
             #fullscreenViewer [data-detail-shell]:is(.detail-has-major,.detail-has-range) > .flex.items-center.gap-3.mb-2 > span{
-                font-size:9px !important;
-                line-height:1.1 !important;
-                padding:3px 6px !important;
+                font-size:8px !important;
+                line-height:1 !important;
+                padding:2px 4px !important;
                 white-space:nowrap !important;
             }
             #fullscreenViewer [data-detail-shell]:is(.detail-has-major,.detail-has-range) .detail-window-comments-btn{
-                right:47px !important;
-                height:30px !important;
-                padding:0 7px !important;
-                gap:4px !important;
-                font-size:9px !important;
+                right:43px !important;
+                top:16px !important;
+                height:27px !important;
+                padding:0 5px !important;
+                gap:3px !important;
+                font-size:8px !important;
             }
             #fullscreenViewer [data-detail-shell]:is(.detail-has-major,.detail-has-range) > button[onclick^="closeReadOnlyFullscreen"]{
-                width:30px !important;
-                height:30px !important;
+                width:27px !important;
+                height:27px !important;
                 right:8px !important;
+            }
+            #fullscreenViewer [data-detail-shell].detail-has-major.detail-has-range > .flex.items-center.gap-3.mb-2{
+                gap:3px !important;
+                padding-right:76px !important;
+            }
+            #fullscreenViewer [data-detail-shell].detail-has-major.detail-has-range > .flex.items-center.gap-3.mb-2 > span{
+                font-size:7px !important;
+                padding:2px 3px !important;
+            }
+            #fullscreenViewer [data-detail-shell].detail-has-major.detail-has-range .detail-window-comments-btn{
+                right:40px !important;
+                height:25px !important;
+                padding:0 4px !important;
+                font-size:7px !important;
+            }
+            #fullscreenViewer [data-detail-shell].detail-has-major.detail-has-range > button[onclick^="closeReadOnlyFullscreen"]{
+                width:25px !important;
+                height:25px !important;
             }
             #fullscreenViewer [data-detail-shell] > button[onclick^="closeReadOnlyFullscreen"]{
                 top:16px !important;
@@ -1174,6 +1193,19 @@
                 display:flex!important;align-items:center!important;justify-content:center!important;
                 background:rgba(15,23,42,.76)!important;color:#fff!important;font-size:17px!important;
                 box-shadow:0 4px 14px rgba(0,0,0,.28)!important;touch-action:manipulation!important;
+            }
+        }
+
+        @media(max-width:639px){
+            #svgConnectionsGroup .svg-conn-line,
+            #svgConnectionsGroup .svg-conn-line.active-line{
+                opacity:0 !important;
+                visibility:hidden !important;
+                pointer-events:none !important;
+            }
+            .timeline-node-container.conn-related-preview:not(:hover) .timeline-hover-tooltip{
+                opacity:0 !important;
+                visibility:hidden !important;
             }
         }
 </style>
@@ -2114,14 +2146,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.isCloudSynced = false;
         try { localStorage.removeItem('yuhoutianqing_pending_events'); } catch (_) {}
         window.canEditNow = function() { return !window.isMobileEditingDevice() && !window.isLocked && window.isCloudSynced && window.cloudWriteReady && window.hasTimelineEditToken?.(); };
-        window.zoomLevel = (function(){
-            try{
-                const sw=Number(screen?.width||window.innerWidth||0), sh=Number(screen?.height||window.innerHeight||0);
-                const shortSide=Math.min(sw||Infinity,sh||Infinity);
-                const phone=(navigator.userAgentData?.mobile===true)||/Mobi|Android|iPhone|iPod/i.test(navigator.userAgent||'')||(((navigator.maxTouchPoints||0)>0||'ontouchstart' in window)&&shortSide<=600);
-                return phone?2:3;
-            }catch(_){return window.innerWidth<=639?2:3;}
-        })();
+        window.zoomLevel = 3;
         window.edgeScrollSpeed = (function() {
             const v = Number(localStorage.getItem('yuhoutianqing_edgeScrollSpeed'));
             if (!v || isNaN(v)) return 5;
@@ -4934,8 +4959,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     )) {
                         return;
                     }
-                    items.forEach(e => window.highlightConnectionsForEvent(e.id, true));
                     window.startPreviewSlideshow(nodeContainer);
+                    if (window.isMobileEditingDevice?.()) return;
+                    items.forEach(e => window.highlightConnectionsForEvent(e.id, true));
                     if (!window.isLocked) return;
                     const rearranged = window.tryRearrangeOnHover(nodeContainer, items.map(e => e.id));
                     if (!rearranged) {
@@ -5794,6 +5820,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         };
 
         window.tryRearrangeOnHover = function(anchorNode, anchorEventIds) {
+            if (window.isMobileEditingDevice?.()) return false;
             if (!anchorNode || !anchorEventIds || !anchorEventIds.length) return false;
             if (!window.isLocked) return false;
             if (_rearrangeEdgeScrolling) return false;
@@ -6038,6 +6065,10 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         };
 
         window.showRelatedConnectionPreviews = function(eventIds, primaryNode) {
+            if (window.isMobileEditingDevice?.()) {
+                window.clearRelatedConnectionPreviews(primaryNode);
+                return;
+            }
             if (window._edgeAutoScrollActive || window._pointerInEdgeZone) {
                 window.clearRelatedConnectionPreviews();
                 return;
@@ -9467,7 +9498,7 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
             let videosHtml='';if(detailHasVideos){videosHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-video mr-1"></i>事件视频</h4><div data-detail-videos>${event.videos.map((v,vidx)=>{const vUrl=typeof v==='object'?(v.blobUrl||v.url):v,vCover=typeof v==='object'?(v.cover||''):'',vTitle=typeof v==='object'?(v.title||v.name||''):'',vType=typeof v==='object'&&v.mime?`type="${v.mime}"`:'';const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(v?.deepDescription);return `<div data-detail-video-card data-detail-video-index="${vidx}" data-detail-video-deep="${hasDeep?'1':'0'}" class="bg-black rounded-xl overflow-hidden border border-slate-800 ${hasDeep?'cursor-pointer':''}">${vTitle?`<div data-detail-video-title class="px-3 py-2 bg-slate-900 text-xs font-semibold text-slate-200 border-b border-slate-800">${escapeHtml(vTitle)}</div>`:''}<div data-detail-video-stage class="relative bg-black overflow-hidden"><video ${vCover?`poster="${vCover}"`:''} playsinline webkit-playsinline preload="none" class="block bg-black object-contain"><source src="${vUrl}" ${vType}></video>${hasDeep?'<span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">🐢</span><span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">✌🏻</span>':''}</div></div>`;}).join('')}</div></div>`;}
             let linksHtml='';if(event.links&&event.links.length>0){linksHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-link mr-1"></i>跳转网址</h4><div class="flex flex-wrap gap-2">${event.links.map(l=>`<a href="${l.url}" target="_blank" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-indigo-300 hover:text-indigo-200 px-3 py-2 rounded-xl text-xs transition-colors"><i class="fa-solid fa-globe"></i><span class="font-medium">${l.title||l.url}</span></a>`).join('')}</div></div>`;}
             const descriptionHtml=detailHasDescription?`<div data-detail-description class="border-t border-slate-800 pt-6 mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">事件经过与描述</h4><div class="event-description-html text-sm sm:text-base leading-relaxed whitespace-pre-wrap">${window.prepareDescriptionForView?window.prepareDescriptionForView(event.description):event.description}</div></div>`:'';
-            viewer.innerHTML=`<div data-detail-shell class="${event.type==='major'?'detail-has-major ':''}${/(?:\d)\s*(?:–|—|~|～|至)\s*(?:\d)/.test(String(event.date||''))?'detail-has-range ':''}max-w-3xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-10 shadow-2xl relative"><div class="detail-window-dragbar" data-detail-drag-handle><i class="fa-solid fa-grip-lines"></i><span>点击此处拖动详情页</span></div><button type="button" onclick="window.openEventCommentWindow('${event.id}')" class="detail-window-comments-btn"><i class="fa-regular fa-comments"></i><span>评论区</span></button><button onclick="closeReadOnlyFullscreen('${fromStackDate?fromStackDate.replace(/'/g,"\\'"):''}')" class="absolute top-3 right-4 sm:top-4 sm:right-6 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full flex items-center justify-center transition-colors"><i class="fa-solid fa-xmark text-lg"></i></button><div class="flex items-center gap-3 mb-2"><span class="text-xs font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full font-semibold">${window.formatDisplayDate(event.date)}</span>${event.type==='major'?'<span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full">重大里程碑</span>':''}</div><h1 class="text-xl sm:text-2xl font-bold text-white mb-3 tracking-wide">${event.title}</h1><div data-detail-body>${imagesHtml}${videosHtml}${linksHtml}${descriptionHtml}</div></div>`;
+            viewer.innerHTML=`<div data-detail-shell class="${event.type==='major'?'detail-has-major ':''}${/(?:\d)\s*(?:-|–|—|~|～|至)\s*(?:\d)/.test(String(event.date||''))?'detail-has-range ':''}max-w-3xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-10 shadow-2xl relative"><div class="detail-window-dragbar" data-detail-drag-handle><i class="fa-solid fa-grip-lines"></i><span>点击此处拖动详情页</span></div><button type="button" onclick="window.openEventCommentWindow('${event.id}')" class="detail-window-comments-btn"><i class="fa-regular fa-comments"></i><span>评论区</span></button><button onclick="closeReadOnlyFullscreen('${fromStackDate?fromStackDate.replace(/'/g,"\\'"):''}')" class="absolute top-3 right-4 sm:top-4 sm:right-6 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full flex items-center justify-center transition-colors"><i class="fa-solid fa-xmark text-lg"></i></button><div class="flex items-center gap-3 mb-2"><span class="text-xs font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full font-semibold">${window.formatDisplayDate(event.date)}</span>${event.type==='major'?'<span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full">重大里程碑</span>':''}</div><h1 class="text-xl sm:text-2xl font-bold text-white mb-3 tracking-wide">${event.title}</h1><div data-detail-body>${imagesHtml}${videosHtml}${linksHtml}${descriptionHtml}</div></div>`;
             // 首次打开详情时先完成媒体布局，再让整个详情页参与绘制，避免媒体以块级默认宽度闪现一帧。
             viewer.style.visibility='hidden';
             viewer.classList.remove('hidden');
