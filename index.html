@@ -1126,6 +1126,20 @@
                 background:rgba(15,23,42,.72);color:#fff;font-size:17px;
             }
         }
+
+        @media (max-width:639px){
+            .mobile-video-inline-holder{position:relative!important;width:100%!important;overflow:hidden!important;background:#000!important;touch-action:pan-y!important}
+            .mobile-video-inline-holder video{display:block!important;width:100%!important;height:auto!important;max-width:100%!important;max-height:none!important;object-fit:contain!important;pointer-events:none!important}
+            .mobile-video-inline-holder .mobile-video-open{
+                position:absolute!important;left:50%!important;top:50%!important;right:auto!important;bottom:auto!important;
+                transform:translate(-50%,-50%)!important;z-index:20!important;
+                width:46px!important;height:46px!important;border:0!important;border-radius:9999px!important;
+                display:flex!important;align-items:center!important;justify-content:center!important;
+                background:rgba(15,23,42,.76)!important;color:#fff!important;font-size:16px!important;
+                box-shadow:0 4px 14px rgba(0,0,0,.28)!important;touch-action:manipulation!important;
+            }
+            .mobile-video-inline-holder button:not(.mobile-video-open){display:none!important}
+        }
 </style>
 
 <style id="invalidRoomAccessStyle">
@@ -9122,112 +9136,82 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if(!detailViewer)return;
             detailViewer.querySelectorAll('[data-detail-video-card] video').forEach(video=>{if(video!==except)window.resetDetailVideoToCover(video);});
         };
-        window._mobileVideoState={video:null,holder:null,stage:null};
-
-        window.closeMobileVideoPlayer=function(){
-            const modal=document.getElementById('mobileVideoModal');
-            const state=window._mobileVideoState||{};
-            const video=state.video;
-            if(video){
+        window.destroyMobileDetailVideos=function(){
+            document.querySelectorAll('video[data-mobile-inline-video="1"]').forEach(video=>{
                 try{video.pause();video.currentTime=0;}catch(_){}
-                // 保留同一个 video 与 src，不销毁解码对象；放回原占位并隐藏。
-                if(state.holder){
-                    state.holder.appendChild(video);
-                    video.style.display='none';
-                }
-            }
-            window._mobileVideoState={video:null,holder:null,stage:null};
-            if(modal){modal.classList.add('hidden');modal.setAttribute('aria-hidden','true');}
+                const holder=video.closest('.mobile-video-inline-holder');
+                const btn=holder?.querySelector('.mobile-video-open');
+                if(btn){btn.classList.remove('is-playing');btn.innerHTML='<i class="fa-solid fa-play"></i>';btn.style.display='flex';}
+            });
         };
-        window.destroyMobileDetailVideos=window.closeMobileVideoPlayer;
-
-        window.openMobileVideoPlayer=function(video,holder){
-            if(!window.isPhoneLikeDevice?.()||!video||!holder)return;
-            const modal=document.getElementById('mobileVideoModal');
-            if(!modal)return;
-            window.closeMobileVideoPlayer();
-
-            const oldPlayer=document.getElementById('mobileVideoPlayer');
-            if(oldPlayer)oldPlayer.remove();
-
-            // 直接移动原始 video，而不是重新创建一个播放器。
-            video.id='mobileVideoPlayer';
-            video.style.display='block';
-            video.style.width='100%';
-            video.style.height='100%';
-            video.style.maxWidth='100vw';
-            video.style.maxHeight='100dvh';
-            video.style.objectFit='contain';
-            video.style.background='#000';
-            video.style.pointerEvents='auto';
-            video.controls=true;
-            video.playsInline=true;
-            video.setAttribute('playsinline','');
-            video.setAttribute('webkit-playsinline','');
-            modal.insertBefore(video,document.getElementById('mobileVideoClose'));
-            window._mobileVideoState={video,holder,stage:holder.parentElement};
-
-            modal.classList.remove('hidden');modal.setAttribute('aria-hidden','false');
-
-            // 等 DOM/合成层完成一帧后再播放，避免部分手机浏览器出现“有声音无画面”。
-            requestAnimationFrame(()=>requestAnimationFrame(()=>{
-                try{
-                    if(video.readyState>=1 && video.videoWidth>0 && video.videoHeight>0){
-                        video.style.aspectRatio=`${video.videoWidth}/${video.videoHeight}`;
-                    }
-                    video.play().catch(()=>{});
-                }catch(_){}
-            }));
-        };
+        window.closeMobileVideoPlayer=window.destroyMobileDetailVideos;
 
         window.prepareMobileDetailVideo=function(video){
             if(!window.isPhoneLikeDevice?.()||!video)return false;
+            if(video.dataset.mobileInlineVideo==='1')return true;
             const stage=video.closest('[data-detail-video-stage]')||video.parentElement;
             if(!stage)return false;
 
-            // 保留原 video，只在详情页中隐藏；绝不复制/重建媒体源。
+            video.dataset.mobileInlineVideo='1';
+            video.controls=false;
+            video.removeAttribute('controls');
+            video.playsInline=true;
+            video.setAttribute('playsinline','');
+            video.setAttribute('webkit-playsinline','');
+            video.disablePictureInPicture=true;
+            video.setAttribute('disablepictureinpicture','');
+            video.setAttribute('controlslist','nodownload noplaybackrate noremoteplayback');
+            video.style.cssText='display:block;width:100%;height:auto;max-width:100%;max-height:none;object-fit:contain;position:relative;inset:auto;transform:none;z-index:1;pointer-events:none;background:#000;';
+
             const holder=document.createElement('div');
-            holder.className='mobile-video-placeholder';
-            holder.dataset.detailVideoStage='1';
+            holder.className='mobile-video-inline-holder';
+            holder.style.cssText='position:relative;width:100%;overflow:hidden;background:#000;touch-action:pan-y;';
+            stage.replaceChild(holder,video);
+            holder.appendChild(video);
+
+            const btn=document.createElement('button');
+            btn.type='button';btn.className='mobile-video-open';
+            btn.innerHTML='<i class="fa-solid fa-play"></i>';
+            holder.appendChild(btn);
 
             const applyRatio=()=>{
                 if(video.videoWidth>0&&video.videoHeight>0){
-                    holder.style.aspectRatio=`${video.videoWidth}/${video.videoHeight}`;
+                    const ratio=`${video.videoWidth}/${video.videoHeight}`;
+                    holder.style.aspectRatio=ratio;
+                    video.style.aspectRatio=ratio;
                 }
             };
             if(video.readyState>=1)applyRatio();
             video.addEventListener('loadedmetadata',applyRatio);
 
-            const btn=document.createElement('button');
-            btn.type='button';btn.className='mobile-video-open';
-            btn.innerHTML='<i class="fa-solid fa-play"></i>';
+            const sync=()=>{
+                const playing=!video.paused&&!video.ended;
+                btn.classList.toggle('is-playing',playing);
+                btn.innerHTML=playing?'<i class="fa-solid fa-pause"></i>':'<i class="fa-solid fa-play"></i>';
+                // 播放时按钮淡出但仍可点；不显示浏览器原生 controls，避免百度插入额外播放符号。
+                btn.style.opacity=playing?'.28':'1';
+            };
+            btn.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();});
             btn.addEventListener('click',e=>{
                 e.preventDefault();e.stopPropagation();
-                window.openMobileVideoPlayer(video,holder);
+                if(video.paused||video.ended){
+                    document.querySelectorAll('video[data-mobile-inline-video="1"]').forEach(other=>{if(other!==video)try{other.pause();}catch(_){}});
+                    // 不移动、不复制、不改 src，只在原始位置播放。
+                    requestAnimationFrame(()=>video.play().catch(()=>{}));
+                }else video.pause();
             });
-
-            video.controls=false;
-            video.playsInline=true;
-            video.setAttribute('playsinline','');
-            video.setAttribute('webkit-playsinline','');
-            video.style.display='none';
-
-            // holder 同时保存原 video 和按钮；video 隐藏时不会参与详情页触摸/合成。
-            stage.replaceChild(holder,video);
-            holder.appendChild(video);
-            holder.appendChild(btn);
+            video.addEventListener('play',sync);
+            video.addEventListener('pause',sync);
+            video.addEventListener('ended',sync);
+            sync();
             return true;
         };
 
-        queueMicrotask(()=>{
-            const modal=document.getElementById('mobileVideoModal');
-            const close=document.getElementById('mobileVideoClose');
-            if(modal){
-                modal.addEventListener('pointerdown',e=>e.stopPropagation());
-                modal.addEventListener('click',e=>e.stopPropagation());
-            }
-            if(close)close.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();window.closeMobileVideoPlayer?.();});
-        });
+        document.addEventListener('pointerdown',e=>{
+            if(!window.isPhoneLikeDevice?.())return;
+            const overlay=e.target?.closest?.('#lightboxModal,#deepMediaPreviewModal,#deepReadMediaLightbox,#deepReadCanvasModal');
+            if(overlay)window.destroyMobileDetailVideos?.();
+        },true);
 
         window.bindDetailVideoBehavior = function(viewer,eventId){
 const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
@@ -13651,8 +13635,6 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
 
 
 
-    <div id="mobileVideoModal" class="hidden" aria-hidden="true">
-        <button id="mobileVideoClose" type="button" aria-label="关闭视频"><i class="fa-solid fa-xmark"></i></button>
-    </div>
+
 </body>
 </html>
