@@ -8905,10 +8905,16 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             state.items=(state.items||[]).filter(x=>x.type!=='arrow');
 
             const phoneDeep=!!window.isPhoneLikeDevice?.();
-            let deepImageObserver=null;
-            if(phoneDeep&&'IntersectionObserver' in window){deepImageObserver=new IntersectionObserver(entries=>{entries.forEach(entry=>{if(!entry.isIntersecting)return;const img=entry.target,src=img.dataset.deepLazySrc;if(src&&!img.getAttribute('src')){img.src=src;delete img.dataset.deepLazySrc;}deepImageObserver.unobserve(img);});},{root:viewport,rootMargin:'500px 350px',threshold:.01});}
-            const bindDeepReadImage=(img,src)=>{if(!img)return;img.loading='lazy';img.decoding='async';if(phoneDeep&&deepImageObserver){img.removeAttribute('src');img.dataset.deepLazySrc=src;deepImageObserver.observe(img);}else img.src=src;};
-
+            let phoneDeepImageIndex=0;
+            const bindDeepReadImage=(img,src)=>{
+                if(!img)return;
+                const index=phoneDeepImageIndex++;
+                img.decoding='async';
+                // 真实 src 始终存在，避免真机滚动容器变化后 observer 不触发而完全不请求。
+                img.loading=(phoneDeep&&index===0)?'eager':'lazy';
+                if(phoneDeep&&index===0)img.fetchPriority='high';
+                img.src=src;
+            };
             const resetReadInlineVideos=(exceptHost=null)=>{
                 st.querySelectorAll('.deep-canvas-media').forEach(host=>{
                     if(host===exceptHost)return;
@@ -9603,6 +9609,12 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
             // 首次打开详情时先完成媒体布局，再让整个详情页参与绘制，避免媒体以块级默认宽度闪现一帧。
             viewer.style.visibility='hidden';
             viewer.classList.remove('hidden');
+            if(window.isPhoneLikeDevice?.()){
+                viewer.querySelectorAll('[data-detail-image]').forEach((img,idx)=>{
+                    img.loading='eager';
+                    if(idx===0)img.fetchPriority='high';
+                });
+            }
             window.fitEventDetailMedia(viewer);
             window.bindDelayedMediaLoadingHint?.(viewer);
             viewer.style.visibility='';
