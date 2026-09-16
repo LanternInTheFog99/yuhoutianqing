@@ -3047,6 +3047,67 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             }
         }
 
+        // v104: files larger than 1 MiB are uploaded directly to CloudBase Storage and classified into gif/video/picture/music.
+        window.CLOUD_MEDIA_THRESHOLD = 1024 * 1024;
+        window.cloudMediaPublicUrl = function(cloudPath){
+            return TIMELINE_API_BASE.replace(/\/+$/,'') + '/' + String(cloudPath||'').replace(/^\/+/, '');
+        };
+        window._cloudUploadNotice = function(text, show=true){
+            let el=document.getElementById('cloudMediaUploadNotice');
+            if(!el){
+                el=document.createElement('div'); el.id='cloudMediaUploadNotice';
+                el.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:99999;background:rgba(15,23,42,.92);color:white;padding:9px 14px;border-radius:999px;font-size:13px;box-shadow:0 8px 28px rgba(0,0,0,.22);pointer-events:none;max-width:86vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+                document.body.appendChild(el);
+            }
+            el.textContent=text||'正在上传…'; el.style.display=show?'block':'none';
+        };
+        window.uploadLargeMediaToCloudBase = async function(file){
+            if(!file) throw new Error('NO_FILE');
+            if(!window.hasTimelineEditToken?.()) throw Object.assign(new Error('请先解锁编辑模式再上传大文件'),{code:'EDIT_AUTH_REQUIRED'});
+            window._cloudUploadNotice?.(`正在准备上传 ${file.name||'文件'}…`);
+            const meta=await timelineApiPost('getMediaUploadMetadata',{fileName:file.name||'file',mime:file.type||'application/octet-stream',size:file.size},{auth:'edit',timeoutMs:25000});
+            const up=meta?.upload||{};
+            if(!up.url||!up.authorization||!up.token||!up.cosFileID||!meta.cloudPath) throw new Error('上传凭证不完整');
+            const folder=meta.mediaFolder||String(meta.cloudPath).split('/')[0]||'云存储';
+            window._cloudUploadNotice?.(`正在上传到 ${folder}/：${file.name||'文件'}… 0%`);
+            await new Promise((resolve,reject)=>{
+                const form=new FormData();
+                form.append('key',meta.cloudPath);
+                form.append('Signature',up.authorization);
+                form.append('x-cos-meta-fileid',up.cosFileID);
+                form.append('success_action_status','201');
+                form.append('x-cos-security-token',up.token);
+                form.append('file',file,file.name||'file');
+                const xhr=new XMLHttpRequest();
+                xhr.open('POST',up.url,true);
+                xhr.upload.onprogress=(ev)=>{
+                    if(ev.lengthComputable){
+                        const pct=Math.max(0,Math.min(100,Math.round(ev.loaded/ev.total*100)));
+                        window._cloudUploadNotice?.(`正在上传到 ${folder}/：${file.name||'文件'}… ${pct}%`);
+                    }
+                };
+                xhr.onerror=()=>reject(new Error('云存储上传网络错误'));
+                xhr.onabort=()=>reject(new Error('上传已取消'));
+                xhr.onload=()=>{ if(xhr.status>=200&&xhr.status<300) resolve(); else reject(new Error(`云存储上传失败（HTTP ${xhr.status}）`)); };
+                xhr.send(form);
+            });
+            const url=window.cloudMediaPublicUrl(meta.cloudPath);
+            window._cloudUploadNotice?.(`上传完成：${meta.cloudPath}`);
+            setTimeout(()=>window._cloudUploadNotice?.('',false),900);
+            return {url,cloudPath:meta.cloudPath,mediaFolder:folder,fileID:meta.fileID||'',mime:file.type||'',name:file.name||''};
+        };
+        window.localOrCloudMediaUrl = async function(file,{compressStaticImage=false}={}){
+            if(file.size > window.CLOUD_MEDIA_THRESHOLD){
+                const uploaded=await window.uploadLargeMediaToCloudBase(file);
+                return {...uploaded,isCloud:true};
+            }
+            if(compressStaticImage){
+                return {url:await compressImage(file),isCloud:false,mime:file.type||'',name:file.name||''};
+            }
+            const url=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=e=>resolve(String(e.target.result||''));r.onerror=reject;r.readAsDataURL(file);});
+            return {url,isCloud:false,mime:file.type||'',name:file.name||''};
+        };
+
         window.ensureRoomAccess = async function(){
             if(window.roomAccessToken) return true;
             if(!window.isMainEditRoom){
@@ -4257,7 +4318,17 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.multiAddImageUrl=(i)=>{const el=document.getElementById('multiImgUrl_'+i),u=window.extractFirstHttpUrl?.(el?.value)||'';if(!u)return;window.multiTimeDraft[i].images.push(window.multiNormalizeImage(u));el.value='';window.multiRenderCurrentPage?.();};
         window.multiAddVideoUrl=(i)=>{const el=document.getElementById('multiVideoUrl_'+i),u=window.extractFirstHttpUrl?.(el?.value)||'';if(!u)return;const t=document.getElementById('multiVideoTitle_'+i)?.value.trim()||'';window.multiTimeDraft[i].videos.push(window.multiNormalizeVideo({url:u,title:t,cover:'',previewDuration:4,deepDescription:null}));el.value='';window.multiRenderCurrentPage?.();};
         window.multiAddLink=(i)=>{const u=window.extractFirstHttpUrl?.(document.getElementById('multiLinkUrl_'+i)?.value)||'',t=document.getElementById('multiLinkTitle_'+i)?.value.trim();if(!u)return;window.multiTimeDraft[i].links.push({title:t||u,url:u});window.multiRenderCurrentPage?.();};
-        window.multiAddFiles=function(i,kind,files){Array.from(files||[]).forEach(file=>{if(file.size>1024*1024){window.showToast('上传图片或视频文件最好不超过 1MB','error');return;}const r=new FileReader();r.onload=()=>{if(kind==='image')window.multiTimeDraft[i].images.push(window.multiNormalizeImage({mediaId:window.multiMediaId(),originalFull:String(r.result||''),original:String(r.result||''),outer:String(r.result||''),inner:String(r.result||''),collection:String(r.result||''),isAnimated:/gif/i.test(file.type||''),deepDescription:null}));else window.multiTimeDraft[i].videos.push(window.multiNormalizeVideo({url:String(r.result||''),blobUrl:'',cover:'',title:file.name||'',mime:file.type||'',previewDuration:4,deepDescription:null}));window.multiRenderCurrentPage?.();};r.readAsDataURL(file);});};
+        window.multiAddFiles=async function(i,kind,files){
+            for(const file of Array.from(files||[])){
+                try{
+                    const media=await window.localOrCloudMediaUrl(file);
+                    const src=media.url;
+                    if(kind==='image') window.multiTimeDraft[i].images.push(window.multiNormalizeImage({mediaId:window.multiMediaId(),originalFull:src,original:src,outer:src,inner:src,collection:src,isAnimated:/gif|webp/i.test(file.type||file.name||''),deepDescription:null,cloudPath:media.cloudPath||''}));
+                    else window.multiTimeDraft[i].videos.push(window.multiNormalizeVideo({url:src,blobUrl:'',cover:'',title:file.name||'',mime:file.type||'',previewDuration:4,deepDescription:null,cloudPath:media.cloudPath||''}));
+                    window.multiRenderCurrentPage?.();
+                }catch(err){ console.warn(err); window._cloudUploadNotice?.('',false); window.showToast(err?.message||'文件上传失败','error'); }
+            }
+        };
 
         /* Multi-time shared media adapter: reuse single-time media/editor modals and logic. */
         window._multiSharedSegmentIndex = null;
@@ -6652,7 +6723,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 const x=pos.x,y=pos.y;
                 deepPushUndo(); window.deepCanvasState.items.push({id:'media_'+Date.now().toString(36),type:'media',x,y,w,h,src,mediaKind:kind,layer:0}); window.renderDeepCanvas(); window.deepSetMediaLoading?.(false);
             };
-            if(useLocal){ const input=document.createElement('input'); input.type='file'; input.accept='image/*,video/*'; input.onchange=()=>{const f=input.files?.[0];if(!f)return;if(f.size>1024*1024){window.showToast('深入描述画布中的本地媒体不能超过 1MB','error');return;}window.deepSetMediaLoading?.(true,'正在读取并加载本地媒体…');const r=new FileReader();r.onerror=()=>{window.deepSetMediaLoading?.(false);window.showToast?.('本地媒体读取失败','error');};r.onload=()=>{const src=r.result,kind=f.type.startsWith('video/')?'video':'image'; if(kind==='image'){const im=new Image();im.onload=()=>addBySrc(src,kind,im.naturalWidth,im.naturalHeight);im.src=src;}else{const v=document.createElement('video');v.preload='metadata';v.onloadedmetadata=()=>addBySrc(src,kind,v.videoWidth,v.videoHeight);v.onerror=()=>addBySrc(src,kind,640,360);v.src=src;}};r.readAsDataURL(f);}; input.click(); return; }
+            if(useLocal){ const input=document.createElement('input'); input.type='file'; input.accept='image/*,video/*'; input.onchange=async()=>{const f=input.files?.[0];if(!f)return;window.deepSetMediaLoading?.(true,'正在读取并加载本地媒体…');try{const media=await window.localOrCloudMediaUrl(f);const src=media.url,kind=f.type.startsWith('video/')?'video':'image';if(kind==='image'){const im=new Image();im.onload=()=>addBySrc(src,kind,im.naturalWidth,im.naturalHeight);im.onerror=()=>addBySrc(src,kind,640,360);im.src=src;}else{const v=document.createElement('video');v.preload='metadata';v.onloadedmetadata=()=>addBySrc(src,kind,v.videoWidth,v.videoHeight);v.onerror=()=>addBySrc(src,kind,640,360);v.src=src;}}catch(err){window.deepSetMediaLoading?.(false);window._cloudUploadNotice?.('',false);window.showToast?.(err?.message||'本地媒体上传失败','error');}}; input.click(); return; }
             const val=await window.deepMediaUrlDialog(); if(!val)return; try{new URL(val);}catch(_){window.showToast('请输入有效的媒体直链','error');return;}
             window.deepSetMediaLoading?.(true,'正在加载媒体直链，请稍候…');
             const kind=/\.(mp4|webm|ogg|mov)(?:$|[?#])/i.test(val)?'video':'image';
@@ -10245,16 +10316,15 @@ viewer.style.visibility='';
             for (const f of files) {
                 try {
                     const animated = /^(image\/gif|image\/webp)$/i.test(f.type) || /\.(gif|webp)$/i.test(f.name || '');
-                    const base64 = animated
-                        ? await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=ev=>resolve(ev.target.result);r.onerror=reject;r.readAsDataURL(f);})
-                        : await compressImage(f);
+                    const media = await window.localOrCloudMediaUrl(f,{compressStaticImage:!animated});
+                    const src=media.url;
                     window.editingImageFiles.push({
                         mediaId: 'img_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9),
-                        original: base64, originalFull: base64, outer: base64, inner: base64, collection: base64,
-                        isAnimated: animated, crop: null
+                        original: src, originalFull: src, outer: src, inner: src, collection: src,
+                        isAnimated: animated, crop: null, cloudPath: media.cloudPath||''
                     });
                     window.renderMicroPreviews();
-                } catch(err) { window.showToast('图片添加失败','error'); }
+                } catch(err) { console.warn(err); window._cloudUploadNotice?.('',false); window.showToast(err?.message||'图片添加失败','error'); }
             }
             e.target.value='';
         };
@@ -10264,27 +10334,22 @@ viewer.style.visibility='';
             const files = Array.from(input.files || []);
             for (const f of files) {
                 try {
-                    const blobUrl = URL.createObjectURL(f);
-                    const dataUrl = await new Promise((resolve, reject) => {
-                        const reader = new FileReader();
-                        reader.onload = (ev) => resolve(ev.target.result);
-                        reader.onerror = reject;
-                        reader.readAsDataURL(f);
-                    });
+                    const media=await window.localOrCloudMediaUrl(f);
                     window.editingVideos.push({
                         mediaId: 'vid_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9),
-                        url: dataUrl,
+                        url: media.url,
                         previewDuration: 4,
-                        blobUrl: blobUrl,
+                        blobUrl: '',
                         cover: '',
                         mime: f.type || 'video/mp4',
                         name: f.name || '',
-                        title: f.name ? f.name.replace(/\.[^.]+$/, '') : ''
+                        title: f.name ? f.name.replace(/\.[^.]+$/, '') : '',
+                        cloudPath: media.cloudPath||''
                     });
                     window.renderVideoPreviews();
                 } catch (err) {
-                    console.warn(err);
-                    window.showToast('视频添加失败', 'error');
+                    console.warn(err); window._cloudUploadNotice?.('',false);
+                    window.showToast(err?.message||'视频添加失败', 'error');
                 }
             }
             input.value = '';
