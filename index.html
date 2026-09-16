@@ -1229,6 +1229,15 @@
                 display:block !important;
             }
         }
+
+        @media(max-width:639px){
+            .timeline-node-container.force-hover.phone-preview-active .timeline-hover-tooltip{
+                display:block !important;
+                opacity:1 !important;
+                visibility:visible !important;
+                transform:translateY(0) scale(var(--preview-scale,1)) !important;
+            }
+        }
 </style>
 
 <style id="invalidRoomAccessStyle">
@@ -2053,9 +2062,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
     <script type="module">
 
-        window.mobileFastMediaUrl=function(url){
-            return String(url||'');
-        };
 
         window.bindDelayedMediaLoadingHint=function(root){
             if(!root)return;
@@ -5075,33 +5081,33 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 });
 
                 if(window.isPhoneLikeDevice?.()){
-                    let phonePreviewTimer=null,phonePreviewActive=false,phonePreviewStart=null;
-                    const cancelPhonePreview=()=>{
+                    let phonePreviewTimer=null,phonePreviewActive=false,startX=0,startY=0;
+                    const endPhonePreview=()=>{
                         if(phonePreviewTimer){clearTimeout(phonePreviewTimer);phonePreviewTimer=null;}
                         if(phonePreviewActive){
                             phonePreviewActive=false;
                             nodeContainer.classList.remove('phone-preview-active','force-hover');
                             window.stopPreviewSlideshow(nodeContainer,true);
                         }
-                        phonePreviewStart=null;
                     };
-                    nodeContainer.addEventListener('pointerdown',e=>{
-                        if(e.pointerType==='mouse'||!e.isPrimary)return;
-                        phonePreviewStart={id:e.pointerId,x:e.clientX,y:e.clientY};
+                    nodeContainer.addEventListener('touchstart',e=>{
+                        if(e.touches.length!==1)return;
+                        const t=e.touches[0];startX=t.clientX;startY=t.clientY;
+                        if(phonePreviewTimer)clearTimeout(phonePreviewTimer);
                         phonePreviewTimer=setTimeout(()=>{
                             phonePreviewTimer=null;
-                            if(!phonePreviewStart)return;
                             phonePreviewActive=true;
                             nodeContainer.classList.add('phone-preview-active','force-hover');
                             window.startPreviewSlideshow(nodeContainer,{noCrossfade:true});
-                        },360);
+                        },300);
                     },{passive:true});
-                    nodeContainer.addEventListener('pointermove',e=>{
-                        const s=phonePreviewStart;if(!s||s.id!==e.pointerId)return;
-                        if(Math.hypot(e.clientX-s.x,e.clientY-s.y)>10)cancelPhonePreview();
+                    nodeContainer.addEventListener('touchmove',e=>{
+                        if(!e.touches.length)return;
+                        const t=e.touches[0];
+                        if(Math.hypot(t.clientX-startX,t.clientY-startY)>24)endPhonePreview();
                     },{passive:true});
-                    nodeContainer.addEventListener('pointerup',cancelPhonePreview,{passive:true});
-                    nodeContainer.addEventListener('pointercancel',cancelPhonePreview,{passive:true});
+                    nodeContainer.addEventListener('touchend',endPhonePreview,{passive:true});
+                    nodeContainer.addEventListener('touchcancel',endPhonePreview,{passive:true});
                 }
 
                 nodeContainer.addEventListener('mouseleave', () => {
@@ -5191,8 +5197,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             }
 
             const canReorder = !window.isLocked;
-            const initialStackFocus = (typeof window._stackFocusIndex === 'number' && window._stackFocusIndex >= 0 && window._stackFocusIndex < items.length) ? window._stackFocusIndex : 0;
-            const phoneStackLazy = !!window.isPhoneLikeDevice?.();
             const hint = canReorder
                 ? '拖拽卡片调整顺序，左上角数字为实际顺序'
                 : '左右滑动或滚动鼠标切换，点击中心卡片查看详情';
@@ -8109,7 +8113,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             host.querySelector('.deep-video-cover-play')?.remove();
             host.querySelector('.deep-video-cover-edit')?.remove();
             const video=document.createElement('video');
-            video.src=window.mobileFastMediaUrl(item.src);video.playsInline=true;video.setAttribute('playsinline','');video.preload='metadata';
+            video.src=item.src;video.playsInline=true;video.setAttribute('playsinline','');video.preload='metadata';
             host.insertBefore(video,host.firstChild);
             const c=item.crop||{scale:1,offsetX:0,offsetY:0,stretchX:1,stretchY:1};
             const apply=()=>{const scale=Math.max(.01,Number(c.scale)||1),sx=Math.max(.85,Math.min(1.15,Number(c.stretchX)||1)),sy=Math.max(.85,Math.min(1.15,Number(c.stretchY)||1));video.style.width='auto';video.style.height='auto';video.style.left='50%';video.style.top='50%';video.style.transform=`translate(-50%,-50%) translate(${Number(c.offsetX)||0}px,${Number(c.offsetY)||0}px) scale(${scale}) scale(${sx},${sy})`;};
@@ -8121,7 +8125,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.deepRenderVideoCover=function(host,item,readOnly=false){
             if(!host||!item)return;
             const cover=document.createElement('div');cover.className='deep-video-cover-layer';
-            if(item.cover)cover.innerHTML=`<img src="${window.deepEsc(window.mobileFastMediaUrl(item.cover))}" alt="视频封面">`;
+            if(item.cover)cover.innerHTML=`<img src="${window.deepEsc(item.cover)}" alt="视频封面">`;
             else cover.innerHTML=`<div class="deep-video-cover-placeholder"><span><i class="fa-solid fa-video mr-1"></i>视频</span></div>`;
             host.appendChild(cover);
             const play=document.createElement('button');play.type='button';play.className='deep-video-cover-play';play.innerHTML='<i class="fa-solid fa-play"></i>';play.title='播放视频';
@@ -8947,13 +8951,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             state.items=(state.items||[]).filter(x=>x.type!=='arrow');
 
             const phoneDeep=!!window.isPhoneLikeDevice?.();
-            const bindDeepReadImage=(img,src)=>{
-                if(!img)return;
-                img.loading='lazy';
-                img.decoding='async';
-                img.src=src;
-                window.bindDelayedMediaLoadingHint?.(img.parentElement||img);
-            };
+            let deepImageObserver=null;
+            if(phoneDeep&&'IntersectionObserver' in window){deepImageObserver=new IntersectionObserver(entries=>{entries.forEach(entry=>{if(!entry.isIntersecting)return;const img=entry.target,src=img.dataset.deepLazySrc;if(src&&!img.getAttribute('src')){img.src=src;delete img.dataset.deepLazySrc;window.bindDelayedMediaLoadingHint?.(img.parentElement||img);}deepImageObserver.unobserve(img);});},{root:viewport,rootMargin:'500px 350px',threshold:.01});}
+            const bindDeepReadImage=(img,src)=>{if(!img)return;img.loading='lazy';img.decoding='async';if(phoneDeep&&deepImageObserver){img.removeAttribute('src');img.dataset.deepLazySrc=src;deepImageObserver.observe(img);}else{img.src=src;window.bindDelayedMediaLoadingHint?.(img.parentElement||img);}};
 
             const resetReadInlineVideos=(exceptHost=null)=>{
                 st.querySelectorAll('.deep-canvas-media').forEach(host=>{
@@ -8979,8 +8979,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     document.body.appendChild(lm);
                 }
                 const isVideo=item.mediaKind==='video';
-                const largeSrc=window.mobileFastMediaUrl(item.src);
-                lm.innerHTML=`<button type="button" class="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-slate-800/90 text-white" onclick="deepCloseReadMediaLightbox()"><i class="fa-solid fa-xmark"></i></button><div class="w-full h-full flex items-center justify-center" onclick="if(event.target===this) deepCloseReadMediaLightbox()">${isVideo?`<video src="${window.deepEsc(largeSrc)}" controls playsinline autoplay class="max-w-full max-h-[92vh] bg-black rounded-xl"></video>`:`<img src="${window.deepEsc(largeSrc)}" alt="大图查看" class="max-w-full max-h-[92vh] object-contain rounded-xl">`}</div>`;
+                lm.innerHTML=`<button type="button" class="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-slate-800/90 text-white" onclick="deepCloseReadMediaLightbox()"><i class="fa-solid fa-xmark"></i></button><div class="w-full h-full flex items-center justify-center" onclick="if(event.target===this) deepCloseReadMediaLightbox()">${isVideo?`<video src="${window.deepEsc(item.src)}" controls playsinline autoplay class="max-w-full max-h-[92vh] bg-black rounded-xl"></video>`:`<img src="${window.deepEsc(item.src)}" alt="大图查看" class="max-w-full max-h-[92vh] object-contain rounded-xl">`}</div>`;
                 lm.classList.remove('hidden');
                 if(isVideo){
                     const largeVideo=lm.querySelector('video');
@@ -9371,20 +9370,18 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
         window.openMobileVideoPage=function(src,title){
             if(!src)return;
-            let absoluteSrc='';try{absoluteSrc=new URL(window.mobileFastMediaUrl(src),document.baseURI).href;}catch(_){absoluteSrc=window.mobileFastMediaUrl(src);}
-            const page=window.open('about:blank','_blank');
-            if(!page){
-                const a=document.createElement('a');a.href=absoluteSrc;a.target='_blank';a.rel='noopener';a.style.display='none';
-                document.body.appendChild(a);a.click();a.remove();return;
-            }
-            try{
-                page.opener=null;
-                const safeTitle=String(title||'视频').replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
-                const safeSrc=String(absoluteSrc).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
-                page.document.open();
-                page.document.write(`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>${safeTitle}</title><style>html,body{margin:0;width:100%;height:100%;background:#000;color:#fff;font-family:system-ui}body{display:flex;align-items:center;justify-content:center}.wrap{width:100%;position:relative}.wait{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#000;color:#cbd5e1;font-size:14px;z-index:2;pointer-events:none}.ready .wait{display:none}video{display:block;width:100%;max-height:100vh;object-fit:contain;background:#000}</style></head><body><div class="wrap"><video playsinline webkit-playsinline preload="metadata" controls><source src="${safeSrc}"></video><div class="wait">正在加载画面…</div></div><script>const w=document.querySelector('.wrap'),v=document.querySelector('video'),ready=()=>w.classList.add('ready');v.autoplay=false;v.addEventListener('loadedmetadata',ready,{once:true});v.addEventListener('loadeddata',ready,{once:true});v.addEventListener('canplay',ready,{once:true});v.addEventListener('error',()=>{document.querySelector('.wait').textContent='视频加载失败'},{once:true});v.load();<\/script></body></html>`);
-                page.document.close();
-            }catch(_){try{page.location.href=absoluteSrc;}catch(__){}}
+            let absoluteSrc='';
+            try{absoluteSrc=new URL(String(src),document.baseURI).href;}catch(_){absoluteSrc=String(src);}
+            // 只触发一次新标签页导航。部分手机浏览器 window.open 成功后仍会返回 null，
+            // v69 因此又执行一次链接兜底，造成连续打开两个相同视频页。
+            const a=document.createElement('a');
+            a.href=absoluteSrc;
+            a.target='_blank';
+            a.rel='noopener';
+            a.style.display='none';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
         };
 
         window.prepareMobileDetailVideo=function(video){
@@ -9392,7 +9389,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if(video.dataset.mobileExternalVideo==='1')return true;
             const stage=video.closest('[data-detail-video-stage]')||video.parentElement;
             if(!stage)return false;
-            const src=window.mobileFastMediaUrl(video.currentSrc||video.getAttribute('src')||video.querySelector('source')?.getAttribute('src')||'');
+            const src=video.currentSrc||video.getAttribute('src')||video.querySelector('source')?.getAttribute('src')||'';
             if(!src)return false;
 
             video.dataset.mobileExternalVideo='1';
@@ -9644,8 +9641,8 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
             }
             const detailHasImages=Array.isArray(event.images)&&event.images.length>0,detailHasVideos=Array.isArray(event.videos)&&event.videos.length>0,detailDescriptionText=String(event.description||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/gi,' ').trim(),detailHasDescription=!!detailDescriptionText;
             let viewer=document.getElementById('fullscreenViewer');if(!viewer){viewer=document.createElement('div');viewer.id='fullscreenViewer';viewer.className='fixed inset-0 bg-slate-950/90 text-white z-50 overflow-y-auto backdrop-blur-md p-3 sm:p-8 flex flex-col items-center';viewer.addEventListener('click',e=>{if(e.target===viewer)window.closeReadOnlyFullscreen(viewer.dataset.fromStackDate||'');});document.body.appendChild(viewer);}viewer.dataset.fromStackDate=fromStackDate||'';
-            let imagesHtml='';if(detailHasImages){const fullSrcList=event.images.map(imgObj=>window.mobileFastMediaUrl(typeof imgObj==='string'?imgObj:(imgObj.originalFull||imgObj.original||imgObj.outer||imgObj.inner||imgObj.collection||'')));imagesHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">事件配图</h4><div data-detail-images>${event.images.map((imgObj,idx)=>{const thumbSrc=window.mobileFastMediaUrl(typeof imgObj==='string'?imgObj:(imgObj.inner||imgObj.original||imgObj.originalFull||imgObj.outer||imgObj.collection));const listStr=JSON.stringify(fullSrcList).replace(/"/g,'&quot;');const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(imgObj?.deepDescription);return `<div data-detail-image-card onpointerdown="if(window.isPhoneLikeDevice?.()){mobileDetailTapStart(event,this)}else if(event.isPrimary&&event.button===0){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openLightbox(${listStr},${idx},'${event.id}','image'))}" onpointermove="if(window.isPhoneLikeDevice?.())mobileDetailTapMove(event,this)" onpointerup="if(window.isPhoneLikeDevice?.()&&mobileDetailTapEnd(event,this)){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openLightbox(${listStr},${idx},'${event.id}','image'))}" onclick="if(window.isPhoneLikeDevice?.()){event.preventDefault();event.stopPropagation()}" class="group relative bg-transparent rounded-xl overflow-hidden border border-slate-800 cursor-pointer shadow-md hover:border-indigo-500 transition-colors"><img data-detail-image loading="lazy" decoding="async" src="${thumbSrc}" class="block group-hover:scale-[1.02] transition-all duration-300">${hasDeep?'<span class="absolute right-1.5 bottom-1.5 z-10 text-[13px] sm:text-sm opacity-0 group-hover:opacity-45 transition-opacity pointer-events-none select-none drop-shadow" aria-hidden="true">🐢✌🏻</span>':''}</div>`;}).join('')}</div></div>`;}
-            let videosHtml='';if(detailHasVideos){videosHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-video mr-1"></i>事件视频</h4><div data-detail-videos>${event.videos.map((v,vidx)=>{const vUrl=window.mobileFastMediaUrl(typeof v==='object'?(v.blobUrl||v.url):v),vCover=window.mobileFastMediaUrl(typeof v==='object'?(v.cover||''):''),vTitle=typeof v==='object'?(v.title||v.name||''):'',vType=typeof v==='object'&&v.mime?`type="${v.mime}"`:'';const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(v?.deepDescription);return `<div data-detail-video-card data-detail-video-index="${vidx}" data-detail-video-deep="${hasDeep?'1':'0'}" class="bg-black rounded-xl overflow-hidden border border-slate-800 ${hasDeep?'cursor-pointer':''}">${vTitle?`<div data-detail-video-title class="px-3 py-2 bg-slate-900 text-xs font-semibold text-slate-200 border-b border-slate-800">${escapeHtml(vTitle)}</div>`:''}<div data-detail-video-stage class="relative bg-black overflow-hidden"><video ${vCover?`poster="${vCover}"`:''} playsinline webkit-playsinline preload="none" class="block bg-black object-contain"><source src="${vUrl}" ${vType}></video>${hasDeep?'<span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">🐢</span><span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">✌🏻</span>':''}</div></div>`;}).join('')}</div></div>`;}
+            let imagesHtml='';if(detailHasImages){const fullSrcList=event.images.map(imgObj=>typeof imgObj==='string'?imgObj:(imgObj.originalFull||imgObj.original||imgObj.outer||imgObj.inner||imgObj.collection||''));imagesHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">事件配图</h4><div data-detail-images>${event.images.map((imgObj,idx)=>{const thumbSrc=typeof imgObj==='string'?imgObj:(imgObj.inner||imgObj.original||imgObj.originalFull||imgObj.outer||imgObj.collection);const listStr=JSON.stringify(fullSrcList).replace(/"/g,'&quot;');const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(imgObj?.deepDescription);return `<div data-detail-image-card onpointerdown="if(window.isPhoneLikeDevice?.()){mobileDetailTapStart(event,this)}else if(event.isPrimary&&event.button===0){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openLightbox(${listStr},${idx},'${event.id}','image'))}" onpointermove="if(window.isPhoneLikeDevice?.())mobileDetailTapMove(event,this)" onpointerup="if(window.isPhoneLikeDevice?.()&&mobileDetailTapEnd(event,this)){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openLightbox(${listStr},${idx},'${event.id}','image'))}" onclick="if(window.isPhoneLikeDevice?.()){event.preventDefault();event.stopPropagation()}" class="group relative bg-transparent rounded-xl overflow-hidden border border-slate-800 cursor-pointer shadow-md hover:border-indigo-500 transition-colors"><img data-detail-image loading="lazy" decoding="async" src="${thumbSrc}" class="block group-hover:scale-[1.02] transition-all duration-300">${hasDeep?'<span class="absolute right-1.5 bottom-1.5 z-10 text-[13px] sm:text-sm opacity-0 group-hover:opacity-45 transition-opacity pointer-events-none select-none drop-shadow" aria-hidden="true">🐢✌🏻</span>':''}</div>`;}).join('')}</div></div>`;}
+            let videosHtml='';if(detailHasVideos){videosHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-video mr-1"></i>事件视频</h4><div data-detail-videos>${event.videos.map((v,vidx)=>{const vUrl=typeof v==='object'?(v.blobUrl||v.url):v,vCover=typeof v==='object'?(v.cover||''):'',vTitle=typeof v==='object'?(v.title||v.name||''):'',vType=typeof v==='object'&&v.mime?`type="${v.mime}"`:'';const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(v?.deepDescription);return `<div data-detail-video-card data-detail-video-index="${vidx}" data-detail-video-deep="${hasDeep?'1':'0'}" class="bg-black rounded-xl overflow-hidden border border-slate-800 ${hasDeep?'cursor-pointer':''}">${vTitle?`<div data-detail-video-title class="px-3 py-2 bg-slate-900 text-xs font-semibold text-slate-200 border-b border-slate-800">${escapeHtml(vTitle)}</div>`:''}<div data-detail-video-stage class="relative bg-black overflow-hidden"><video ${vCover?`poster="${vCover}"`:''} playsinline webkit-playsinline preload="none" class="block bg-black object-contain"><source src="${vUrl}" ${vType}></video>${hasDeep?'<span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">🐢</span><span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">✌🏻</span>':''}</div></div>`;}).join('')}</div></div>`;}
             let linksHtml='';if(event.links&&event.links.length>0){linksHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-link mr-1"></i>跳转网址</h4><div class="flex flex-wrap gap-2">${event.links.map(l=>`<a href="${l.url}" target="_blank" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-indigo-300 hover:text-indigo-200 px-3 py-2 rounded-xl text-xs transition-colors"><i class="fa-solid fa-globe"></i><span class="font-medium">${l.title||l.url}</span></a>`).join('')}</div></div>`;}
             const descriptionHtml=detailHasDescription?`<div data-detail-description class="border-t border-slate-800 pt-6 mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">事件经过与描述</h4><div class="event-description-html text-sm sm:text-base leading-relaxed whitespace-pre-wrap">${window.prepareDescriptionForView?window.prepareDescriptionForView(event.description):event.description}</div></div>`:'';
             viewer.innerHTML=`<div data-detail-shell class="${event.type==='major'?'detail-has-major ':''}${/(?:\d{4}[./-]\d{1,2}(?:[./-]\d{1,2})?|\d{1,2}[./-]\d{1,2})\s*(?:–|—|~|～|至|\s+-\s+)\s*(?:\d{4}[./-]\d{1,2}(?:[./-]\d{1,2})?|\d{1,2}[./-]\d{1,2})/.test(String(event.date||''))?'detail-has-range ':''}max-w-3xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-10 shadow-2xl relative"><div class="detail-window-dragbar" data-detail-drag-handle><i class="fa-solid fa-grip-lines"></i><span>点击此处拖动详情页</span></div><button type="button" onclick="window.openEventCommentWindow('${event.id}')" class="detail-window-comments-btn"><i class="fa-regular fa-comments"></i><span>评论区</span></button><button onclick="closeReadOnlyFullscreen('${fromStackDate?fromStackDate.replace(/'/g,"\\'"):''}')" class="absolute top-3 right-4 sm:top-4 sm:right-6 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full flex items-center justify-center transition-colors"><i class="fa-solid fa-xmark text-lg"></i></button><div class="flex items-center gap-3 mb-2"><span class="text-xs font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full font-semibold">${window.formatDisplayDate(event.date)}</span>${event.type==='major'?'<span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full">重大里程碑</span>':''}</div><h1 class="text-xl sm:text-2xl font-bold text-white mb-3 tracking-wide">${event.title}</h1><div data-detail-body>${imagesHtml}${videosHtml}${linksHtml}${descriptionHtml}</div></div>`;
