@@ -1208,9 +1208,7 @@
                 visibility:hidden !important;
             }
         }
-
-        .delayed-media-loading-hint{position:absolute;inset:0;z-index:8;display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(15,23,42,.42);color:#e2e8f0;font-size:11px;font-weight:600;pointer-events:none}
-        @media(max-width:639px){
+@media(max-width:639px){
             #fullscreenViewer [data-detail-image-card]{max-width:calc(50% - 6px) !important}
             #fullscreenViewer [data-detail-video-card]{max-width:100% !important}
         }
@@ -1223,6 +1221,8 @@
                 transform:translateY(0) scale(var(--preview-scale,1)) !important;
             }
         }
+
+.delayed-media-loading-hint{display:none!important}
 </style>
 
 <style id="invalidRoomAccessStyle">
@@ -2096,27 +2096,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if(img.complete)queueMicrotask(next);
         };
 
-        window.bindDelayedMediaLoadingHint=function(root){
-            if(!root)return;
-            root.querySelectorAll('img').forEach(img=>{
-                if(img.dataset.delayedLoadingBound==='1'||img.complete)return;
-                img.dataset.delayedLoadingBound='1';
-                const host=img.closest('[data-detail-image-card],.deep-canvas-media,.deep-read-media,.deep-media-item,.deep-video-cover-layer')||img.parentElement;
-                if(!host)return;
-                if(getComputedStyle(host).position==='static')host.style.position='relative';
-                let hint=null,finished=false;
-                const done=()=>{
-                    if(finished)return;finished=true;clearTimeout(timer);hint?.remove();
-                };
-                const timer=setTimeout(()=>{
-                    if(img.complete)return done();
-                    hint=document.createElement('div');hint.className='delayed-media-loading-hint';
-                    hint.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i><span>加载中…</span>';host.appendChild(hint);
-                },700);
-                img.addEventListener('load',done,{once:true});
-                img.addEventListener('error',done,{once:true});
-            });
-        };
+        window.bindDelayedMediaLoadingHint=function(){ return; };
         new MutationObserver(muts=>{
             muts.forEach(m=>m.addedNodes?.forEach(n=>{
                 if(n.nodeType===1 && (n.matches?.('#fullscreenViewer,#deepReadCanvasModal,#deepReadMediaLightbox,.deep-readonly-canvas,.deep-canvas-media')||n.querySelector?.('[data-detail-image],.deep-canvas-media img')))
