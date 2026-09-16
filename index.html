@@ -1090,6 +1090,12 @@
 
         /* 用户设置独立固定在最右端，不参与原功能按钮组布局。 */
 
+
+        @media (max-width:639px){
+            [data-mobile-video-host]{position:relative!important;overflow:hidden!important;touch-action:pan-y!important;background:#000}
+            .mobile-video-launch{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:15;width:44px;height:44px;border:0;border-radius:9999px;background:rgba(15,23,42,.76);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.28);touch-action:manipulation}
+            .mobile-video-launch.is-playing{opacity:.5}
+        }
 </style>
 
 <style id="invalidRoomAccessStyle">
@@ -8632,6 +8638,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             confirmModal.classList.remove('hidden');
         };
         window.openDeepDescriptionViewer=function(type,index,eventId){
+            if(window.isPhoneLikeDevice?.())window.destroyMobileDetailVideos?.();
             const ev=window.findEventById?window.findEventById(eventId):window.events.find(e=>String(e.id)===String(eventId));
             const obj=ev?.[type==='image'?'images':'videos']?.[index];
             if(ev?.deepDescriptionEnabled === false || !window.deepDescriptionIsEnabled(obj?.deepDescription))return;
@@ -8681,8 +8688,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
             const phoneDeep=!!window.isPhoneLikeDevice?.();
             let deepImageObserver=null;
-            if(phoneDeep&&'IntersectionObserver' in window){deepImageObserver=new IntersectionObserver(entries=>{entries.forEach(entry=>{if(!entry.isIntersecting)return;const img=entry.target,src=img.dataset.deepLazySrc;if(src&&!img.getAttribute('src')){img.src=src;delete img.dataset.deepLazySrc;}deepImageObserver.unobserve(img);});},{root:viewport,rootMargin:'500px 350px',threshold:.01});}
-            const bindDeepReadImage=(img,src)=>{if(!img)return;img.loading='lazy';img.decoding='async';if(phoneDeep&&deepImageObserver){img.removeAttribute('src');img.dataset.deepLazySrc=src;deepImageObserver.observe(img);}else img.src=src;};
+            if(phoneDeep&&'IntersectionObserver' in window){deepImageObserver=new IntersectionObserver(entries=>{entries.forEach(entry=>{if(!entry.isIntersecting)return;const img=entry.target,src=img.dataset.deepLazySrc;if(src&&!img.getAttribute('src')){img.src=src;delete img.dataset.deepLazySrc;}deepImageObserver.unobserve(img);});},{root:viewport,rootMargin:'220px 120px',threshold:.01});}
+            const bindDeepReadImage=(img,src)=>{if(!img)return;img.loading='lazy';img.decoding='async';
+                if(phoneDeep&&/^https:\/\/github\.com\/[^/]+\/[^/]+\/blob\//i.test(src))src=src.replace(/^https:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/([^/]+)\//i,'https://raw.githubusercontent.com/$1/$2/$3/');if(phoneDeep&&deepImageObserver){img.removeAttribute('src');img.dataset.deepLazySrc=src;deepImageObserver.observe(img);}else img.src=src;};
 
             const resetReadInlineVideos=(exceptHost=null)=>{
                 st.querySelectorAll('.deep-canvas-media').forEach(host=>{
@@ -9085,9 +9093,55 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if(!detailViewer)return;
             detailViewer.querySelectorAll('[data-detail-video-card] video').forEach(video=>{if(video!==except)window.resetDetailVideoToCover(video);});
         };
+        window.destroyMobileDetailVideos=function(){
+            document.querySelectorAll('[data-mobile-video-host]').forEach(stage=>{
+                const live=stage.querySelector('video[data-mobile-live]');
+                if(live){
+                    try{live.pause();live.currentTime=0;}catch(_){}
+                    try{live.removeAttribute('src');live.load();}catch(_){}
+                    live.remove();
+                }
+                const b=stage.querySelector('.mobile-video-launch');
+                if(b){b.classList.remove('is-playing');b.innerHTML='<i class="fa-solid fa-play"></i>';}
+            });
+        };
+        window.prepareMobileDetailVideo=function(video){
+            if(!window.isPhoneLikeDevice?.()||!video)return false;
+            const stage=video.closest('[data-detail-video-stage]')||video.parentElement;
+            if(!stage||stage.dataset.mobileVideoHost==='1')return true;
+            const src=video.currentSrc||video.getAttribute('src')||video.querySelector('source')?.getAttribute('src')||'';
+            if(!src)return false;
+            const poster=video.getAttribute('poster')||'';
+            stage.dataset.mobileVideoHost='1';stage.dataset.mobileVideoSrc=src;
+            if(poster){stage.style.backgroundImage=`url("${poster.replace(/"/g,'%22')}")`;stage.style.backgroundSize='contain';stage.style.backgroundPosition='center';stage.style.backgroundRepeat='no-repeat';}
+            video.remove();
+            const btn=document.createElement('button');btn.type='button';btn.className='mobile-video-launch';btn.innerHTML='<i class="fa-solid fa-play"></i>';stage.appendChild(btn);
+            btn.addEventListener('click',async e=>{
+                e.preventDefault();e.stopPropagation();
+                let live=stage.querySelector('video[data-mobile-live]');
+                if(live){ if(live.paused)live.play().catch(()=>{}); else live.pause(); return; }
+                window.destroyMobileDetailVideos();
+                live=document.createElement('video');live.dataset.mobileLive='1';live.src=stage.dataset.mobileVideoSrc||'';
+                live.playsInline=true;live.setAttribute('playsinline','');live.setAttribute('webkit-playsinline','');live.preload='metadata';live.controls=false;
+                live.style.cssText='display:block;width:100%;height:auto;max-width:100%;max-height:none;object-fit:contain;position:relative;z-index:1;pointer-events:none;';
+                const sync=()=>{const p=!live.paused&&!live.ended;btn.classList.toggle('is-playing',p);btn.innerHTML=p?'<i class="fa-solid fa-pause"></i>':'<i class="fa-solid fa-play"></i>';};
+                live.addEventListener('loadedmetadata',()=>{if(live.videoWidth&&live.videoHeight)stage.style.aspectRatio=`${live.videoWidth}/${live.videoHeight}`;});
+                live.addEventListener('play',sync);live.addEventListener('pause',sync);live.addEventListener('ended',()=>{sync();try{live.removeAttribute('src');live.load();}catch(_){}live.remove();});
+                stage.prepend(live);try{await live.play();}catch(_){live.remove();}
+            });
+            return true;
+        };
+
         window.bindDetailVideoBehavior = function(viewer,eventId){
+            if(window.isPhoneLikeDevice?.()&&viewer&&viewer.dataset.mobileVideoScrollDestroy!=='1'){
+                viewer.dataset.mobileVideoScrollDestroy='1';
+                let last=viewer.scrollTop;
+                viewer.addEventListener('scroll',()=>{if(Math.abs(viewer.scrollTop-last)>2)window.destroyMobileDetailVideos?.();last=viewer.scrollTop;},{passive:true});
+            }
+
             const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
             videos.forEach(video=>{
+                if(window.isPhoneLikeDevice?.() && window.prepareMobileDetailVideo(video))return;
                 const card=video.closest('[data-detail-video-card]');
                 const hoverCapable=!!window.matchMedia?.('(hover:hover)').matches;
                 const phone=!!window.isPhoneLikeDevice?.();
@@ -9293,6 +9347,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         };
 
         window.closeReadOnlyFullscreen = function(fromStackDate = '') {
+            if(window.isPhoneLikeDevice?.())window.destroyMobileDetailVideos?.();
             if(window._notificationReturnToHelp!==true)document.body.classList.remove('notification-comment-open');
             document.body.classList.remove('mobile-detail-open');
             // 退出详情页时彻底停止详情/大图/深入描述里的媒体请求与音频层。
@@ -9330,6 +9385,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         };
 
         window.openLightbox = function(imagesOrSrc, index = 0, deepEventId = null, deepType = null) {
+            if(window.isPhoneLikeDevice?.())window.destroyMobileDetailVideos?.();
             window.pauseAllDetailVideosForLightbox();
             window.currentLightboxImages=Array.isArray(imagesOrSrc)?imagesOrSrc:[imagesOrSrc];
             window.currentLightboxIndex=Array.isArray(imagesOrSrc)?index:0;
