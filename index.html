@@ -3047,7 +3047,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             }
         }
 
-        // v104: files larger than 1 MiB are uploaded directly to CloudBase Storage and classified into gif/video/picture/music.
+        // v105: files larger than 1 MiB are uploaded directly to CloudBase Storage via COS PUT and classified into gif/video/picture/music.
         window.CLOUD_MEDIA_THRESHOLD = 1024 * 1024;
         window.cloudMediaPublicUrl = function(cloudPath){
             return TIMELINE_API_BASE.replace(/\/+$/,'') + '/' + String(cloudPath||'').replace(/^\/+/, '');
@@ -3070,26 +3070,33 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if(!up.url||!up.authorization||!up.token||!up.cosFileID||!meta.cloudPath) throw new Error('上传凭证不完整');
             const folder=meta.mediaFolder||String(meta.cloudPath).split('/')[0]||'云存储';
             window._cloudUploadNotice?.(`正在上传到 ${folder}/：${file.name||'文件'}… 0%`);
+            // v105: CloudBase getUploadMetadata returns COS PUT credentials.
+            // Upload the raw File body directly; do not use the old multipart/form-data POST flow.
             await new Promise((resolve,reject)=>{
-                const form=new FormData();
-                form.append('key',meta.cloudPath);
-                form.append('Signature',up.authorization);
-                form.append('x-cos-meta-fileid',up.cosFileID);
-                form.append('success_action_status','201');
-                form.append('x-cos-security-token',up.token);
-                form.append('file',file,file.name||'file');
                 const xhr=new XMLHttpRequest();
-                xhr.open('POST',up.url,true);
+                xhr.open('PUT',up.url,true);
+                xhr.setRequestHeader('Authorization',up.authorization);
+                xhr.setRequestHeader('X-Cos-Security-Token',up.token);
+                xhr.setRequestHeader('X-Cos-Meta-Fileid',up.cosFileID);
+                if(file.type) xhr.setRequestHeader('Content-Type',file.type);
                 xhr.upload.onprogress=(ev)=>{
                     if(ev.lengthComputable){
                         const pct=Math.max(0,Math.min(100,Math.round(ev.loaded/ev.total*100)));
                         window._cloudUploadNotice?.(`正在上传到 ${folder}/：${file.name||'文件'}… ${pct}%`);
                     }
                 };
-                xhr.onerror=()=>reject(new Error('云存储上传网络错误'));
-                xhr.onabort=()=>reject(new Error('上传已取消'));
-                xhr.onload=()=>{ if(xhr.status>=200&&xhr.status<300) resolve(); else reject(new Error(`云存储上传失败（HTTP ${xhr.status}）`)); };
-                xhr.send(form);
+                xhr.onerror=()=>{
+                    const err=new Error('对象存储连接失败（HTTP 0）。如果网页已部署到 GitHub Pages，通常是 COS 跨域/CORS 或上传地址被浏览器拦截。');
+                    err.code='COS_NETWORK_OR_CORS'; err.httpStatus=0; reject(err);
+                };
+                xhr.onabort=()=>reject(Object.assign(new Error('上传已取消'),{code:'UPLOAD_ABORTED'}));
+                xhr.onload=()=>{
+                    if(xhr.status>=200&&xhr.status<300){ resolve(); return; }
+                    const raw=String(xhr.responseText||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,300);
+                    const msg=`对象存储 PUT 失败（HTTP ${xhr.status}）${raw?'：'+raw:''}`;
+                    reject(Object.assign(new Error(msg),{code:'COS_PUT_FAILED',httpStatus:xhr.status,responseText:raw}));
+                };
+                xhr.send(file);
             });
             const url=window.cloudMediaPublicUrl(meta.cloudPath);
             window._cloudUploadNotice?.(`上传完成：${meta.cloudPath}`);
