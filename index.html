@@ -1209,7 +1209,7 @@
             }
         }
 
-        .delayed-media-loading-hint{position:absolute;inset:0;z-index:8;display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(15,23,42,.56);color:#e2e8f0;font-size:11px;font-weight:600;pointer-events:none}
+        .delayed-media-loading-hint{position:absolute;inset:0;z-index:8;display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(15,23,42,.42);color:#e2e8f0;font-size:11px;font-weight:600;pointer-events:none}
         @media(max-width:639px){
             #fullscreenViewer [data-detail-image-card]{max-width:calc(50% - 6px) !important}
             #fullscreenViewer [data-detail-video-card]{max-width:100% !important}
@@ -1222,9 +1222,11 @@
                 visibility:hidden !important;
                 pointer-events:none !important;
             }
-            .timeline-node-container.phone-preview-active .timeline-hover-tooltip{
+            .timeline-node-container.phone-preview-active .timeline-hover-tooltip,
+            .timeline-node-container.phone-preview-active.force-hover .timeline-hover-tooltip{
                 opacity:1 !important;
                 visibility:visible !important;
+                display:block !important;
             }
         }
 </style>
@@ -2050,43 +2052,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 <audio id="globalBgmAudio" style="display: none;"></audio>
 
     <script type="module">
-        window.ensurePhoneStackCurrentPreview=function(){
-            if(!window.isPhoneLikeDevice?.())return;
-            const modal=document.getElementById('stackManagerModal');
-            if(!modal||modal.classList.contains('hidden'))return;
-            const cards=[...modal.querySelectorAll('[data-event-id][data-stack-media-lazy]')];
-            if(!cards.length)return;
-            const viewport=modal.querySelector('.overflow-x-auto,.overflow-auto')||modal;
-            const vr=viewport.getBoundingClientRect(),cx=(vr.left+vr.right)/2;
-            let best=null,dist=Infinity;
-            cards.forEach(card=>{
-                const r=card.getBoundingClientRect(),d=Math.abs((r.left+r.right)/2-cx);
-                if(d<dist){dist=d;best=card;}
-            });
-            if(!best||best.dataset.stackMediaLazy!=='1')return;
-            const eventId=best.dataset.eventId;
-            const ev=window.findEventById?.(eventId)||window.events.find(e=>String(e.id)===String(eventId));
-            const media=ev?window.getEventPreviewMedia(ev,false):[];
-            const img=best.querySelector('.preview-slide-img');
-            if(img){
-                img._slideMedia=media;
-                img._slideSrcs=media.map(m=>m.cover||m.src).filter(Boolean);
-                const first=media[0];
-                if(first){
-                    img.src=first.type==='video'?(first.cover||first.src||''):(first.src||first.cover||'');
-                    img.style.opacity='1';img.style.visibility='visible';
-                }
-            }
-            best.dataset.stackMediaLazy='0';
-            window.startPreviewSlideshow?.(best,{noCrossfade:true});
-        };
-        document.addEventListener('scroll',e=>{
-            if(!window.isPhoneLikeDevice?.())return;
-            if(e.target?.closest?.('#stackManagerModal')){
-                clearTimeout(window._phoneStackPreviewTimer);
-                window._phoneStackPreviewTimer=setTimeout(()=>window.ensurePhoneStackCurrentPreview?.(),80);
-            }
-        },true);
 
         window.mobileFastMediaUrl=function(url){
             return String(url||'');
@@ -5113,7 +5078,11 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     let phonePreviewTimer=null,phonePreviewActive=false,phonePreviewStart=null;
                     const cancelPhonePreview=()=>{
                         if(phonePreviewTimer){clearTimeout(phonePreviewTimer);phonePreviewTimer=null;}
-                        if(phonePreviewActive){phonePreviewActive=false;nodeContainer.classList.remove('phone-preview-active');window.stopPreviewSlideshow(nodeContainer,true);}
+                        if(phonePreviewActive){
+                            phonePreviewActive=false;
+                            nodeContainer.classList.remove('phone-preview-active','force-hover');
+                            window.stopPreviewSlideshow(nodeContainer,true);
+                        }
                         phonePreviewStart=null;
                     };
                     nodeContainer.addEventListener('pointerdown',e=>{
@@ -5123,8 +5092,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                             phonePreviewTimer=null;
                             if(!phonePreviewStart)return;
                             phonePreviewActive=true;
-                            nodeContainer.classList.add('phone-preview-active');
-                            window.startPreviewSlideshow(nodeContainer);
+                            nodeContainer.classList.add('phone-preview-active','force-hover');
+                            window.startPreviewSlideshow(nodeContainer,{noCrossfade:true});
                         },360);
                     },{passive:true});
                     nodeContainer.addEventListener('pointermove',e=>{
@@ -5249,7 +5218,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
                     <div id="stackCardsWrapper" class="relative w-full flex-grow flex items-center justify-center overflow-hidden my-auto" style="height: 420px; perspective: 800px;">
                         ${items.map((event, idx) => {
-                            const slideMedia = (phoneStackLazy && idx!==initialStackFocus) ? [] : window.getEventPreviewMedia(event, false);
+                            const slideMedia = window.getEventPreviewMedia(event, false);
                             const slideSrcs = slideMedia.map(m => m.cover || m.src).filter(Boolean);
                             const firstImgSrc = slideSrcs[0] || null;
                             const slideJson = JSON.stringify(slideMedia).replace(/"/g, '&quot;');
@@ -5258,7 +5227,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                                 <div class="stack-card bg-white rounded-2xl overflow-hidden shadow-2xl border border-slate-300 flex flex-col select-none"
                                      data-index="${idx}"
                                      data-event-id="${event.id}"
-                                     data-stack-media-lazy="${phoneStackLazy && idx!==initialStackFocus ? '1':'0'}"
                                      ${dragAttr}
                                      onclick="handleStackCardClick(event, '${String(event.id).replace(/'/g, "\\'")}', '${String(event.date || '').replace(/'/g, "\\'")}')"
                                      style="width: 220px; height: 320px; position: absolute; left: 50%; top: 50%; margin-left: -110px; margin-top: -160px; transform-origin: center center; transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.25s ease; cursor: ${canReorder ? 'grab' : 'pointer'};">
@@ -5406,25 +5374,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             cards.forEach((card, idx) => {
                 if (typeof window.startPreviewSlideshow !== 'function') return;
                 if (idx === activeIndex) {
-                    if(window.isPhoneLikeDevice?.() && card.dataset.stackMediaLazy==='1'){
-                        const eventId=card.dataset.eventId;
-                        const ev=window.findEventById?.(eventId)||window.events.find(e=>String(e.id)===String(eventId));
-                        const media=ev?window.getEventPreviewMedia(ev,false):[];
-                        const img=card.querySelector('.preview-slide-img');
-                        if(img){
-                            img._slideMedia=media;
-                            img._slideSrcs=media.map(m=>m.cover||m.src).filter(Boolean);
-                            const first=media[0];
-                            if(first){
-                                const firstSrc=first.type==='video'?(first.cover||first.src||''):(first.src||first.cover||'');
-                                img.src=firstSrc;
-                                img.style.opacity='1';
-                                img.style.visibility='visible';
-                            }
-                        }
-                        card.dataset.stackMediaLazy='0';
-                    }
-                    // 当前滑到的卡片才开始预览；手机切页后立即显示，不依赖进入详情。
                     window.startPreviewSlideshow(card, { noCrossfade: true });
                 } else {
                     window.stopPreviewSlideshow(card, true);
@@ -8998,12 +8947,11 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             state.items=(state.items||[]).filter(x=>x.type!=='arrow');
 
             const phoneDeep=!!window.isPhoneLikeDevice?.();
-            let deepImageObserver=null;
-            if(phoneDeep&&'IntersectionObserver' in window){deepImageObserver=new IntersectionObserver(entries=>{entries.forEach(entry=>{if(!entry.isIntersecting)return;const img=entry.target,src=img.dataset.deepLazySrc;if(src&&!img.getAttribute('src')){img.src=src;delete img.dataset.deepLazySrc;window.bindDelayedMediaLoadingHint?.(img.parentElement||img);}deepImageObserver.unobserve(img);});},{root:viewport,rootMargin:'500px 350px',threshold:.01});}
             const bindDeepReadImage=(img,src)=>{
                 if(!img)return;
-                img.loading='lazy';img.decoding='async';
-                if(phoneDeep&&deepImageObserver){img.removeAttribute('src');img.dataset.deepLazySrc=src;deepImageObserver.observe(img);}else img.src=src;
+                img.loading='lazy';
+                img.decoding='async';
+                img.src=src;
                 window.bindDelayedMediaLoadingHint?.(img.parentElement||img);
             };
 
@@ -9434,7 +9382,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 const safeTitle=String(title||'视频').replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
                 const safeSrc=String(absoluteSrc).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
                 page.document.open();
-                page.document.write(`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>${safeTitle}</title><style>html,body{margin:0;width:100%;height:100%;background:#000;color:#fff;font-family:system-ui}body{display:flex;align-items:center;justify-content:center}.wrap{width:100%;position:relative}.wait{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#000;color:#cbd5e1;font-size:14px;z-index:2}.ready .wait{display:none}video{display:block;width:100%;max-height:100vh;object-fit:contain;background:#000}</style></head><body><div class="wrap"><video playsinline webkit-playsinline preload="auto"><source src="${safeSrc}"></video><div class="wait">正在加载画面…</div></div><script>const w=document.querySelector('.wrap'),v=document.querySelector('video');v.controls=false;v.autoplay=false;v.addEventListener('canplay',()=>{w.classList.add('ready');v.controls=true},{once:true});v.addEventListener('error',()=>{document.querySelector('.wait').textContent='视频加载失败'},{once:true});<\/script></body></html>`);
+                page.document.write(`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>${safeTitle}</title><style>html,body{margin:0;width:100%;height:100%;background:#000;color:#fff;font-family:system-ui}body{display:flex;align-items:center;justify-content:center}.wrap{width:100%;position:relative}.wait{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#000;color:#cbd5e1;font-size:14px;z-index:2;pointer-events:none}.ready .wait{display:none}video{display:block;width:100%;max-height:100vh;object-fit:contain;background:#000}</style></head><body><div class="wrap"><video playsinline webkit-playsinline preload="metadata" controls><source src="${safeSrc}"></video><div class="wait">正在加载画面…</div></div><script>const w=document.querySelector('.wrap'),v=document.querySelector('video'),ready=()=>w.classList.add('ready');v.autoplay=false;v.addEventListener('loadedmetadata',ready,{once:true});v.addEventListener('loadeddata',ready,{once:true});v.addEventListener('canplay',ready,{once:true});v.addEventListener('error',()=>{document.querySelector('.wait').textContent='视频加载失败'},{once:true});v.load();<\/script></body></html>`);
                 page.document.close();
             }catch(_){try{page.location.href=absoluteSrc;}catch(__){}}
         };
