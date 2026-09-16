@@ -1425,13 +1425,11 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             </div>
 
             <div id="musicLinkContainer" class="mb-4">
-                <label class="block text-xs font-bold text-slate-700 mb-1">添加音频链接</label>
-                <div class="space-y-2">
-                    <input type="text" id="bgmNameInput" placeholder="歌曲名称（可选）" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
-                    <div class="flex gap-2">
-                        <input type="url" id="bgmUrlInput" placeholder="粘贴音频链接（https://...）" class="flex-grow px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500" onkeydown="if(event.key==='Enter') addBgmByUrl()">
-                        <button onclick="addBgmByUrl()" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shrink-0">添加</button>
-                    </div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">上传 MP3</label>
+                <div class="flex gap-2">
+                    <input type="text" id="bgmNameInput" placeholder="歌曲名称（可选）" class="flex-grow px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
+                    <button type="button" onclick="document.getElementById('bgmFileInput').click()" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shrink-0"><i class="fa-solid fa-upload mr-1"></i>选择 MP3</button>
+                    <input type="file" id="bgmFileInput" accept="audio/mpeg,.mp3" class="hidden" onchange="addBgmByFile(event)">
                 </div>
             </div>
 
@@ -1744,7 +1742,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
                     <div><h4 class="font-bold text-slate-800 mb-1">9. 详细经过与描述</h4><p>“详细经过与描述”用于记录事件本身更完整的经过、背景、补充说明或想法。编辑时支持多种文字样式，可以根据内容需要进行排版。</p></div>
 
-                    <div><h4 class="font-bold text-slate-800 mb-1">10. 背景音乐</h4><p>顶部“背景音乐”用于添加音频链接并管理网站的背景音乐播放。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">10. 背景音乐</h4><p>顶部“背景音乐”用于上传 MP3 并管理网站的背景音乐播放。</p></div>
 
                     <div><h4 class="font-bold text-slate-800 mb-1">11. 分享协同</h4><p>“分享协同”仅在编辑模式且云端连接正常时使用。可以复制当前空间的专属链接发送给其他人，让不同设备进入同一个空间查看和协作编辑内容。</p></div>
                 </div>
@@ -3950,7 +3948,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             }
 
             if (window.bgmPlaylist.length === 0) {
-                container.innerHTML = `<p class="text-xs text-slate-400 italic py-2">暂无背景音乐，请在编辑模式下添加音频链接</p>`;
+                container.innerHTML = `<p class="text-xs text-slate-400 italic py-2">暂无背景音乐，请在编辑模式下上传 MP3</p>`;
                 return;
             }
 
@@ -3970,6 +3968,24 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     </div>
                 </div>
             `).join('');
+        };
+
+        window.addBgmByFile = async function(e) {
+            if (window.isLocked) return;
+            const input=e?.target, file=input?.files?.[0];
+            if(!file)return;
+            if(!(file.type==='audio/mpeg'||/\.mp3$/i.test(file.name||''))){ window.showToast('请选择 MP3 文件','error'); input.value=''; return; }
+            const nameInput=document.getElementById('bgmNameInput');
+            const customName=nameInput?.value.trim()||'';
+            try{
+                const media=await window.uploadLargeMediaToCloudBase(file);
+                const newSong={id:'song_'+Date.now()+Math.random().toString(36).substr(2,5),name:customName||(file.name||'背景音乐').replace(/\.mp3$/i,''),url:media.url,cloudPath:media.cloudPath||''};
+                window.bgmPlaylist.push(newSong); window.renderBgmPlaylist();
+                try{await window.timelineApiWrite('upsertBgm',{bgm:newSong});await window.writeActivityLog?.('bgm_add',{resourceType:'bgm',resourceName:newSong.name});}
+                catch(err){window.bgmPlaylist=window.bgmPlaylist.filter(s=>s.id!==newSong.id);window.renderBgmPlaylist();throw err;}
+                if(nameInput)nameInput.value=''; window.showToast('MP3 已上传并加入歌单','success');
+            }catch(err){window._cloudUploadNotice?.('',false);window.showToast(err?.message||'MP3 上传失败','error');}
+            finally{if(input)input.value='';}
         };
 
         window.addBgmByUrl = async function() {
@@ -6711,18 +6727,14 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 }
                 modal.innerHTML=`<div class="w-full max-w-lg rounded-2xl bg-white border border-slate-200 shadow-2xl p-5 sm:p-6 text-slate-800" onclick="event.stopPropagation()">
                     <div class="text-base font-bold">插入媒体</div>
-                    <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] sm:text-xs leading-5 text-amber-700">
-                        <i class="fa-solid fa-triangle-exclamation mr-1"></i>为提高保存稳定性，画布内媒体数据总量需控制在 1MB 以内，因此建议优先使用直链；若因数据量过大导致保存失败，当前画布内容不会立即丢失，仍可继续在本页面调整并重新保存。
-                    </div>
-                    <p class="mt-3 text-sm leading-6 text-slate-600">可以从本地上传、从云端媒体库复用已有文件，或填写媒体直链。</p>
+                    <p class="mt-3 text-sm leading-6 text-slate-600">可以从本地上传，或从云端媒体库复用已有文件。本地插入的图片、动图、视频将全部上传到 CloudBase 云存储。</p>
                     <div class="mt-5 flex justify-end gap-2">
-                        <button type="button" data-deep-media-link class="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-sm">填写直链</button><button type="button" data-deep-media-cloud class="px-4 py-2 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 text-sm">云端选择</button>
+                        <button type="button" data-deep-media-cloud class="px-4 py-2 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 text-sm">云端选择</button>
                         <button type="button" data-deep-media-local class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold">本地上传</button>
                     </div>
                 </div>`;
                 const finish=value=>{modal.classList.add('hidden');resolve(value);};
                 modal.onclick=e=>{if(e.target===modal)finish(null);};
-                modal.querySelector('[data-deep-media-link]').onclick=()=>finish('link');
                 modal.querySelector('[data-deep-media-cloud]').onclick=()=>finish('cloud');
                 modal.querySelector('[data-deep-media-local]').onclick=()=>finish('local');
                 modal.classList.remove('hidden');
@@ -6798,11 +6810,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 deepPushUndo(); window.deepCanvasState.items.push({id:'media_'+Date.now().toString(36),type:'media',x,y,w,h,src,mediaKind:kind,layer:0}); window.renderDeepCanvas(); window.deepSetMediaLoading?.(false);
             };
             if(useLocal==='cloud'){ window.openCloudMediaLibrary({folder:'all',onSelect:a=>{if(!a)return;const kind=a.folder==='video'?'video':'image';window.deepSetMediaLoading?.(true,'正在加载云端媒体…');if(kind==='image'){const im=new Image();im.onload=()=>addBySrc(a.url,kind,im.naturalWidth,im.naturalHeight);im.onerror=()=>addBySrc(a.url,kind,640,360);im.src=a.url;}else{const v=document.createElement('video');v.preload='metadata';v.onloadedmetadata=()=>addBySrc(a.url,kind,v.videoWidth,v.videoHeight);v.onerror=()=>addBySrc(a.url,kind,640,360);v.src=a.url;}}}); return;}
-            if(useLocal==='local'){ const input=document.createElement('input'); input.type='file'; input.accept='image/*,video/*'; input.onchange=async()=>{const f=input.files?.[0];if(!f)return;window.deepSetMediaLoading?.(true,'正在读取并加载本地媒体…');try{const media=await window.localOrCloudMediaUrl(f);const src=media.url,kind=f.type.startsWith('video/')?'video':'image';if(kind==='image'){const im=new Image();im.onload=()=>addBySrc(src,kind,im.naturalWidth,im.naturalHeight);im.onerror=()=>addBySrc(src,kind,640,360);im.src=src;}else{const v=document.createElement('video');v.preload='metadata';v.onloadedmetadata=()=>addBySrc(src,kind,v.videoWidth,v.videoHeight);v.onerror=()=>addBySrc(src,kind,640,360);v.src=src;}}catch(err){window.deepSetMediaLoading?.(false);window._cloudUploadNotice?.('',false);window.showToast?.(err?.message||'本地媒体上传失败','error');}}; input.click(); return; }
-            const val=await window.deepMediaUrlDialog(); if(!val)return; try{new URL(val);}catch(_){window.showToast('请输入有效的媒体直链','error');return;}
-            window.deepSetMediaLoading?.(true,'正在加载媒体直链，请稍候…');
-            const kind=/\.(mp4|webm|ogg|mov)(?:$|[?#])/i.test(val)?'video':'image';
-            if(kind==='image'){const im=new Image();im.onload=()=>addBySrc(val,kind,im.naturalWidth,im.naturalHeight);im.onerror=()=>addBySrc(val,kind,640,360);im.src=val;}else{const v=document.createElement('video');v.preload='metadata';v.onloadedmetadata=()=>addBySrc(val,kind,v.videoWidth,v.videoHeight);v.onerror=()=>addBySrc(val,kind,640,360);v.src=val;}
+            if(useLocal==='local'){ const input=document.createElement('input'); input.type='file'; input.accept='image/*,video/*'; input.onchange=async()=>{const f=input.files?.[0];if(!f)return;window.deepSetMediaLoading?.(true,'正在读取并加载本地媒体…');try{const media=await window.uploadLargeMediaToCloudBase(f);const src=media.url,kind=f.type.startsWith('video/')?'video':'image';if(kind==='image'){const im=new Image();im.onload=()=>addBySrc(src,kind,im.naturalWidth,im.naturalHeight);im.onerror=()=>addBySrc(src,kind,640,360);im.src=src;}else{const v=document.createElement('video');v.preload='metadata';v.onloadedmetadata=()=>addBySrc(src,kind,v.videoWidth,v.videoHeight);v.onerror=()=>addBySrc(src,kind,640,360);v.src=src;}}catch(err){window.deepSetMediaLoading?.(false);window._cloudUploadNotice?.('',false);window.showToast?.(err?.message||'本地媒体上传失败','error');}}; input.click(); return; }
         };
 
         // 可直接粘贴包含说明文字的内容，自动提取其中第一个 http/https 网址。
@@ -10342,36 +10350,24 @@ viewer.style.visibility='';
                             </div>
                             <label class="block text-xs font-bold text-slate-700"><i class="fa-solid fa-photo-film text-indigo-600 mr-1"></i>媒体与网址附件</label>
                             
-                            <div class="text-[11px] text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5">
-                                <i class="fa-solid fa-triangle-exclamation"></i>
-                                <span>提示：超过 1MB 的图片、动图、视频会自动上传到 CloudBase 云存储，小文件保持原方式。</span>
-                            </div>
-
                             <div>
                                 <div class="border-2 border-dashed border-slate-300 rounded-xl p-3 text-center hover:bg-white transition-colors cursor-pointer" onclick="document.getElementById('editFileInput').click()">
                                     <i class="fa-solid fa-image text-xl text-indigo-500 mb-1 block"></i>
                                     <span class="text-xs text-slate-600 font-medium">点击添加图片</span>
                                     <input type="file" id="editFileInput" multiple accept="image/*" class="hidden" onchange="handleLocalImageUpload(event)">
                                 </div>
-                                <div class="flex gap-1.5 mt-2"><button type="button" onclick="openCloudMediaLibrary({folder:'picture',onSelect:addCloudAssetToSingleImage})" class="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-indigo-600 shrink-0"><i class="fa-solid fa-cloud mr-1"></i>云端选择</button>
-                                    <input type="url" id="imageUrlInput" placeholder="或输入图片直链（https://...）" class="flex-grow px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:ring-1 focus:ring-indigo-500">
-                                    <button type="button" onclick="addImageByUrl()" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium shrink-0">添加</button>
-                                </div>
+                                <div class="flex gap-1.5 mt-2"><button type="button" onclick="openCloudMediaLibrary({folder:'picture',onSelect:addCloudAssetToSingleImage})" class="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-indigo-600 shrink-0"><i class="fa-solid fa-cloud mr-1"></i>云端选择</button></div>
                                 <div id="imageMicroPreviews" class="flex flex-wrap gap-2 mt-2"></div>
                             </div>
 
                             <div class="space-y-2 pt-2 border-t border-slate-200">
-                                <span class="block text-[11px] font-bold text-slate-600">添加视频 (支持本地上传或直链网址)</span>
+                                <span class="block text-[11px] font-bold text-slate-600">添加视频</span>
                                 <div class="flex flex-col gap-2">
                                     <div class="flex gap-2">
                                         <button type="button" onclick="document.getElementById('videoFileInput').click()" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-xs text-slate-700 flex items-center gap-1"><i class="fa-solid fa-upload text-indigo-600"></i> 本地上传视频</button><button type="button" onclick="openCloudMediaLibrary({folder:'video',onSelect:addCloudAssetToSingleVideo})" class="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-indigo-600 flex items-center gap-1"><i class="fa-solid fa-cloud"></i> 云端选择</button>
                                         <input type="file" id="videoFileInput" multiple accept="video/*" class="hidden" onchange="handleLocalVideoUpload(event)">
                                     </div>
-                                    <div class="flex gap-1.5">
-                                        <input type="text" id="videoTitleInput" placeholder="视频标题（可选）" class="w-1/3 px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:ring-1 focus:ring-indigo-500">
-                                        <input type="url" id="videoLinkInput" placeholder="或输入视频直链网址" class="flex-grow px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:ring-1 focus:ring-indigo-500">
-                                        <button type="button" onclick="addVideoLink()" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium shrink-0">添加</button>
-                                    </div>
+
                                 </div>
                                 <div id="videoPreviewsContainer" class="space-y-1.5"></div>
                             </div>
@@ -11326,8 +11322,6 @@ viewer.style.visibility='';
             body.innerHTML=`
                 <div><label class="block text-xs font-bold text-slate-700 mb-1">视频名称</label>
                     <input id="videoEditTitle" value="${window.escapeHtml(v.title||'')}" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500"></div>
-                <div><label class="block text-xs font-bold text-slate-700 mb-1">视频直链</label>
-                    <input id="videoEditUrl" value="${window.escapeHtml(v.url||'')}" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500"></div>
                 <div><div class="flex items-center justify-between"><label class="block text-xs font-bold text-slate-700">悬停预览时长</label><span id="videoEditDurationValue" class="text-xs font-semibold text-indigo-600">${Number(v.previewDuration)||4}s</span></div>
                     <input id="videoEditDuration" type="range" min="${window.VIDEO_PREVIEW_MIN_SEC}" max="${window.VIDEO_PREVIEW_MAX_SEC}" step="${window.VIDEO_PREVIEW_STEP_SEC}" value="${Number(v.previewDuration)||4}" class="w-full" oninput="document.getElementById('videoEditDurationValue').textContent=this.value+'s'"></div>
                 <p class="text-[10px] text-slate-400">范围 0.5～10 秒，步进 0.5 秒；点击“确认修改”后才会应用。</p>`;
@@ -11339,7 +11333,6 @@ viewer.style.visibility='';
             if(!Number.isInteger(i)||!window.editingVideos[i])return;
             const v=window.editingVideos[i];
             v.title=document.getElementById('videoEditTitle')?.value.trim()||'';
-            v.url=window.extractFirstHttpUrl?.(document.getElementById('videoEditUrl')?.value)||v.url;
             v.previewDuration=window.normalizeVideoPreviewDuration(document.getElementById('videoEditDuration')?.value, 4);
             window.renderVideoPreviews(); window.closeVideoEditModal(); window.showToast('视频修改已应用','success');
         };
@@ -13326,17 +13319,16 @@ viewer.style.visibility='';
                 </div>
                 <div class="space-y-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
                     <label class="block text-xs font-bold text-slate-700"><i class="fa-solid fa-photo-film text-indigo-600 mr-1"></i>媒体与网址附件</label>
-                    <div class="text-[11px] text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5"><i class="fa-solid fa-triangle-exclamation"></i><span>提示：超过 1MB 的图片、动图、视频会自动上传到 CloudBase 云存储，小文件保持原方式。</span></div>
+
                     <div>
                         <div class="border-2 border-dashed border-slate-300 rounded-xl p-3 text-center hover:bg-white transition-colors cursor-pointer" onclick="document.getElementById('multiImageFile_${segIndex}').click()"><i class="fa-solid fa-image text-xl text-indigo-500 mb-1 block"></i><span class="text-xs text-slate-600 font-medium">点击添加图片</span><input type="file" id="multiImageFile_${segIndex}" multiple accept="image/*" class="hidden" onchange="multiAddFiles(${segIndex},'image',this.files);this.value=''"></div>
-                        <div class="flex gap-1.5 mt-2"><button type="button" onclick="openCloudMediaLibrary({folder:'picture',onSelect:a=>addCloudAssetToMulti(${segIndex},'image',a)})" class="px-2.5 py-1.5 bg-white border rounded-lg text-[11px] text-indigo-600 shrink-0"><i class="fa-solid fa-cloud mr-1"></i>云端选择</button><input id="multiImgUrl_${segIndex}" type="url" placeholder="或输入图片直链（https://...）" class="flex-grow px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:ring-1 focus:ring-indigo-500"><button onclick="multiAddImageUrl(${segIndex})" type="button" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium shrink-0">添加</button></div>
+                        <div class="flex gap-1.5 mt-2"><button type="button" onclick="openCloudMediaLibrary({folder:'picture',onSelect:a=>addCloudAssetToMulti(${segIndex},'image',a)})" class="px-2.5 py-1.5 bg-white border rounded-lg text-[11px] text-indigo-600 shrink-0"><i class="fa-solid fa-cloud mr-1"></i>云端选择</button></div>
                         <div class="flex flex-wrap gap-2 mt-2">${images||'<span class="text-[11px] text-slate-400">暂无图片</span>'}</div>
                     </div>
                     <div class="space-y-2 pt-2 border-t border-slate-200">
-                        <span class="block text-[11px] font-bold text-slate-600">添加视频 (支持本地上传或直链网址)</span>
+                        <span class="block text-[11px] font-bold text-slate-600">添加视频</span>
                         <div class="flex flex-col gap-2">
                             <div class="flex gap-2"><button type="button" onclick="document.getElementById('multiVideoFile_${segIndex}').click()" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-xs text-slate-700 flex items-center gap-1"><i class="fa-solid fa-upload text-indigo-600"></i> 本地上传视频</button><button type="button" onclick="openCloudMediaLibrary({folder:'video',onSelect:a=>addCloudAssetToMulti(${segIndex},'video',a)})" class="px-2.5 py-1.5 bg-white border rounded-lg text-[11px] text-indigo-600"><i class="fa-solid fa-cloud mr-1"></i>云端选择</button><input type="file" id="multiVideoFile_${segIndex}" multiple accept="video/*" class="hidden" onchange="multiAddFiles(${segIndex},'video',this.files);this.value=''"></div>
-                            <div class="flex gap-1.5"><input id="multiVideoTitle_${segIndex}" placeholder="视频标题（可选）" class="w-1/3 px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:ring-1 focus:ring-indigo-500"><input id="multiVideoUrl_${segIndex}" type="url" placeholder="或输入视频直链网址" class="flex-grow px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:ring-1 focus:ring-indigo-500"><button onclick="multiAddVideoUrl(${segIndex})" type="button" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium shrink-0">添加</button></div>
                         </div>
                         <div class="space-y-1.5">${videos||'<span class="text-[11px] text-slate-400">暂无视频</span>'}</div>
                     </div>
@@ -14264,6 +14256,57 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
 
 
 
+
+
+<!-- v125 temporary external-media migration tool -->
+<button id="legacyMediaMigrationBtn" type="button" onclick="openLegacyMediaMigration()" class="hidden fixed right-4 bottom-20 z-[360] px-4 py-2.5 rounded-full bg-slate-900 text-white shadow-xl text-xs font-semibold"><i class="fa-solid fa-arrow-right-arrow-left mr-1.5"></i>迁移旧直链</button>
+<script>
+(function(){
+ const isCloud=u=>/\.app\.tcloudbase\.com\//i.test(u)||/^cloud:\/\//i.test(u);
+ const isHttp=u=>/^https?:\/\//i.test(String(u||''));
+ const mediaExt=u=>/\.(gif|webp|png|jpe?g|avif|bmp|svg|mp4|webm|mov|m4v|ogg)(?:$|[?#])/i.test(String(u||''));
+ const deepMediaParent=o=>o&&o.type==='media'&&typeof o.src==='string';
+ function collectInEvent(ev){
+   const found=new Map();
+   const walk=(node,path=[],parent=null,key='')=>{
+     if(typeof node==='string'){
+       if(!isHttp(node)||isCloud(node))return;
+       const parentIsWebLink=parent&&(parent.type==='link'||key==='url'&&('title' in parent)&&!('mediaKind' in parent)&&!('previewDuration' in parent));
+       const hinted=/^(original|originalFull|outer|inner|collection|src|cover|url)$/i.test(key)&&(!parentIsWebLink);
+       if(!(mediaExt(node)||hinted||deepMediaParent(parent)))return;
+       if(!found.has(node))found.set(node,{url:node,paths:[]}); found.get(node).paths.push(path.slice()); return;
+     }
+     if(Array.isArray(node)){node.forEach((v,i)=>walk(v,path.concat(i),node,String(i)));return;}
+     if(node&&typeof node==='object'){Object.keys(node).forEach(k=>walk(node[k],path.concat(k),node,k));}
+   };
+   walk(ev,[]); return [...found.values()];
+ }
+ function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+ window.openLegacyMediaMigration=function(){
+   if(window.isLocked){window.showToast?.('请先解锁编辑模式','error');return;}
+   let modal=document.getElementById('legacyMediaMigrationModal');
+   if(!modal){modal=document.createElement('div');modal.id='legacyMediaMigrationModal';modal.className='fixed inset-0 z-[520] bg-slate-950/70 backdrop-blur-sm p-3 sm:p-6';document.body.appendChild(modal);}
+   const rows=[];(window.events||[]).forEach(ev=>collectInEvent(ev).forEach(x=>rows.push({event:ev,eventId:ev.id,eventTitle:ev.title||ev.date||'未命名事件',oldUrl:x.url})));
+   modal.innerHTML=`<div class="w-full h-full bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden"><div class="px-4 sm:px-6 py-4 border-b flex items-center gap-3"><div><div class="font-bold text-slate-800">旧媒体直链迁移</div><div class="text-[11px] text-slate-500 mt-1">仅用于迁移现有外部图片 / 动图 / 视频直链；不会作为以后新增直链的入口。</div></div><button type="button" data-close class="ml-auto w-9 h-9 rounded-full hover:bg-slate-100"><i class="fa-solid fa-xmark"></i></button></div><div class="px-4 sm:px-6 py-3 border-b bg-slate-50 flex gap-2"><input data-search class="flex-1 px-3 py-2 rounded-lg border text-xs" placeholder="搜索事件名或旧网址"><span class="text-xs text-slate-500 self-center">共 ${rows.length} 项</span></div><div data-list class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3"></div><div class="px-4 sm:px-6 py-3 border-t flex justify-end"><button data-save type="button" class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-xs font-semibold">保存全部修改</button></div></div>`;
+   const close=()=>modal.remove();modal.querySelector('[data-close]').onclick=close;
+   const list=modal.querySelector('[data-list]'), search=modal.querySelector('[data-search]');
+   const render=()=>{const q=search.value.trim().toLowerCase();const shown=rows.map((r,i)=>({...r,i})).filter(r=>!q||String(r.eventTitle).toLowerCase().includes(q)||r.oldUrl.toLowerCase().includes(q));list.innerHTML=shown.length?shown.map(r=>`<div class="border rounded-xl p-3"><div class="text-xs font-bold text-slate-700 mb-2">${esc(r.eventTitle)}</div><div class="text-[10px] text-slate-400 break-all mb-2">旧：${esc(r.oldUrl)}</div><input data-row="${r.i}" class="w-full px-3 py-2 rounded-lg border text-xs" placeholder="粘贴新的 CloudBase 直链"></div>`).join(''):'<div class="text-center text-sm text-slate-400 py-16">没有检测到需要迁移的外部媒体直链</div>';};
+   search.oninput=render;render();
+   modal.querySelector('[data-save]').onclick=async()=>{
+     const changes=[];modal.querySelectorAll('[data-row]').forEach(inp=>{const nu=inp.value.trim();if(nu&&isHttp(nu)){const r=rows[Number(inp.dataset.row)];if(r)changes.push({...r,newUrl:nu});}});
+     if(!changes.length){window.showToast?.('还没有填写新的直链','error');return;}
+     const changedEvents=new Set();
+     const replaceAll=(node,oldUrl,newUrl)=>{if(Array.isArray(node)){for(let i=0;i<node.length;i++){if(node[i]===oldUrl)node[i]=newUrl;else if(node[i]&&typeof node[i]==='object')replaceAll(node[i],oldUrl,newUrl);}return;}if(node&&typeof node==='object'){for(const k of Object.keys(node)){if(node[k]===oldUrl)node[k]=newUrl;else if(node[k]&&typeof node[k]==='object')replaceAll(node[k],oldUrl,newUrl);}}};
+     changes.forEach(c=>{replaceAll(c.event,c.oldUrl,c.newUrl);changedEvents.add(c.event);});
+     const btn=modal.querySelector('[data-save]');btn.disabled=true;btn.textContent='正在保存…';
+     try{for(const ev of changedEvents)await window.saveEventToCloud(ev);window.showToast?.(`已迁移 ${changes.length} 项媒体直链`,'success');close();}
+     catch(e){window.showToast?.('部分迁移保存失败，请检查后重试','error');btn.disabled=false;btn.textContent='保存全部修改';}
+   };
+ };
+ function syncBtn(){const b=document.getElementById('legacyMediaMigrationBtn');if(b)b.classList.toggle('hidden',!!window.isLocked);}
+ setInterval(syncBtn,700);setTimeout(syncBtn,100);
+})();
+</script>
 
 </body>
 </html>
