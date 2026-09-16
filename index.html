@@ -1676,7 +1676,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             </div>
         </div>
     </div>
-<div id="lightboxModal" class="fixed inset-0 bg-slate-950/95 z-[180] hidden flex items-center justify-center p-4 touch-none" onclick="closeLightbox()">
+<div id="lightboxModal" class="fixed inset-0 bg-slate-950/95 z-[180] hidden flex items-center justify-center p-4 touch-none" onclick="closeLightbox(event)">
         <button class="absolute top-4 right-4 sm:top-6 sm:right-6 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full flex items-center justify-center transition-colors z-20">
             <i class="fa-solid fa-xmark text-lg"></i>
         </button>
@@ -3057,6 +3057,13 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.CLOUD_MEDIA_CROP_ORIGIN = 'https://6d65-message-board-d6gyou26356c94cad-1474370265.cos.ap-shanghai.myqcloud.com';
         window.cloudMediaCropUrl = function(cloudPath){
             return window.CLOUD_MEDIA_CROP_ORIGIN.replace(/\/+$/,'') + '/' + String(cloudPath||'').replace(/^\/+/, '');
+        };
+        // v111: request an authorized temporary read URL from timeline-api for frame extraction.
+        // Normal playback still uses the HTTP gateway; only canvas/frame capture uses this URL.
+        window.getCloudMediaCaptureUrl = async function(cloudPath){
+            const data=await timelineApiPost('getMediaCaptureUrl',{cloudPath},{auth:'edit',timeoutMs:20000});
+            if(!data?.url) throw new Error(data?.message||'未取得视频读取地址');
+            return data.url;
         };
         window._cloudUploadNotice = function(text, show=true){
             let el=document.getElementById('cloudMediaUploadNotice');
@@ -9694,7 +9701,7 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
                 }
             },true);
         };
-        window.openMultiLightbox=function(eventId,segIndex,index){window.pauseAllDetailVideosForLightbox();const ev=window.findEventById(eventId),seg=ev?.timeSegments?.[segIndex];if(!seg)return;const list=(seg.images||[]).map(window.multiGetImageFull);window.currentLightboxImages=list;window.currentLightboxIndex=index;const lb=document.getElementById('lightboxModal');if(!lb)return;lb.dataset.deepEventId='';lb.dataset.multiDeepEventId=String(eventId);lb.dataset.multiDeepSegment=String(segIndex);lb.dataset.multiDeepType='image';lb.dataset.deepIndex=String(index);lb.classList.remove('hidden');updateLightboxDisplay();};
+        window.openMultiLightbox=function(eventId,segIndex,index){window.pauseAllDetailVideosForLightbox();const ev=window.findEventById(eventId),seg=ev?.timeSegments?.[segIndex];if(!seg)return;const list=(seg.images||[]).map(window.multiGetImageFull);window.currentLightboxImages=list;window.currentLightboxIndex=index;const lb=document.getElementById('lightboxModal');if(!lb)return;lb.dataset.deepEventId='';lb.dataset.multiDeepEventId=String(eventId);lb.dataset.multiDeepSegment=String(segIndex);lb.dataset.multiDeepType='image';lb.dataset.deepIndex=String(index);lb._openedAt=performance.now();lb.classList.remove('hidden');updateLightboxDisplay();};
         window.multiDeepWarningOpen=function(eventId,segIndex,type,index){const ev=window.findEventById(eventId),obj=ev?.timeSegments?.[segIndex]?.[type==='image'?'images':'videos']?.[index];if(ev?.deepDescriptionEnabled===false||!window.deepDescriptionIsEnabled(obj?.deepDescription))return;let m=document.getElementById('multiDeepEnterConfirmModal');if(!m){m=document.createElement('div');m.id='multiDeepEnterConfirmModal';m.className='fixed inset-0 z-[520] hidden bg-slate-950/65 backdrop-blur-sm flex items-center justify-center p-4';document.body.appendChild(m);}m.innerHTML=`<div class="w-full max-w-xl rounded-2xl bg-white border border-red-200 shadow-2xl p-6 sm:p-7 text-slate-800"><div class="text-base sm:text-lg font-extrabold leading-7">⚠️  你确定你真的要进入这个🐢🐢世界吗？⚠️</div><div class="mt-4 space-y-4"><p class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm sm:text-[15px] font-bold leading-7 text-red-600">Warning！Warning！前方区域疑似存在极高浓度的🐢🐢能量，请周围群众做好防护注意避让，不要擅自进入！</p></div><div class="mt-6 flex justify-end gap-2"><button data-c class="px-4 py-2 rounded-lg border">取消</button><button data-o class="px-4 py-2 rounded-lg bg-indigo-600 text-white">确定</button></div></div>`;const close=()=>m.classList.add('hidden');m.querySelector('[data-c]').onclick=close;m.querySelector('[data-o]').onclick=()=>{close();window.openMultiDeepDescriptionViewer(eventId,segIndex,type,index);};m.classList.remove('hidden');};
         window.multiOpenDeepMediaPreview=function(eventId,segIndex,index,startTime=0){window.resetAllDetailVideos?.();const ev=window.findEventById(eventId),obj=ev?.timeSegments?.[segIndex]?.videos?.[index];if(!obj)return;let m=document.getElementById('deepMediaPreviewModal');if(!m){m=document.createElement('div');m.id='deepMediaPreviewModal';m.className='fixed inset-0 z-[360] hidden bg-slate-950/95 p-3 sm:p-6 flex items-center justify-center';document.body.appendChild(m);}const src=obj.blobUrl||obj.url||'';m.innerHTML=`<button onclick="closeDeepMediaPreview()" class="absolute top-5 right-5 z-20 w-10 h-10 rounded-full bg-slate-800 text-white"><i class="fa-solid fa-xmark"></i></button><div data-deep-preview-stage class="max-w-5xl max-h-[90vh] w-full h-full flex items-center justify-center cursor-pointer"><video src="${window.deepEsc(src)}" controls playsinline autoplay class="max-w-full max-h-[88vh] rounded-xl bg-black"></video></div>`;const stage=m.querySelector('[data-deep-preview-stage]'),video=stage?.querySelector('video');const go=()=>{try{video.currentTime=Math.max(0,Number(startTime)||0)}catch(_){}video?.play().catch(()=>{})};if(video?.readyState>=1)go();else video?.addEventListener('loadedmetadata',go,{once:true});stage?.addEventListener('dblclick',e=>{e.preventDefault();e.stopPropagation();video?.pause();window.multiDeepWarningOpen(eventId,segIndex,'video',index);});m.classList.remove('hidden');};
         window.openMultiDeepDescriptionViewer=function(eventId,segIndex,type,index){const ev=window.findEventById(eventId),obj=ev?.timeSegments?.[segIndex]?.[type==='image'?'images':'videos']?.[index];if(!obj?.deepDescription)return;const fakeId='__multi_deep_'+String(eventId)+'_'+segIndex+'_'+type+'_'+index;const fake={id:fakeId,deepDescriptionEnabled:true,images:type==='image'?[obj]:[],videos:type==='video'?[obj]:[]};window.events.push(fake);try{window.openDeepDescriptionViewer(type,0,fakeId);}finally{setTimeout(()=>{const i=window.events.findIndex(e=>String(e.id)===fakeId);if(i>=0)window.events.splice(i,1);},0);}};
@@ -9855,6 +9862,7 @@ viewer.style.visibility='';
             window.currentLightboxIndex=Array.isArray(imagesOrSrc)?index:0;
             const lb=document.getElementById('lightboxModal');if(!lb)return;
             lb.dataset.deepEventId=deepEventId||'';lb.dataset.deepType=deepType||'';lb.dataset.deepIndex=String(window.currentLightboxIndex);delete lb.dataset.multiDeepEventId;delete lb.dataset.multiDeepSegment;delete lb.dataset.multiDeepType;
+            lb._openedAt = performance.now();
             lb.classList.remove('hidden');
             updateLightboxDisplay();
         };
@@ -9883,8 +9891,15 @@ viewer.style.visibility='';
             document.getElementById('lightboxModal')?.addEventListener('wheel',e=>{if((window.currentLightboxImages||[]).length<=1)return;e.preventDefault();const now=Date.now();if(now-(window._lightboxWheelAt||0)<180)return;window._lightboxWheelAt=now;window.changeLightboxImage((Math.abs(e.deltaX)>Math.abs(e.deltaY)?e.deltaX:e.deltaY)>0?1:-1);},{passive:false});
         }
 
-        window.closeLightbox = function() {
-            const _lb=document.getElementById('lightboxModal');if(_lb){_lb.classList.add('hidden');delete _lb.dataset.multiDeepEventId;delete _lb.dataset.multiDeepSegment;delete _lb.dataset.multiDeepType;}
+        window.closeLightbox = function(ev) {
+            const _lb=document.getElementById('lightboxModal');
+            // A tap that opens the lightbox can synthesize a click after the modal is already visible.
+            // Ignore that same click; otherwise mobile GIFs appear to flash once and instantly close.
+            if(ev && _lb && performance.now()-Number(_lb._openedAt||0)<520){
+                ev.preventDefault?.(); ev.stopPropagation?.();
+                return;
+            }
+            if(_lb){_lb.classList.add('hidden');delete _lb.dataset.multiDeepEventId;delete _lb.dataset.multiDeepSegment;delete _lb.dataset.multiDeepType;}
             window.lightboxPausedVideoStates=[];
         };
 
@@ -10552,24 +10567,27 @@ viewer.style.visibility='';
             if (localSrc) {
                 attach(localSrc);
             } else if (vidObj.cloudPath) {
-                // 已保存的云端视频：先通过已配置 CORS 的 COS/CDN 地址 fetch 成 Blob，
-                // 再交给 video/canvas。这样既不会被 attachment 响应影响，也不会污染 canvas。
+                // v111: private CloudBase/COS objects cannot be fetched anonymously even when CORS is correct.
+                // Ask timeline-api for an authorized temporary URL, fetch it as Blob, then capture from the same-origin blob URL.
                 modal.classList.remove('hidden');
                 window._cloudUploadNotice?.('正在读取视频封面…', true);
-                fetch(window.cloudMediaCropUrl(vidObj.cloudPath), {mode:'cors', credentials:'omit'})
-                    .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.blob(); })
-                    .then(blob=>{
-                        if (player._cloudCropObjectUrl) URL.revokeObjectURL(player._cloudCropObjectUrl);
-                        player._cloudCropObjectUrl = URL.createObjectURL(blob);
-                        window._cloudUploadNotice?.('', false);
+                (async()=>{
+                    try{
+                        const captureUrl=await window.getCloudMediaCaptureUrl(vidObj.cloudPath);
+                        const r=await fetch(captureUrl,{mode:'cors',credentials:'omit'});
+                        if(!r.ok) throw new Error('HTTP '+r.status);
+                        const blob=await r.blob();
+                        if(!blob || !blob.size) throw new Error('empty_video_blob');
+                        if(player._cloudCropObjectUrl) URL.revokeObjectURL(player._cloudCropObjectUrl);
+                        player._cloudCropObjectUrl=URL.createObjectURL(blob);
+                        window._cloudUploadNotice?.('',false);
                         attach(player._cloudCropObjectUrl);
-                    })
-                    .catch(err=>{
-                        window._cloudUploadNotice?.('', false);
-                        console.error('云端视频封面 Blob 读取失败:', err);
-                        modal.classList.remove('hidden');
-                        window.showToast?.('视频封面读取失败，请检查 COS 跨域配置后重试', 'error');
-                    });
+                    }catch(err){
+                        window._cloudUploadNotice?.('',false);
+                        console.error('云端视频封面授权读取失败:',err);
+                        window.showToast?.('视频封面读取失败：'+String(err?.message||err).slice(0,120),'error');
+                    }
+                })();
             } else {
                 attach(String(vidObj.url || ''));
             }
@@ -10616,7 +10634,7 @@ viewer.style.visibility='';
                 window.closeVideoCropModal();
             } catch (err) {
                 console.error('视频封面截取失败:', err);
-                window.showToast("当前视频无法截取封面，请确认视频允许跨域读取后再试", "error");
+                window.showToast("当前画面截取失败，请重新打开截选器后再试", "error");
             }
         };
 
