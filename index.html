@@ -5081,33 +5081,31 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 });
 
                 if(window.isPhoneLikeDevice?.()){
-                    let phonePreviewTimer=null,phonePreviewActive=false,startX=0,startY=0;
-                    const endPhonePreview=()=>{
-                        if(phonePreviewTimer){clearTimeout(phonePreviewTimer);phonePreviewTimer=null;}
-                        if(phonePreviewActive){
-                            phonePreviewActive=false;
+                    let phoneStatePreview=false;
+                    const syncPhoneActivePreview=()=>{
+                        // 使用页面原本的节点激活状态，不额外制造一次“点击”。
+                        const active=nodeContainer.classList.contains('active')||
+                                     nodeContainer.classList.contains('selected')||
+                                     nodeContainer.classList.contains('is-active')||
+                                     nodeContainer.getAttribute('aria-selected')==='true'||
+                                     !!nodeContainer.querySelector('.active,.selected,.is-active');
+                        if(active&&!phoneStatePreview){
+                            phoneStatePreview=true;
+                            nodeContainer.classList.add('phone-preview-active','force-hover');
+                            window.startPreviewSlideshow(nodeContainer,{noCrossfade:true});
+                        }else if(!active&&phoneStatePreview){
+                            phoneStatePreview=false;
                             nodeContainer.classList.remove('phone-preview-active','force-hover');
                             window.stopPreviewSlideshow(nodeContainer,true);
                         }
                     };
-                    nodeContainer.addEventListener('touchstart',e=>{
-                        if(e.touches.length!==1)return;
-                        const t=e.touches[0];startX=t.clientX;startY=t.clientY;
-                        if(phonePreviewTimer)clearTimeout(phonePreviewTimer);
-                        phonePreviewTimer=setTimeout(()=>{
-                            phonePreviewTimer=null;
-                            phonePreviewActive=true;
-                            nodeContainer.classList.add('phone-preview-active','force-hover');
-                            window.startPreviewSlideshow(nodeContainer,{noCrossfade:true});
-                        },300);
-                    },{passive:true});
-                    nodeContainer.addEventListener('touchmove',e=>{
-                        if(!e.touches.length)return;
-                        const t=e.touches[0];
-                        if(Math.hypot(t.clientX-startX,t.clientY-startY)>24)endPhonePreview();
-                    },{passive:true});
-                    nodeContainer.addEventListener('touchend',endPhonePreview,{passive:true});
-                    nodeContainer.addEventListener('touchcancel',endPhonePreview,{passive:true});
+                    const phoneActiveObserver=new MutationObserver(syncPhoneActivePreview);
+                    phoneActiveObserver.observe(nodeContainer,{attributes:true,attributeFilter:['class','aria-selected'],subtree:true});
+                    // 真机长按后浏览器通常会在 touchend 前后更新既有激活状态，延后一帧同步。
+                    nodeContainer.addEventListener('focusin',()=>{if(!phoneStatePreview){phoneStatePreview=true;nodeContainer.classList.add('phone-preview-active','force-hover');window.startPreviewSlideshow(nodeContainer,{noCrossfade:true});}});
+                    nodeContainer.addEventListener('focusout',()=>requestAnimationFrame(syncPhoneActivePreview));
+                    nodeContainer.addEventListener('touchend',()=>requestAnimationFrame(syncPhoneActivePreview),{passive:true});
+                    nodeContainer.addEventListener('touchcancel',()=>requestAnimationFrame(syncPhoneActivePreview),{passive:true});
                 }
 
                 nodeContainer.addEventListener('mouseleave', () => {
@@ -8951,9 +8949,15 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             state.items=(state.items||[]).filter(x=>x.type!=='arrow');
 
             const phoneDeep=!!window.isPhoneLikeDevice?.();
-            let deepImageObserver=null;
-            if(phoneDeep&&'IntersectionObserver' in window){deepImageObserver=new IntersectionObserver(entries=>{entries.forEach(entry=>{if(!entry.isIntersecting)return;const img=entry.target,src=img.dataset.deepLazySrc;if(src&&!img.getAttribute('src')){img.src=src;delete img.dataset.deepLazySrc;window.bindDelayedMediaLoadingHint?.(img.parentElement||img);}deepImageObserver.unobserve(img);});},{root:viewport,rootMargin:'500px 350px',threshold:.01});}
-            const bindDeepReadImage=(img,src)=>{if(!img)return;img.loading='lazy';img.decoding='async';if(phoneDeep&&deepImageObserver){img.removeAttribute('src');img.dataset.deepLazySrc=src;deepImageObserver.observe(img);}else{img.src=src;window.bindDelayedMediaLoadingHint?.(img.parentElement||img);}};
+            const bindDeepReadImage=(img,src)=>{
+                if(!img)return;
+                img.loading='lazy';
+                img.decoding='async';
+                // 真机二次窗口中直接保留 src，让浏览器自行决定何时请求；
+                // 避免人工 IntersectionObserver 只触发第一张、后续图片永远没有 src。
+                img.src=src;
+                window.bindDelayedMediaLoadingHint?.(img.parentElement||img);
+            };
 
             const resetReadInlineVideos=(exceptHost=null)=>{
                 st.querySelectorAll('.deep-canvas-media').forEach(host=>{
