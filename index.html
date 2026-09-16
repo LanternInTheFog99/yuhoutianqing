@@ -1187,16 +1187,7 @@
             }
         }
 
-        @media (max-width:639px){
-            body.mobile-node-preview-active .preview-line,
-            body.mobile-node-preview-active .event-preview-line,
-            body.mobile-node-preview-active [data-preview-line]{
-                display:block !important;
-                visibility:visible !important;
-                opacity:1 !important;
-            }
-        }
-
+        
         @media (max-width:639px){
             #fullscreenViewer [data-detail-header].mobile-detail-header-crowded{
                 row-gap:8px !important;
@@ -1235,33 +1226,6 @@
             }
         }
 
-        @media (max-width:639px){
-            /* 只在检测到顶部真实碰撞时调整，不影响正常情况 */
-            #fullscreenViewer [data-detail-shell].phone-top-collision{
-                padding-top:58px !important;
-            }
-            #fullscreenViewer [data-detail-shell].phone-top-collision [data-detail-header]{
-                position:absolute !important;
-                left:10px !important;
-                right:10px !important;
-                top:10px !important;
-                width:auto !important;
-                display:flex !important;
-                flex-wrap:wrap !important;
-                align-items:center !important;
-                justify-content:flex-end !important;
-                gap:6px 9px !important;
-                box-sizing:border-box !important;
-            }
-            #fullscreenViewer [data-detail-shell].phone-top-collision [data-detail-header] > *{
-                position:relative !important;
-                left:auto !important;
-                right:auto !important;
-                top:auto !important;
-                transform:none !important;
-                flex:0 0 auto !important;
-            }
-        }
 </style>
 
 <style id="invalidRoomAccessStyle">
@@ -2082,58 +2046,62 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 <audio id="globalBgmAudio" style="display: none;"></audio>
 
     <script type="module">
-        window.restorePhonePreviewConnector=function(){
-            if(!window.isPhoneLikeDevice?.() || !document.body.classList.contains('mobile-node-preview-active'))return;
-            const root=document.querySelector('#timelineContainer,#timeline,.timeline-container')||document;
-            root.querySelectorAll('[class*="preview"][class*="line"],[class*="connector"],[data-preview-line]').forEach(el=>{
-                el.style.setProperty('display','block','important');
-                el.style.setProperty('visibility','visible','important');
-                el.style.setProperty('opacity','1','important');
-            });
-        };
-
-        window.fixPhoneDetailTopCollision=function(){
+        window.updatePhoneSpecialDetailLayout=function(root){
             if(!window.isPhoneLikeDevice?.())return;
-            const viewer=document.getElementById('fullscreenViewer');
-            const shell=viewer?.querySelector?.('[data-detail-shell]');
+            root=root||document.getElementById('fullscreenViewer');
+            const shell=root?.querySelector?.('[data-detail-shell]');
             if(!shell)return;
-            shell.classList.remove('phone-top-collision');
 
             const sr=shell.getBoundingClientRect();
-            const els=[...shell.querySelectorAll('button,[role="button"],[data-detail-date],[data-detail-time],.milestone-badge')]
-                .filter(el=>{
-                    const r=el.getBoundingClientRect(),s=getComputedStyle(el);
-                    return s.display!=='none'&&s.visibility!=='hidden'&&r.width>0&&r.height>0&&r.top<sr.top+110;
-                });
-            let hit=false;
-            for(let i=0;i<els.length&&!hit;i++){
-                const a=els[i].getBoundingClientRect();
-                for(let j=i+1;j<els.length;j++){
-                    const b=els[j].getBoundingClientRect();
-                    const ox=Math.min(a.right,b.right)-Math.max(a.left,b.left);
-                    const oy=Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top);
-                    if(ox>0&&oy>0){hit=true;break;}
-                    // 同一行间隙过窄也视为碰撞
-                    if(Math.abs(a.top-b.top)<8){
-                        const gap=Math.max(a.left,b.left)-Math.min(a.right,b.right);
-                        if(gap>=0&&gap<7){hit=true;break;}
-                    }
-                }
-            }
-            shell.classList.toggle('phone-top-collision',hit);
+            const leaves=[...shell.querySelectorAll('*')].filter(el=>{
+                const r=el.getBoundingClientRect(),s=getComputedStyle(el);
+                return el.children.length===0&&s.display!=='none'&&s.visibility!=='hidden'&&r.width>0&&r.height>0&&r.top<sr.top+110;
+            });
+            const milestone=leaves.find(el=>(el.textContent||'').trim().includes('重大里程碑'));
+            const range=leaves.find(el=>/\d\s*(?:-|–|—|~|～|至)\s*\d/.test((el.textContent||'').trim()));
+            const special=!!(milestone||range);
+            shell.classList.toggle('phone-special-top-meta',special);
+
+            const buttons=[...shell.querySelectorAll('button,[role="button"]')].filter(el=>el.offsetParent!==null);
+            const comment=buttons.find(el=>(el.textContent||el.getAttribute('aria-label')||'').trim().includes('评论区'));
+            if(!comment)return;
+            comment.style.removeProperty('left');
+            comment.style.removeProperty('right');
+            comment.style.removeProperty('transform');
+            if(!special)return;
+
+            const close=buttons.find(el=>{
+                const t=(el.textContent||el.getAttribute('aria-label')||el.title||'').trim();
+                return t==='×'||t==='✕'||t==='关闭'||t.includes('关闭');
+            });
+            if(!close)return;
+
+            const meta=[milestone,range].filter(Boolean);
+            let leftEdge=sr.left+10;
+            meta.forEach(el=>leftEdge=Math.max(leftEdge,el.getBoundingClientRect().right));
+            const closeRect=close.getBoundingClientRect();
+            const cw=comment.getBoundingClientRect().width;
+            const gapArea=Math.max(0,closeRect.left-leftEdge);
+            let left=leftEdge+(gapArea-cw)/2;
+            left=Math.max(leftEdge+5,Math.min(left,closeRect.left-cw-5));
+            comment.style.setProperty('left',`${left-sr.left}px`,'important');
+            comment.style.setProperty('right','auto','important');
+            comment.style.setProperty('transform','none','important');
         };
-        window.addEventListener('resize',()=>requestAnimationFrame(()=>window.fixPhoneDetailTopCollision?.()));
 
         if(window.isPhoneLikeDevice?.()){
             const viewer=document.getElementById('fullscreenViewer');
             if(viewer){
-                let phoneTopRAF=0;
+                let specialTopRAF=0;
                 new MutationObserver(()=>{
-                    cancelAnimationFrame(phoneTopRAF);
-                    phoneTopRAF=requestAnimationFrame(()=>window.fixPhoneDetailTopCollision?.());
+                    cancelAnimationFrame(specialTopRAF);
+                    specialTopRAF=requestAnimationFrame(()=>window.updatePhoneSpecialDetailLayout?.(viewer));
                 }).observe(viewer,{childList:true,subtree:true,characterData:true});
             }
+            window.addEventListener('resize',()=>requestAnimationFrame(()=>window.updatePhoneSpecialDetailLayout?.()));
         }
+
+
 
         window.resetMobileScrollEdgeVisual=function(){
             if(!window.isPhoneLikeDevice?.())return;
