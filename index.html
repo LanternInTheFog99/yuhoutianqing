@@ -2375,7 +2375,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const PRELOAD_WAIT_MS = 60;
             const BLACK_FADE_MS = 150;
             const BLACK_HOLD_MS = 80;
-            const MEDIA_COVER_MIN_HOLD_MS = calm ? 1100 : 900;
+            const MEDIA_COVER_MIN_HOLD_MS = calm ? 600 : 500;
             const MEDIA_COVER_MAX_HOLD_MS = calm ? 3200 : 2600;
             const MEDIA_COVER_FADE_MS = 260;
 
@@ -2394,6 +2394,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 if (!media.length) return;
                 let idx = 0;
                 let generation = 0;
+                let pendingBlackHandoff = null;
                 const stage = img.parentElement || img;
                 let video = stage.querySelector(':scope > .preview-inline-video');
                 if (!video) {
@@ -2501,8 +2502,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     return ready;
                 };
 
-                // 封面不是固定“插播”时长，而是作为媒体就绪前的遮罩：至少停留一段时间，
-                // 媒体加载较慢时继续保持封面，直到媒体可显示（最多到上限），避免中间露出黑屏。
+                // 封面是媒体起播前的短暂停留，同时承担加载遮罩。
+                // 最短停留与媒体间黑场转场保持接近（约半秒），避免‘播前封面很长、播后切换很短’的不平衡；
+                // 若媒体尚未就绪则继续保持封面，但这段等待不计入媒体实际播放时间。
                 const holdCoverUntil = async (readyPromise, gen, minHoldMs = MEDIA_COVER_MIN_HOLD_MS, maxHoldMs = MEDIA_COVER_MAX_HOLD_MS) => {
                     const started = performance.now();
                     let ready = false;
@@ -2535,53 +2537,89 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 // 时间线预览媒体交接：只在 A 播放结束 → B 封面之间做一次很轻的“暗场呼吸”。
                 // 不让封面自身做 opacity 动画；仅在“一个媒体 → 下一个媒体”时让黑色遮罩较明显地升暗再退掉，
                 // 在最暗点完成底层封面替换，因此看起来是柔和淡出/淡入，而不是硬切或持续黑屏。
+                // 媒体 A → 媒体 B：黑场本身就是 B 的加载窗口。
+                // 如果 B 能在渐暗/短黑场内准备好，就直接从黑场进入 B 播放，不再额外展示封面；
+                // 只有 B 仍未就绪时，才在黑场后落到 B 封面继续等待。
                 const fadeIntoNextCover = async (nextItem, gen) => {
                     if (!nextItem || !isStillRunning() || gen !== generation) return false;
+                    pendingBlackHandoff = null;
+
                     const nextCover = nextItem.type === 'video'
                         ? String(nextItem.cover || '')
                         : String((isAnimatedImageItem(nextItem) ? (nextItem.cover || nextItem.src) : (nextItem.src || nextItem.cover)) || '');
-                    if (!nextCover) return false;
 
-                    const pre = new Image();
-                    pre.src = nextCover;
-                    try {
-                        if (pre.decode) await Promise.race([pre.decode().catch(()=>{}), delayMs(1800)]);
-                        else if (!(pre.complete && pre.naturalWidth > 0)) await Promise.race([new Promise(r=>{pre.onload=pre.onerror=r;}), delayMs(1800)]);
-                    } catch (_) {}
-                    if (!isStillRunning() || gen !== generation) return false;
+                    // 立即开始准备下一媒体；不等待它，先进入黑场。
+                    let mediaReady = false;
+                    const mediaReadyPromise = (async()=>{
+                        try {
+                            if (nextItem.type === 'video' && nextItem.src) {
+                                await preloadNextItem(nextItem);
+                            } else if (isAnimatedImageItem(nextItem)) {
+                                await Promise.all([
+                                    preloadNextItem(nextItem),
+                                    window.getAnimatedImageDuration(nextItem).catch(()=>null)
+                                ]);
+                            } else {
+                                await preloadNextItem(nextItem);
+                            }
+                        } catch (_) {}
+                        mediaReady = true;
+                        return true;
+                    })();
 
                     const dim = document.createElement('div');
                     dim.className = 'absolute inset-0 pointer-events-none';
                     Object.assign(dim.style, {
                         zIndex:'9', background:'#000', opacity:'0',
-                        transition:'opacity 185ms cubic-bezier(.4,0,.6,1)'
+                        transition:'opacity 220ms cubic-bezier(.4,0,.6,1)'
                     });
                     stage.appendChild(dim);
                     await delayMs(16);
                     if (!isStillRunning() || gen !== generation) { dim.remove(); return false; }
                     dim.style.opacity = '1';
-                    await delayMs(220);
+                    await delayMs(235);
                     if (!isStillRunning() || gen !== generation) { dim.remove(); return false; }
 
-                    // 在暗场最深处一次性换成 B 的完整封面。
-                    if (!video.classList.contains('hidden')) clearVideo();
-                    stage.classList.remove('preview-stage-black');
-                    img.classList.remove('hidden');
-                    disableSoftFade(img);
-                    img.style.transition = 'none';
-                    img.style.opacity = '1';
-                    if ((img.getAttribute('src') || '') !== nextCover) img.src = nextCover;
-                    try { window.applyPreviewImageStyle(img, nextItem); } catch (_) {}
-                    try {
-                        if (img.decode) await Promise.race([img.decode().catch(()=>{}), delayMs(1200)]);
-                    } catch (_) {}
+                    // 给黑场一个很短的自然停顿作为额外加载预算。准备好了就不再出现封面。
+                    if (!mediaReady) await Promise.race([mediaReadyPromise, delayMs(180)]);
                     if (!isStillRunning() || gen !== generation) { dim.remove(); return false; }
 
-                    // 不停留在黑色：下一帧立刻开始退暗，形成“变暗 → 换封面 → 变亮”的短过渡。
+                    if (mediaReady && ((nextItem.type === 'video' && nextItem.src) || isAnimatedImageItem(nextItem))) {
+                        pendingBlackHandoff = { item: nextItem, overlay: dim };
+                        return true; // overlay 由下一媒体真正开始显示后负责退黑
+                    }
+
+                    // 还没准备好：在全黑处换成完整封面，封面只承担“加载超时”的兜底职责。
+                    if (nextCover) {
+                        const pre = new Image(); pre.src = nextCover;
+                        try {
+                            if (pre.decode) await Promise.race([pre.decode().catch(()=>{}), delayMs(900)]);
+                            else if (!(pre.complete && pre.naturalWidth > 0)) await Promise.race([new Promise(r=>{pre.onload=pre.onerror=r;}), delayMs(900)]);
+                        } catch (_) {}
+                        if (!video.classList.contains('hidden')) clearVideo();
+                        stage.classList.remove('preview-stage-black');
+                        img.classList.remove('hidden'); disableSoftFade(img);
+                        img.style.transition='none'; img.style.opacity='1';
+                        if ((img.getAttribute('src') || '') !== nextCover) img.src = nextCover;
+                        try { window.applyPreviewImageStyle(img, nextItem); } catch (_) {}
+                    }
                     await delayMs(16);
-                    dim.style.transition = 'opacity 225ms cubic-bezier(.4,0,.2,1)';
+                    dim.style.transition = 'opacity 260ms cubic-bezier(.4,0,.2,1)';
                     dim.style.opacity = '0';
-                    await delayMs(260);
+                    await delayMs(285);
+                    dim.remove();
+                    return true;
+                };
+
+                const revealPendingBlack = async (item) => {
+                    const handoff = pendingBlackHandoff;
+                    if (!handoff || handoff.item !== item || !handoff.overlay) return false;
+                    pendingBlackHandoff = null;
+                    const dim = handoff.overlay;
+                    await delayMs(16);
+                    dim.style.transition = 'opacity 260ms cubic-bezier(.4,0,.2,1)';
+                    dim.style.opacity = '0';
+                    await delayMs(285);
                     dim.remove();
                     return true;
                 };
@@ -2610,7 +2648,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     if (!isStillRunning()) return null;
                     if (Number.isFinite(duration) && duration > 0) {
                         // 提前一点回收，避免浏览器在 GIF 循环边界先露出下一轮的一两帧。
-                        const endGuardSec = 0.16;
+                        const endGuardSec = 0;
                         return Math.max(0.3, duration - endGuardSec);
                     }
                     return ANIMATED_FALLBACK_SEC;
@@ -2723,9 +2761,10 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     if (!item.src) { if (after) after(); return; }
 
                     // 先把封面放在舞台上。视频在后台加载；只有 canplay（或兜底超时）后才从封面切到视频。
-                    if(item.cover) await ensureCoverReady(item);
-                    const hasCover = showItemCover(item);
-                    // 封面已经在图层中可见后才替换 video.src，避免旧视频消失到新封面出现之间露黑。
+                    const directFromBlack = !!(pendingBlackHandoff && pendingBlackHandoff.item === item);
+                    if(!directFromBlack && item.cover) await ensureCoverReady(item);
+                    const hasCover = directFromBlack ? false : showItemCover(item);
+                    // 黑场直达时无需先落封面；否则封面继续作为慢加载兜底。
                     video.src = item.src;
                     try { video.currentTime = 0; } catch (_) {}
                     const readyPromise = new Promise((resolve) => {
@@ -2753,6 +2792,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     video.play().catch(()=>{});
                     img.style.opacity='0';
                     img.classList.add('hidden');
+                    if (directFromBlack) await revealPendingBlack(item);
 
                     if (media.length > 1) preloadNextItem(media[(idx + 1) % media.length]);
                     const playMs = Math.max(window.VIDEO_PREVIEW_MIN_SEC, Math.min(window.VIDEO_PREVIEW_MAX_SEC, Number(item.previewDuration) || (defaultVideoHold / 1000))) * 1000;
@@ -2781,7 +2821,16 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     // GIF：封面先出现，同时在后台加载 GIF；加载越慢，封面自动多停留，
                     // 不再先淡到黑色再等 GIF，因此 A→B 的媒体切换由 B 的封面直接遮住等待过程。
                     let animatedHoldSec = null;
-                    if(isAnimatedImageItem(item) && item.cover && item.cover !== item.src){
+                    const directFromBlack = !!(pendingBlackHandoff && pendingBlackHandoff.item === item);
+                    if(isAnimatedImageItem(item) && directFromBlack){
+                        let duration=null;
+                        try { duration=await window.getAnimatedImageDuration(item); } catch(_){}
+                        animatedHoldSec=(Number.isFinite(duration)&&duration>0)?Math.max(0.3,duration):ANIMATED_FALLBACK_SEC;
+                        await applyImageItem(item,{hardHide:false});
+                        if(!isStillRunning()||gen!==generation)return;
+                        showImageNow();
+                        await revealPendingBlack(item);
+                    } else if(isAnimatedImageItem(item) && item.cover && item.cover !== item.src){
                         await ensureCoverReady(item);
                         if(!isStillRunning()||gen!==generation)return;
                         showItemCover(item);
@@ -2797,11 +2846,11 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         // 才 await 时长解析，大 GIF / 云端 GIF 解析慢时，这段等待会吃掉实际播放时间。
                         // 现在封面等待、资源加载、时长解析都不计入 GIF 的播放计时。
                         const durationPromise = window.getAnimatedImageDuration(item).catch(()=>null);
-                        if (!(await holdCoverUntil(Promise.all([preloadGif, durationPromise]), gen, calm ? 750 : 550, calm ? 2200 : 1800))) return;
+                        if (!(await holdCoverUntil(Promise.all([preloadGif, durationPromise]), gen, calm ? 600 : 500, calm ? 2200 : 1800))) return;
                         let duration = null;
                         try { duration = await durationPromise; } catch (_) { duration = null; }
                         if (!isStillRunning() || gen !== generation) return;
-                        if (Number.isFinite(duration) && duration > 0) animatedHoldSec = Math.max(0.3, duration - 0.16);
+                        if (Number.isFinite(duration) && duration > 0) animatedHoldSec = Math.max(0.3, duration);
                         else animatedHoldSec = ANIMATED_FALLBACK_SEC;
                         await applyImageItem(item, { hardHide: false });
                         if (!isStillRunning() || gen !== generation) return;
