@@ -2366,8 +2366,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const PRELOAD_WAIT_MS = 60;
             const BLACK_FADE_MS = 150;
             const BLACK_HOLD_MS = 80;
-            const MEDIA_COVER_MIN_HOLD_MS = calm ? 950 : 750;
-            const MEDIA_COVER_MAX_HOLD_MS = calm ? 2600 : 2000;
+            const MEDIA_COVER_MIN_HOLD_MS = calm ? 1100 : 900;
+            const MEDIA_COVER_MAX_HOLD_MS = calm ? 3200 : 2600;
+            const MEDIA_COVER_FADE_MS = 260;
 
             const isAnimatedImageItem = (item) => {
                 if (!item || item.type !== 'image') return false;
@@ -2501,10 +2502,15 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     return isStillRunning() && gen === generation;
                 };
 
+                const ensureCoverReady = async (item) => {
+                    const cover=String(item?.cover||''); if(!cover)return false;
+                    try{const pre=new Image();pre.src=cover;if(pre.decode)await Promise.race([pre.decode().catch(()=>{}),delayMs(1800)]);else await Promise.race([new Promise(r=>{pre.onload=pre.onerror=r;}),delayMs(1800)]);}catch(_){}
+                    return isStillRunning();
+                };
+
                 const showItemCover = (item) => {
                     const cover = item?.cover || '';
                     if (!cover) return false;
-                    clearVideo();
                     stage.classList.remove('preview-stage-black');
                     img.classList.remove('hidden');
                     img.style.opacity = '1';
@@ -2595,35 +2601,15 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         return;
                     }
                     if (isAnimatedImageItem(item)) {
-                        img.classList.add('hidden');
-                        img.style.opacity = '0';
-                        const cur = img.getAttribute('src') || '';
-                        if (cur === src) {
-                            try {
-                                img.removeAttribute('src');
-                                void img.offsetWidth;
-                            } catch (_) {}
-                        }
-                        img.src = src;
-                        await new Promise((resolve) => {
-                            const token = String(Date.now()) + Math.random();
-                            img.dataset.previewLoadToken = token;
-                            let settled = false;
-                            const done = () => {
-                                if (settled || img.dataset.previewLoadToken !== token) return;
-                                settled = true;
-                                img.removeEventListener('load', done);
-                                img.removeEventListener('error', done);
-                                resolve();
-                            };
-                            img.addEventListener('load', done);
-                            img.addEventListener('error', done);
-                            if (img.complete && img.naturalWidth > 0) {
-                                timers.push(setTimeout(done, 16));
-                            }
-                            timers.push(setTimeout(done, 4000));
-                        });
+                        // 先在独立 Image 中把 GIF 解码到可显示，当前封面始终留在舞台上。
+                        await new Promise((resolve)=>{const pre=new Image();let done=false;const finish=()=>{if(done)return;done=true;resolve();};pre.onload=finish;pre.onerror=finish;pre.src=src;timers.push(setTimeout(finish,MEDIA_COVER_MAX_HOLD_MS));});
+                        if(!isStillRunning())return;
+                        img.style.opacity='0';
+                        enableSoftFade(img);
+                        img.src=src;
                         try { window.applyPreviewImageStyle(img, item); } catch (_) {}
+                        img.classList.remove('hidden');
+                        await delayMs(16);img.style.opacity='1';await delayMs(MEDIA_COVER_FADE_MS);disableSoftFade(img);
                     } else if (hardHide) {
                         await window.setPreviewSlideImage(img, item, true);
                     } else {
@@ -2667,7 +2653,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     if (!item.src) { if (after) after(); return; }
 
                     // 先把封面放在舞台上。视频在后台加载；只有 canplay（或兜底超时）后才从封面切到视频。
+                    if(item.cover) await ensureCoverReady(item);
                     const hasCover = showItemCover(item);
+                    // 封面已经在图层中可见后才替换 video.src，避免旧视频消失到新封面出现之间露黑。
                     video.src = item.src;
                     try { video.currentTime = 0; } catch (_) {}
                     const readyPromise = new Promise((resolve) => {
@@ -2723,6 +2711,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     // GIF：封面先出现，同时在后台加载 GIF；加载越慢，封面自动多停留，
                     // 不再先淡到黑色再等 GIF，因此 A→B 的媒体切换由 B 的封面直接遮住等待过程。
                     if(isAnimatedImageItem(item) && item.cover && item.cover !== item.src){
+                        await ensureCoverReady(item);
+                        if(!isStillRunning()||gen!==generation)return;
                         showItemCover(item);
                         const animatedSrc=item.src||'';
                         const preloadGif=new Promise((resolve)=>{
@@ -11653,83 +11643,59 @@ viewer.style.visibility='';
             const cover=img.dataset.gifCover||''; if(!cover)return;
             if(img.src!==cover)img.src=cover;
         };
-        // v166：详情 GIF 使用“封面停留→播放→封面停留”节奏；时间线用封面动态遮蔽媒体切换等待。
+        // v167：详情 GIF 用独立“封面层 + 播放层”做完整状态机，避免 GIF 循环边界闪帧。
         window.initDetailGifSequence=function(viewer){
             viewer?._detailGifSequenceCleanup?.();
             if(!viewer)return;
             const gifs=[...viewer.querySelectorAll('[data-detail-image][data-gif-src][data-gif-cover]')];
             if(!gifs.length)return;
-            let index=0,timer=0,paused=false,disposed=false,activeLayer=null;
-            const DETAIL_COVER_HOLD_MS=1200;
-            const DETAIL_POST_COVER_HOLD_MS=850;
-            let playToken=0;
+            let index=0,timer=0,paused=false,disposed=false,activeGif=null,activeShield=null,playToken=0;
+            const PRE_COVER_MS=1500, POST_COVER_MS=1000, COVER_FADE_MS=360;
             const stopTimer=()=>{if(timer){clearTimeout(timer);timer=0;}};
-            const removeActiveLayer=()=>{if(activeLayer){try{activeLayer.remove();}catch(_){}activeLayer=null;}};
-            const showCovers=()=>{removeActiveLayer();gifs.forEach(img=>window.gifPreviewStop(img));};
+            const removeNode=n=>{if(n){try{n.remove();}catch(_){}}};
+            const clearLayers=()=>{removeNode(activeGif);removeNode(activeShield);activeGif=null;activeShield=null;};
+            const showBaseCovers=()=>{clearLayers();gifs.forEach(img=>window.gifPreviewStop(img));};
+            const nextCycle=()=>{if(disposed||paused)return;index=(index+1)%gifs.length;playCurrent();};
             const playCurrent=()=>{
-                stopTimer();showCovers();
+                stopTimer();showBaseCovers();
                 const token=++playToken;
                 if(disposed||paused||viewer.classList.contains('hidden'))return;
-                const coverImg=gifs[index%gifs.length];
-                const src=coverImg.dataset.gifSrc||'';
-                if(!src)return;
-                const duration=Math.max(600,Number(coverImg.dataset.gifDuration)||5000);
-                const host=coverImg.parentElement;
-                if(!host)return;
-                // v163：静态封面节点始终留在底层，GIF 使用独立覆盖层播放。
-                // 播放结束时直接移除覆盖层即可露出封面，不再把同一个 img 的 src 从 GIF 切回 JPG，
-                // 因而不会在 GIF 循环边界闪出下一轮首帧或其他解码帧。
-                const layer=coverImg.cloneNode(false);
-                layer.removeAttribute('id');
-                [...layer.attributes].forEach(a=>{if(a.name.startsWith('data-'))layer.removeAttribute(a.name);});
-                layer.alt=''; layer.draggable=false;
-                Object.assign(layer.style,{position:'absolute',inset:'0',width:'100%',height:'100%',zIndex:'2',pointerEvents:'none',opacity:'0',transition:'opacity 240ms ease'});
-                const hostPos=getComputedStyle(host).position;
-                if(hostPos==='static')host.style.position='relative';
-                const finish=()=>{
-                    if(token!==playToken||disposed||paused)return;
-                    // 先淡出 GIF 覆盖层，让底下已经存在的静态封面自然显露；
-                    // 淡出完成后再切到下一张，避免硬切和循环边界闪帧。
-                    layer.style.opacity='0';
-                    // 先让底层封面重新稳定露出，再进入下一张；只有一张 GIF 时也按同一节奏重播自身。
-                    timer=setTimeout(()=>{
-                        if(token!==playToken||disposed||paused)return;
-                        removeActiveLayer();
-                        timer=setTimeout(()=>{
-                            if(token!==playToken||disposed||paused)return;
-                            index=(index+1)%gifs.length;
-                            playCurrent();
-                        },DETAIL_POST_COVER_HOLD_MS);
-                    },240);
-                };
-                const onLoad=()=>{
-                    if(token!==playToken||disposed||paused){removeActiveLayer();return;}
-                    requestAnimationFrame(()=>requestAnimationFrame(()=>{if(token===playToken&&!disposed&&!paused)layer.style.opacity='1';}));
-                    timer=setTimeout(finish,duration);
-                };
-                const onError=()=>{
-                    if(token!==playToken||disposed||paused)return;
-                    removeActiveLayer();
-                    timer=setTimeout(()=>{if(token===playToken&&!disposed&&!paused){index=(index+1)%gifs.length;playCurrent();}},1200);
-                };
-                // 每轮先让静态封面稳定显示一小段时间，再开始加载/显示 GIF，避免封面只是一闪而过。
+                const base=gifs[index%gifs.length],src=base.dataset.gifSrc||'',cover=base.dataset.gifCover||base.src||'';
+                const host=base.parentElement;if(!host||!src)return;
+                if(getComputedStyle(host).position==='static')host.style.position='relative';
+                const duration=Math.max(600,Number(base.dataset.gifDuration)||5000);
                 timer=setTimeout(()=>{
                     if(token!==playToken||disposed||paused)return;
-                    activeLayer=layer; host.appendChild(layer);
-                    layer.addEventListener('load',onLoad,{once:true});
-                    layer.addEventListener('error',onError,{once:true});
-                    layer.src=src;
-                    if(layer.complete&&layer.naturalWidth>0)queueMicrotask(onLoad);
-                },DETAIL_COVER_HOLD_MS);
+                    const gif=base.cloneNode(false);gif.removeAttribute('id');[...gif.attributes].forEach(a=>{if(a.name.startsWith('data-'))gif.removeAttribute(a.name);});
+                    gif.alt='';gif.draggable=false;Object.assign(gif.style,{position:'absolute',inset:'0',width:'100%',height:'100%',zIndex:'2',pointerEvents:'none',opacity:'0',transition:`opacity ${COVER_FADE_MS}ms ease`});
+                    activeGif=gif;host.appendChild(gif);
+                    const loaded=()=>{
+                        if(token!==playToken||disposed||paused){removeNode(gif);return;}
+                        requestAnimationFrame(()=>requestAnimationFrame(()=>{if(token===playToken)gif.style.opacity='1';}));
+                        timer=setTimeout(()=>{
+                            if(token!==playToken||disposed||paused)return;
+                            // 不直接撤掉 GIF。先在 GIF 上方把封面淡入到完全不透明，再移除 GIF，
+                            // 即使 GIF 此刻已经进入下一轮，也会被封面层遮住，不会闪帧。
+                            const shield=base.cloneNode(false);shield.removeAttribute('id');[...shield.attributes].forEach(a=>{if(a.name.startsWith('data-'))shield.removeAttribute(a.name);});
+                            shield.alt='';shield.draggable=false;shield.src=cover;Object.assign(shield.style,{position:'absolute',inset:'0',width:'100%',height:'100%',zIndex:'3',pointerEvents:'none',opacity:'0',transition:`opacity ${COVER_FADE_MS}ms ease`});
+                            activeShield=shield;host.appendChild(shield);
+                            const reveal=()=>{requestAnimationFrame(()=>requestAnimationFrame(()=>{if(token===playToken)shield.style.opacity='1';}));timer=setTimeout(()=>{
+                                if(token!==playToken||disposed||paused)return;removeNode(gif);activeGif=null;
+                                timer=setTimeout(()=>{if(token!==playToken||disposed||paused)return;removeNode(shield);activeShield=null;nextCycle();},POST_COVER_MS);
+                            },COVER_FADE_MS+40);};
+                            if(shield.complete&&shield.naturalWidth>0)reveal();else{shield.addEventListener('load',reveal,{once:true});shield.addEventListener('error',reveal,{once:true});}
+                        },duration);
+                    };
+                    gif.addEventListener('load',loaded,{once:true});gif.addEventListener('error',()=>{if(token===playToken){removeNode(gif);activeGif=null;timer=setTimeout(nextCycle,POST_COVER_MS);}},{once:true});gif.src=src;if(gif.complete&&gif.naturalWidth>0)queueMicrotask(loaded);
+                },PRE_COVER_MS);
             };
-            const pause=()=>{paused=true;playToken++;stopTimer();showCovers();};
+            const pause=()=>{paused=true;playToken++;stopTimer();showBaseCovers();};
             const resume=()=>{if(disposed)return;paused=false;playCurrent();};
-            const cards=[...viewer.querySelectorAll('[data-detail-image-card]')];
-            cards.forEach(card=>{card.addEventListener('mouseenter',pause);card.addEventListener('mouseleave',resume);});
-            viewer._detailGifSequenceCleanup=()=>{disposed=true;playToken++;stopTimer();showCovers();viewer._detailGifSequenceCleanup=null;};
+            [...viewer.querySelectorAll('[data-detail-image-card]')].forEach(card=>{card.addEventListener('mouseenter',pause);card.addEventListener('mouseleave',resume);});
+            viewer._detailGifSequenceCleanup=()=>{disposed=true;playToken++;stopTimer();showBaseCovers();viewer._detailGifSequenceCleanup=null;};
             playCurrent();
         };
-                window.openGifCoverPicker=async function(src,cloudPath,coverCloudPath,onSaved,onCrop){
+        window.openGifCoverPicker=async function(src,cloudPath,coverCloudPath,onSaved,onCrop){
             src=String(src||''); if(!src)return;
             let modal=document.getElementById('gifCoverPickerModal');
             if(!modal){modal=document.createElement('div');modal.id='gifCoverPickerModal';modal.className='fixed inset-0 z-[490] hidden bg-slate-950/90 flex items-center justify-center p-3 sm:p-6';document.body.appendChild(modal);}
