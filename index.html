@@ -11603,20 +11603,42 @@ viewer.style.visibility='';
             let index=0,timer=0,paused=false,disposed=false;
             const stopTimer=()=>{if(timer){clearTimeout(timer);timer=0;}};
             const showCovers=()=>gifs.forEach(img=>window.gifPreviewStop(img));
+            let playToken=0;
             const playCurrent=()=>{
                 stopTimer();showCovers();
+                const token=++playToken;
                 if(disposed||paused||viewer.classList.contains('hidden'))return;
                 const img=gifs[index%gifs.length];
-                // Re-assigning via the static cover first restarts this GIF from frame one.
-                window.gifPreviewPlay(img);
+                const src=img.dataset.gifSrc||'';
+                if(!src)return;
                 const duration=Math.max(600,Number(img.dataset.gifDuration)||5000);
-                timer=setTimeout(()=>{if(disposed||paused)return;index=(index+1)%gifs.length;playCurrent();},duration);
+                // 大 GIF 从静态封面切回原图时，下载/解码本身可能耗时数秒。
+                // 必须等 GIF 真正 load 完成后再开始计算“一轮播放时长”，否则加载时间会吃掉播放时间。
+                const startCycleTimer=()=>{
+                    if(token!==playToken||disposed||paused||viewer.classList.contains('hidden'))return;
+                    timer=setTimeout(()=>{
+                        if(token!==playToken||disposed||paused)return;
+                        index=(index+1)%gifs.length;
+                        playCurrent();
+                    },duration);
+                };
+                const onLoad=()=>{img.removeEventListener('error',onError);startCycleTimer();};
+                const onError=()=>{img.removeEventListener('load',onLoad);if(token===playToken&&!disposed&&!paused){timer=setTimeout(()=>{index=(index+1)%gifs.length;playCurrent();},1200);}};
+                img.addEventListener('load',onLoad,{once:true});
+                img.addEventListener('error',onError,{once:true});
+                img.src=src;
+                // 缓存命中时部分浏览器不会再次可靠触发 load。
+                if(img.complete&&img.naturalWidth>0){
+                    img.removeEventListener('load',onLoad);
+                    img.removeEventListener('error',onError);
+                    queueMicrotask(startCycleTimer);
+                }
             };
-            const pause=()=>{paused=true;stopTimer();showCovers();};
+            const pause=()=>{paused=true;playToken++;stopTimer();showCovers();};
             const resume=()=>{if(disposed)return;paused=false;playCurrent();};
             const cards=[...viewer.querySelectorAll('[data-detail-image-card]')];
             cards.forEach(card=>{card.addEventListener('mouseenter',pause);card.addEventListener('mouseleave',resume);});
-            viewer._detailGifSequenceCleanup=()=>{disposed=true;stopTimer();showCovers();viewer._detailGifSequenceCleanup=null;};
+            viewer._detailGifSequenceCleanup=()=>{disposed=true;playToken++;stopTimer();showCovers();viewer._detailGifSequenceCleanup=null;};
             playCurrent();
         };
         window.openGifCoverPicker=async function(src,cloudPath,coverCloudPath,onSaved,onCrop){
