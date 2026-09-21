@@ -2340,6 +2340,15 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             }
         };
 
+        // Shared animated-image detector. It must exist before timeline/cloud data rendering runs.
+        window.isAnimatedImageItem = window.isAnimatedImageItem || function(item) {
+            if (!item || item.type !== 'image') return false;
+            if (item.isAnimated) return true;
+            const src = String(item.src || item.cover || '');
+            return /\.gif(?:[?#]|$)/i.test(src) || /^data:image\/gif/i.test(src);
+        };
+        var isAnimatedImageItem = window.isAnimatedImageItem;
+
         window.startPreviewSlideshow = function(rootEl, opts) {
             if (!rootEl) return;
             const calm = !!(opts && opts.calm);
@@ -2370,12 +2379,15 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const MEDIA_COVER_MAX_HOLD_MS = calm ? 3200 : 2600;
             const MEDIA_COVER_FADE_MS = 260;
 
-            const isAnimatedImageItem = (item) => {
+            // Animated-image detection is shared by the detail carousel and timeline preview.
+            // Keep it on window because timeline rendering also calls it outside this function scope.
+            window.isAnimatedImageItem = window.isAnimatedImageItem || function(item) {
                 if (!item || item.type !== 'image') return false;
                 if (item.isAnimated) return true;
                 const src = String(item.src || item.cover || '');
                 return /\.gif(?:[?#]|$)/i.test(src) || /^data:image\/gif/i.test(src);
             };
+            const isAnimatedImageItem = window.isAnimatedImageItem;
 
             const schedule = (img) => {
                 const media = img._slideMedia || [];
