@@ -3093,7 +3093,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const data=await timelineApiPost('createGifReadTicket',{cloudPath:resolved},{timeoutMs:15000});
             if(!data?.ticket) throw new Error(data?.message||'GIF_READ_TICKET_EMPTY');
             const qs=new URLSearchParams({room:window.currentRoomId||'default',cloudPath:resolved,ticket:String(data.ticket)});
-            const gifUrl=TIMELINE_API_BASE+'/gif-source?'+qs.toString()+'&client=v152&_='+Date.now();
+            const gifUrl=TIMELINE_API_BASE+'/gif-source?'+qs.toString()+'&client=v153&_='+Date.now();
             return {url:gifUrl,options:{cache:'no-store',headers:{'Cache-Control':'no-cache'}},cloudPath:resolved};
         };
 
@@ -11621,19 +11621,29 @@ viewer.style.visibility='';
                 while(true){
                     const requestedEnd=start+chunkSize-1;
                     const r=await fetchGifChunk(start,requestedEnd);
+                    const part=new Uint8Array(await r.arrayBuffer());
                     const cr=String(r.headers.get('content-range')||'').trim();
                     const m=cr.match(/^bytes\s+(\d+)-(\d+)\/(\d+)$/i);
-                    if(!m)throw new Error('GIF分段响应缺少有效 Content-Range');
-                    const actualStart=Number(m[1]),actualEnd=Number(m[2]),reportedTotal=Number(m[3]);
-                    if(!Number.isSafeInteger(actualStart)||!Number.isSafeInteger(actualEnd)||!Number.isSafeInteger(reportedTotal)||actualStart!==start||actualEnd<actualStart||reportedTotal<=actualEnd)throw new Error('GIF分段范围异常：'+cr);
-                    if(total&&reportedTotal!==total)throw new Error('GIF总大小在分段读取过程中发生变化');
-                    total=reportedTotal;
-                    const part=new Uint8Array(await r.arrayBuffer());
-                    const expected=actualEnd-actualStart+1;
-                    if(part.byteLength!==expected)throw new Error(`GIF分段不完整：${actualStart}-${actualEnd} 应为 ${expected} 字节，实际 ${part.byteLength} 字节`);
-                    parts.push({start:actualStart,end:actualEnd,data:part});
-                    if(actualEnd+1>=total)break;
-                    start=actualEnd+1;
+                    if(m){
+                        const actualStart=Number(m[1]),actualEnd=Number(m[2]),reportedTotal=Number(m[3]);
+                        if(!Number.isSafeInteger(actualStart)||!Number.isSafeInteger(actualEnd)||!Number.isSafeInteger(reportedTotal)||actualStart!==start||actualEnd<actualStart||reportedTotal<=actualEnd)throw new Error('GIF分段范围异常：'+cr);
+                        if(total&&reportedTotal!==total)throw new Error('GIF总大小在分段读取过程中发生变化');
+                        total=reportedTotal;
+                        const expected=actualEnd-actualStart+1;
+                        if(part.byteLength!==expected)throw new Error(`GIF分段不完整：${actualStart}-${actualEnd} 应为 ${expected} 字节，实际 ${part.byteLength} 字节`);
+                        parts.push({start:actualStart,end:actualEnd,data:part});
+                        if(actualEnd+1>=total)break;
+                        start=actualEnd+1;
+                    }else{
+                        // v153 compatibility: some gateways hide Content-Range from browser JS even
+                        // though DevTools can display it. Continue by the actual body size; a short
+                        // chunk marks EOF. v139 exposes Content-Range, so this is only a fallback.
+                        if(!part.byteLength)throw new Error('GIF分段返回了空数据');
+                        const actualEnd=start+part.byteLength-1;
+                        parts.push({start,end:actualEnd,data:part});
+                        if(part.byteLength<chunkSize){total=actualEnd+1;break;}
+                        start=actualEnd+1;
+                    }
                 }
                 const merged=new Uint8Array(total);
                 let assembled=0;
