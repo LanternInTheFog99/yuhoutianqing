@@ -2543,29 +2543,27 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 // 只有 B 仍未就绪时，才在黑场后落到 B 封面继续等待。
                 const fadeIntoNextCover = async (nextItem, gen) => {
                     if (!nextItem || !isStillRunning() || gen !== generation) return false;
+                    // v19：转场时长必须完全固定。资源加载只决定“退黑后看到媒体还是封面”，
+                    // 绝不能延长 100% 黑屏。pendingBlackHandoff 旧路径会让 GIF 在黑场里等待 apply/load，已停用。
                     pendingBlackHandoff = null;
 
                     const nextCover = nextItem.type === 'video'
                         ? String(nextItem.cover || '')
                         : String((isAnimatedImageItem(nextItem) ? (nextItem.cover || nextItem.src) : (nextItem.src || nextItem.cover)) || '');
 
-                    // 立即开始准备下一媒体；不等待它，先进入黑场。
+                    // 一进入渐黑就并行预加载下一媒体；这里只观察状态，不 await。
                     let mediaReady = false;
-                    const mediaReadyPromise = (async()=>{
+                    (async()=>{
                         try {
                             if (nextItem.type === 'video' && nextItem.src) {
                                 await preloadNextItem(nextItem);
                             } else if (isAnimatedImageItem(nextItem)) {
-                                await Promise.all([
-                                    preloadNextItem(nextItem),
-                                    window.getAnimatedImageDuration(nextItem).catch(()=>null)
-                                ]);
+                                await Promise.all([preloadNextItem(nextItem), window.getAnimatedImageDuration(nextItem).catch(()=>null)]);
                             } else {
                                 await preloadNextItem(nextItem);
                             }
+                            mediaReady = true;
                         } catch (_) {}
-                        mediaReady = true;
-                        return true;
                     })();
 
                     const dim = document.createElement('div');
@@ -2579,53 +2577,44 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     await delayMs(16);
                     if (!isStillRunning() || gen !== generation) { dim.remove(); return false; }
                     dim.style.opacity = '1';
-                    await delayMs(235);
+                    await delayMs(220);
                     if (!isStillRunning() || gen !== generation) { dim.remove(); return false; }
 
-                    // 已经全黑后立刻冻结旧媒体。旧 GIF 即使进入下一轮，也永远不会再从黑场后露出来；
-                    // 视频同样在这里暂停。媒体切换只发生在 100% 黑的遮罩下面。
                     try { video.pause(); } catch (_) {}
-                    if (isAnimatedImageItem(media[idx])) {
-                        img.style.visibility = 'hidden';
-                    }
 
-                    // 转场时长固定：不再为了媒体加载额外延长全黑阶段。
-                    // 到达全黑点时如果下一媒体已经准备好，就直接交给下一媒体并按固定 260ms 退黑；
-                    // 如果还没准备好，则立即落到封面兜底，同样按固定 260ms 退黑，媒体继续在封面下加载。
-                    if (!isStillRunning() || gen !== generation) { dim.remove(); return false; }
-
-                    if (mediaReady && ((nextItem.type === 'video' && nextItem.src) || isAnimatedImageItem(nextItem))) {
-                        pendingBlackHandoff = { item: nextItem, overlay: dim };
-                        return true; // 下一媒体显示后只负责固定时长退黑，不增加额外等待
-                    }
-
+                    // 全黑点立即把下一媒体的封面/静态兜底放到底层。
+                    // 即便媒体已经预加载完成，也不在这里 await 它的 DOM 解码，避免把黑屏拉长；
+                    // 后续 presentItem 会立刻接管。若尚未完成，就自然继续显示这个封面。
                     if (nextCover) {
                         if (!video.classList.contains('hidden')) clearVideo();
                         stage.classList.remove('preview-stage-black');
-                        img.classList.remove('hidden'); img.style.visibility='visible'; disableSoftFade(img);
-                        img.style.transition='none'; img.style.opacity='1';
+                        img.classList.remove('hidden');
+                        img.style.visibility='visible';
+                        disableSoftFade(img);
+                        img.style.transition='none';
+                        img.style.opacity='1';
                         if ((img.getAttribute('src') || '') !== nextCover) img.src = nextCover;
                         try { window.applyPreviewImageStyle(img, nextItem); } catch (_) {}
                     }
+
+                    // 固定退黑：不论 mediaReady 是 true/false，都严格按同一时长结束。
+                    // mediaReady 仅供后续起播路径使用，不再控制黑层寿命。
+                    if (mediaReady) img.dataset.previewNextPreloaded = '1';
+                    else delete img.dataset.previewNextPreloaded;
                     await delayMs(16);
                     dim.style.transition = 'opacity 260ms cubic-bezier(.4,0,.2,1)';
                     dim.style.opacity = '0';
-                    await delayMs(285);
+                    await delayMs(260);
                     dim.remove();
                     return true;
                 };
 
                 const revealPendingBlack = async (item) => {
+                    // v19：黑场不再跨媒体加载持有；保留函数仅兼容旧调用。
                     const handoff = pendingBlackHandoff;
-                    if (!handoff || handoff.item !== item || !handoff.overlay) return false;
                     pendingBlackHandoff = null;
-                    const dim = handoff.overlay;
-                    await delayMs(16);
-                    dim.style.transition = 'opacity 260ms cubic-bezier(.4,0,.2,1)';
-                    dim.style.opacity = '0';
-                    await delayMs(285);
-                    dim.remove();
-                    return true;
+                    if (handoff?.overlay) { try { handoff.overlay.remove(); } catch (_) {} }
+                    return false;
                 };
 
                 const scheduleHold = (gen, holdSec, after) => {
@@ -2652,7 +2641,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     if (!isStillRunning()) return null;
                     if (Number.isFinite(duration) && duration > 0) {
                         // 提前一点回收，避免浏览器在 GIF 循环边界先露出下一轮的一两帧。
-                        // 时间线与详情页统一在循环边界前 350ms 回收，避免 GIF 自动重播的头几帧露出。
+                        // 时间线在循环边界前 300ms 回收；所有 GIF 分支都必须使用同一个 guard。
                         const endGuardSec = 0.35;
                         return Math.max(0.3, duration - endGuardSec);
                     }
@@ -2847,7 +2836,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     if(isAnimatedImageItem(item) && directFromBlack){
                         let duration=null;
                         try { duration=await window.getAnimatedImageDuration(item); } catch(_){}
-                        animatedHoldSec=(Number.isFinite(duration)&&duration>0)?Math.max(0.3,duration):ANIMATED_FALLBACK_SEC;
+                        animatedHoldSec=(Number.isFinite(duration)&&duration>0)?Math.max(0.3,duration-0.35):ANIMATED_FALLBACK_SEC;
                         await applyImageItem(item,{hardHide:false});
                         if(!isStillRunning()||gen!==generation)return;
                         showImageNow();
@@ -2872,7 +2861,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         let duration = null;
                         try { duration = await durationPromise; } catch (_) { duration = null; }
                         if (!isStillRunning() || gen !== generation) return;
-                        if (Number.isFinite(duration) && duration > 0) animatedHoldSec = Math.max(0.3, duration);
+                        if (Number.isFinite(duration) && duration > 0) animatedHoldSec = Math.max(0.3, duration - 0.35);
                         else animatedHoldSec = ANIMATED_FALLBACK_SEC;
                         await applyImageItem(item, { hardHide: false });
                         if (!isStillRunning() || gen !== generation) return;
@@ -7861,7 +7850,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             document.addEventListener('pointerup',()=>{
                 if(!window.deepTextSelectionDragActive)return;
                 window.deepTextSelectionDragActive=false;
-                window.deepSuppressBlankTextClickUntil=Date.now()+350;
+                window.deepSuppressBlankTextClickUntil=Date.now()+300;
                 requestAnimationFrame(()=>window.deepRememberTextSelection?.());
             },true);
         }
@@ -9167,7 +9156,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if(window.isPhoneLikeDevice?.())window.suspendMobileDetailVideosForOverlay?.();
             const ev=window.findEventById?window.findEventById(eventId):window.events.find(e=>String(e.id)===String(eventId)); const obj=ev?.[type==='image'?'images':'videos']?.[index]; if(!obj)return;
             const src=type==='image'?(typeof obj==='string'?obj:(obj.originalFull||obj.original||obj.outer||obj.inner||obj.collection||'')):(obj.blobUrl||obj.url||'');
-            let m=document.getElementById('deepMediaPreviewModal'); if(!m){m=document.createElement('div');m.id='deepMediaPreviewModal';m.className='fixed inset-0 z-[350] hidden bg-slate-950/95 flex items-center justify-center p-4';document.body.appendChild(m);}
+            let m=document.getElementById('deepMediaPreviewModal'); if(!m){m=document.createElement('div');m.id='deepMediaPreviewModal';m.className='fixed inset-0 z-[300] hidden bg-slate-950/95 flex items-center justify-center p-4';document.body.appendChild(m);}
             const safeEventId=String(eventId).replace(/'/g,"\'");
             if(type==='video'){
                 m.innerHTML=`<button onclick="closeDeepMediaPreview()" class="absolute top-5 right-5 z-20 w-10 h-10 rounded-full bg-slate-800 text-white"><i class="fa-solid fa-xmark"></i></button><div data-deep-preview-stage class="max-w-5xl max-h-[90vh] w-full h-full flex items-center justify-center cursor-pointer"><video src="${window.deepEsc(src)}" controls playsinline autoplay class="max-w-full max-h-[88vh] rounded-xl bg-black"></video></div>`;
