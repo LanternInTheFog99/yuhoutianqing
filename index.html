@@ -2551,6 +2551,26 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         ? String(nextItem.cover || '')
                         : String((isAnimatedImageItem(nextItem) ? (nextItem.cover || nextItem.src) : (nextItem.src || nextItem.cover)) || '');
 
+                    // 视频→视频最容易在退黑时露出一帧“逐行加载”的 poster。
+                    // 先把下一视频封面完整 decode 到浏览器缓存；这不会延长黑场，
+                    // 因为 decode 从转场开始前就并行进行，真正切换时只使用已完成的位图。
+                    let nextCoverDecoded = false;
+                    if (nextItem.type === 'video' && nextCover) {
+                        try {
+                            const coverPre = new Image();
+                            coverPre.src = nextCover;
+                            if (coverPre.decode) {
+                                await Promise.race([coverPre.decode().catch(()=>{}), delayMs(700)]);
+                            } else {
+                                await Promise.race([
+                                    new Promise(r => { coverPre.onload = coverPre.onerror = r; }),
+                                    delayMs(700)
+                                ]);
+                            }
+                            nextCoverDecoded = !!(coverPre.complete && coverPre.naturalWidth > 0);
+                        } catch (_) {}
+                    }
+
                     // 一进入渐黑就并行预加载下一媒体；这里只观察状态，不 await。
                     let mediaReady = false;
                     (async()=>{
@@ -2599,8 +2619,13 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
                     // 固定退黑：不论 mediaReady 是 true/false，都严格按同一时长结束。
                     // mediaReady 仅供后续起播路径使用，不再控制黑层寿命。
-                    if (mediaReady) img.dataset.previewNextPreloaded = '1';
-                    else delete img.dataset.previewNextPreloaded;
+                    if (mediaReady) {
+                        img.dataset.previewNextPreloaded = '1';
+                        if (nextItem.type === 'video') img.dataset.previewNextVideoReady = '1';
+                    } else {
+                        delete img.dataset.previewNextPreloaded;
+                        delete img.dataset.previewNextVideoReady;
+                    }
                     await delayMs(16);
                     dim.style.transition = 'opacity 260ms cubic-bezier(.4,0,.2,1)';
                     dim.style.opacity = '0';
@@ -2773,9 +2798,13 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
                     // 先把封面放在舞台上。视频在后台加载；只有 canplay（或兜底超时）后才从封面切到视频。
                     const directFromBlack = !!(pendingBlackHandoff && pendingBlackHandoff.item === item);
-                    if(!directFromBlack && item.cover) await ensureCoverReady(item);
+                    const transitionVideoReady = img.dataset.previewNextVideoReady === '1';
+                    delete img.dataset.previewNextVideoReady;
+                    delete img.dataset.previewNextPreloaded;
+                    if(!directFromBlack && item.cover && !transitionVideoReady) await ensureCoverReady(item);
                     const hasCover = directFromBlack ? false : showItemCover(item);
-                    // 黑场直达时无需先落封面；否则封面继续作为慢加载兜底。
+                    // 如果视频已经在上一段固定转场期间预加载完成，就不再额外强制停 500ms 封面；
+                    // 封面只作为主 video 元素完成 canplay 前的瞬时兜底。
                     video.src = item.src;
                     try { video.currentTime = 0; } catch (_) {}
                     const readyPromise = new Promise((resolve) => {
@@ -2786,7 +2815,13 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         timers.push(setTimeout(done, 1800));
                     });
                     if (hasCover) {
-                        if (!(await holdCoverUntil(readyPromise, gen))) return;
+                        if (transitionVideoReady) {
+                            // 已在媒体切换阶段预加载：只等当前舞台 video 真正 canplay，不再重复封面最短展示时间。
+                            await readyPromise;
+                            if (!isStillRunning() || gen !== generation) return;
+                        } else {
+                            if (!(await holdCoverUntil(readyPromise, gen))) return;
+                        }
                     } else {
                         await readyPromise;
                         if (!isStillRunning() || gen !== generation) return;
