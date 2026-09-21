@@ -2569,7 +2569,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     })();
 
                     const dim = document.createElement('div');
-                    dim.className = 'absolute inset-0 pointer-events-none';
+                    dim.className = 'absolute inset-0 pointer-events-none preview-media-transition-overlay';
+                    dim.dataset.previewTransitionOverlay = '1';
                     Object.assign(dim.style, {
                         zIndex:'9', background:'#000', opacity:'0',
                         transition:'opacity 220ms cubic-bezier(.4,0,.6,1)'
@@ -2656,7 +2657,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     if (!isStillRunning()) return null;
                     if (Number.isFinite(duration) && duration > 0) {
                         // 提前一点回收，避免浏览器在 GIF 循环边界先露出下一轮的一两帧。
-                        const endGuardSec = 0;
+                        // 时间线与详情页都在循环边界前回收，但时间线只轻微提前，避免明显少播。
+                        // 详情页当前为 300ms；时间线用 180ms，主要遮掉 GIF 自动重播的头几帧。
+                        const endGuardSec = 0.18;
                         return Math.max(0.3, duration - endGuardSec);
                     }
                     return ANIMATED_FALLBACK_SEC;
@@ -2938,6 +2941,12 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 });
                 rootEl._previewVideoEls = null;
             }
+            // 上一次预览若恰好停在 GIF 的全黑交接阶段，异步流程会因 runToken 失效退出，
+            // 但动态插入的黑场层不会自动跟着 timer 清掉。再次预览时它就会一直盖在舞台上。
+            // stop 时显式移除所有媒体转场遮罩，保证下一次一定从封面/首媒体重新开始。
+            rootEl.querySelectorAll('[data-preview-transition-overlay="1"], .preview-media-transition-overlay').forEach(el => {
+                try { el.remove(); } catch (_) {}
+            });
             rootEl.querySelectorAll('.preview-slide-img').forEach(img => {
                 img.style.opacity = '1';
                 img.style.visibility = 'visible';
