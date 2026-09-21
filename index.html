@@ -1253,7 +1253,7 @@ html.invalid-room-access [id*="xiaoqinger" i],
 html.invalid-room-access [class*="xiaoqinger" i],
 html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility:hidden !important;opacity:0 !important}
 </style>
-<!-- v144: GIF frame decoding uses a fresh dedicated read ticket and a cache-busted /media?mode=gif request. -->
+<!-- v145: GIF frame decoding uses a dedicated /gif gateway route with a fresh path-bound read ticket. -->
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
 <div id="invalidRoomAccessOverlay" aria-live="assertive" aria-label="此链接无效"><div class="invalid-room-card">此链接无效</div></div>
@@ -3075,9 +3075,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const data=await timelineApiPost('createGifReadTicket',{cloudPath:String(cloudPath)},{timeoutMs:15000});
             if(!data?.ticket) throw new Error(data?.message||'GIF_READ_TICKET_EMPTY');
             const qs=new URLSearchParams({room:window.currentRoomId||'default',cloudPath:String(cloudPath),ticket:String(data.ticket)});
-            // v144: GIF decoder has exactly one media mode. Append it as a literal final parameter
-            // and add a per-request nonce so an older cached full/stream URL can never be reused.
-            const gifUrl=TIMELINE_API_BASE+'/media?'+qs.toString()+'&mode=gif&client=v144&_='+Date.now();
+            // v145: GIF frame decoding has its own CloudBase gateway route. Keep it completely
+            // separate from the Range-capable /media route used by video frame capture.
+            const gifUrl=TIMELINE_API_BASE+'/gif?'+qs.toString()+'&v=145&_='+Date.now();
             return {url:gifUrl,options:{cache:'no-store',headers:{'Cache-Control':'no-cache'}}};
         };
 
