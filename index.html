@@ -8121,14 +8121,13 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if(!el||!item||!['media','text','link'].includes(item.type))return;
             const wrap=document.createElement('div');
             wrap.className='deep-layer-controls';
-            wrap.innerHTML=`<button type="button" class="deep-layer-btn" title="上移一层"><i class="fa-solid fa-arrow-up"></i></button><button type="button" class="deep-layer-btn" title="下移一层"><i class="fa-solid fa-arrow-down"></i></button><button type="button" class="deep-layer-btn" title="复制区域"><i class="fa-solid fa-copy"></i></button>${item.type==='media'&&item.mediaKind!=='video'&&window.isAnimatedImageSource(item.src,item)?'<button type="button" class="deep-layer-btn" data-deep-gif-cover title="截选动图封面"><i class="fa-solid fa-camera"></i></button>':''}`;
+            wrap.innerHTML=`<button type="button" class="deep-layer-btn" title="上移一层"><i class="fa-solid fa-arrow-up"></i></button><button type="button" class="deep-layer-btn" title="下移一层"><i class="fa-solid fa-arrow-down"></i></button><button type="button" class="deep-layer-btn" title="复制区域"><i class="fa-solid fa-copy"></i></button>`;
             const block=e=>{e.preventDefault();e.stopPropagation();item._suppressTextEditUntil=Date.now()+500;};
             ['pointerdown','pointerup','mousedown','mouseup','dblclick'].forEach(type=>wrap.addEventListener(type,block));
             const buttons=wrap.querySelectorAll('button');
             buttons[0]?.addEventListener('click',e=>{block(e);window.deepMoveSelectedLayer('up');});
             buttons[1]?.addEventListener('click',e=>{block(e);window.deepMoveSelectedLayer('down');});
             buttons[2]?.addEventListener('click',e=>{block(e);window.deepCanvasSelected=item.id;window.deepDuplicateSelected?.();});
-            wrap.querySelector('[data-deep-gif-cover]')?.addEventListener('click',e=>{block(e);window.deepEditGifCover?.(item);});
             el.appendChild(wrap);
             if(item.type==='text')requestAnimationFrame(()=>{
                 const content=el.querySelector('.deep-text-content');if(!content||!wrap.isConnected)return;
@@ -8781,6 +8780,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     <div class="flex items-center gap-2 mb-3 shrink-0"><b>截选媒体</b></div>
                     <div id="deepCropViewport" class="bg-white rounded-xl p-3 sm:p-4 overflow-hidden flex-1 min-h-[220px] relative border border-slate-200"><div id="deepCropPreviewWrap" class="absolute left-1/2 top-1/2 shrink-0 will-change-transform" style="transform:translate(-50%,-50%)"><div id="deepCropPreview" class="absolute left-0 top-0 overflow-hidden bg-black"></div><div id="deepCropFrameHandles" class="absolute inset-0 pointer-events-none"><span data-crop-frame-handle="nw" class="absolute w-3 h-3 rounded-sm bg-white border-2 border-indigo-500 pointer-events-auto cursor-nwse-resize" style="left:-6px;top:-6px"></span><span data-crop-frame-handle="n" class="absolute w-3 h-3 rounded-sm bg-white border-2 border-indigo-500 pointer-events-auto cursor-ns-resize" style="left:50%;top:-6px;transform:translateX(-50%)"></span><span data-crop-frame-handle="ne" class="absolute w-3 h-3 rounded-sm bg-white border-2 border-indigo-500 pointer-events-auto cursor-nesw-resize" style="right:-6px;top:-6px"></span><span data-crop-frame-handle="e" class="absolute w-3 h-3 rounded-sm bg-white border-2 border-indigo-500 pointer-events-auto cursor-ew-resize" style="right:-6px;top:50%;transform:translateY(-50%)"></span><span data-crop-frame-handle="se" class="absolute w-3 h-3 rounded-sm bg-white border-2 border-indigo-500 pointer-events-auto cursor-nwse-resize" style="right:-6px;bottom:-6px"></span><span data-crop-frame-handle="s" class="absolute w-3 h-3 rounded-sm bg-white border-2 border-indigo-500 pointer-events-auto cursor-ns-resize" style="left:50%;bottom:-6px;transform:translateX(-50%)"></span><span data-crop-frame-handle="sw" class="absolute w-3 h-3 rounded-sm bg-white border-2 border-indigo-500 pointer-events-auto cursor-nesw-resize" style="left:-6px;bottom:-6px"></span><span data-crop-frame-handle="w" class="absolute w-3 h-3 rounded-sm bg-white border-2 border-indigo-500 pointer-events-auto cursor-ew-resize" style="left:-6px;top:50%;transform:translateY(-50%)"></span></div></div></div>
                     <div class="shrink-0 bg-white pt-3">
+                        ${it.mediaKind!=='video'&&window.isAnimatedImageSource(it.src,it)?`<div id="deepCropGifCoverControls" class="flex items-center justify-between gap-3 mb-3 px-3 py-2 rounded-lg border border-fuchsia-100 bg-fuchsia-50/70 text-xs"><span class="text-slate-600"><i class="fa-solid fa-film text-fuchsia-600 mr-1"></i>动图封面</span><button id="deepCropSetGifCover" type="button" class="px-3 py-2 rounded-lg border border-fuchsia-200 bg-white text-fuchsia-700 font-semibold hover:bg-fuchsia-100">截选封面</button></div>`:''}
                         ${it.mediaKind==='video'?`<div id="deepCropVideoCoverControls" class="flex items-center gap-2 mb-3 text-xs">
                             <button id="deepCropVideoPlay" type="button" class="w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50" title="播放/暂停"><i class="fa-solid fa-play"></i></button>
                             <input id="deepCropVideoTime" type="range" min="0" max="1" step="0.01" value="0" class="flex-1 h-2 accent-indigo-600 cursor-pointer">
@@ -8800,6 +8800,17 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const scaleInput=document.getElementById('deepCropScale'),scaleNumber=document.getElementById('deepCropScaleNumber'),scaleValue=document.getElementById('deepCropScaleValue');scaleInput.value=crop.scale.toFixed(2);if(scaleNumber)scaleNumber.value=String(Math.round(crop.scale*100));if(scaleValue)scaleValue.textContent=Math.round(crop.scale*100)+'%';
             const tag=it.mediaKind==='video'?'video':'img';preview.innerHTML=`<${tag} id="deepCropMedia" src="${window.deepEsc(it.src)}" ${tag==='video'?'muted playsinline preload="metadata" crossorigin="anonymous"':''} style="position:absolute;left:50%;top:50%;width:auto;height:auto;max-width:none;max-height:none;transform-origin:center center;user-select:none;pointer-events:none;will-change:transform;"></${tag}>`;
             const media=document.getElementById('deepCropMedia');let displayScale=1,raf=0,cropFrameReady=false,cropFrameLimit={minW:40,maxW:frame.w,minH:40,maxH:frame.h},cropResizeLocked=false,lockedDisplayScale=1,frameDragActive=false,lockedViewportHeight=0;
+            const gifCoverBtn=document.getElementById('deepCropSetGifCover');
+            if(gifCoverBtn)gifCoverBtn.onclick=()=>{
+                window.openGifCoverPicker?.(it.src,it.cloudPath||'',it.gifCoverCloudPath||window.cloudPathFromMediaUrl?.(it.gifCover||'')||'',(url,uploaded)=>{
+                    window.deepPushUndo?.();
+                    it.gifCover=url;
+                    it.gifCoverCloudPath=uploaded?.cloudPath||'';
+                    it.gifDurationMs=Math.max(50,Number(uploaded?.gifDurationMs)||0)||it.gifDurationMs||0;
+                    it.gifDurationSource=uploaded?.gifDurationSource||'';
+                    window.renderDeepCanvas?.();
+                });
+            };
             if(tag==='video'){
                 const playBtn=document.getElementById('deepCropVideoPlay');
                 const timeRange=document.getElementById('deepCropVideoTime');
@@ -11607,7 +11618,7 @@ viewer.style.visibility='';
             const cover=img.dataset.gifCover||''; if(!cover)return;
             if(img.src!==cover)img.src=cover;
         };
-        // v162：详情 GIF 在循环边界前轻微收尾，避免回封面前闪出下一轮首帧。
+        // v164：详情 GIF 使用独立覆盖层淡入淡出；深入描述 GIF 封面截选并入双击截选界面。
         window.initDetailGifSequence=function(viewer){
             viewer?._detailGifSequenceCleanup?.();
             if(!viewer)return;
@@ -11635,19 +11646,25 @@ viewer.style.visibility='';
                 layer.removeAttribute('id');
                 [...layer.attributes].forEach(a=>{if(a.name.startsWith('data-'))layer.removeAttribute(a.name);});
                 layer.alt=''; layer.draggable=false;
-                Object.assign(layer.style,{position:'absolute',inset:'0',width:'100%',height:'100%',zIndex:'2',pointerEvents:'none',opacity:'0'});
+                Object.assign(layer.style,{position:'absolute',inset:'0',width:'100%',height:'100%',zIndex:'2',pointerEvents:'none',opacity:'0',transition:'opacity 180ms ease'});
                 const hostPos=getComputedStyle(host).position;
                 if(hostPos==='static')host.style.position='relative';
                 activeLayer=layer; host.appendChild(layer);
                 const finish=()=>{
                     if(token!==playToken||disposed||paused)return;
-                    removeActiveLayer();
-                    index=(index+1)%gifs.length;
-                    playCurrent();
+                    // 先淡出 GIF 覆盖层，让底下已经存在的静态封面自然显露；
+                    // 淡出完成后再切到下一张，避免硬切和循环边界闪帧。
+                    layer.style.opacity='0';
+                    timer=setTimeout(()=>{
+                        if(token!==playToken||disposed||paused)return;
+                        removeActiveLayer();
+                        index=(index+1)%gifs.length;
+                        playCurrent();
+                    },190);
                 };
                 const onLoad=()=>{
                     if(token!==playToken||disposed||paused){removeActiveLayer();return;}
-                    layer.style.opacity='1';
+                    requestAnimationFrame(()=>requestAnimationFrame(()=>{if(token===playToken&&!disposed&&!paused)layer.style.opacity='1';}));
                     timer=setTimeout(finish,duration);
                 };
                 const onError=()=>{
