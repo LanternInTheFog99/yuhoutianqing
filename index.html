@@ -2532,10 +2532,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     return true;
                 };
 
-                // 时间线预览：媒体结束后切下一项封面时不再做交叉淡入。
-                // 之前的半透明 veil 会在已经出现的封面上再跑一次 opacity 动画，视觉上像“闪一下”。
-                // 现在先把下一张封面完整加载/解码，再用 100% 不透明遮罩一次性盖住当前媒体；
-                // 底层正式封面准备完成后再撤遮罩，全程不改变 opacity。
+                // 时间线预览媒体交接：只在 A 播放结束 → B 封面之间做一次很轻的“暗场呼吸”。
+                // 不让封面自身做 opacity 动画，避免闪烁；黑色遮罩只短暂升到约 34% 再退掉，
+                // 在最暗点完成底层封面替换，因此看起来是柔和淡出/淡入，而不是硬切或持续黑屏。
                 const fadeIntoNextCover = async (nextItem, gen) => {
                     if (!nextItem || !isStillRunning() || gen !== generation) return false;
                     const nextCover = nextItem.type === 'video'
@@ -2551,23 +2550,20 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     } catch (_) {}
                     if (!isStillRunning() || gen !== generation) return false;
 
-                    const veil = document.createElement('img');
-                    veil.alt = '';
-                    veil.draggable = false;
-                    veil.src = nextCover;
-                    veil.className = 'absolute inset-0 w-full h-full object-cover pointer-events-none';
-                    Object.assign(veil.style, {
-                        zIndex:'8',
-                        opacity:'1',
-                        transition:'none',
-                        animation:'none'
+                    const dim = document.createElement('div');
+                    dim.className = 'absolute inset-0 pointer-events-none';
+                    Object.assign(dim.style, {
+                        zIndex:'9', background:'#000', opacity:'0',
+                        transition:'opacity 115ms cubic-bezier(.4,0,.6,1)'
                     });
-                    stage.appendChild(veil);
-                    try { window.applyPreviewImageStyle(veil, nextItem); } catch (_) {}
-                    // 给浏览器一帧把完全不透明的封面合成到舞台上，再清理当前视频/GIF。
-                    await delayMs(20);
-                    if (!isStillRunning() || gen !== generation) { veil.remove(); return false; }
+                    stage.appendChild(dim);
+                    await delayMs(16);
+                    if (!isStillRunning() || gen !== generation) { dim.remove(); return false; }
+                    dim.style.opacity = '0.34';
+                    await delayMs(115);
+                    if (!isStillRunning() || gen !== generation) { dim.remove(); return false; }
 
+                    // 在暗场最深处一次性换成 B 的完整封面。
                     if (!video.classList.contains('hidden')) clearVideo();
                     stage.classList.remove('preview-stage-black');
                     img.classList.remove('hidden');
@@ -2577,16 +2573,16 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     if ((img.getAttribute('src') || '') !== nextCover) img.src = nextCover;
                     try { window.applyPreviewImageStyle(img, nextItem); } catch (_) {}
                     try {
-                        if (img.decode) await Promise.race([img.decode().catch(()=>{}), delayMs(1600)]);
-                        else if (!(img.complete && img.naturalWidth > 0)) await Promise.race([new Promise(r=>{
-                            const done=()=>{img.removeEventListener('load',done);img.removeEventListener('error',done);r();};
-                            img.addEventListener('load',done);img.addEventListener('error',done);
-                        }), delayMs(1600)]);
+                        if (img.decode) await Promise.race([img.decode().catch(()=>{}), delayMs(1200)]);
                     } catch (_) {}
-                    if (!isStillRunning() || gen !== generation) { veil.remove(); return false; }
-                    // 底层和遮罩此时是同一张完整封面，撤罩不会产生第二次淡入/亮度变化。
-                    await delayMs(34);
-                    veil.remove();
+                    if (!isStillRunning() || gen !== generation) { dim.remove(); return false; }
+
+                    // 不停留在黑色：下一帧立刻开始退暗，形成“变暗 → 换封面 → 变亮”的短过渡。
+                    await delayMs(16);
+                    dim.style.transition = 'opacity 145ms cubic-bezier(.4,0,.2,1)';
+                    dim.style.opacity = '0';
+                    await delayMs(150);
+                    dim.remove();
                     return true;
                 };
 
@@ -3202,12 +3198,13 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const inferred=window.cloudPathFromMediaUrl(src);
             return /^gif\/[^?#]+/i.test(inferred)?inferred:'';
         };
-        window.getGifDecodeFetchRequest = async function(src,cloudPath){
+        window.getGifDecodeFetchRequest = async function(src,cloudPath,fileID){
             const resolved=window.resolveGifCloudPath(src,cloudPath);
             if(!resolved) throw new Error('这个动图缺少云端路径，无法逐帧读取');
-            const data=await timelineApiPost('createGifReadTicket',{cloudPath:resolved},{timeoutMs:15000});
+            const fid=String(fileID||'').trim();
+            const data=await timelineApiPost('createGifReadTicket',{cloudPath:resolved,...(fid?{fileID:fid}:{})},{timeoutMs:15000});
             if(!data?.ticket) throw new Error(data?.message||'GIF_READ_TICKET_EMPTY');
-            const qs=new URLSearchParams({room:window.currentRoomId||'default',cloudPath:resolved,ticket:String(data.ticket)});
+            const qs=new URLSearchParams({room:window.currentRoomId||'default',cloudPath:resolved,ticket:String(data.ticket),...(fid?{fileID:fid}:{})});
             const gifUrl=TIMELINE_API_BASE+'/gif-source?'+qs.toString()+'&client=v155&_='+Date.now();
             return {url:gifUrl,options:{cache:'no-store',headers:{'Cache-Control':'no-cache'}},cloudPath:resolved};
         };
@@ -11788,7 +11785,7 @@ viewer.style.visibility='';
             viewer._detailGifSequenceCleanup=()=>{disposed=true;playToken++;stopTimer();showBaseCovers();viewer._detailGifSequenceCleanup=null;};
             playCurrent();
         };
-        window.openGifCoverPicker=async function(src,cloudPath,coverCloudPath,onSaved,onCrop){
+        window.openGifCoverPicker=async function(src,cloudPath,coverCloudPath,onSaved,onCrop,fileID){
             src=String(src||''); if(!src)return;
             let modal=document.getElementById('gifCoverPickerModal');
             if(!modal){modal=document.createElement('div');modal.id='gifCoverPickerModal';modal.className='fixed inset-0 z-[490] hidden bg-slate-950/90 flex items-center justify-center p-3 sm:p-6';document.body.appendChild(modal);}
@@ -11814,8 +11811,8 @@ viewer.style.visibility='';
             img.crossOrigin='anonymous';img.src=src;
             try{
                 if(!('ImageDecoder' in window))throw new Error('当前浏览器不支持逐帧解码');
-                let decodeReq=await window.getGifDecodeFetchRequest(src,cloudPath);
-                const fetchGifChunk=async(start,end)=>{let opts={...(decodeReq.options||{}),headers:{...((decodeReq.options&&decodeReq.options.headers)||{}),Range:`bytes=${start}-${end}`}};let r=await fetch(decodeReq.url,opts);if(r.status===401){let body=null;try{body=await r.clone().json();}catch(_){}if(body?.error==='ticket_expired'||body?.error==='unauthorized'){decodeReq=await window.getGifDecodeFetchRequest(src,cloudPath);opts={...(decodeReq.options||{}),headers:{...((decodeReq.options&&decodeReq.options.headers)||{}),Range:`bytes=${start}-${end}`}};r=await fetch(decodeReq.url,opts);}}if(!(r.ok||r.status===206)){let detail='';try{const j=await r.clone().json();detail=j?.message||j?.error||'';}catch(_){}throw new Error('HTTP '+r.status+(detail?'：'+detail:''));}return r;};
+                let decodeReq=await window.getGifDecodeFetchRequest(src,cloudPath,fileID);
+                const fetchGifChunk=async(start,end)=>{let opts={...(decodeReq.options||{}),headers:{...((decodeReq.options&&decodeReq.options.headers)||{}),Range:`bytes=${start}-${end}`}};let r=await fetch(decodeReq.url,opts);if(r.status===401){let body=null;try{body=await r.clone().json();}catch(_){}if(body?.error==='ticket_expired'||body?.error==='unauthorized'){decodeReq=await window.getGifDecodeFetchRequest(src,cloudPath,fileID);opts={...(decodeReq.options||{}),headers:{...((decodeReq.options&&decodeReq.options.headers)||{}),Range:`bytes=${start}-${end}`}};r=await fetch(decodeReq.url,opts);}}if(!(r.ok||r.status===206)){let detail='';try{const j=await r.clone().json();detail=j?.message||j?.error||'';}catch(_){}throw new Error('HTTP '+r.status+(detail?'：'+detail:''));}return r;};
                 // Assemble only verified byte ranges before decoding.
                 // offset from Content-Length/body length: gateways can transform/truncate responses.
                 // Keep each body comfortably below SCF's response ceiling.
@@ -11865,10 +11862,10 @@ viewer.style.visibility='';
         };
         window.editGifCover=function(index){
             const item=window.editingImageFiles?.[index];if(!item)return;const src=item.originalFull||item.original||item.outer||'';
-            window.openGifCoverPicker(src,item.cloudPath||'',item.gifCoverCloudPath||window.cloudPathFromMediaUrl?.(item.gifCover||'')||'',(url,media)=>{item.gifCover=url;item.gifCoverCloudPath=media?.cloudPath||'';item.gifDurationMs=Math.max(50,Number(media?.gifDurationMs)||0)||item.gifDurationMs||0;item.gifDurationSource=media?.gifDurationSource||'';window.renderMicroPreviews?.();},()=>window.openCropModal(index));
+            window.openGifCoverPicker(src,item.cloudPath||'',item.gifCoverCloudPath||window.cloudPathFromMediaUrl?.(item.gifCover||'')||'',(url,media)=>{item.gifCover=url;item.gifCoverCloudPath=media?.cloudPath||'';item.gifDurationMs=Math.max(50,Number(media?.gifDurationMs)||0)||item.gifDurationMs||0;item.gifDurationSource=media?.gifDurationSource||'';window.renderMicroPreviews?.();},()=>window.openCropModal(index),item.fileID||'');
         };
         window.deepEditGifCover=function(item){
-            if(!item)return;window.openGifCoverPicker(item.src,item.cloudPath||'',item.gifCoverCloudPath||window.cloudPathFromMediaUrl?.(item.gifCover||'')||'',(url,media)=>{deepPushUndo?.();item.gifCover=url;item.gifCoverCloudPath=media?.cloudPath||'';item.gifDurationMs=Math.max(50,Number(media?.gifDurationMs)||0)||item.gifDurationMs||0;item.gifDurationSource=media?.gifDurationSource||'';window.renderDeepCanvas?.();});
+            if(!item)return;window.openGifCoverPicker(item.src,item.cloudPath||'',item.gifCoverCloudPath||window.cloudPathFromMediaUrl?.(item.gifCover||'')||'',(url,media)=>{deepPushUndo?.();item.gifCover=url;item.gifCoverCloudPath=media?.cloudPath||'';item.gifDurationMs=Math.max(50,Number(media?.gifDurationMs)||0)||item.gifDurationMs||0;item.gifDurationSource=media?.gifDurationSource||'';window.renderDeepCanvas?.();},null,item.fileID||'');
         };
 
         window.renderMicroPreviews = function() {
