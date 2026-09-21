@@ -3093,7 +3093,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const data=await timelineApiPost('createGifReadTicket',{cloudPath:resolved},{timeoutMs:15000});
             if(!data?.ticket) throw new Error(data?.message||'GIF_READ_TICKET_EMPTY');
             const qs=new URLSearchParams({room:window.currentRoomId||'default',cloudPath:resolved,ticket:String(data.ticket)});
-            const gifUrl=TIMELINE_API_BASE+'/gif-source?'+qs.toString()+'&client=v154&_='+Date.now();
+            const gifUrl=TIMELINE_API_BASE+'/gif-source?'+qs.toString()+'&client=v155&_='+Date.now();
             return {url:gifUrl,options:{cache:'no-store',headers:{'Cache-Control':'no-cache'}},cloudPath:resolved};
         };
 
@@ -8813,7 +8813,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         c.width=Math.max(1,Math.round(media.videoWidth*sc));
                         c.height=Math.max(1,Math.round(media.videoHeight*sc));
                         c.getContext('2d').drawImage(media,0,0,c.width,c.height);
-                        const uploaded=await window.canvasToCloudCover(c,'video_cover',.84,it.coverCloudPath||'');
+                        const uploaded=await window.canvasToCloudCover(c,'video_cover',.84,it.coverCloudPath||window.cloudPathFromMediaUrl?.(it.cover||'')||'');
                         window.deepPushUndo?.();
                         it.cover=uploaded.url; it.coverCloudPath=uploaded.cloudPath||'';
                         window.renderDeepCanvas();
@@ -10349,7 +10349,10 @@ viewer.style.visibility='';
                     collection: img.collection || img.outer || full,
                     isAnimated: !!img.isAnimated || /\.(gif|webp)(?:$|[?#])/i.test(full || ''),
                     crop: img.crop ? { ...img.crop } : null,
-                    deepDescription: img.deepDescription ? JSON.parse(JSON.stringify(img.deepDescription)) : null
+                    deepDescription: img.deepDescription ? JSON.parse(JSON.stringify(img.deepDescription)) : null,
+                    cloudPath: img.cloudPath || '',
+                    gifCover: img.gifCover || '',
+                    gifCoverCloudPath: img.gifCoverCloudPath || ''
                 };
             });
             const usedMediaIds = new Set();
@@ -10381,7 +10384,8 @@ viewer.style.visibility='';
                     name: v.name || '',
                     previewDuration: window.normalizeVideoPreviewDuration(v.previewDuration, 4),
                     deepDescription: v.deepDescription ? JSON.parse(JSON.stringify(v.deepDescription)) : null,
-                    cloudPath: v.cloudPath || ''
+                    cloudPath: v.cloudPath || '',
+                    coverCloudPath: v.coverCloudPath || window.cloudPathFromMediaUrl?.(v.cover || '') || ''
                 };
             });
 
@@ -10856,7 +10860,7 @@ viewer.style.visibility='';
                 ctx.drawImage(capturePlayer,0,0,canvas.width,canvas.height);
                 const target=window.editingVideos[activeVideoCropIndex];
                 if(!target) throw new Error('capture_target_missing');
-                const uploadedCover=await window.canvasToCloudCover(canvas,'video_cover',0.84,target.coverCloudPath||'');
+                const uploadedCover=await window.canvasToCloudCover(canvas,'video_cover',0.84,target.coverCloudPath||window.cloudPathFromMediaUrl?.(target.cover||'')||'');
                 if(!uploadedCover?.url) throw new Error('capture_cover_upload_failed');
                 target.cover=uploadedCover.url;
                 target.coverCloudPath=uploadedCover.cloudPath||'';
@@ -11615,29 +11619,34 @@ viewer.style.visibility='';
                 // v152: assemble GIF strictly from verified Content-Range boundaries. Do not infer the next
                 // offset from Content-Length/body length: gateways can transform/truncate responses.
                 // Keep each body comfortably below SCF's response ceiling.
-                const chunkSize=4*1024*1024;
-                const parts=[];
-                let total=0,start=0;
-                while(true){
-                    const requestedEnd=start+chunkSize-1;
-                    const r=await fetchGifChunk(start,requestedEnd);
-                    const part=new Uint8Array(await r.arrayBuffer());
+                // Read a small first range to discover the exact GIF size, then fetch the
+                // remaining ranges concurrently. This keeps small GIFs quick while avoiding the
+                // long serial wait that large GIFs had with 4 MB chunks.
+                const firstChunkSize=1024*1024,chunkSize=3*1024*1024,maxParallel=3;
+                const fetchPart=async(start,end)=>{
+                    const r=await fetchGifChunk(start,end);
+                    const data=new Uint8Array(await r.arrayBuffer());
                     const cr=String(r.headers.get('content-range')||'').trim();
                     const m=cr.match(/^bytes\s+(\d+)-(\d+)\/(\d+)$/i);
-                    if(m){
-                        const actualStart=Number(m[1]),actualEnd=Number(m[2]),reportedTotal=Number(m[3]);
-                        if(!Number.isSafeInteger(actualStart)||!Number.isSafeInteger(actualEnd)||!Number.isSafeInteger(reportedTotal)||actualStart!==start||actualEnd<actualStart||reportedTotal<=actualEnd)throw new Error('GIF分段范围异常：'+cr);
-                        if(total&&reportedTotal!==total)throw new Error('GIF总大小在分段读取过程中发生变化');
-                        total=reportedTotal;
-                        const expected=actualEnd-actualStart+1;
-                        if(part.byteLength!==expected)throw new Error(`GIF分段不完整：${actualStart}-${actualEnd} 应为 ${expected} 字节，实际 ${part.byteLength} 字节`);
-                        parts.push({start:actualStart,end:actualEnd,data:part});
-                        if(actualEnd+1>=total)break;
-                        start=actualEnd+1;
-                    }else{
-                        throw new Error('GIF分段响应缺少有效 Content-Range');
+                    if(!m)throw new Error('GIF分段响应缺少有效 Content-Range');
+                    const actualStart=Number(m[1]),actualEnd=Number(m[2]),reportedTotal=Number(m[3]);
+                    if(!Number.isSafeInteger(actualStart)||!Number.isSafeInteger(actualEnd)||!Number.isSafeInteger(reportedTotal)||actualStart!==start||actualEnd<actualStart||reportedTotal<=actualEnd)throw new Error('GIF分段范围异常：'+cr);
+                    const expected=actualEnd-actualStart+1;
+                    if(data.byteLength!==expected)throw new Error(`GIF分段不完整：${actualStart}-${actualEnd} 应为 ${expected} 字节，实际 ${data.byteLength} 字节`);
+                    return {start:actualStart,end:actualEnd,total:reportedTotal,data};
+                };
+                const first=await fetchPart(0,firstChunkSize-1);
+                const total=first.total,parts=[first];
+                if(first.end+1<total){
+                    const jobs=[];
+                    for(let a=first.end+1;a<total;a+=chunkSize)jobs.push([a,Math.min(total-1,a+chunkSize-1)]);
+                    for(let i=0;i<jobs.length;i+=maxParallel){
+                        const batch=jobs.slice(i,i+maxParallel);
+                        const got=await Promise.all(batch.map(([a,b])=>fetchPart(a,b)));
+                        for(const part of got){if(part.total!==total)throw new Error('GIF总大小在分段读取过程中发生变化');parts.push(part);}
                     }
                 }
+                parts.sort((a,b)=>a.start-b.start);
                 const merged=new Uint8Array(total);
                 let assembled=0;
                 for(const part of parts){merged.set(part.data,part.start);assembled+=part.data.byteLength;}
@@ -11654,10 +11663,10 @@ viewer.style.visibility='';
         };
         window.editGifCover=function(index){
             const item=window.editingImageFiles?.[index];if(!item)return;const src=item.originalFull||item.original||item.outer||'';
-            window.openGifCoverPicker(src,item.cloudPath||'',item.gifCoverCloudPath||'',(url,media)=>{item.gifCover=url;item.gifCoverCloudPath=media?.cloudPath||'';window.renderMicroPreviews?.();},()=>window.openCropModal(index));
+            window.openGifCoverPicker(src,item.cloudPath||'',item.gifCoverCloudPath||window.cloudPathFromMediaUrl?.(item.gifCover||'')||'',(url,media)=>{item.gifCover=url;item.gifCoverCloudPath=media?.cloudPath||'';window.renderMicroPreviews?.();},()=>window.openCropModal(index));
         };
         window.deepEditGifCover=function(item){
-            if(!item)return;window.openGifCoverPicker(item.src,item.cloudPath||'',item.gifCoverCloudPath||'',(url,media)=>{deepPushUndo?.();item.gifCover=url;item.gifCoverCloudPath=media?.cloudPath||'';window.renderDeepCanvas?.();});
+            if(!item)return;window.openGifCoverPicker(item.src,item.cloudPath||'',item.gifCoverCloudPath||window.cloudPathFromMediaUrl?.(item.gifCover||'')||'',(url,media)=>{deepPushUndo?.();item.gifCover=url;item.gifCoverCloudPath=media?.cloudPath||'';window.renderDeepCanvas?.();});
         };
 
         window.renderMicroPreviews = function() {
@@ -11665,7 +11674,7 @@ viewer.style.visibility='';
             container.innerHTML=window.editingImageFiles.map((imgObj,idx)=>{
                 const src=imgObj.originalFull||imgObj.original||imgObj.outer||'';
                 return `<div class="media-drag-item relative w-20 h-16 rounded-lg overflow-hidden border border-slate-200 group bg-slate-900 flex cursor-grab" draggable="${window.isLocked?'false':'true'}" data-media-index="${idx}">
-                    ${imgObj.crop&&imgObj.isAnimated?window.getAnimatedCropPreviewHtml(imgObj):`<img src="${window.escapeHtml(imgObj.outer||src)}" class="w-full h-full object-cover" draggable="false">`}
+                    ${imgObj.isAnimated&&imgObj.gifCover?`<img src="${window.escapeHtml(imgObj.gifCover)}" class="w-full h-full object-cover" draggable="false">`:imgObj.crop&&imgObj.isAnimated?window.getAnimatedCropPreviewHtml(imgObj):`<img src="${window.escapeHtml(imgObj.outer||src)}" class="w-full h-full object-cover" draggable="false">`}
                     <span class="absolute top-1 left-1 z-10 text-white/80 text-[9px] pointer-events-none"><i class="fa-solid fa-grip-vertical"></i></span>
                     <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
                         ${imgObj.isAnimated?`<button type="button" onclick="event.stopPropagation();editGifCover(${idx})" title="编辑动图" class="bg-fuchsia-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px]"><i class="fa-solid fa-film"></i></button>`:`<button type="button" onclick="event.stopPropagation();openCropModal(${idx})" title="裁剪图片" class="bg-indigo-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px]"><i class="fa-solid fa-crop"></i></button>`}
@@ -12068,7 +12077,9 @@ viewer.style.visibility='';
                     name: v.name || '',
                     title: v.title || '',
                     previewDuration: window.normalizeVideoPreviewDuration(v.previewDuration, 4),
-                    deepDescription: vCloneDeepDescription(v.deepDescription)
+                    deepDescription: vCloneDeepDescription(v.deepDescription),
+                    cloudPath: v.cloudPath || '',
+                    coverCloudPath: v.coverCloudPath || window.cloudPathFromMediaUrl?.(v.cover || '') || ''
                 })),
                 links: [...window.editingLinks],
                 connections: [...window.editingConnections],
