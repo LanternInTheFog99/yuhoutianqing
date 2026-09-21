@@ -2590,17 +2590,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
                     try { video.pause(); } catch (_) {}
 
-                    // 到达全黑后冻结当前媒体。下一媒体若还没 ready，也绝不让当前 GIF/视频重新开始一轮。
-                    if (currentItem && isAnimatedImageItem(currentItem)) {
-                        img.dataset.previewFrozen = '1';
-                        img.dataset.previewFrozenSource = String(currentItem.src || '');
-                        const frozenCover = String(currentItem.cover || '');
-                        if (frozenCover && (img.getAttribute('src') || '') !== frozenCover) {
-                            disableSoftFade(img);
-                            img.style.transition='none';
-                            img.src = frozenCover;
-                        }
-                    } else if (currentItem?.type === 'video') {
+                    // 到达全黑后只冻结视频播放；GIF 不再改写共享 img.src / frozen 标记。
+                    // GIF 的循环边界继续由既有 300ms 回收 + 黑层遮挡处理，避免破坏 after() 的媒体推进。
+                    if (currentItem?.type === 'video') {
                         try { video.pause(); } catch (_) {}
                     }
 
@@ -2885,6 +2877,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                             const nextItem = media.length > 1 ? media[(idx + 1) % media.length] : media[0];
                             await fadeIntoNextCover(nextItem, gen, item);
                             if (!isStillRunning() || gen !== generation) return;
+                            img.dataset.previewFrozen = '0';
+                            delete img.dataset.previewFrozenSource;
                             after();
                         } else clearVideo();
                     }, playMs));
