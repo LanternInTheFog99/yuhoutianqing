@@ -1253,7 +1253,7 @@ html.invalid-room-access [id*="xiaoqinger" i],
 html.invalid-room-access [class*="xiaoqinger" i],
 html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility:hidden !important;opacity:0 !important}
 </style>
-<!-- v150: GIF frame decoding receives stored cloudPath directly; /gif-source remains isolated from normal GIF display. -->
+<!-- v151: GIF frame decoding uses stored cloudPath and assembles small Range responses to avoid SCF large binary response limits. -->
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
 <div id="invalidRoomAccessOverlay" aria-live="assertive" aria-label="此链接无效"><div class="invalid-room-card">此链接无效</div></div>
@@ -3093,7 +3093,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const data=await timelineApiPost('createGifReadTicket',{cloudPath:resolved},{timeoutMs:15000});
             if(!data?.ticket) throw new Error(data?.message||'GIF_READ_TICKET_EMPTY');
             const qs=new URLSearchParams({room:window.currentRoomId||'default',cloudPath:resolved,ticket:String(data.ticket)});
-            const gifUrl=TIMELINE_API_BASE+'/gif-source?'+qs.toString()+'&client=v150&_='+Date.now();
+            const gifUrl=TIMELINE_API_BASE+'/gif-source?'+qs.toString()+'&client=v151&_='+Date.now();
             return {url:gifUrl,options:{cache:'no-store',headers:{'Cache-Control':'no-cache'}},cloudPath:resolved};
         };
 
@@ -11610,7 +11610,9 @@ viewer.style.visibility='';
             img.crossOrigin='anonymous';img.src=src;
             try{
                 if(!('ImageDecoder' in window))throw new Error('当前浏览器不支持逐帧解码');
-                const decodeReq=await window.getGifDecodeFetchRequest(src,cloudPath);let res=await fetch(decodeReq.url,decodeReq.options);if(res.status===401){let body=null;try{body=await res.clone().json();}catch(_){}if(body?.error==='ticket_expired'||body?.error==='unauthorized'){const retryReq=await window.getGifDecodeFetchRequest(src,cloudPath);res=await fetch(retryReq.url,retryReq.options);}}if(!res.ok){let detail='';try{const j=await res.clone().json();detail=j?.message||j?.error||'';}catch(_){}throw new Error('HTTP '+res.status+(detail?'：'+detail:''));}const buf=await res.arrayBuffer();
+                let decodeReq=await window.getGifDecodeFetchRequest(src,cloudPath);
+                const fetchGifChunk=async(start,end)=>{let opts={...(decodeReq.options||{}),headers:{...((decodeReq.options&&decodeReq.options.headers)||{}),Range:`bytes=${start}-${end}`}};let r=await fetch(decodeReq.url,opts);if(r.status===401){let body=null;try{body=await r.clone().json();}catch(_){}if(body?.error==='ticket_expired'||body?.error==='unauthorized'){decodeReq=await window.getGifDecodeFetchRequest(src,cloudPath);opts={...(decodeReq.options||{}),headers:{...((decodeReq.options&&decodeReq.options.headers)||{}),Range:`bytes=${start}-${end}`}};r=await fetch(decodeReq.url,opts);}}if(!(r.ok||r.status===206)){let detail='';try{const j=await r.clone().json();detail=j?.message||j?.error||'';}catch(_){}throw new Error('HTTP '+r.status+(detail?'：'+detail:''));}return r;};
+                const chunkSize=4*1024*1024;const first=await fetchGifChunk(0,chunkSize-1);const cr=String(first.headers.get('content-range')||'');let total=Number((cr.match(/\/(\d+)$/)||[])[1]||0);const parts=[new Uint8Array(await first.arrayBuffer())];if(!total){total=parts[0].byteLength;}for(let start=parts[0].byteLength;start<total;start+=chunkSize){const end=Math.min(total-1,start+chunkSize-1);const r=await fetchGifChunk(start,end);parts.push(new Uint8Array(await r.arrayBuffer()));}const merged=new Uint8Array(total);let off=0;for(const p of parts){merged.set(p,off);off+=p.byteLength;}const buf=merged.buffer;
                 decoder=new ImageDecoder({data:buf,type:'image/gif'});await decoder.tracks.ready;const track=decoder.tracks.selectedTrack;if(!track||!track.frameCount)throw new Error('未读取到动图帧');frameCount=track.frameCount;
                 for(let i=0;i<frameCount;i++){const r=await decoder.decode({frameIndex:i});let d=Number(r.image?.duration)||100000;if(d<10000)d=100000;starts[i]=totalUs;durations[i]=d;totalUs+=d;r.image?.close?.();}
                 if(closed)return;range.max=String(frameCount-1);ui.classList.remove('hidden');status.classList.add('hidden');await drawFrame(0);
