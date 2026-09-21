@@ -2554,19 +2554,36 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     Object.assign(veil.style, { zIndex:'8', opacity:'0', transition:'opacity 180ms ease' });
                     stage.appendChild(veil);
                     try { window.applyPreviewImageStyle(veil, nextItem); } catch (_) {}
+                    try { if (veil.decode) await Promise.race([veil.decode().catch(()=>{}), delayMs(900)]); } catch (_) {}
                     await delayMs(16);
                     if (!isStillRunning() || gen !== generation) { veil.remove(); return false; }
                     veil.style.opacity = '1';
                     await delayMs(180);
                     if (!isStillRunning() || gen !== generation) { veil.remove(); return false; }
-                    // 先把底层正式归位到 B 封面，再撤掉过渡层，视觉上保持连续。
+                    // 过渡层已经完整解码并覆盖 A。此时不要立刻撤掉它：
+                    // 先让底层正式的 B 封面完成 load/decode，再撤过渡层。
+                    // 否则 GIF 仍在底下跑时会短暂露帧；视频封面也会出现“从上到下刷出来”的渐进加载。
                     if (!video.classList.contains('hidden')) clearVideo();
                     stage.classList.remove('preview-stage-black');
                     img.classList.remove('hidden');
                     disableSoftFade(img);
-                    img.style.opacity = '1';
+                    img.style.opacity = '0';
                     if ((img.getAttribute('src') || '') !== nextCover) img.src = nextCover;
                     try { window.applyPreviewImageStyle(img, nextItem); } catch (_) {}
+                    try {
+                        if (img.decode) {
+                            await Promise.race([img.decode().catch(()=>{}), delayMs(1600)]);
+                        } else if (!(img.complete && img.naturalWidth > 0)) {
+                            await Promise.race([new Promise(r=>{
+                                const done=()=>{img.removeEventListener('load',done);img.removeEventListener('error',done);r();};
+                                img.addEventListener('load',done);img.addEventListener('error',done);
+                            }), delayMs(1600)]);
+                        }
+                    } catch (_) {}
+                    if (!isStillRunning() || gen !== generation) { veil.remove(); return false; }
+                    img.style.opacity = '1';
+                    // 多留两帧，让浏览器完成合成；整个过程中 veil 仍完全盖住底层。
+                    await delayMs(34);
                     veil.remove();
                     return true;
                 };
