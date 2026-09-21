@@ -2657,9 +2657,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     if (!isStillRunning()) return null;
                     if (Number.isFinite(duration) && duration > 0) {
                         // 提前一点回收，避免浏览器在 GIF 循环边界先露出下一轮的一两帧。
-                        // 时间线与详情页都在循环边界前回收，但时间线只轻微提前，避免明显少播。
-                        // 详情页当前为 300ms；时间线用 180ms，主要遮掉 GIF 自动重播的头几帧。
-                        const endGuardSec = 0.18;
+                        // 时间线与详情页统一在循环边界前 300ms 回收，避免 GIF 自动重播的头几帧露出。
+                        const endGuardSec = 0.30;
                         return Math.max(0.3, duration - endGuardSec);
                     }
                     return ANIMATED_FALLBACK_SEC;
