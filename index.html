@@ -1775,7 +1775,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             <div id="helpChangelogPanel" class="hidden overflow-y-auto p-5 text-xs text-slate-600 leading-relaxed">
                 <div id="helpBrowseChangelog">
                 <div class="border border-green-300 rounded-xl p-4 bg-green-50"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.16</span><span class="px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-semibold">本次更新</span></div>
-                    <div class="space-y-2 leading-7 mb-3"><p>优化了手机端事件详情页内的视频播放与显示功能</p><p>优化了事件详情页内的视频互斥播放功能</p><p>优化了手机端事件详情页内的媒体布局</p><p>优化了手机端同期事件集合的按需加载性能</p><p>优化了手机端事件详情页退出时的显示效果</p><p>增加并优化了媒体加载状态提示</p><p>优化了手机端媒体加载速度</p><p>增加了小晴儿摸头互动功能</p></div>
+                    <div class="space-y-2 leading-7 mb-3"><p>优化了手机端事件详情页内的视频播放与显示功能</p><p>优化了手机端事件详情页内的媒体布局</p><p>增加了小晴儿摸头互动功能</p></div>
                     <div class="border-t border-green-200 pt-3">
                     <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.15</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
                     <div class="space-y-2 leading-7 mb-3"><p>移除了仅离线模式</p><p>优化了移动端显示效果</p><p>增加了评论区内的点赞与排序功能</p><p>增加了互动通知功能</p><p>增加了网页图标</p></div>
@@ -1822,7 +1822,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 </div>
             </div><div id="helpEditChangelog" class="hidden">
                 <div class="border border-green-300 rounded-xl p-4 bg-green-50"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.16</span><span class="px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-semibold">本次更新</span></div>
-                    <div class="space-y-2 leading-7 mb-3"><p>优化了手机端事件详情页内的视频播放与显示功能</p><p>优化了事件详情页内的视频互斥播放功能</p><p>优化了手机端事件详情页内的媒体布局</p><p>优化了手机端同期事件集合的按需加载性能</p><p>优化了手机端事件详情页退出时的显示效果</p><p>增加并优化了媒体加载状态提示</p><p>优化了手机端媒体加载速度</p><p>增加了编辑密码错误冷却功能</p><p>优化了事件删除反馈与时间线刷新</p><p>增加了小晴儿摸头互动功能</p></div>
+                    <div class="space-y-2 leading-7 mb-3"><p>优化了手机端事件详情页内的视频播放与显示功能</p><p>优化了手机端事件详情页内的媒体布局</p><p>增加了密码多次输入错误的冷却功能</p><p>优化了事件删除反馈</p><p>增加了小晴儿摸头互动功能</p></div>
                     <div class="border-t border-green-200 pt-3">
                     <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.15</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
                     <div class="space-y-2 leading-7 mb-3"><p>移除了仅离线模式</p><p>优化了移动端显示效果</p><p>增加了评论区内的点赞与排序功能</p><p>增加了互动通知功能</p><p>增加了网页图标</p></div>
@@ -4877,22 +4877,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             }
             const query = String(document.getElementById('searchInput')?.value || '').trim().toLocaleLowerCase('zh-CN');
             if (query) {
-                // v131: recursively collect readable event text.  This avoids search silently
-                // missing content when event/multi-time/tag structures gain new nested fields.
-                const searchableText = (value, key='') => {
-                    if (value == null) return '';
-                    if (Array.isArray(value)) return value.map(v => searchableText(v, key)).join(' ');
-                    if (typeof value === 'object') {
-                        return Object.entries(value).map(([k,v]) => searchableText(v,k)).join(' ');
-                    }
-                    if (typeof value === 'string') {
-                        // Media blobs/URLs are not useful search text and can be extremely large.
-                        if (/^(data:|blob:|https?:\/\/|cloud:\/\/)/i.test(value) && /^(url|src|cover|original|originalFull|outer|inner|collection|blobUrl|cloudPath)$/i.test(key)) return '';
-                        return value.replace(/<[^>]*>/g,' ').replace(/&nbsp;/gi,' ').toLocaleLowerCase('zh-CN');
-                    }
-                    return String(value).toLocaleLowerCase('zh-CN');
-                };
-                list = list.filter(e => searchableText(e).includes(query));
+                // 时间线搜索只检索事件大标题。多时间事件同样只使用总事件标题，
+                // 同期事件集合则按集合内每个事件自己的标题独立匹配。
+                list = list.filter(e => String(e?.title || '').toLocaleLowerCase('zh-CN').includes(query));
             }
             return list;
         };
@@ -5228,6 +5215,15 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if (items.length === 1) {
                 window.handleEventClick(items[0].id);
             } else {
+                // 从搜索结果进入同期事件集合时，直接把当前页定位到命中的事件，
+                // 而不是始终展示 stackOrder 排在第一位的事件。
+                const query = String(document.getElementById('searchInput')?.value || '').trim().toLocaleLowerCase('zh-CN');
+                if (query) {
+                    const matchedIndex = items.findIndex(e => String(e?.title || '').toLocaleLowerCase('zh-CN').includes(query));
+                    window._stackFocusIndex = matchedIndex >= 0 ? matchedIndex : 0;
+                } else {
+                    window._stackFocusIndex = null;
+                }
                 window.openStackManagerModal(items);
             }
         };
@@ -8110,6 +8106,20 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 document.addEventListener('pointermove',move);document.addEventListener('pointerup',up);
             });});
         };
+        // 仅更新选中态，不重建整个深入描述画布。媒体节点包含图片/GIF/视频，
+        // 重建会让所有媒体重新请求/解码，因此普通单击与点空白只改 DOM 选中样式。
+        window.deepRefreshSelectionVisual=function(){
+            const st=document.getElementById('deepCanvasStage');if(!st)return;
+            st.querySelectorAll('.deep-canvas-item').forEach(node=>{
+                const selected=String(node.dataset.deepId||'')===String(window.deepCanvasSelected||'');
+                node.classList.toggle('deep-canvas-selected',selected);
+            });
+            window.deepUpdateConnectorControls?.();
+            window.deepSyncBorderToggle?.();
+            window.deepSyncOpacityControl?.();
+            window.deepPositionTextTools?.();
+        };
+
         window.deepBindItem=function(el,item){
             let sx=0,sy=0,ox=0,oy=0,drag=false,before=null,moved=false,pointerStartedAt=0;
             el.addEventListener('pointerdown',e=>{
@@ -8123,7 +8133,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 if(window.deepCanvasDrawing || window.deepCanvasErasing || window.deepCanvasSelecting || e.target.closest('.deep-canvas-handle,.deep-layer-controls')) return;
                 if(item.type==='text' && e.target.closest('.deep-text-content') && item.editing) return;
                 e.stopPropagation();
-                if(window.deepCanvasSelected!==item.id){ window.deepCanvasSelected=item.id; window.deepSetDrawing(false); window.renderDeepCanvas(); return; }
+                if(window.deepCanvasSelected!==item.id){ window.deepCanvasSelected=item.id; window.deepSetDrawing(false); window.deepRefreshSelectionVisual?.(); return; }
                 if(item.type==='text' && window.deepTextTool) return;
                 before=window.deepClone(window.deepCanvasState); moved=false; window.deepCanvasSelected=item.id; window.deepSetDrawing(false); sx=e.clientX;sy=e.clientY;ox=item.x;oy=item.y;drag=true;el.setPointerCapture?.(e.pointerId);
             });
@@ -8433,7 +8443,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 const el=document.createElement('div'); el.className='deep-canvas-item '+(item.type==='media'?'deep-canvas-media ':'')+(item.type==='text'?'deep-canvas-text ':'')+(item.type==='link'?'deep-canvas-link ':'')+(item.id===window.deepCanvasSelected?' deep-canvas-selected ':'')+(item.type==='text' && (window.deepTextTool||item.editing)?' tool-visible':''); el.dataset.deepId=item.id; el.style.left=item.x+'px';el.style.top=item.y+'px';el.style.width=item.w+'px';el.style.height=item.h+'px'; if(['media','text','link'].includes(item.type))el.style.zIndex=String(20+(Number(item.layer)||0)); if(window.deepConnectPending?.includes(item.id))el.classList.add('deep-connect-pending');
                 if(item.type==='text'){el.classList.toggle('has-border',!!item.border);el.classList.toggle('editing',!!item.editing);el.dataset.fontSize=(Math.round((Number(item.fontSize)||18)*10)/10).toString();el.style.borderColor=item.borderColor||'#3b82f6';el.style.fontSize=(item.fontSize||18)+'px';el.style.color=item.color||'#334155';el.style.textAlign=item.textAlign||'left';el.style.opacity='1';el.style.fontWeight=item.bold?'700':'400';el.style.fontStyle=item.italic?'italic':'normal';el.style.textDecoration='none';el.innerHTML=`<div class="deep-text-content">${item.html||window.deepEsc(item.text||'')}</div>`; const tc=el.querySelector('.deep-text-content'); if(tc) tc.contentEditable=item.editing?'true':'false'; if(tc){window.deepApplyCanonicalTextBoxStyle(tc,{editing:!!item.editing,height:item.h});tc.style.fontSize=(item.fontSize||18)+'px';tc.style.opacity=item.opacity??1;tc.style.textAlign=item.textAlign||'left';tc.style.textDecoration=[item.underline?'underline':'',item.strike?'line-through':''].filter(Boolean).join(' ')||'none';tc.style.textDecorationColor='currentColor';tc.style.textDecorationSkipInk='none';window.deepSyncDecorationGeometry?.(tc);requestAnimationFrame(()=>{const live=document.querySelector(`[data-deep-id="${CSS.escape(item.id)}"] .deep-text-content`);if(live){window.deepSyncDecorationGeometry?.(live);if(!item._manualResizing)window.deepAutoFitTextItem(item,live);if(item.editing)window.deepBindTextAutoFit(item,live);}});}}
                 else if(item.type==='media'){const c=item.crop||{scale:1,offsetX:0,offsetY:0,stretchX:1,stretchY:1};if(item.mediaKind==='video'){el.innerHTML='';window.deepRenderVideoCover(el,item,false);}else{el.innerHTML=`<img src="${window.deepEsc(item.src)}" alt="深入描述媒体">`;const md=el.firstElementChild;const applyMedia=()=>{if(!md)return;const scale=Math.max(0.01,Number(c.scale)||1);md.style.width='auto';md.style.height='auto';md.style.left='50%';md.style.top='50%';const stretchX=Math.max(.85,Math.min(1.15,Number(c.stretchX)||1)),stretchY=Math.max(.85,Math.min(1.15,Number(c.stretchY)||1));md.style.transform=`translate(-50%,-50%) translate(${Number(c.offsetX)||0}px,${Number(c.offsetY)||0}px) scale(${scale}) scale(${stretchX},${stretchY})`;};if(md.complete)applyMedia();else md.addEventListener('load',applyMedia,{once:true});}}else if(item.type==='link'){const safeUrl=window.deepEsc(item.url||'');const safeLabel=window.deepEsc(item.label||item.url||'网址');el.innerHTML=`<div class="deep-link-inner"><span class="deep-link-icon"><i class="fa-solid fa-globe"></i></span><span class="deep-link-copy"><span class="deep-link-label">${safeLabel}</span><span class="deep-link-url">${safeUrl}</span></span><i class="fa-solid fa-arrow-up-right-from-square text-[11px] text-slate-400"></i></div>`;el.title='双击编辑网址';}else if(item.type==='connector'){ el.remove(); return; }
-                st.appendChild(el); window.deepBindItem(el,item); el.addEventListener('click',e=>{e.stopPropagation(); if(el._deepConnectPicked){el._deepConnectPicked=false;return;} if(window.deepConnectMode){window.deepHandleConnectPick(item);return;} window.deepCanvasSelected=item.id; window.deepUpdateConnectorControls(); window.deepSyncBorderToggle?.(); if(item.type==='text' && window.deepTextTool) window.renderDeepCanvas(false); else window.deepPositionTextTools?.();});
+                st.appendChild(el); window.deepBindItem(el,item); el.addEventListener('click',e=>{e.stopPropagation(); if(el._deepConnectPicked){el._deepConnectPicked=false;return;} if(window.deepConnectMode){window.deepHandleConnectPick(item);return;} window.deepCanvasSelected=item.id; window.deepRefreshSelectionVisual?.(); if(item.type==='text' && window.deepTextTool) window.renderDeepCanvas(false); else window.deepPositionTextTools?.();});
                 if(item.type==='media'){ el.addEventListener('dblclick',e=>{ e.preventDefault(); e.stopPropagation(); if(Date.now() < (el._deepSuppressCropUntil||0)) return; window.deepCanvasSelected=item.id; window.deepCropSelected(); }); }
                 if(item.type==='link'){ el.addEventListener('dblclick',e=>{ e.preventDefault(); e.stopPropagation(); if(window.deepDrawToolsActive)return; window.deepCanvasSelected=item.id; window.deepEditUrl(item); }); }
             });
@@ -8473,7 +8483,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         window.deepSetTextToolsExpanded?.(false);
                         document.getElementById('deepTextToolBtn')?.classList.remove('active'); st.style.cursor='default'; window.renderDeepCanvas();
                     },260);
-                } else { window.renderDeepCanvas(); }
+                } else { window.deepRefreshSelectionVisual?.(); }
             };
             st.onpointermove=function(e){if(window.deepCanvasErasing)window.deepRefreshEraserCursor?.(e);};
             st.onpointerenter=function(e){window._deepEraserPointerInside=true;if(window.deepCanvasErasing)window.deepRefreshEraserCursor?.(e);};
