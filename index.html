@@ -4986,6 +4986,20 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.renderTimelineView = function(eventList = window.events) {
             const track = document.getElementById('timelineNodesTrack');
             if (!track) return;
+
+            // 每次重绘前先释放上一轮时间线留下的尺寸。搜索结果变少时，旧 SVG 的
+            // width/height 以及 track 的内联宽度会继续参与 timelineContainer.scrollWidth，
+            // 造成底部滚动条仍按“全部事件”的长度计算，右侧出现大片空白。
+            const timelineContainer = document.getElementById('timelineContainer');
+            const svgOverlay = document.getElementById('connectionSvg');
+            if (svgOverlay) {
+                svgOverlay.setAttribute('width', '0');
+                svgOverlay.setAttribute('height', '0');
+                svgOverlay.style.width = '0px';
+                svgOverlay.style.height = '0px';
+            }
+            track.style.width = '';
+            track.style.minWidth = '';
             track.innerHTML = '';
             const axisEl = document.createElement('div');
             axisEl.id = 'timelineMainAxis';
@@ -5183,6 +5197,15 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     axisLine.style.left='0';
                     axisLine.style.right='auto';
                     axisLine.style.width=fullW+'px';
+
+                    // 搜索/筛选后的可滚动范围只由当前可见节点决定。
+                    if (container) {
+                        const visibleW = Math.max(container.clientWidth, fullW);
+                        track.style.width = visibleW + 'px';
+                        track.style.minWidth = '0px';
+                        const maxScroll = Math.max(0, visibleW - container.clientWidth);
+                        if (container.scrollLeft > maxScroll) container.scrollLeft = maxScroll;
+                    }
 
                     if (firstNode && container) {
                         const firstDateStr = groupEntries.length > 0 ? groupEntries[0][0] : '';
