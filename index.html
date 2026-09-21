@@ -2589,22 +2589,17 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         img.style.visibility = 'hidden';
                     }
 
-                    // 给黑场一个很短的自然停顿作为额外加载预算。准备好了就不再出现封面。
-                    if (!mediaReady) await Promise.race([mediaReadyPromise, delayMs(180)]);
+                    // 转场时长固定：不再为了媒体加载额外延长全黑阶段。
+                    // 到达全黑点时如果下一媒体已经准备好，就直接交给下一媒体并按固定 260ms 退黑；
+                    // 如果还没准备好，则立即落到封面兜底，同样按固定 260ms 退黑，媒体继续在封面下加载。
                     if (!isStillRunning() || gen !== generation) { dim.remove(); return false; }
 
                     if (mediaReady && ((nextItem.type === 'video' && nextItem.src) || isAnimatedImageItem(nextItem))) {
                         pendingBlackHandoff = { item: nextItem, overlay: dim };
-                        return true; // overlay 由下一媒体真正开始显示后负责退黑
+                        return true; // 下一媒体显示后只负责固定时长退黑，不增加额外等待
                     }
 
-                    // 还没准备好：在全黑处换成完整封面，封面只承担“加载超时”的兜底职责。
                     if (nextCover) {
-                        const pre = new Image(); pre.src = nextCover;
-                        try {
-                            if (pre.decode) await Promise.race([pre.decode().catch(()=>{}), delayMs(900)]);
-                            else if (!(pre.complete && pre.naturalWidth > 0)) await Promise.race([new Promise(r=>{pre.onload=pre.onerror=r;}), delayMs(900)]);
-                        } catch (_) {}
                         if (!video.classList.contains('hidden')) clearVideo();
                         stage.classList.remove('preview-stage-black');
                         img.classList.remove('hidden'); img.style.visibility='visible'; disableSoftFade(img);
@@ -2657,8 +2652,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     if (!isStillRunning()) return null;
                     if (Number.isFinite(duration) && duration > 0) {
                         // 提前一点回收，避免浏览器在 GIF 循环边界先露出下一轮的一两帧。
-                        // 时间线与详情页统一在循环边界前 300ms 回收，避免 GIF 自动重播的头几帧露出。
-                        const endGuardSec = 0.30;
+                        // 时间线与详情页统一在循环边界前 350ms 回收，避免 GIF 自动重播的头几帧露出。
+                        const endGuardSec = 0.35;
                         return Math.max(0.3, duration - endGuardSec);
                     }
                     return ANIMATED_FALLBACK_SEC;
