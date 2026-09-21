@@ -3093,7 +3093,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const data=await timelineApiPost('createGifReadTicket',{cloudPath:resolved},{timeoutMs:15000});
             if(!data?.ticket) throw new Error(data?.message||'GIF_READ_TICKET_EMPTY');
             const qs=new URLSearchParams({room:window.currentRoomId||'default',cloudPath:resolved,ticket:String(data.ticket)});
-            const gifUrl=TIMELINE_API_BASE+'/gif-source?'+qs.toString()+'&client=v151&_='+Date.now();
+            const gifUrl=TIMELINE_API_BASE+'/gif-source?'+qs.toString()+'&client=v152&_='+Date.now();
             return {url:gifUrl,options:{cache:'no-store',headers:{'Cache-Control':'no-cache'}},cloudPath:resolved};
         };
 
@@ -11612,7 +11612,36 @@ viewer.style.visibility='';
                 if(!('ImageDecoder' in window))throw new Error('当前浏览器不支持逐帧解码');
                 let decodeReq=await window.getGifDecodeFetchRequest(src,cloudPath);
                 const fetchGifChunk=async(start,end)=>{let opts={...(decodeReq.options||{}),headers:{...((decodeReq.options&&decodeReq.options.headers)||{}),Range:`bytes=${start}-${end}`}};let r=await fetch(decodeReq.url,opts);if(r.status===401){let body=null;try{body=await r.clone().json();}catch(_){}if(body?.error==='ticket_expired'||body?.error==='unauthorized'){decodeReq=await window.getGifDecodeFetchRequest(src,cloudPath);opts={...(decodeReq.options||{}),headers:{...((decodeReq.options&&decodeReq.options.headers)||{}),Range:`bytes=${start}-${end}`}};r=await fetch(decodeReq.url,opts);}}if(!(r.ok||r.status===206)){let detail='';try{const j=await r.clone().json();detail=j?.message||j?.error||'';}catch(_){}throw new Error('HTTP '+r.status+(detail?'：'+detail:''));}return r;};
-                const chunkSize=4*1024*1024;const first=await fetchGifChunk(0,chunkSize-1);const cr=String(first.headers.get('content-range')||'');let total=Number((cr.match(/\/(\d+)$/)||[])[1]||0);const parts=[new Uint8Array(await first.arrayBuffer())];if(!total){total=parts[0].byteLength;}for(let start=parts[0].byteLength;start<total;start+=chunkSize){const end=Math.min(total-1,start+chunkSize-1);const r=await fetchGifChunk(start,end);parts.push(new Uint8Array(await r.arrayBuffer()));}const merged=new Uint8Array(total);let off=0;for(const p of parts){merged.set(p,off);off+=p.byteLength;}const buf=merged.buffer;
+                // v152: assemble GIF strictly from verified Content-Range boundaries. Do not infer the next
+                // offset from Content-Length/body length: gateways can transform/truncate responses.
+                // Keep each body comfortably below SCF's response ceiling.
+                const chunkSize=1024*1024;
+                const parts=[];
+                let total=0,start=0;
+                while(true){
+                    const requestedEnd=start+chunkSize-1;
+                    const r=await fetchGifChunk(start,requestedEnd);
+                    const cr=String(r.headers.get('content-range')||'').trim();
+                    const m=cr.match(/^bytes\s+(\d+)-(\d+)\/(\d+)$/i);
+                    if(!m)throw new Error('GIF分段响应缺少有效 Content-Range');
+                    const actualStart=Number(m[1]),actualEnd=Number(m[2]),reportedTotal=Number(m[3]);
+                    if(!Number.isSafeInteger(actualStart)||!Number.isSafeInteger(actualEnd)||!Number.isSafeInteger(reportedTotal)||actualStart!==start||actualEnd<actualStart||reportedTotal<=actualEnd)throw new Error('GIF分段范围异常：'+cr);
+                    if(total&&reportedTotal!==total)throw new Error('GIF总大小在分段读取过程中发生变化');
+                    total=reportedTotal;
+                    const part=new Uint8Array(await r.arrayBuffer());
+                    const expected=actualEnd-actualStart+1;
+                    if(part.byteLength!==expected)throw new Error(`GIF分段不完整：${actualStart}-${actualEnd} 应为 ${expected} 字节，实际 ${part.byteLength} 字节`);
+                    parts.push({start:actualStart,end:actualEnd,data:part});
+                    if(actualEnd+1>=total)break;
+                    start=actualEnd+1;
+                }
+                const merged=new Uint8Array(total);
+                let assembled=0;
+                for(const part of parts){merged.set(part.data,part.start);assembled+=part.data.byteLength;}
+                if(assembled!==total)throw new Error(`GIF读取不完整：应为 ${total} 字节，实际 ${assembled} 字节`);
+                const sig=String.fromCharCode(...merged.subarray(0,6));
+                if(sig!=='GIF87a'&&sig!=='GIF89a')throw new Error('GIF文件头无效');
+                const buf=merged.buffer;
                 decoder=new ImageDecoder({data:buf,type:'image/gif'});await decoder.tracks.ready;const track=decoder.tracks.selectedTrack;if(!track||!track.frameCount)throw new Error('未读取到动图帧');frameCount=track.frameCount;
                 for(let i=0;i<frameCount;i++){const r=await decoder.decode({frameIndex:i});let d=Number(r.image?.duration)||100000;if(d<10000)d=100000;starts[i]=totalUs;durations[i]=d;totalUs+=d;r.image?.close?.();}
                 if(closed)return;range.max=String(frameCount-1);ui.classList.remove('hidden');status.classList.add('hidden');await drawFrame(0);
