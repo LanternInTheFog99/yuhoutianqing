@@ -3053,49 +3053,13 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.cloudMediaPublicUrl = function(cloudPath){
             return TIMELINE_API_BASE.replace(/\/+$/,'') + '/' + String(cloudPath||'').replace(/^\/+/, '');
         };
-        // v107: use the storage CDN origin for frame extraction. The HTTP gateway is kept for normal playback,
-        // while the storage origin can participate in canvas capture after COS CORS is configured.
-        window.CLOUD_MEDIA_CROP_ORIGIN = 'https://6d65-message-board-d6gyou26356c94cad-1474370265.cos.ap-shanghai.myqcloud.com';
-        window.cloudMediaCropUrl = function(cloudPath){
-            return window.CLOUD_MEDIA_CROP_ORIGIN.replace(/\/+$/,'') + '/' + String(cloudPath||'').replace(/^\/+/, '');
-        };
-        // v111: request an authorized temporary read URL from timeline-api for frame extraction.
-        // Normal playback still uses the HTTP gateway; only canvas/frame capture uses this URL.
-        // v117: frame extraction no longer fetches COS/CloudBase URLs in the browser.
-        // timeline-api reads the private object server-side and streams it back with our own CORS headers.
-        // v118: do not download the whole remote video with fetch. The HTTP cloud function/gateway
-        // can fail on large response bodies. Instead use an authenticated Range-capable media stream
-        // from timeline-api. <video> can seek it normally and, because the proxy returns ACAO, canvas
-        // remains exportable.
-        // v122: native <video> Range requests cannot carry Authorization headers.
-        // First exchange the editor bearer token for a five-minute ticket bound to one cloudPath.
+        // Cloud video frame capture uses a short-lived read ticket plus the Range-capable /media route.
+        // This keeps private storage credentials out of <video> requests and preserves canvas-safe playback.
         window.getCloudMediaCaptureStreamUrl = async function(cloudPath){
             const data=await timelineApiPost('createMediaReadTicket',{cloudPath:String(cloudPath||'')},{auth:'edit',timeoutMs:15000});
             if(!data?.ticket) throw new Error(data?.message||'MEDIA_TICKET_EMPTY');
             const qs=new URLSearchParams({room:window.currentRoomId||'default',cloudPath:String(cloudPath||''),ticket:String(data.ticket),mode:'stream'});
             return TIMELINE_API_BASE+'/media?'+qs.toString();
-        };
-        window.getCloudMediaCaptureDiagnoseUrl = function(cloudPath){
-            const token=window.getTimelineEditToken?.()||'';
-            if(!token) throw new Error('EDIT_AUTH_REQUIRED');
-            const qs=new URLSearchParams({room:window.currentRoomId||'default',cloudPath:String(cloudPath||''),token});
-            qs.set('mode','diagnose');
-            return TIMELINE_API_BASE+'/media?'+qs.toString();
-        };
-        window.describeVideoElementFailure = function(v){
-            const e=v?.error;
-            return {errorCode:e?.code||0,errorMessage:e?.message||'',networkState:v?.networkState,readyState:v?.readyState,currentSrc:v?.currentSrc||v?.src||''};
-        };
-        window.runCloudVideoCaptureDiagnostic = async function(cloudPath, videoEl){
-            const local=window.describeVideoElementFailure(videoEl);
-            let server=null, fetchError='';
-            try{
-                const r=await fetch(window.getCloudMediaCaptureDiagnoseUrl(cloudPath),{cache:'no-store'});
-                const txt=await r.text();
-                try{server=JSON.parse(txt)}catch(_){server={httpStatus:r.status,raw:txt.slice(0,300)}}
-                if(server && server.httpStatus==null) server.httpStatus=r.status;
-            }catch(e){fetchError=String(e?.message||e)}
-            return {local,server,fetchError};
         };
         window._cloudUploadNotice = function(text, show=true){
             let el=document.getElementById('cloudMediaUploadNotice');
@@ -10747,18 +10711,12 @@ viewer.style.visibility='';
 
             let capturePlayer = null;
             try {
-                // v114: do not draw from the visible crop player after a saved/cloud video has
-                // gone through load -> seek -> pause several times. Some mobile engines display
-                // that player correctly but expose no drawable frame to canvas. Create a fresh,
-                // independent decoder from the exact same Blob URL, seek it to the selected time,
-                // and draw that decoder instead. Fresh local uploads and reopened cloud videos now
-                // use the same capture path.
+                // Use a fresh decoder for capture so local and reopened cloud videos share one stable path.
                 let src = String(player._cloudCropObjectUrl || player.currentSrc || player.src || '');
                 if (!src) throw new Error('capture_source_missing');
                 const wantedTime = Math.max(0, Number(player.currentTime) || 0);
 
-                // v118: cloud videos deliberately stay on the authenticated Range proxy URL.
-                // It is CORS-enabled by timeline-api, so a crossOrigin=anonymous decoder is canvas-safe.
+                // Reopened cloud videos use the authenticated Range proxy URL for canvas-safe decoding.
                 const targetForSource=window.editingVideos[activeVideoCropIndex];
                 if(targetForSource?.cloudPath){
                     src=await window.getCloudMediaCaptureStreamUrl(targetForSource.cloudPath);
@@ -10780,13 +10738,7 @@ viewer.style.visibility='';
                 await new Promise((resolve,reject)=>{
                     let done=false;
                     const ok=()=>{if(done)return;done=true;cleanup();resolve();};
-                    const bad=async()=>{if(done)return;done=true;cleanup();
-                        const target=window.editingVideos[activeVideoCropIndex];
-                        let diag=null;try{if(target?.cloudPath)diag=await window.runCloudVideoCaptureDiagnostic(target.cloudPath,capturePlayer);}catch(_){}
-                        const local=window.describeVideoElementFailure(capturePlayer);
-                        const packed={stage:'decoder_load',local,diag};
-                        const er=new Error('capture_decoder_load_failed');er.captureDiagnostic=packed;reject(er);
-                    };
+                    const bad=()=>{if(done)return;done=true;cleanup();reject(new Error('capture_decoder_load_failed'));};
                     const cleanup=()=>{capturePlayer.removeEventListener('loadedmetadata',ok);capturePlayer.removeEventListener('error',bad);};
                     capturePlayer.addEventListener('loadedmetadata',ok,{once:true});
                     capturePlayer.addEventListener('error',bad,{once:true});
@@ -10828,29 +10780,9 @@ viewer.style.visibility='';
                 window.showToast("截选完成，已应用当前画面","success");
                 window.closeVideoCropModal();
             } catch(err) {
-                console.error('视频封面截取失败(v115):',err);
-                // Keep the concrete reason visible if this browser still rejects a frame; this is
-                // intentionally diagnostic rather than collapsing every failure into one message.
+                console.error('视频封面截取失败:',err);
                 const base="当前画面截取失败："+String(err?.message||err);
-                if(err?.captureDiagnostic){
-                    const d=err.captureDiagnostic, l=d.local||{}, sd=d.diag?.server||{};
-                    const lines=[base,
-                        `video.error.code: ${l.errorCode??''}`,
-                        `video.error.message: ${l.errorMessage||'(空)'}`,
-                        `networkState: ${l.networkState??''} / readyState: ${l.readyState??''}`,
-                        `诊断接口HTTP: ${sd.httpStatus??'(无)'}`,
-                        `上游HTTP: ${sd.upstreamStatus??'(无)'}`,
-                        `Content-Type: ${sd.headers?.['content-type']||'(无)'}`,
-                        `Content-Length: ${sd.headers?.['content-length']||'(无)'}`,
-                        `Content-Range: ${sd.headers?.['content-range']||'(无)'}`,
-                        `Accept-Ranges: ${sd.headers?.['accept-ranges']||'(无)'}`,
-                        `Content-Disposition: ${sd.headers?.['content-disposition']||'(无)'}`,
-                        `前24字节(hex): ${sd.firstBytesHex||'(无)'}`,
-                        d.diag?.fetchError?`诊断fetch错误: ${d.diag.fetchError}`:''
-                    ].filter(Boolean);
-                    console.error('视频截帧诊断',d);
-                    alert(lines.join('\n'));
-                }else window.showToast(base.slice(0,180),"error");
+                window.showToast(base.slice(0,180),"error");
             } finally {
                 if(capturePlayer){try{capturePlayer.pause();capturePlayer.removeAttribute('src');capturePlayer.load();capturePlayer.remove();}catch(_){}}
             }
