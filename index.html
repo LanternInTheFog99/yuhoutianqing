@@ -2543,7 +2543,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     if (!isStillRunning()) return null;
                     if (Number.isFinite(duration) && duration > 0) {
                         // 提前一点回收，避免浏览器在 GIF 循环边界先露出下一轮的一两帧。
-                        const endGuardSec = calm ? 0.42 : 0.48;
+                        const endGuardSec = 0.30;
                         return Math.max(0.3, duration - endGuardSec);
                     }
                     return ANIMATED_FALLBACK_SEC;
@@ -2798,7 +2798,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 if (resetToFirst) {
                     const media = img._slideMedia || [];
                     const first = media[0];
-                    if (first) img.src = first.type === 'video' ? (first.cover || first.src || '') : (first.src || first.cover || '');
+                    if (first) img.src = first.type === 'video' ? (first.cover || first.src || '') : (isAnimatedImageItem(first) ? (first.cover || first.src || '') : (first.src || first.cover || ''));
                 }
             });
             rootEl.querySelectorAll('.preview-inline-video').forEach(v => {
@@ -5231,6 +5231,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     } catch (_) {}
                     img._slideMedia = media.length ? media : (img.src ? [{type:'image', src:img.src, cover:img.src}] : []);
                     img._slideSrcs = img._slideMedia.map(m => m.cover || m.src).filter(Boolean);
+                    const firstPreviewItem = img._slideMedia[0];
+                    if (firstPreviewItem && isAnimatedImageItem(firstPreviewItem) && firstPreviewItem.cover) img.src = firstPreviewItem.cover;
                     img.style.transition = 'opacity 0.25s ease';
                 });
 
@@ -5431,6 +5433,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 } catch (_) {}
                 img._slideMedia = Array.isArray(media) && media.length ? media : (img.src ? [{type:'image', src:img.src, cover:img.src}] : []);
                 img._slideSrcs = img._slideMedia.map(m => m.cover || m.src).filter(Boolean);
+                const firstPreviewItem = img._slideMedia[0];
+                if (firstPreviewItem && isAnimatedImageItem(firstPreviewItem) && firstPreviewItem.cover) img.src = firstPreviewItem.cover;
                 img.style.transition = 'opacity 0.25s ease';
             });
 
@@ -5552,7 +5556,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         img.style.opacity = '1';
                         const media = img._slideMedia || [];
                         const first = media[0];
-                        if (first) img.src = first.type === 'video' ? (first.cover || first.src || '') : (first.src || first.cover || '');
+                        if (first) img.src = first.type === 'video' ? (first.cover || first.src || '') : (isAnimatedImageItem(first) ? (first.cover || first.src || '') : (first.src || first.cover || ''));
                     });
                 }
             });
@@ -11654,7 +11658,7 @@ viewer.style.visibility='';
             if(!gifs.length)return;
             let index=0,timer=0,paused=false,disposed=false,activeGif=null,activeShield=null,playToken=0;
             // 封面更快进入动图；播放结束则略提前回收，避免 GIF 循环边界闪出下一轮的一两帧。
-            const PRE_COVER_MS=420, POST_COVER_MS=220, COVER_FADE_MS=120, GIF_END_GUARD_MS=520;
+            const PRE_COVER_MS=420, POST_COVER_MS=220, COVER_FADE_MS=120, GIF_END_GUARD_MS=300;
             const stopTimer=()=>{if(timer){clearTimeout(timer);timer=0;}};
             const removeNode=n=>{if(n){try{n.remove();}catch(_){}}};
             const clearLayers=()=>{removeNode(activeGif);removeNode(activeShield);activeGif=null;activeShield=null;};
