@@ -2611,6 +2611,13 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         delete img.dataset.previewNextVideoReady;
                     }
                     await delayMs(16);
+                    if (nextItem.type === 'video') {
+                        // 视频→视频：不要先退掉黑层再启动下一 video。
+                        // 把同一块黑层交给 playVideoThen；下一 video 真正 canplay 并已放到舞台后，
+                        // 再按固定 300ms 退黑。这样中间不会露出旧帧/空舞台造成闪一下。
+                        pendingBlackHandoff = { item: nextItem, overlay: dim };
+                        return true;
+                    }
                     dim.style.transition = 'opacity 300ms cubic-bezier(.4,0,.2,1)';
                     dim.style.opacity = '0';
                     await delayMs(300);
@@ -2619,11 +2626,17 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 };
 
                 const revealPendingBlack = async (item) => {
-                    // v19：黑场不再跨媒体加载持有；保留函数仅兼容旧调用。
                     const handoff = pendingBlackHandoff;
+                    if (!handoff || handoff.item !== item || !handoff.overlay) return false;
                     pendingBlackHandoff = null;
-                    if (handoff?.overlay) { try { handoff.overlay.remove(); } catch (_) {} }
-                    return false;
+                    const dim = handoff.overlay;
+                    // 下一视频已经 canplay 且 video 层已经可见，此时才执行唯一一次固定退黑。
+                    await delayMs(16);
+                    dim.style.transition = 'opacity 300ms cubic-bezier(.4,0,.2,1)';
+                    dim.style.opacity = '0';
+                    await delayMs(300);
+                    try { dim.remove(); } catch (_) {}
+                    return true;
                 };
 
                 const scheduleHold = (gen, holdSec, after) => {
@@ -2787,6 +2800,13 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     delete img.dataset.previewNextPreloaded;
                     if(!directFromBlack && item.cover && !transitionVideoReady) await ensureCoverReady(item);
                     const hasCover = (directFromBlack || transitionVideoReady) ? false : showItemCover(item);
+                    if (directFromBlack) {
+                        disableSoftFade(img);
+                        img.style.transition='none';
+                        img.style.opacity='0';
+                        img.style.visibility='hidden';
+                        img.classList.add('hidden');
+                    }
                     // 视频→视频若已在共享黑场期间 ready，只保留一次视觉交接。
                     // 先彻底隐藏旧的图片/poster 层，避免黑场退完后“旧封面→video”逻辑再闪一次。
                     if (transitionVideoReady) {
