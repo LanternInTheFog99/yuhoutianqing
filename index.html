@@ -1253,7 +1253,6 @@ html.invalid-room-access [id*="xiaoqinger" i],
 html.invalid-room-access [class*="xiaoqinger" i],
 html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility:hidden !important;opacity:0 !important}
 </style>
-<!-- v151: GIF frame decoding uses stored cloudPath and assembles small Range responses to avoid SCF large binary response limits. -->
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
 <div id="invalidRoomAccessOverlay" aria-live="assertive" aria-label="此链接无效"><div class="invalid-room-card">此链接无效</div></div>
@@ -2269,6 +2268,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window._previewAnimatedDurationCache = window._previewAnimatedDurationCache || new Map();
         window.getAnimatedImageDuration = async function(item) {
             if (!item || item.type !== 'image') return null;
+            const storedMs = Number(item.gifDurationMs);
+            if (Number.isFinite(storedMs) && storedMs > 0) return Math.max(0.3, storedMs / 1000);
+            // Compatibility for older preview items that stored seconds under duration.
             if (Number.isFinite(Number(item.duration)) && Number(item.duration) > 0) return Number(item.duration);
             const src = String(item.src || '');
             if (!src || !/\.gif(?:[?#]|$)/i.test(src) && !/^data:image\/gif/i.test(src)) return null;
@@ -2358,7 +2360,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const videoEls = [];
             const imageHold = calm ? 4200 : 2200;
             const defaultVideoHold = calm ? 5000 : 4000;
-            const ANIMATED_EARLY_CUT_SEC = 0.08;
             const ANIMATED_FALLBACK_SEC = 3;
             const PRELOAD_WAIT_MS = 60;
             const BLACK_FADE_MS = 150;
@@ -2505,7 +2506,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     }
                     if (!isStillRunning()) return null;
                     if (Number.isFinite(duration) && duration > 0) {
-                        return Math.max(0.12, duration - ANIMATED_EARLY_CUT_SEC);
+                        return Math.max(0.3, duration);
                     }
                     return ANIMATED_FALLBACK_SEC;
                 };
@@ -2805,7 +2806,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if (ev.timeMode === 'multi' && Array.isArray(ev.timeSegments)) {
                 ev.timeSegments.slice().sort((a,b)=>String(a?.date||'').localeCompare(String(b?.date||''))).forEach(seg => {
                     const firstImg=(seg.images||[])[0];
-                    if(firstImg){ const o=window.multiNormalizeImage?window.multiNormalizeImage(firstImg):firstImg; const src=typeof o==='string'?o:(o?.outer||o?.original||o?.originalFull||o?.collection||o?.inner||''); if(src) media.push({type:'image',src,cover:src,crop:o?.crop?{...o.crop}:null,mediaId:o?.mediaId||''}); return; }
+                    if(firstImg){ const o=window.multiNormalizeImage?window.multiNormalizeImage(firstImg):firstImg; const src=typeof o==='string'?o:(o?.outer||o?.original||o?.originalFull||o?.collection||o?.inner||''); if(src) media.push({type:'image',src,cover:(o?.isAnimated&&o?.gifCover)?o.gifCover:src,crop:o?.crop?{...o.crop}:null,mediaId:o?.mediaId||'',isAnimated:!!o?.isAnimated,gifDurationMs:Math.max(0,Number(o?.gifDurationMs)||0)}); return; }
                     const firstVideo=(seg.videos||[])[0];
                     if(firstVideo){ const obj=typeof firstVideo==='string'?{url:firstVideo}:firstVideo; if(obj?.url||obj?.cover) media.push({type:'video',src:obj.url||'',cover:obj.cover||'',previewDuration:window.normalizeVideoPreviewDuration(obj.previewDuration,4)}); }
                 });
@@ -2821,7 +2822,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         const rawCrop = imgObj.crop;
                         crop = rawCrop && (!rawCrop.mediaId || !mediaId || String(rawCrop.mediaId) === mediaId) ? rawCrop : null;
                     }
-                    if (src) media.push({ type: 'image', src, cover: src, crop: crop ? { ...crop } : null, mediaId: (typeof imgObj === 'object' && imgObj) ? String(imgObj.mediaId || '') : '' });
+                    if (src) media.push({ type: 'image', src, cover: (typeof imgObj === 'object' && imgObj?.isAnimated && imgObj?.gifCover) ? imgObj.gifCover : src, crop: crop ? { ...crop } : null, mediaId: (typeof imgObj === 'object' && imgObj) ? String(imgObj.mediaId || '') : '', isAnimated: !!(typeof imgObj === 'object' && imgObj?.isAnimated), gifDurationMs: (typeof imgObj === 'object' && imgObj) ? Math.max(0, Number(imgObj.gifDurationMs)||0) : 0 });
                 });
             }
             if (ev.videos && ev.videos.length > 0) {
@@ -3086,7 +3087,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const inferred=window.cloudPathFromMediaUrl(src);
             return /^gif\/[^?#]+/i.test(inferred)?inferred:'';
         };
-        // v150: GIF decoding uses the media object's stored cloudPath directly. Display URLs are only a legacy fallback.
         window.getGifDecodeFetchRequest = async function(src,cloudPath){
             const resolved=window.resolveGifCloudPath(src,cloudPath);
             if(!resolved) throw new Error('这个动图缺少云端路径，无法逐帧读取');
@@ -9867,7 +9867,7 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
             }
             const detailHasImages=Array.isArray(event.images)&&event.images.length>0,detailHasVideos=Array.isArray(event.videos)&&event.videos.length>0,detailDescriptionText=String(event.description||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/gi,' ').trim(),detailHasDescription=!!detailDescriptionText;
             let viewer=document.getElementById('fullscreenViewer');if(!viewer){viewer=document.createElement('div');viewer.id='fullscreenViewer';viewer.className='fixed inset-0 bg-slate-950/90 text-white z-50 overflow-y-auto backdrop-blur-md p-3 sm:p-8 flex flex-col items-center';viewer.addEventListener('click',e=>{if(e.target===viewer)window.closeReadOnlyFullscreen(viewer.dataset.fromStackDate||'');});document.body.appendChild(viewer);}viewer.dataset.fromStackDate=fromStackDate||'';viewer.dataset.eventId=String(event.id||'');
-            let imagesHtml='';if(detailHasImages){const fullSrcList=event.images.map(imgObj=>typeof imgObj==='string'?imgObj:(imgObj.originalFull||imgObj.original||imgObj.outer||imgObj.inner||imgObj.collection||''));imagesHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">事件配图</h4><div data-detail-images>${event.images.map((imgObj,idx)=>{const thumbSrc=typeof imgObj==='string'?imgObj:(imgObj.inner||imgObj.original||imgObj.originalFull||imgObj.outer||imgObj.collection);const listStr=JSON.stringify(fullSrcList).replace(/"/g,'&quot;');const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(imgObj?.deepDescription);return `<div data-detail-image-card onpointerdown="if(window.isPhoneLikeDevice?.()){mobileDetailTapStart(event,this)}else if(event.isPrimary&&event.button===0){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openLightbox(${listStr},${idx},'${event.id}','image'),this._mobileOpenedAt=performance.now())}" onpointermove="if(window.isPhoneLikeDevice?.())mobileDetailTapMove(event,this)" onpointerup="if(window.isPhoneLikeDevice?.()&&mobileDetailTapEnd(event,this)){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openLightbox(${listStr},${idx},'${event.id}','image'))}" onclick="if(window.isPhoneLikeDevice?.()){event.preventDefault();event.stopPropagation();mobileDetailTapOpen(this,()=>{window.suspendMobileDetailVideosForOverlay?.();openLightbox(${listStr},${idx},'${event.id}','image')})}" class="group relative bg-transparent rounded-xl overflow-hidden border border-slate-800 cursor-pointer shadow-md hover:border-indigo-500 transition-colors">${(()=>{const gif=window.isAnimatedImageSource(thumbSrc,imgObj),cover=typeof imgObj==='object'?(imgObj.gifCover||''):'';const shown=gif&&cover?cover:thumbSrc;return `<img data-detail-image data-full-src="${fullSrcList[idx]||thumbSrc}" ${gif&&cover?`data-gif-src="${fullSrcList[idx]||thumbSrc}" data-gif-cover="${cover}" onmouseenter="gifPreviewPlay(this)" onmouseleave="gifPreviewStop(this)"`:''} loading="lazy" decoding="async" ${window.isPhoneLikeDevice?.()?`data-phone-src="${shown}" style="visibility:hidden"`:`src="${shown}"`} class="block group-hover:scale-[1.02] transition-all duration-300">`;})()}${hasDeep?'<span class="absolute right-1.5 bottom-1.5 z-10 text-[13px] sm:text-sm opacity-0 group-hover:opacity-45 transition-opacity pointer-events-none select-none drop-shadow" aria-hidden="true">🐢✌🏻</span>':''}</div>`;}).join('')}</div></div>`;}
+            let imagesHtml='';if(detailHasImages){const fullSrcList=event.images.map(imgObj=>typeof imgObj==='string'?imgObj:(imgObj.originalFull||imgObj.original||imgObj.outer||imgObj.inner||imgObj.collection||''));imagesHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">事件配图</h4><div data-detail-images>${event.images.map((imgObj,idx)=>{const thumbSrc=typeof imgObj==='string'?imgObj:(imgObj.inner||imgObj.original||imgObj.originalFull||imgObj.outer||imgObj.collection);const listStr=JSON.stringify(fullSrcList).replace(/"/g,'&quot;');const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(imgObj?.deepDescription);return `<div data-detail-image-card onpointerdown="if(window.isPhoneLikeDevice?.()){mobileDetailTapStart(event,this)}else if(event.isPrimary&&event.button===0){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openLightbox(${listStr},${idx},'${event.id}','image'),this._mobileOpenedAt=performance.now())}" onpointermove="if(window.isPhoneLikeDevice?.())mobileDetailTapMove(event,this)" onpointerup="if(window.isPhoneLikeDevice?.()&&mobileDetailTapEnd(event,this)){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openLightbox(${listStr},${idx},'${event.id}','image'))}" onclick="if(window.isPhoneLikeDevice?.()){event.preventDefault();event.stopPropagation();mobileDetailTapOpen(this,()=>{window.suspendMobileDetailVideosForOverlay?.();openLightbox(${listStr},${idx},'${event.id}','image')})}" class="group relative bg-transparent rounded-xl overflow-hidden border border-slate-800 cursor-pointer shadow-md hover:border-indigo-500 transition-colors">${(()=>{const gif=window.isAnimatedImageSource(thumbSrc,imgObj),cover=typeof imgObj==='object'?(imgObj.gifCover||''):'';const shown=gif&&cover?cover:thumbSrc;return `<img data-detail-image data-full-src="${fullSrcList[idx]||thumbSrc}" ${gif&&cover?`data-gif-src="${fullSrcList[idx]||thumbSrc}" data-gif-cover="${cover}" data-gif-duration="${Math.max(300,Number(imgObj?.gifDurationMs)||5000)}"`:''} loading="lazy" decoding="async" ${window.isPhoneLikeDevice?.()?`data-phone-src="${shown}" style="visibility:hidden"`:`src="${shown}"`} class="block group-hover:scale-[1.02] transition-all duration-300">`;})()}${hasDeep?'<span class="absolute right-1.5 bottom-1.5 z-10 text-[13px] sm:text-sm opacity-0 group-hover:opacity-45 transition-opacity pointer-events-none select-none drop-shadow" aria-hidden="true">🐢✌🏻</span>':''}</div>`;}).join('')}</div></div>`;}
             let videosHtml='';if(detailHasVideos){videosHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-video mr-1"></i>事件视频</h4><div data-detail-videos>${event.videos.map((v,vidx)=>{const vUrl=typeof v==='object'?(v.blobUrl||v.url):v,vCover=typeof v==='object'?(v.cover||''):'',vTitle=typeof v==='object'?(v.title||''):'',vType=typeof v==='object'&&v.mime?`type="${v.mime}"`:'';const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(v?.deepDescription);return `<div data-detail-video-card data-detail-video-index="${vidx}" data-detail-video-deep="${hasDeep?'1':'0'}" class="bg-black rounded-xl overflow-hidden border border-slate-800 ${hasDeep?'cursor-pointer':''}">${vTitle?`<div data-detail-video-title class="px-3 py-2 bg-slate-900 text-xs font-semibold text-slate-200 border-b border-slate-800">${escapeHtml(vTitle)}</div>`:''}<div data-detail-video-stage class="relative bg-black overflow-hidden"><video ${vCover?`poster="${vCover}"`:''} playsinline webkit-playsinline preload="none" class="block bg-black object-contain"><source src="${vUrl}" ${vType}></video>${hasDeep?'<span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">🐢</span><span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">✌🏻</span>':''}</div></div>`;}).join('')}</div></div>`;}
             let linksHtml='';if(event.links&&event.links.length>0){linksHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-link mr-1"></i>跳转网址</h4><div class="flex flex-wrap gap-2">${event.links.map(l=>`<a href="${l.url}" target="_blank" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-indigo-300 hover:text-indigo-200 px-3 py-2 rounded-xl text-xs transition-colors"><i class="fa-solid fa-globe"></i><span class="font-medium">${l.title||l.url}</span></a>`).join('')}</div></div>`;}
             const descriptionHtml=detailHasDescription?`<div data-detail-description class="border-t border-slate-800 pt-6 mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">事件经过与描述</h4><div class="event-description-html text-sm sm:text-base leading-relaxed whitespace-pre-wrap">${window.prepareDescriptionForView?window.prepareDescriptionForView(event.description):event.description}</div></div>`:'';
@@ -9893,10 +9893,12 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
             window.fitEventDetailMedia(viewer);
 viewer.style.visibility='';
             window.bindDetailVideoBehavior(viewer,event.id);
+            window.initDetailGifSequence(viewer);
             window.initFloatingDetailWindow(viewer);const refit=()=>window.fitEventDetailMedia(viewer);viewer.querySelectorAll('[data-detail-image]').forEach(img=>{if(!img.complete)img.addEventListener('load',refit,{once:true});});viewer.querySelectorAll('[data-detail-video-card] video').forEach(video=>{if(!video.videoWidth)video.addEventListener('loadedmetadata',refit,{once:true});});if(viewer._detailResizeHandler)window.removeEventListener('resize',viewer._detailResizeHandler);viewer._detailResizeHandler=refit;window.addEventListener('resize',refit);requestAnimationFrame(()=>requestAnimationFrame(refit));
         };
 
         window.closeReadOnlyFullscreen = function(fromStackDate = '') {
+            document.getElementById('fullscreenViewer')?._detailGifSequenceCleanup?.();
             window.closeMobileVideoOverlay?.();
             if(window.isPhoneLikeDevice?.()){
                 window._suppressTimelinePreviewUntil=performance.now()+520;
@@ -10352,7 +10354,8 @@ viewer.style.visibility='';
                     deepDescription: img.deepDescription ? JSON.parse(JSON.stringify(img.deepDescription)) : null,
                     cloudPath: img.cloudPath || '',
                     gifCover: img.gifCover || '',
-                    gifCoverCloudPath: img.gifCoverCloudPath || ''
+                    gifCoverCloudPath: img.gifCoverCloudPath || '',
+                    gifDurationMs: Math.max(300, Number(img.gifDurationMs)||0) || 0
                 };
             });
             const usedMediaIds = new Set();
@@ -11589,6 +11592,30 @@ viewer.style.visibility='';
             const cover=img.dataset.gifCover||''; if(!cover)return;
             if(img.src!==cover)img.src=cover;
         };
+        window.initDetailGifSequence=function(viewer){
+            viewer?._detailGifSequenceCleanup?.();
+            if(!viewer)return;
+            const gifs=[...viewer.querySelectorAll('[data-detail-image][data-gif-src][data-gif-cover]')];
+            if(!gifs.length)return;
+            let index=0,timer=0,paused=false,disposed=false;
+            const stopTimer=()=>{if(timer){clearTimeout(timer);timer=0;}};
+            const showCovers=()=>gifs.forEach(img=>window.gifPreviewStop(img));
+            const playCurrent=()=>{
+                stopTimer();showCovers();
+                if(disposed||paused||viewer.classList.contains('hidden'))return;
+                const img=gifs[index%gifs.length];
+                // Re-assigning via the static cover first restarts this GIF from frame one.
+                window.gifPreviewPlay(img);
+                const duration=Math.max(600,Number(img.dataset.gifDuration)||5000);
+                timer=setTimeout(()=>{if(disposed||paused)return;index=(index+1)%gifs.length;playCurrent();},duration);
+            };
+            const pause=()=>{paused=true;stopTimer();showCovers();};
+            const resume=()=>{if(disposed)return;paused=false;playCurrent();};
+            const cards=[...viewer.querySelectorAll('[data-detail-image-card]')];
+            cards.forEach(card=>{card.addEventListener('mouseenter',pause);card.addEventListener('mouseleave',resume);});
+            viewer._detailGifSequenceCleanup=()=>{disposed=true;stopTimer();showCovers();viewer._detailGifSequenceCleanup=null;};
+            playCurrent();
+        };
         window.openGifCoverPicker=async function(src,cloudPath,coverCloudPath,onSaved,onCrop){
             src=String(src||''); if(!src)return;
             let modal=document.getElementById('gifCoverPickerModal');
@@ -11616,7 +11643,7 @@ viewer.style.visibility='';
                 if(!('ImageDecoder' in window))throw new Error('当前浏览器不支持逐帧解码');
                 let decodeReq=await window.getGifDecodeFetchRequest(src,cloudPath);
                 const fetchGifChunk=async(start,end)=>{let opts={...(decodeReq.options||{}),headers:{...((decodeReq.options&&decodeReq.options.headers)||{}),Range:`bytes=${start}-${end}`}};let r=await fetch(decodeReq.url,opts);if(r.status===401){let body=null;try{body=await r.clone().json();}catch(_){}if(body?.error==='ticket_expired'||body?.error==='unauthorized'){decodeReq=await window.getGifDecodeFetchRequest(src,cloudPath);opts={...(decodeReq.options||{}),headers:{...((decodeReq.options&&decodeReq.options.headers)||{}),Range:`bytes=${start}-${end}`}};r=await fetch(decodeReq.url,opts);}}if(!(r.ok||r.status===206)){let detail='';try{const j=await r.clone().json();detail=j?.message||j?.error||'';}catch(_){}throw new Error('HTTP '+r.status+(detail?'：'+detail:''));}return r;};
-                // v152: assemble GIF strictly from verified Content-Range boundaries. Do not infer the next
+                // Assemble only verified byte ranges before decoding.
                 // offset from Content-Length/body length: gateways can transform/truncate responses.
                 // Keep each body comfortably below SCF's response ceiling.
                 // Read a small first range to discover the exact GIF size, then fetch the
@@ -11659,14 +11686,14 @@ viewer.style.visibility='';
                 if(closed)return;range.max=String(frameCount-1);ui.classList.remove('hidden');status.classList.add('hidden');await drawFrame(0);
                 range.oninput=()=>{stopPlay();drawFrame(Number(range.value));};modal.querySelector('[data-gif-prev]').onclick=()=>{stopPlay();drawFrame((current-1+frameCount)%frameCount);};modal.querySelector('[data-gif-next]').onclick=()=>{stopPlay();drawFrame((current+1)%frameCount);};playBtn.onclick=()=>{if(playing){stopPlay();return;}playing=true;playBtn.innerHTML='<i class="fa-solid fa-pause mr-1"></i>暂停';scheduleNext();};
             }catch(err){console.warn('逐帧 GIF 截选不可用，回退到普通播放模式:',err);status.textContent='逐帧时间轴暂不可用：'+String(err?.message||err)+'。仍可播放到目标画面后设为封面。';img.classList.remove('hidden');canvas.classList.add('hidden');ui.classList.remove('hidden');ui.querySelectorAll('input,button').forEach(el=>el.disabled=true);}
-            modal.querySelector('[data-gif-cover-save]').onclick=async()=>{const btn=modal.querySelector('[data-gif-cover-save]');btn.disabled=true;btn.textContent='正在保存…';try{let source=canvas.classList.contains('hidden')?img:canvas,w=source===img?img.naturalWidth:canvas.width,h=source===img?img.naturalHeight:canvas.height;if(!w||!h)throw new Error('动图尚未加载完成');const max=1280,scale=Math.min(1,max/w,max/h),c=document.createElement('canvas');c.width=Math.max(1,Math.round(w*scale));c.height=Math.max(1,Math.round(h*scale));c.getContext('2d').drawImage(source,0,0,c.width,c.height);const blob=await new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(new Error('封面生成失败')),'image/jpeg',.86));const file=new File([blob],`gif_cover_${Date.now()}.jpg`,{type:'image/jpeg'});const media=await window.uploadLargeMediaToCloudBase(file,{purpose:'cover',replaceCloudPath:coverCloudPath||''});await onSaved?.(media.url,media,current);close();window.showToast?.('动图封面已保存','success');}catch(err){window.showToast?.('动图封面截取失败：'+(err?.message||err),'error');btn.disabled=false;btn.textContent='设为封面';}};
+            modal.querySelector('[data-gif-cover-save]').onclick=async()=>{const btn=modal.querySelector('[data-gif-cover-save]');btn.disabled=true;btn.textContent='正在保存…';try{let source=canvas.classList.contains('hidden')?img:canvas,w=source===img?img.naturalWidth:canvas.width,h=source===img?img.naturalHeight:canvas.height;if(!w||!h)throw new Error('动图尚未加载完成');const max=1280,scale=Math.min(1,max/w,max/h),c=document.createElement('canvas');c.width=Math.max(1,Math.round(w*scale));c.height=Math.max(1,Math.round(h*scale));c.getContext('2d').drawImage(source,0,0,c.width,c.height);const blob=await new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(new Error('封面生成失败')),'image/jpeg',.86));const file=new File([blob],`gif_cover_${Date.now()}.jpg`,{type:'image/jpeg'});const media=await window.uploadLargeMediaToCloudBase(file,{purpose:'cover',replaceCloudPath:coverCloudPath||''});media.gifDurationMs=Math.max(300,Math.round(totalUs/1000)||0);await onSaved?.(media.url,media,current);close();window.showToast?.('动图封面已保存','success');}catch(err){window.showToast?.('动图封面截取失败：'+(err?.message||err),'error');btn.disabled=false;btn.textContent='设为封面';}};
         };
         window.editGifCover=function(index){
             const item=window.editingImageFiles?.[index];if(!item)return;const src=item.originalFull||item.original||item.outer||'';
-            window.openGifCoverPicker(src,item.cloudPath||'',item.gifCoverCloudPath||window.cloudPathFromMediaUrl?.(item.gifCover||'')||'',(url,media)=>{item.gifCover=url;item.gifCoverCloudPath=media?.cloudPath||'';window.renderMicroPreviews?.();},()=>window.openCropModal(index));
+            window.openGifCoverPicker(src,item.cloudPath||'',item.gifCoverCloudPath||window.cloudPathFromMediaUrl?.(item.gifCover||'')||'',(url,media)=>{item.gifCover=url;item.gifCoverCloudPath=media?.cloudPath||'';item.gifDurationMs=Math.max(300,Number(media?.gifDurationMs)||0)||item.gifDurationMs||0;window.renderMicroPreviews?.();},()=>window.openCropModal(index));
         };
         window.deepEditGifCover=function(item){
-            if(!item)return;window.openGifCoverPicker(item.src,item.cloudPath||'',item.gifCoverCloudPath||window.cloudPathFromMediaUrl?.(item.gifCover||'')||'',(url,media)=>{deepPushUndo?.();item.gifCover=url;item.gifCoverCloudPath=media?.cloudPath||'';window.renderDeepCanvas?.();});
+            if(!item)return;window.openGifCoverPicker(item.src,item.cloudPath||'',item.gifCoverCloudPath||window.cloudPathFromMediaUrl?.(item.gifCover||'')||'',(url,media)=>{deepPushUndo?.();item.gifCover=url;item.gifCoverCloudPath=media?.cloudPath||'';item.gifDurationMs=Math.max(300,Number(media?.gifDurationMs)||0)||item.gifDurationMs||0;window.renderDeepCanvas?.();});
         };
 
         window.renderMicroPreviews = function() {
