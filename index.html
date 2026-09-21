@@ -3093,7 +3093,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const data=await timelineApiPost('createGifReadTicket',{cloudPath:resolved},{timeoutMs:15000});
             if(!data?.ticket) throw new Error(data?.message||'GIF_READ_TICKET_EMPTY');
             const qs=new URLSearchParams({room:window.currentRoomId||'default',cloudPath:resolved,ticket:String(data.ticket)});
-            const gifUrl=TIMELINE_API_BASE+'/gif-source?'+qs.toString()+'&client=v153&_='+Date.now();
+            const gifUrl=TIMELINE_API_BASE+'/gif-source?'+qs.toString()+'&client=v154&_='+Date.now();
             return {url:gifUrl,options:{cache:'no-store',headers:{'Cache-Control':'no-cache'}},cloudPath:resolved};
         };
 
@@ -3110,7 +3110,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if(!file) throw new Error('NO_FILE');
             if(!window.hasTimelineEditToken?.()) throw Object.assign(new Error('请先解锁编辑模式再上传大文件'),{code:'EDIT_AUTH_REQUIRED'});
             window._cloudUploadNotice?.(`正在准备上传 ${file.name||'文件'}…`);
-            const meta=await timelineApiPost('getMediaUploadMetadata',{fileName:file.name||'file',mime:file.type||'application/octet-stream',size:file.size,purpose:String(options?.purpose||'')},{auth:'edit',timeoutMs:25000});
+            const meta=await timelineApiPost('getMediaUploadMetadata',{fileName:file.name||'file',mime:file.type||'application/octet-stream',size:file.size,purpose:String(options?.purpose||''),replaceCloudPath:String(options?.replaceCloudPath||'')},{auth:'edit',timeoutMs:25000});
             const up=meta?.upload||{};
             if(!up.url||!up.authorization||!up.token||!up.cosFileID||!meta.cloudPath) throw new Error('上传凭证不完整');
             const folder=meta.mediaFolder||String(meta.cloudPath).split('/')[0]||'云存储';
@@ -3149,14 +3149,14 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             setTimeout(()=>window._cloudUploadNotice?.('',false),900);
             return {url,cloudPath:meta.cloudPath,mediaFolder:folder,fileID:meta.fileID||'',mime:file.type||'',name:file.name||''};
         };
-        window.uploadCoverBlobToCloudBase = async function(blob, prefix='cover'){
+        window.uploadCoverBlobToCloudBase = async function(blob, prefix='cover', replaceCloudPath=''){
             if(!blob) throw new Error('COVER_BLOB_EMPTY');
             const file=new File([blob],`${prefix}_${Date.now()}.jpg`,{type:'image/jpeg'});
-            return await window.uploadLargeMediaToCloudBase(file,{purpose:'cover'});
+            return await window.uploadLargeMediaToCloudBase(file,{purpose:'cover',replaceCloudPath});
         };
-        window.canvasToCloudCover = async function(canvas,prefix='cover',quality=.84){
+        window.canvasToCloudCover = async function(canvas,prefix='cover',quality=.84,replaceCloudPath=''){
             const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('封面生成失败')),'image/jpeg',quality));
-            return await window.uploadCoverBlobToCloudBase(blob,prefix);
+            return await window.uploadCoverBlobToCloudBase(blob,prefix,replaceCloudPath);
         };
 
         window.localOrCloudMediaUrl = async function(file,{compressStaticImage=false}={}){
@@ -8813,7 +8813,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         c.width=Math.max(1,Math.round(media.videoWidth*sc));
                         c.height=Math.max(1,Math.round(media.videoHeight*sc));
                         c.getContext('2d').drawImage(media,0,0,c.width,c.height);
-                        const uploaded=await window.canvasToCloudCover(c,'video_cover',.84);
+                        const uploaded=await window.canvasToCloudCover(c,'video_cover',.84,it.coverCloudPath||'');
                         window.deepPushUndo?.();
                         it.cover=uploaded.url; it.coverCloudPath=uploaded.cloudPath||'';
                         window.renderDeepCanvas();
@@ -10854,10 +10854,10 @@ viewer.style.visibility='';
                 const ctx=canvas.getContext('2d',{alpha:false});
                 if(!ctx) throw new Error('capture_canvas_context_failed');
                 ctx.drawImage(capturePlayer,0,0,canvas.width,canvas.height);
-                const uploadedCover=await window.canvasToCloudCover(canvas,'video_cover',0.84);
-                if(!uploadedCover?.url) throw new Error('capture_cover_upload_failed');
                 const target=window.editingVideos[activeVideoCropIndex];
                 if(!target) throw new Error('capture_target_missing');
+                const uploadedCover=await window.canvasToCloudCover(canvas,'video_cover',0.84,target.coverCloudPath||'');
+                if(!uploadedCover?.url) throw new Error('capture_cover_upload_failed');
                 target.cover=uploadedCover.url;
                 target.coverCloudPath=uploadedCover.cloudPath||'';
                 target.previewCover=uploadedCover.url;
@@ -11585,7 +11585,7 @@ viewer.style.visibility='';
             const cover=img.dataset.gifCover||''; if(!cover)return;
             if(img.src!==cover)img.src=cover;
         };
-        window.openGifCoverPicker=async function(src,cloudPath,onSaved,onCrop){
+        window.openGifCoverPicker=async function(src,cloudPath,coverCloudPath,onSaved,onCrop){
             src=String(src||''); if(!src)return;
             let modal=document.getElementById('gifCoverPickerModal');
             if(!modal){modal=document.createElement('div');modal.id='gifCoverPickerModal';modal.className='fixed inset-0 z-[490] hidden bg-slate-950/90 flex items-center justify-center p-3 sm:p-6';document.body.appendChild(modal);}
@@ -11615,7 +11615,7 @@ viewer.style.visibility='';
                 // v152: assemble GIF strictly from verified Content-Range boundaries. Do not infer the next
                 // offset from Content-Length/body length: gateways can transform/truncate responses.
                 // Keep each body comfortably below SCF's response ceiling.
-                const chunkSize=1024*1024;
+                const chunkSize=4*1024*1024;
                 const parts=[];
                 let total=0,start=0;
                 while(true){
@@ -11635,14 +11635,7 @@ viewer.style.visibility='';
                         if(actualEnd+1>=total)break;
                         start=actualEnd+1;
                     }else{
-                        // v153 compatibility: some gateways hide Content-Range from browser JS even
-                        // though DevTools can display it. Continue by the actual body size; a short
-                        // chunk marks EOF. v139 exposes Content-Range, so this is only a fallback.
-                        if(!part.byteLength)throw new Error('GIF分段返回了空数据');
-                        const actualEnd=start+part.byteLength-1;
-                        parts.push({start,end:actualEnd,data:part});
-                        if(part.byteLength<chunkSize){total=actualEnd+1;break;}
-                        start=actualEnd+1;
+                        throw new Error('GIF分段响应缺少有效 Content-Range');
                     }
                 }
                 const merged=new Uint8Array(total);
@@ -11657,14 +11650,14 @@ viewer.style.visibility='';
                 if(closed)return;range.max=String(frameCount-1);ui.classList.remove('hidden');status.classList.add('hidden');await drawFrame(0);
                 range.oninput=()=>{stopPlay();drawFrame(Number(range.value));};modal.querySelector('[data-gif-prev]').onclick=()=>{stopPlay();drawFrame((current-1+frameCount)%frameCount);};modal.querySelector('[data-gif-next]').onclick=()=>{stopPlay();drawFrame((current+1)%frameCount);};playBtn.onclick=()=>{if(playing){stopPlay();return;}playing=true;playBtn.innerHTML='<i class="fa-solid fa-pause mr-1"></i>暂停';scheduleNext();};
             }catch(err){console.warn('逐帧 GIF 截选不可用，回退到普通播放模式:',err);status.textContent='逐帧时间轴暂不可用：'+String(err?.message||err)+'。仍可播放到目标画面后设为封面。';img.classList.remove('hidden');canvas.classList.add('hidden');ui.classList.remove('hidden');ui.querySelectorAll('input,button').forEach(el=>el.disabled=true);}
-            modal.querySelector('[data-gif-cover-save]').onclick=async()=>{const btn=modal.querySelector('[data-gif-cover-save]');btn.disabled=true;btn.textContent='正在保存…';try{let source=canvas.classList.contains('hidden')?img:canvas,w=source===img?img.naturalWidth:canvas.width,h=source===img?img.naturalHeight:canvas.height;if(!w||!h)throw new Error('动图尚未加载完成');const max=1280,scale=Math.min(1,max/w,max/h),c=document.createElement('canvas');c.width=Math.max(1,Math.round(w*scale));c.height=Math.max(1,Math.round(h*scale));c.getContext('2d').drawImage(source,0,0,c.width,c.height);const blob=await new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(new Error('封面生成失败')),'image/jpeg',.86));const file=new File([blob],`gif_cover_${Date.now()}.jpg`,{type:'image/jpeg'});const media=await window.uploadLargeMediaToCloudBase(file,{purpose:'cover'});await onSaved?.(media.url,media,current);close();window.showToast?.('动图封面已保存','success');}catch(err){window.showToast?.('动图封面截取失败：'+(err?.message||err),'error');btn.disabled=false;btn.textContent='设为封面';}};
+            modal.querySelector('[data-gif-cover-save]').onclick=async()=>{const btn=modal.querySelector('[data-gif-cover-save]');btn.disabled=true;btn.textContent='正在保存…';try{let source=canvas.classList.contains('hidden')?img:canvas,w=source===img?img.naturalWidth:canvas.width,h=source===img?img.naturalHeight:canvas.height;if(!w||!h)throw new Error('动图尚未加载完成');const max=1280,scale=Math.min(1,max/w,max/h),c=document.createElement('canvas');c.width=Math.max(1,Math.round(w*scale));c.height=Math.max(1,Math.round(h*scale));c.getContext('2d').drawImage(source,0,0,c.width,c.height);const blob=await new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(new Error('封面生成失败')),'image/jpeg',.86));const file=new File([blob],`gif_cover_${Date.now()}.jpg`,{type:'image/jpeg'});const media=await window.uploadLargeMediaToCloudBase(file,{purpose:'cover',replaceCloudPath:coverCloudPath||''});await onSaved?.(media.url,media,current);close();window.showToast?.('动图封面已保存','success');}catch(err){window.showToast?.('动图封面截取失败：'+(err?.message||err),'error');btn.disabled=false;btn.textContent='设为封面';}};
         };
         window.editGifCover=function(index){
             const item=window.editingImageFiles?.[index];if(!item)return;const src=item.originalFull||item.original||item.outer||'';
-            window.openGifCoverPicker(src,item.cloudPath||'',(url,media)=>{item.gifCover=url;item.gifCoverCloudPath=media?.cloudPath||'';window.renderMicroPreviews?.();},()=>window.openCropModal(index));
+            window.openGifCoverPicker(src,item.cloudPath||'',item.gifCoverCloudPath||'',(url,media)=>{item.gifCover=url;item.gifCoverCloudPath=media?.cloudPath||'';window.renderMicroPreviews?.();},()=>window.openCropModal(index));
         };
         window.deepEditGifCover=function(item){
-            if(!item)return;window.openGifCoverPicker(item.src,item.cloudPath||'',(url,media)=>{deepPushUndo?.();item.gifCover=url;item.gifCoverCloudPath=media?.cloudPath||'';window.renderDeepCanvas?.();});
+            if(!item)return;window.openGifCoverPicker(item.src,item.cloudPath||'',item.gifCoverCloudPath||'',(url,media)=>{deepPushUndo?.();item.gifCover=url;item.gifCoverCloudPath=media?.cloudPath||'';window.renderDeepCanvas?.();});
         };
 
         window.renderMicroPreviews = function() {
