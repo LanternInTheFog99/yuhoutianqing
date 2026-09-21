@@ -2652,14 +2652,14 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     return true;
                 };
 
-                const scheduleHold = (gen, holdSec, after) => {
+                const scheduleHold = (gen, holdSec, after, currentItem) => {
                     if (!after || !isStillRunning() || gen !== generation) return;
                     const ms = Math.max(50, Math.round(holdSec * 1000));
                     const nextItem = media.length > 1 ? media[(idx + 1) % media.length] : media[0];
                     if (nextItem) preloadNextItem(nextItem);
                     timers.push(setTimeout(async () => {
                         if (!isStillRunning() || gen !== generation) return;
-                        await fadeIntoNextCover(nextItem, gen, item);
+                        await fadeIntoNextCover(nextItem, gen, currentItem);
                         if (!isStillRunning() || gen !== generation) return;
                         after();
                     }, ms));
@@ -2942,7 +2942,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     // GIF 从真正显示出来的这一刻才开始计时；封面展示和云端解析耗时不会再占用播放时长。
                     const holdSec = animatedHoldSec != null ? animatedHoldSec : await resolveImageHoldSec(item);
                     if (!isStillRunning() || gen !== generation || holdSec == null) return;
-                    scheduleHold(gen, holdSec, after);
+                    scheduleHold(gen, holdSec, after, item);
                 };
 
                 const next = () => {
