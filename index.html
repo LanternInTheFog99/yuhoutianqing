@@ -2673,7 +2673,17 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         if (!isStillRunning() || gen !== generation) return;
                         await fadeIntoNextCover(nextItem, gen, currentItem);
                         if (!isStillRunning() || gen !== generation) return;
-                        after();
+                        // 转场视觉结束后，下一媒体真正接管前，用无动画黑层封住 1~2 帧交接缝隙。
+                        // 这不是第二次渐入渐出，只防止上一媒体在 after() 前后重新露出。
+                        const handoffGuard = document.createElement('div');
+                        handoffGuard.className = 'absolute inset-0 pointer-events-none preview-handoff-guard';
+                        handoffGuard.dataset.previewTransitionOverlay = '1';
+                        Object.assign(handoffGuard.style, {zIndex:'10',background:'#000',opacity:'1',transition:'none'});
+                        stage.appendChild(handoffGuard);
+                                                after();
+                        requestAnimationFrame(() => requestAnimationFrame(() => {
+                            try { handoffGuard.remove(); } catch (_) {}
+                        }));
                     }, ms));
                 };
 
@@ -2889,9 +2899,19 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                             const nextItem = media.length > 1 ? media[(idx + 1) % media.length] : media[0];
                             await fadeIntoNextCover(nextItem, gen, item);
                             if (!isStillRunning() || gen !== generation) return;
+                            // 转场视觉结束后，下一媒体真正接管前，用无动画黑层封住 1~2 帧交接缝隙。
+                            // 这不是第二次渐入渐出，只防止上一媒体在 after() 前后重新露出。
+                            const handoffGuard = document.createElement('div');
+                            handoffGuard.className = 'absolute inset-0 pointer-events-none preview-handoff-guard';
+                            handoffGuard.dataset.previewTransitionOverlay = '1';
+                            Object.assign(handoffGuard.style, {zIndex:'10',background:'#000',opacity:'1',transition:'none'});
+                            stage.appendChild(handoffGuard);
                             img.dataset.previewFrozen = '0';
                             delete img.dataset.previewFrozenSource;
-                            after();
+                                                        after();
+                            requestAnimationFrame(() => requestAnimationFrame(() => {
+                                try { handoffGuard.remove(); } catch (_) {}
+                            }));
                         } else clearVideo();
                     }, playMs));
                 };
