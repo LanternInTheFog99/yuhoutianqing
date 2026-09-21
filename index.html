@@ -2543,7 +2543,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 // 媒体 A → 媒体 B：黑场本身就是 B 的加载窗口。
                 // 如果 B 能在渐暗/短黑场内准备好，就直接从黑场进入 B 播放，不再额外展示封面；
                 // 只有 B 仍未就绪时，才在黑场后落到 B 封面继续等待。
-                const fadeIntoNextCover = async (nextItem, gen, currentItem = null) => {
+                const fadeIntoNextCover = async (nextItem, gen, currentItem = null, switchAtBlack = null) => {
                     if (!nextItem || !isStillRunning() || gen !== generation) return false;
                     const involvesPlainImage = isPlainPreviewImageItem(currentItem) || isPlainPreviewImageItem(nextItem);
                     // 只要切换涉及普通图片，沿用原来的较短节奏；
@@ -2600,6 +2600,13 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     // GIF 的循环边界继续由既有 300ms 回收 + 黑层遮挡处理，避免破坏 after() 的媒体推进。
                     if (currentItem?.type === 'video') {
                         try { video.pause(); } catch (_) {}
+                    }
+
+                    // 真正的媒体索引切换必须发生在 100% 全黑这一刻。
+                    // 以前是黑层已经退完以后才 after()/next()，所以旧媒体必然有机会重新露出一帧。
+                    if (typeof switchAtBlack === 'function') {
+                        switchAtBlack();
+                        switchAtBlack = null;
                     }
 
                     // 全黑点立即把下一媒体的封面/静态兜底放到底层。
@@ -2671,19 +2678,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     if (nextItem) preloadNextItem(nextItem);
                     timers.push(setTimeout(async () => {
                         if (!isStillRunning() || gen !== generation) return;
-                        await fadeIntoNextCover(nextItem, gen, currentItem);
-                        if (!isStillRunning() || gen !== generation) return;
-                        // 转场视觉结束后，下一媒体真正接管前，用无动画黑层封住 1~2 帧交接缝隙。
-                        // 这不是第二次渐入渐出，只防止上一媒体在 after() 前后重新露出。
-                        const handoffGuard = document.createElement('div');
-                        handoffGuard.className = 'absolute inset-0 pointer-events-none preview-handoff-guard';
-                        handoffGuard.dataset.previewTransitionOverlay = '1';
-                        Object.assign(handoffGuard.style, {zIndex:'10',background:'#000',opacity:'1',transition:'none'});
-                        stage.appendChild(handoffGuard);
-                                                after();
-                        requestAnimationFrame(() => requestAnimationFrame(() => {
-                            try { handoffGuard.remove(); } catch (_) {}
-                        }));
+                        await fadeIntoNextCover(nextItem, gen, currentItem, after);
                     }, ms));
                 };
 
