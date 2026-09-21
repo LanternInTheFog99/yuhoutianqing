@@ -2366,6 +2366,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const PRELOAD_WAIT_MS = 60;
             const BLACK_FADE_MS = 150;
             const BLACK_HOLD_MS = 80;
+            const MEDIA_COVER_HOLD_MS = calm ? 900 : 700;
 
             const isAnimatedImageItem = (item) => {
                 if (!item || item.type !== 'image') return false;
@@ -2640,6 +2641,16 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         if (after) after();
                         return;
                     }
+                    // 时间线视频先展示封面，再开始播放。
+                    if(item.cover){
+                        clearVideo();
+                        img.classList.remove('hidden');
+                        img.style.opacity='1';
+                        img.src=item.cover;
+                        try { window.applyPreviewImageStyle(img, item); } catch (_) {}
+                        await delayMs(MEDIA_COVER_HOLD_MS);
+                        if (!isStillRunning() || gen !== generation) return;
+                    }
                     if (useBlack) {
                         await softBlackCover();
                         if (!isStillRunning() || gen !== generation) return;
@@ -2694,6 +2705,17 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     if (item.type === 'video' && item.src) {
                         await playVideoThen(item, after, gen, useBlack);
                         return;
+                    }
+
+                    // 时间线 GIF 也先展示静态封面，停留后再播放动画。
+                    if(isAnimatedImageItem(item) && item.cover && item.cover !== item.src){
+                        clearVideo();
+                        img.classList.remove('hidden');
+                        img.style.opacity='1';
+                        img.src=item.cover;
+                        try { window.applyPreviewImageStyle(img, item); } catch (_) {}
+                        await delayMs(MEDIA_COVER_HOLD_MS);
+                        if (!isStillRunning() || gen !== generation) return;
                     }
 
                     if (useBlack) {
@@ -11618,13 +11640,14 @@ viewer.style.visibility='';
             const cover=img.dataset.gifCover||''; if(!cover)return;
             if(img.src!==cover)img.src=cover;
         };
-        // v164：详情 GIF 使用独立覆盖层淡入淡出；深入描述 GIF 封面截选并入双击截选界面。
+        // v165：详情 GIF 延长封面停留；时间线 GIF/视频统一先展示封面再播放。
         window.initDetailGifSequence=function(viewer){
             viewer?._detailGifSequenceCleanup?.();
             if(!viewer)return;
             const gifs=[...viewer.querySelectorAll('[data-detail-image][data-gif-src][data-gif-cover]')];
             if(!gifs.length)return;
             let index=0,timer=0,paused=false,disposed=false,activeLayer=null;
+            const DETAIL_COVER_HOLD_MS=900;
             let playToken=0;
             const stopTimer=()=>{if(timer){clearTimeout(timer);timer=0;}};
             const removeActiveLayer=()=>{if(activeLayer){try{activeLayer.remove();}catch(_){}activeLayer=null;}};
@@ -11646,10 +11669,9 @@ viewer.style.visibility='';
                 layer.removeAttribute('id');
                 [...layer.attributes].forEach(a=>{if(a.name.startsWith('data-'))layer.removeAttribute(a.name);});
                 layer.alt=''; layer.draggable=false;
-                Object.assign(layer.style,{position:'absolute',inset:'0',width:'100%',height:'100%',zIndex:'2',pointerEvents:'none',opacity:'0',transition:'opacity 180ms ease'});
+                Object.assign(layer.style,{position:'absolute',inset:'0',width:'100%',height:'100%',zIndex:'2',pointerEvents:'none',opacity:'0',transition:'opacity 240ms ease'});
                 const hostPos=getComputedStyle(host).position;
                 if(hostPos==='static')host.style.position='relative';
-                activeLayer=layer; host.appendChild(layer);
                 const finish=()=>{
                     if(token!==playToken||disposed||paused)return;
                     // 先淡出 GIF 覆盖层，让底下已经存在的静态封面自然显露；
@@ -11672,10 +11694,15 @@ viewer.style.visibility='';
                     removeActiveLayer();
                     timer=setTimeout(()=>{if(token===playToken&&!disposed&&!paused){index=(index+1)%gifs.length;playCurrent();}},1200);
                 };
-                layer.addEventListener('load',onLoad,{once:true});
-                layer.addEventListener('error',onError,{once:true});
-                layer.src=src;
-                if(layer.complete&&layer.naturalWidth>0)queueMicrotask(onLoad);
+                // 每轮先让静态封面稳定显示一小段时间，再开始加载/显示 GIF，避免封面只是一闪而过。
+                timer=setTimeout(()=>{
+                    if(token!==playToken||disposed||paused)return;
+                    activeLayer=layer; host.appendChild(layer);
+                    layer.addEventListener('load',onLoad,{once:true});
+                    layer.addEventListener('error',onError,{once:true});
+                    layer.src=src;
+                    if(layer.complete&&layer.naturalWidth>0)queueMicrotask(onLoad);
+                },DETAIL_COVER_HOLD_MS);
             };
             const pause=()=>{paused=true;playToken++;stopTimer();showCovers();};
             const resume=()=>{if(disposed)return;paused=false;playCurrent();};
