@@ -3518,6 +3518,11 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     if (img.collection && img.collection !== full && img.collection !== out.outer && img.collection !== out.inner) out.collection = img.collection;
                     if (img.crop) out.crop = { ...img.crop, mediaId: String(img.mediaId || '') };
                     if (img.isAnimated) out.isAnimated = true;
+                    if (img.cloudPath) out.cloudPath = String(img.cloudPath);
+                    if (img.gifCover) out.gifCover = String(img.gifCover);
+                    if (img.gifCoverCloudPath) out.gifCoverCloudPath = String(img.gifCoverCloudPath);
+                    if (Number(img.gifDurationMs) > 0) out.gifDurationMs = Number(img.gifDurationMs);
+                    if (img.gifDurationSource) out.gifDurationSource = String(img.gifDurationSource);
                     if (img.deepDescription) out.deepDescription = vCloneDeepDescription(img.deepDescription);
                     return out;
                 });
@@ -3529,6 +3534,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         mediaId: v.mediaId ? String(v.mediaId) : '',
                         url: v.url || '',
                         cover: v.cover || '',
+                        coverCloudPath: v.coverCloudPath || '',
                         mime: v.mime || '',
                         name: v.name || '',
                         title: v.title || '',
@@ -3554,6 +3560,11 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         if (img?.collection && img.collection !== full && img.collection !== out.outer && img.collection !== out.inner) out.collection = img.collection;
                         if (img?.crop) out.crop = { ...img.crop, mediaId: String(img.mediaId || '') };
                         if (img?.isAnimated) out.isAnimated = true;
+                        if (img?.cloudPath) out.cloudPath = String(img.cloudPath);
+                        if (img?.gifCover) out.gifCover = String(img.gifCover);
+                        if (img?.gifCoverCloudPath) out.gifCoverCloudPath = String(img.gifCoverCloudPath);
+                        if (Number(img?.gifDurationMs) > 0) out.gifDurationMs = Number(img.gifDurationMs);
+                        if (img?.gifDurationSource) out.gifDurationSource = String(img.gifDurationSource);
                         if (img?.deepDescription) out.deepDescription = vCloneDeepDescription(img.deepDescription);
                         return out;
                     }) : [],
@@ -3563,6 +3574,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                             mediaId: v?.mediaId ? String(v.mediaId) : '',
                             url: v?.url || '',
                             cover: v?.cover || '',
+                            coverCloudPath: v?.coverCloudPath || '',
                             mime: v?.mime || '',
                             name: v?.name || '',
                             title: v?.title || '',
@@ -11601,43 +11613,52 @@ viewer.style.visibility='';
             if(!viewer)return;
             const gifs=[...viewer.querySelectorAll('[data-detail-image][data-gif-src][data-gif-cover]')];
             if(!gifs.length)return;
-            let index=0,timer=0,paused=false,disposed=false;
-            const stopTimer=()=>{if(timer){clearTimeout(timer);timer=0;}};
-            const showCovers=()=>gifs.forEach(img=>window.gifPreviewStop(img));
+            let index=0,timer=0,paused=false,disposed=false,activeLayer=null;
             let playToken=0;
+            const stopTimer=()=>{if(timer){clearTimeout(timer);timer=0;}};
+            const removeActiveLayer=()=>{if(activeLayer){try{activeLayer.remove();}catch(_){}activeLayer=null;}};
+            const showCovers=()=>{removeActiveLayer();gifs.forEach(img=>window.gifPreviewStop(img));};
             const playCurrent=()=>{
                 stopTimer();showCovers();
                 const token=++playToken;
                 if(disposed||paused||viewer.classList.contains('hidden'))return;
-                const img=gifs[index%gifs.length];
-                const src=img.dataset.gifSrc||'';
+                const coverImg=gifs[index%gifs.length];
+                const src=coverImg.dataset.gifSrc||'';
                 if(!src)return;
-                const duration=Math.max(600,Number(img.dataset.gifDuration)||5000);
-                // 浏览器在 GIF 恰好播放到循环终点时，可能先绘制下一轮的首帧，再执行 JS 定时器。
-                // 提前一个很短的安全量收回静态封面，避免“末尾闪一下首帧”的视觉跳变；
-                // 这个安全量只用于详情页切换，不修改保存的真实 GIF 时长，也不影响时间线预览。
-                const cycleDelay=Math.max(500,duration-Math.min(70,Math.max(24,duration*0.008)));
-                // 大 GIF 从静态封面切回原图时，下载/解码本身可能耗时数秒。
-                // 必须等 GIF 真正 load 完成后再开始计算“一轮播放时长”，否则加载时间会吃掉播放时间。
-                const startCycleTimer=()=>{
-                    if(token!==playToken||disposed||paused||viewer.classList.contains('hidden'))return;
-                    timer=setTimeout(()=>{
-                        if(token!==playToken||disposed||paused)return;
-                        index=(index+1)%gifs.length;
-                        playCurrent();
-                    },cycleDelay);
+                const duration=Math.max(600,Number(coverImg.dataset.gifDuration)||5000);
+                const host=coverImg.parentElement;
+                if(!host)return;
+                // v163：静态封面节点始终留在底层，GIF 使用独立覆盖层播放。
+                // 播放结束时直接移除覆盖层即可露出封面，不再把同一个 img 的 src 从 GIF 切回 JPG，
+                // 因而不会在 GIF 循环边界闪出下一轮首帧或其他解码帧。
+                const layer=coverImg.cloneNode(false);
+                layer.removeAttribute('id');
+                [...layer.attributes].forEach(a=>{if(a.name.startsWith('data-'))layer.removeAttribute(a.name);});
+                layer.alt=''; layer.draggable=false;
+                Object.assign(layer.style,{position:'absolute',inset:'0',width:'100%',height:'100%',zIndex:'2',pointerEvents:'none',opacity:'0'});
+                const hostPos=getComputedStyle(host).position;
+                if(hostPos==='static')host.style.position='relative';
+                activeLayer=layer; host.appendChild(layer);
+                const finish=()=>{
+                    if(token!==playToken||disposed||paused)return;
+                    removeActiveLayer();
+                    index=(index+1)%gifs.length;
+                    playCurrent();
                 };
-                const onLoad=()=>{img.removeEventListener('error',onError);startCycleTimer();};
-                const onError=()=>{img.removeEventListener('load',onLoad);if(token===playToken&&!disposed&&!paused){timer=setTimeout(()=>{index=(index+1)%gifs.length;playCurrent();},1200);}};
-                img.addEventListener('load',onLoad,{once:true});
-                img.addEventListener('error',onError,{once:true});
-                img.src=src;
-                // 缓存命中时部分浏览器不会再次可靠触发 load。
-                if(img.complete&&img.naturalWidth>0){
-                    img.removeEventListener('load',onLoad);
-                    img.removeEventListener('error',onError);
-                    queueMicrotask(startCycleTimer);
-                }
+                const onLoad=()=>{
+                    if(token!==playToken||disposed||paused){removeActiveLayer();return;}
+                    layer.style.opacity='1';
+                    timer=setTimeout(finish,duration);
+                };
+                const onError=()=>{
+                    if(token!==playToken||disposed||paused)return;
+                    removeActiveLayer();
+                    timer=setTimeout(()=>{if(token===playToken&&!disposed&&!paused){index=(index+1)%gifs.length;playCurrent();}},1200);
+                };
+                layer.addEventListener('load',onLoad,{once:true});
+                layer.addEventListener('error',onError,{once:true});
+                layer.src=src;
+                if(layer.complete&&layer.naturalWidth>0)queueMicrotask(onLoad);
             };
             const pause=()=>{paused=true;playToken++;stopTimer();showCovers();};
             const resume=()=>{if(disposed)return;paused=false;playCurrent();};
@@ -11646,7 +11667,7 @@ viewer.style.visibility='';
             viewer._detailGifSequenceCleanup=()=>{disposed=true;playToken++;stopTimer();showCovers();viewer._detailGifSequenceCleanup=null;};
             playCurrent();
         };
-        window.openGifCoverPicker=async function(src,cloudPath,coverCloudPath,onSaved,onCrop){
+                window.openGifCoverPicker=async function(src,cloudPath,coverCloudPath,onSaved,onCrop){
             src=String(src||''); if(!src)return;
             let modal=document.getElementById('gifCoverPickerModal');
             if(!modal){modal=document.createElement('div');modal.id='gifCoverPickerModal';modal.className='fixed inset-0 z-[490] hidden bg-slate-950/90 flex items-center justify-center p-3 sm:p-6';document.body.appendChild(modal);}
