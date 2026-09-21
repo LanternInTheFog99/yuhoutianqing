@@ -2441,6 +2441,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 });
 
                 const clearVideo = () => {
+                    img.style.visibility='visible';
                     try { video.pause(); } catch (_) {}
                     video.onloadeddata = null;
                     video.oncanplay = null;
@@ -2786,8 +2787,15 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     delete img.dataset.previewNextPreloaded;
                     if(!directFromBlack && item.cover && !transitionVideoReady) await ensureCoverReady(item);
                     const hasCover = (directFromBlack || transitionVideoReady) ? false : showItemCover(item);
-                    // 如果视频已经在上一段固定转场期间预加载完成，就不再额外强制停 500ms 封面；
-                    // 封面只作为主 video 元素完成 canplay 前的瞬时兜底。
+                    // 视频→视频若已在共享黑场期间 ready，只保留一次视觉交接。
+                    // 先彻底隐藏旧的图片/poster 层，避免黑场退完后“旧封面→video”逻辑再闪一次。
+                    if (transitionVideoReady) {
+                        disableSoftFade(img);
+                        img.style.transition='none';
+                        img.style.opacity='0';
+                        img.style.visibility='hidden';
+                        img.classList.add('hidden');
+                    }
                     video.src = item.src;
                     try { video.currentTime = 0; } catch (_) {}
                     const readyPromise = new Promise((resolve) => {
@@ -2813,14 +2821,19 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
                     // 封面一直保留到视频真正显示的这一刻，因此加载慢也不会露出黑屏。
                     // 封面 → 视频属于同一媒体内部的起播，不做转场；视频可播后直接接管画面。
-                    video.classList.remove('hidden');
+                    // 这里不再做任何第二层淡入/淡出：共享的媒体切换黑场已经完成视觉过渡。
+                    // video 和旧 poster 的显隐一次性提交，避免两个切换逻辑叠加造成退黑后闪一下。
                     disableSoftFade(video);
                     video.style.transition='none';
                     video.style.opacity='1';
+                    video.style.visibility='visible';
+                    video.classList.remove('hidden');
+                    img.style.transition='none';
+                    img.style.opacity='0';
+                    img.style.visibility='hidden';
+                    img.classList.add('hidden');
                     stage.classList.remove('preview-stage-black');
                     video.play().catch(()=>{});
-                    img.style.opacity='0';
-                    img.classList.add('hidden');
                     if (directFromBlack) await revealPendingBlack(item);
 
                     if (media.length > 1) preloadNextItem(media[(idx + 1) % media.length]);
