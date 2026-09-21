@@ -3061,6 +3061,17 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const qs=new URLSearchParams({room:window.currentRoomId||'default',cloudPath:String(cloudPath||''),ticket:String(data.ticket),mode:'stream'});
             return TIMELINE_API_BASE+'/media?'+qs.toString();
         };
+        window.cloudPathFromMediaUrl = function(value){
+            const s=String(value||'');
+            const m=s.match(/(?:^|\/)(gif|video|picture|music|cover)\/([^?#]+)/i);
+            return m ? `${m[1].toLowerCase()}/${decodeURIComponent(m[2])}` : '';
+        };
+        window.getGifDecodeFetchUrl = async function(src){
+            const cloudPath=window.cloudPathFromMediaUrl(src);
+            if(!cloudPath) return src;
+            try{return await window.getCloudMediaCaptureStreamUrl(cloudPath);}catch(_){return src;}
+        };
+
         window._cloudUploadNotice = function(text, show=true){
             let el=document.getElementById('cloudMediaUploadNotice');
             if(!el){
@@ -3070,11 +3081,11 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             }
             el.textContent=text||'正在上传…'; el.style.display=show?'block':'none';
         };
-        window.uploadLargeMediaToCloudBase = async function(file){
+        window.uploadLargeMediaToCloudBase = async function(file, options={}){
             if(!file) throw new Error('NO_FILE');
             if(!window.hasTimelineEditToken?.()) throw Object.assign(new Error('请先解锁编辑模式再上传大文件'),{code:'EDIT_AUTH_REQUIRED'});
             window._cloudUploadNotice?.(`正在准备上传 ${file.name||'文件'}…`);
-            const meta=await timelineApiPost('getMediaUploadMetadata',{fileName:file.name||'file',mime:file.type||'application/octet-stream',size:file.size},{auth:'edit',timeoutMs:25000});
+            const meta=await timelineApiPost('getMediaUploadMetadata',{fileName:file.name||'file',mime:file.type||'application/octet-stream',size:file.size,purpose:String(options?.purpose||'')},{auth:'edit',timeoutMs:25000});
             const up=meta?.upload||{};
             if(!up.url||!up.authorization||!up.token||!up.cosFileID||!meta.cloudPath) throw new Error('上传凭证不完整');
             const folder=meta.mediaFolder||String(meta.cloudPath).split('/')[0]||'云存储';
@@ -3113,6 +3124,16 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             setTimeout(()=>window._cloudUploadNotice?.('',false),900);
             return {url,cloudPath:meta.cloudPath,mediaFolder:folder,fileID:meta.fileID||'',mime:file.type||'',name:file.name||''};
         };
+        window.uploadCoverBlobToCloudBase = async function(blob, prefix='cover'){
+            if(!blob) throw new Error('COVER_BLOB_EMPTY');
+            const file=new File([blob],`${prefix}_${Date.now()}.jpg`,{type:'image/jpeg'});
+            return await window.uploadLargeMediaToCloudBase(file,{purpose:'cover'});
+        };
+        window.canvasToCloudCover = async function(canvas,prefix='cover',quality=.84){
+            const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('封面生成失败')),'image/jpeg',quality));
+            return await window.uploadCoverBlobToCloudBase(blob,prefix);
+        };
+
         window.localOrCloudMediaUrl = async function(file,{compressStaticImage=false}={}){
             if(file.size > window.CLOUD_MEDIA_THRESHOLD){
                 const uploaded=await window.uploadLargeMediaToCloudBase(file);
@@ -8758,22 +8779,24 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 media.addEventListener('pause',syncVideoUI);
                 if(playBtn)playBtn.onclick=()=>{if(media.paused)media.play().catch(()=>{});else media.pause();};
                 if(timeRange)timeRange.oninput=()=>{try{media.currentTime=Math.max(0,Math.min(Number(media.duration)||0,Number(timeRange.value)||0));}catch(_){}syncVideoUI();};
-                if(setCoverBtn)setCoverBtn.onclick=()=>{
+                if(setCoverBtn)setCoverBtn.onclick=async()=>{
                     if(!(media.videoWidth>0&&media.videoHeight>0)){window.showToast?.('视频画面尚未准备好','info');return;}
+                    setCoverBtn.disabled=true;
                     try{
                         const maxW=1280,sc=Math.min(1,maxW/media.videoWidth);
                         const c=document.createElement('canvas');
                         c.width=Math.max(1,Math.round(media.videoWidth*sc));
                         c.height=Math.max(1,Math.round(media.videoHeight*sc));
                         c.getContext('2d').drawImage(media,0,0,c.width,c.height);
+                        const uploaded=await window.canvasToCloudCover(c,'video_cover',.84);
                         window.deepPushUndo?.();
-                        it.cover=c.toDataURL('image/jpeg',.84);
+                        it.cover=uploaded.url; it.coverCloudPath=uploaded.cloudPath||'';
                         window.renderDeepCanvas();
                         window.showToast?.('视频封面已更新','success');
                     }catch(err){
                         console.error('深入描述视频封面截取失败:',err);
-                        window.showToast?.('当前视频无法截取封面，请确认视频允许跨域读取后再试','error');
-                    }
+                        window.showToast?.('当前视频封面保存失败：'+String(err?.message||err),'error');
+                    }finally{setCoverBtn.disabled=false;}
                 };
             }
             const fitFrame=()=>{
@@ -10806,12 +10829,13 @@ viewer.style.visibility='';
                 const ctx=canvas.getContext('2d',{alpha:false});
                 if(!ctx) throw new Error('capture_canvas_context_failed');
                 ctx.drawImage(capturePlayer,0,0,canvas.width,canvas.height);
-                const frameDataUrl=canvas.toDataURL('image/jpeg',0.84);
-                if(!frameDataUrl || !frameDataUrl.startsWith('data:image/') || frameDataUrl.length<100) throw new Error('capture_frame_encode_failed');
+                const uploadedCover=await window.canvasToCloudCover(canvas,'video_cover',0.84);
+                if(!uploadedCover?.url) throw new Error('capture_cover_upload_failed');
                 const target=window.editingVideos[activeVideoCropIndex];
                 if(!target) throw new Error('capture_target_missing');
-                target.cover=frameDataUrl;
-                target.previewCover=frameDataUrl;
+                target.cover=uploadedCover.url;
+                target.coverCloudPath=uploadedCover.cloudPath||'';
+                target.previewCover=uploadedCover.url;
                 window.renderVideoPreviews();
                 window.showToast("截选完成，已应用当前画面","success");
                 window.closeVideoCropModal();
@@ -11561,13 +11585,13 @@ viewer.style.visibility='';
             img.crossOrigin='anonymous';img.src=src;
             try{
                 if(!('ImageDecoder' in window))throw new Error('当前浏览器不支持逐帧解码');
-                const res=await fetch(src,{cache:'force-cache'});if(!res.ok)throw new Error('HTTP '+res.status);const buf=await res.arrayBuffer();
+                const decodeUrl=await window.getGifDecodeFetchUrl(src);const res=await fetch(decodeUrl,{cache:'no-store'});if(!res.ok)throw new Error('HTTP '+res.status);const buf=await res.arrayBuffer();
                 decoder=new ImageDecoder({data:buf,type:'image/gif'});await decoder.tracks.ready;const track=decoder.tracks.selectedTrack;if(!track||!track.frameCount)throw new Error('未读取到动图帧');frameCount=track.frameCount;
                 for(let i=0;i<frameCount;i++){const r=await decoder.decode({frameIndex:i});let d=Number(r.image?.duration)||100000;if(d<10000)d=100000;starts[i]=totalUs;durations[i]=d;totalUs+=d;r.image?.close?.();}
                 if(closed)return;range.max=String(frameCount-1);ui.classList.remove('hidden');status.classList.add('hidden');await drawFrame(0);
                 range.oninput=()=>{stopPlay();drawFrame(Number(range.value));};modal.querySelector('[data-gif-prev]').onclick=()=>{stopPlay();drawFrame((current-1+frameCount)%frameCount);};modal.querySelector('[data-gif-next]').onclick=()=>{stopPlay();drawFrame((current+1)%frameCount);};playBtn.onclick=()=>{if(playing){stopPlay();return;}playing=true;playBtn.innerHTML='<i class="fa-solid fa-pause mr-1"></i>暂停';scheduleNext();};
-            }catch(err){console.warn('逐帧 GIF 截选不可用，回退到普通播放模式:',err);status.textContent='当前浏览器暂不支持逐帧时间轴，可播放到目标画面后直接设为封面。';img.classList.remove('hidden');canvas.classList.add('hidden');}
-            modal.querySelector('[data-gif-cover-save]').onclick=async()=>{const btn=modal.querySelector('[data-gif-cover-save]');btn.disabled=true;btn.textContent='正在保存…';try{let source=canvas.classList.contains('hidden')?img:canvas,w=source===img?img.naturalWidth:canvas.width,h=source===img?img.naturalHeight:canvas.height;if(!w||!h)throw new Error('动图尚未加载完成');const max=1280,scale=Math.min(1,max/w,max/h),c=document.createElement('canvas');c.width=Math.max(1,Math.round(w*scale));c.height=Math.max(1,Math.round(h*scale));c.getContext('2d').drawImage(source,0,0,c.width,c.height);const blob=await new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(new Error('封面生成失败')),'image/jpeg',.86));const file=new File([blob],`gif_cover_${Date.now()}.jpg`,{type:'image/jpeg'});const media=await window.uploadLargeMediaToCloudBase(file);await onSaved?.(media.url,media,current);close();window.showToast?.('动图封面已保存','success');}catch(err){window.showToast?.('动图封面截取失败：'+(err?.message||err),'error');btn.disabled=false;btn.textContent='设为封面';}};
+            }catch(err){console.warn('逐帧 GIF 截选不可用，回退到普通播放模式:',err);status.textContent='逐帧时间轴暂不可用：'+String(err?.message||err)+'。仍可播放到目标画面后设为封面。';img.classList.remove('hidden');canvas.classList.add('hidden');ui.classList.remove('hidden');ui.querySelectorAll('input,button').forEach(el=>el.disabled=true);}
+            modal.querySelector('[data-gif-cover-save]').onclick=async()=>{const btn=modal.querySelector('[data-gif-cover-save]');btn.disabled=true;btn.textContent='正在保存…';try{let source=canvas.classList.contains('hidden')?img:canvas,w=source===img?img.naturalWidth:canvas.width,h=source===img?img.naturalHeight:canvas.height;if(!w||!h)throw new Error('动图尚未加载完成');const max=1280,scale=Math.min(1,max/w,max/h),c=document.createElement('canvas');c.width=Math.max(1,Math.round(w*scale));c.height=Math.max(1,Math.round(h*scale));c.getContext('2d').drawImage(source,0,0,c.width,c.height);const blob=await new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(new Error('封面生成失败')),'image/jpeg',.86));const file=new File([blob],`gif_cover_${Date.now()}.jpg`,{type:'image/jpeg'});const media=await window.uploadLargeMediaToCloudBase(file,{purpose:'cover'});await onSaved?.(media.url,media,current);close();window.showToast?.('动图封面已保存','success');}catch(err){window.showToast?.('动图封面截取失败：'+(err?.message||err),'error');btn.disabled=false;btn.textContent='设为封面';}};
         };
         window.editGifCover=function(index){
             const item=window.editingImageFiles?.[index];if(!item)return;const src=item.originalFull||item.original||item.outer||'';
