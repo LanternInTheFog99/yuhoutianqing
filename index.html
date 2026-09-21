@@ -2548,8 +2548,12 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     const involvesPlainImage = isPlainPreviewImageItem(currentItem) || isPlainPreviewImageItem(nextItem);
                     // 只要切换涉及普通图片，沿用原来的较短节奏；
                     // GIF/视频之间（GIF↔GIF、GIF↔视频、视频↔视频）统一使用较从容的媒体节奏。
-                    const fadeInMs = involvesPlainImage ? 220 : 260;
-                    const fadeOutMs = involvesPlainImage ? 260 : 300;
+                    // 涉及普通图片：恢复此前更短的原始切换节奏。
+                    // 不涉及普通图片（GIF/视频互切）：再稍微放慢一点，形成更完整的媒体切换感。
+                    // 涉及普通图片：恢复到之前原本使用的转场时间，不再额外缩短。
+                    // 不涉及普通图片（GIF/视频互切）：保留 v28 稍长的媒体转场。
+                    const fadeInMs = involvesPlainImage ? 220 : 300;
+                    const fadeOutMs = involvesPlainImage ? 260 : 340;
                     // v19：转场时长必须完全固定。资源加载只决定“退黑后看到媒体还是封面”，
                     // 绝不能延长 100% 黑屏。pendingBlackHandoff 旧路径会让 GIF 在黑场里等待 apply/load，已停用。
                     pendingBlackHandoff = null;
