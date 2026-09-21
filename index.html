@@ -1253,7 +1253,7 @@ html.invalid-room-access [id*="xiaoqinger" i],
 html.invalid-room-access [class*="xiaoqinger" i],
 html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility:hidden !important;opacity:0 !important}
 </style>
-<!-- v145: GIF normal display remains unchanged; only frame decoding uses the dedicated /gif gateway. -->
+<!-- v147: capture-only media gateways are split into /media/video and /media/gif. Normal cloud GIF display still uses its original storage URL. -->
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
 <div id="invalidRoomAccessOverlay" aria-live="assertive" aria-label="此链接无效"><div class="invalid-room-card">此链接无效</div></div>
@@ -3054,13 +3054,13 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.cloudMediaPublicUrl = function(cloudPath){
             return TIMELINE_API_BASE.replace(/\/+$/,'') + '/' + String(cloudPath||'').replace(/^\/+/, '');
         };
-        // Cloud video frame capture uses a short-lived read ticket plus the Range-capable /media route.
+        // Cloud video frame capture uses a short-lived read ticket plus the Range-capable /media/video route.
         // This keeps private storage credentials out of <video> requests and preserves canvas-safe playback.
         window.getCloudMediaCaptureStreamUrl = async function(cloudPath){
             const data=await timelineApiPost('createMediaReadTicket',{cloudPath:String(cloudPath||'')},{auth:'edit',timeoutMs:15000});
             if(!data?.ticket) throw new Error(data?.message||'MEDIA_TICKET_EMPTY');
             const qs=new URLSearchParams({room:window.currentRoomId||'default',cloudPath:String(cloudPath||''),ticket:String(data.ticket),mode:'stream'});
-            return TIMELINE_API_BASE+'/media?'+qs.toString();
+            return TIMELINE_API_BASE+'/media/video?'+qs.toString();
         };
         window.cloudPathFromMediaUrl = function(value){
             const s=String(value||'');
@@ -3075,8 +3075,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const data=await timelineApiPost('createGifReadTicket',{cloudPath:String(cloudPath)},{timeoutMs:15000});
             if(!data?.ticket) throw new Error(data?.message||'GIF_READ_TICKET_EMPTY');
             const qs=new URLSearchParams({room:window.currentRoomId||'default',cloudPath:String(cloudPath),ticket:String(data.ticket)});
-            // v145: /gif is used only by the frame decoder. Normal GIF <img> URLs are never rewritten.
-            const gifUrl=TIMELINE_API_BASE+'/gif?'+qs.toString()+'&client=v145&_='+Date.now();
+            // v147: only the frame picker uses /media/gif. Normal GIF display never uses this gateway.
+            const gifUrl=TIMELINE_API_BASE+'/media/gif?'+qs.toString()+'&client=v147&_='+Date.now();
             return {url:gifUrl,options:{cache:'no-store',headers:{'Cache-Control':'no-cache'}}};
         };
 
