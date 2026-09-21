@@ -11633,7 +11633,7 @@ viewer.style.visibility='';
             </div>`;
             const img=modal.querySelector('[data-gif-cover-img]'),canvas=modal.querySelector('[data-gif-frame-canvas]'),ctx=canvas.getContext('2d');
             const status=modal.querySelector('[data-gif-status]'),ui=modal.querySelector('[data-gif-timeline-ui]'),range=modal.querySelector('[data-gif-range]'),timeEl=modal.querySelector('[data-gif-time]'),frameEl=modal.querySelector('[data-gif-frame-label]'),playBtn=modal.querySelector('[data-gif-play]');
-            let decoder=null,frameCount=0,durations=[],starts=[],totalUs=0,current=0,playing=false,playTimer=null,closed=false,decodeSerial=0;
+            let decoder=null,frameCount=0,durations=[],starts=[],totalUs=0,parsedGifDurationMs=0,current=0,playing=false,playTimer=null,closed=false,decodeSerial=0;
             const fmt=us=>{const sec=Math.max(0,us||0)/1e6,m=Math.floor(sec/60),ss=sec-m*60;return String(m).padStart(2,'0')+':'+ss.toFixed(2).padStart(5,'0');};
             const stopPlay=()=>{playing=false;if(playTimer){clearTimeout(playTimer);playTimer=null;}if(playBtn)playBtn.innerHTML='<i class="fa-solid fa-play mr-1"></i>播放';};
             const close=()=>{closed=true;stopPlay();try{decoder?.close?.();}catch(_){}modal.classList.add('hidden');img.removeAttribute('src');};
@@ -11683,7 +11683,7 @@ viewer.style.visibility='';
                 if(assembled!==total)throw new Error(`GIF读取不完整：应为 ${total} 字节，实际 ${assembled} 字节`);
                 const sig=String.fromCharCode(...merged.subarray(0,6));
                 if(sig!=='GIF87a'&&sig!=='GIF89a')throw new Error('GIF文件头无效');
-                const parsedGifDurationMs=window.parseGifDurationMs?.(merged)||0;
+                parsedGifDurationMs=window.parseGifDurationMs?.(merged)||0;
                 const buf=merged.buffer;
                 decoder=new ImageDecoder({data:buf,type:'image/gif'});await decoder.tracks.ready;const track=decoder.tracks.selectedTrack;if(!track||!track.frameCount)throw new Error('未读取到动图帧');frameCount=track.frameCount;
                 for(let i=0;i<frameCount;i++){const r=await decoder.decode({frameIndex:i});let d=Number(r.image?.duration)||100000;if(d<10000)d=100000;starts[i]=totalUs;durations[i]=d;totalUs+=d;r.image?.close?.();}
