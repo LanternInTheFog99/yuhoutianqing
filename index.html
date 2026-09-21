@@ -11595,6 +11595,7 @@ viewer.style.visibility='';
             const cover=img.dataset.gifCover||''; if(!cover)return;
             if(img.src!==cover)img.src=cover;
         };
+        // v162：详情 GIF 在循环边界前轻微收尾，避免回封面前闪出下一轮首帧。
         window.initDetailGifSequence=function(viewer){
             viewer?._detailGifSequenceCleanup?.();
             if(!viewer)return;
@@ -11612,6 +11613,10 @@ viewer.style.visibility='';
                 const src=img.dataset.gifSrc||'';
                 if(!src)return;
                 const duration=Math.max(600,Number(img.dataset.gifDuration)||5000);
+                // 浏览器在 GIF 恰好播放到循环终点时，可能先绘制下一轮的首帧，再执行 JS 定时器。
+                // 提前一个很短的安全量收回静态封面，避免“末尾闪一下首帧”的视觉跳变；
+                // 这个安全量只用于详情页切换，不修改保存的真实 GIF 时长，也不影响时间线预览。
+                const cycleDelay=Math.max(500,duration-Math.min(70,Math.max(24,duration*0.008)));
                 // 大 GIF 从静态封面切回原图时，下载/解码本身可能耗时数秒。
                 // 必须等 GIF 真正 load 完成后再开始计算“一轮播放时长”，否则加载时间会吃掉播放时间。
                 const startCycleTimer=()=>{
@@ -11620,7 +11625,7 @@ viewer.style.visibility='';
                         if(token!==playToken||disposed||paused)return;
                         index=(index+1)%gifs.length;
                         playCurrent();
-                    },duration);
+                    },cycleDelay);
                 };
                 const onLoad=()=>{img.removeEventListener('error',onError);startCycleTimer();};
                 const onError=()=>{img.removeEventListener('load',onLoad);if(token===playToken&&!disposed&&!paused){timer=setTimeout(()=>{index=(index+1)%gifs.length;playCurrent();},1200);}};
