@@ -2543,7 +2543,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     if (!isStillRunning()) return null;
                     if (Number.isFinite(duration) && duration > 0) {
                         // 提前一点回收，避免浏览器在 GIF 循环边界先露出下一轮的一两帧。
-                        const endGuardSec = calm ? 0.16 : 0.20;
+                        const endGuardSec = calm ? 0.42 : 0.48;
                         return Math.max(0.3, duration - endGuardSec);
                     }
                     return ANIMATED_FALLBACK_SEC;
@@ -11654,7 +11654,7 @@ viewer.style.visibility='';
             if(!gifs.length)return;
             let index=0,timer=0,paused=false,disposed=false,activeGif=null,activeShield=null,playToken=0;
             // 封面更快进入动图；播放结束则略提前回收，避免 GIF 循环边界闪出下一轮的一两帧。
-            const PRE_COVER_MS=900, POST_COVER_MS=850, COVER_FADE_MS=300, GIF_END_GUARD_MS=180;
+            const PRE_COVER_MS=420, POST_COVER_MS=220, COVER_FADE_MS=120, GIF_END_GUARD_MS=520;
             const stopTimer=()=>{if(timer){clearTimeout(timer);timer=0;}};
             const removeNode=n=>{if(n){try{n.remove();}catch(_){}}};
             const clearLayers=()=>{removeNode(activeGif);removeNode(activeShield);activeGif=null;activeShield=null;};
@@ -11683,10 +11683,10 @@ viewer.style.visibility='';
                             const shield=base.cloneNode(false);shield.removeAttribute('id');[...shield.attributes].forEach(a=>{if(a.name.startsWith('data-'))shield.removeAttribute(a.name);});
                             shield.alt='';shield.draggable=false;shield.src=cover;Object.assign(shield.style,{position:'absolute',inset:'0',width:'100%',height:'100%',zIndex:'3',pointerEvents:'none',opacity:'0',transition:`opacity ${COVER_FADE_MS}ms ease`});
                             activeShield=shield;host.appendChild(shield);
-                            const reveal=()=>{requestAnimationFrame(()=>requestAnimationFrame(()=>{if(token===playToken)shield.style.opacity='1';}));timer=setTimeout(()=>{
+                            const reveal=()=>{shield.style.transition='none';shield.style.opacity='1';timer=setTimeout(()=>{
                                 if(token!==playToken||disposed||paused)return;removeNode(gif);activeGif=null;
                                 timer=setTimeout(()=>{if(token!==playToken||disposed||paused)return;removeNode(shield);activeShield=null;nextCycle();},POST_COVER_MS);
-                            },COVER_FADE_MS+40);};
+                            },40);};
                             if(shield.complete&&shield.naturalWidth>0)reveal();else{shield.addEventListener('load',reveal,{once:true});shield.addEventListener('error',reveal,{once:true});}
                         },Math.max(320,duration-GIF_END_GUARD_MS));
                     };
