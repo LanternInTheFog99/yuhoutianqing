@@ -1253,7 +1253,7 @@ html.invalid-room-access [id*="xiaoqinger" i],
 html.invalid-room-access [class*="xiaoqinger" i],
 html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility:hidden !important;opacity:0 !important}
 </style>
-<!-- v140: GIF mode=full now served by backend direct CloudBase download; frontend decoder flow unchanged. -->
+<!-- v142: GIF frame decoding uses a fresh dedicated read ticket and /media?mode=gif. -->
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
 <div id="invalidRoomAccessOverlay" aria-live="assertive" aria-label="此链接无效"><div class="invalid-room-card">此链接无效</div></div>
@@ -3067,15 +3067,15 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const m=s.match(/(?:^|\/)(gif|video|picture|music|cover)\/([^?#]+)/i);
             return m ? `${m[1].toLowerCase()}/${decodeURIComponent(m[2])}` : '';
         };
-        // GIF frame decoding uses fetch(), so it can send the normal editor Authorization header.
-        // Unlike native <video> Range requests, it does not need a short-lived media ticket.
-        window.getGifDecodeFetchRequest = function(src){
+        // GIF frame decoding gets a fresh, path-bound read ticket each time the picker opens.
+        // This is separate from the native-video Range ticket flow and does not depend on an editor token staying alive.
+        window.getGifDecodeFetchRequest = async function(src){
             const cloudPath=window.cloudPathFromMediaUrl(src);
             if(!cloudPath) return {url:src,options:{cache:'no-store'}};
-            const token=window.getTimelineEditToken?.()||'';
-            if(!token) throw new Error('EDIT_AUTH_REQUIRED');
-            const qs=new URLSearchParams({room:window.currentRoomId||'default',cloudPath:String(cloudPath),mode:'full'});
-            return {url:TIMELINE_API_BASE+'/media?'+qs.toString(),options:{cache:'no-store',headers:{Authorization:`Bearer ${token}`}}};
+            const data=await timelineApiPost('createGifReadTicket',{cloudPath:String(cloudPath)},{timeoutMs:15000});
+            if(!data?.ticket) throw new Error(data?.message||'GIF_READ_TICKET_EMPTY');
+            const qs=new URLSearchParams({room:window.currentRoomId||'default',cloudPath:String(cloudPath),ticket:String(data.ticket),mode:'gif'});
+            return {url:TIMELINE_API_BASE+'/media?'+qs.toString(),options:{cache:'no-store'}};
         };
 
         window._cloudUploadNotice = function(text, show=true){
@@ -11591,7 +11591,7 @@ viewer.style.visibility='';
             img.crossOrigin='anonymous';img.src=src;
             try{
                 if(!('ImageDecoder' in window))throw new Error('当前浏览器不支持逐帧解码');
-                const decodeReq=window.getGifDecodeFetchRequest(src);const res=await fetch(decodeReq.url,decodeReq.options);if(!res.ok){let detail='';try{const j=await res.clone().json();detail=j?.message||j?.error||'';}catch(_){}throw new Error('HTTP '+res.status+(detail?'：'+detail:''));}const buf=await res.arrayBuffer();
+                const decodeReq=await window.getGifDecodeFetchRequest(src);let res=await fetch(decodeReq.url,decodeReq.options);if(res.status===401){let body=null;try{body=await res.clone().json();}catch(_){}if(body?.error==='ticket_expired'||body?.error==='unauthorized'){const retryReq=await window.getGifDecodeFetchRequest(src);res=await fetch(retryReq.url,retryReq.options);}}if(!res.ok){let detail='';try{const j=await res.clone().json();detail=j?.message||j?.error||'';}catch(_){}throw new Error('HTTP '+res.status+(detail?'：'+detail:''));}const buf=await res.arrayBuffer();
                 decoder=new ImageDecoder({data:buf,type:'image/gif'});await decoder.tracks.ready;const track=decoder.tracks.selectedTrack;if(!track||!track.frameCount)throw new Error('未读取到动图帧');frameCount=track.frameCount;
                 for(let i=0;i<frameCount;i++){const r=await decoder.decode({frameIndex:i});let d=Number(r.image?.duration)||100000;if(d<10000)d=100000;starts[i]=totalUs;durations[i]=d;totalUs+=d;r.image?.close?.();}
                 if(closed)return;range.max=String(frameCount-1);ui.classList.remove('hidden');status.classList.add('hidden');await drawFrame(0);
