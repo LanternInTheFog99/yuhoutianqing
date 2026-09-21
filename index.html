@@ -3069,7 +3069,12 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.getGifDecodeFetchUrl = async function(src){
             const cloudPath=window.cloudPathFromMediaUrl(src);
             if(!cloudPath) return src;
-            try{return await window.getCloudMediaCaptureStreamUrl(cloudPath);}catch(_){return src;}
+            try{
+                const data=await timelineApiPost('createMediaReadTicket',{cloudPath:String(cloudPath||'')},{auth:'edit',timeoutMs:15000});
+                if(!data?.ticket) throw new Error(data?.message||'MEDIA_TICKET_EMPTY');
+                const qs=new URLSearchParams({room:window.currentRoomId||'default',cloudPath:String(cloudPath||''),ticket:String(data.ticket),mode:'full'});
+                return TIMELINE_API_BASE+'/media?'+qs.toString();
+            }catch(_){return src;}
         };
 
         window._cloudUploadNotice = function(text, show=true){
