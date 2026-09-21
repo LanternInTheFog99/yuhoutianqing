@@ -2533,7 +2533,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 };
 
                 // 时间线预览媒体交接：只在 A 播放结束 → B 封面之间做一次很轻的“暗场呼吸”。
-                // 不让封面自身做 opacity 动画，避免闪烁；黑色遮罩只短暂升到约 34% 再退掉，
+                // 不让封面自身做 opacity 动画；仅在“一个媒体 → 下一个媒体”时让黑色遮罩较明显地升暗再退掉，
                 // 在最暗点完成底层封面替换，因此看起来是柔和淡出/淡入，而不是硬切或持续黑屏。
                 const fadeIntoNextCover = async (nextItem, gen) => {
                     if (!nextItem || !isStillRunning() || gen !== generation) return false;
@@ -2554,13 +2554,13 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     dim.className = 'absolute inset-0 pointer-events-none';
                     Object.assign(dim.style, {
                         zIndex:'9', background:'#000', opacity:'0',
-                        transition:'opacity 115ms cubic-bezier(.4,0,.6,1)'
+                        transition:'opacity 185ms cubic-bezier(.4,0,.6,1)'
                     });
                     stage.appendChild(dim);
                     await delayMs(16);
                     if (!isStillRunning() || gen !== generation) { dim.remove(); return false; }
-                    dim.style.opacity = '0.34';
-                    await delayMs(115);
+                    dim.style.opacity = '0.56';
+                    await delayMs(190);
                     if (!isStillRunning() || gen !== generation) { dim.remove(); return false; }
 
                     // 在暗场最深处一次性换成 B 的完整封面。
@@ -2579,9 +2579,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
                     // 不停留在黑色：下一帧立刻开始退暗，形成“变暗 → 换封面 → 变亮”的短过渡。
                     await delayMs(16);
-                    dim.style.transition = 'opacity 145ms cubic-bezier(.4,0,.2,1)';
+                    dim.style.transition = 'opacity 225ms cubic-bezier(.4,0,.2,1)';
                     dim.style.opacity = '0';
-                    await delayMs(150);
+                    await delayMs(230);
                     dim.remove();
                     return true;
                 };
@@ -2673,12 +2673,13 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         // 先在独立 Image 中把 GIF 解码到可显示，当前封面始终留在舞台上。
                         await new Promise((resolve)=>{const pre=new Image();let done=false;const finish=()=>{if(done)return;done=true;resolve();};pre.onload=finish;pre.onerror=finish;pre.src=src;timers.push(setTimeout(finish,MEDIA_COVER_MAX_HOLD_MS));});
                         if(!isStillRunning())return;
-                        img.style.opacity='0';
-                        enableSoftFade(img);
+                        // 封面 → GIF 属于同一媒体内部的起播，不做转场；资源就绪后直接替换。
+                        disableSoftFade(img);
+                        img.style.transition='none';
+                        img.style.opacity='1';
                         img.src=src;
                         try { window.applyPreviewImageStyle(img, item); } catch (_) {}
                         img.classList.remove('hidden');
-                        await delayMs(16);img.style.opacity='1';await delayMs(MEDIA_COVER_FADE_MS);disableSoftFade(img);
                     } else if (hardHide) {
                         await window.setPreviewSlideImage(img, item, true);
                     } else {
@@ -2743,19 +2744,15 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     if (!isStillRunning() || gen !== generation) return;
 
                     // 封面一直保留到视频真正显示的这一刻，因此加载慢也不会露出黑屏。
+                    // 封面 → 视频属于同一媒体内部的起播，不做转场；视频可播后直接接管画面。
                     video.classList.remove('hidden');
-                    video.style.opacity='0';
-                    enableSoftFade(video);
+                    disableSoftFade(video);
+                    video.style.transition='none';
+                    video.style.opacity='1';
                     stage.classList.remove('preview-stage-black');
                     video.play().catch(()=>{});
-                    await delayMs(16);
-                    if (!isStillRunning() || gen !== generation) return;
-                    video.style.opacity='1';
-                    await delayMs(BLACK_FADE_MS);
-                    if (!isStillRunning() || gen !== generation) return;
                     img.style.opacity='0';
                     img.classList.add('hidden');
-                    disableSoftFade(video);
 
                     if (media.length > 1) preloadNextItem(media[(idx + 1) % media.length]);
                     const playMs = Math.max(window.VIDEO_PREVIEW_MIN_SEC, Math.min(window.VIDEO_PREVIEW_MAX_SEC, Number(item.previewDuration) || (defaultVideoHold / 1000))) * 1000;
