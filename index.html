@@ -2532,13 +2532,53 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     return true;
                 };
 
+                // A 媒体结束时，不再直接把同一个 img.src 秒切成 B 封面。
+                // 先把 B 的封面作为独立图层盖到 A 上方并淡入，完全遮住后再交给下一项，
+                // 这样 GIF / 视频结尾都会有一个短交叉淡化，不会产生“没播完就被切走”的闪感。
+                const fadeIntoNextCover = async (nextItem, gen) => {
+                    if (!nextItem || !isStillRunning() || gen !== generation) return false;
+                    const nextCover = nextItem.type === 'video'
+                        ? String(nextItem.cover || '')
+                        : String((isAnimatedImageItem(nextItem) ? (nextItem.cover || nextItem.src) : (nextItem.src || nextItem.cover)) || '');
+                    if (!nextCover) return false;
+                    await new Promise((resolve) => {
+                        const pre = new Image(); let done = false;
+                        const finish = () => { if (done) return; done = true; resolve(); };
+                        pre.onload = finish; pre.onerror = finish; pre.src = nextCover;
+                        timers.push(setTimeout(finish, 1400));
+                    });
+                    if (!isStillRunning() || gen !== generation) return false;
+                    const veil = document.createElement('img');
+                    veil.alt = ''; veil.draggable = false; veil.src = nextCover;
+                    veil.className = 'absolute inset-0 w-full h-full object-cover pointer-events-none';
+                    Object.assign(veil.style, { zIndex:'8', opacity:'0', transition:'opacity 180ms ease' });
+                    stage.appendChild(veil);
+                    try { window.applyPreviewImageStyle(veil, nextItem); } catch (_) {}
+                    await delayMs(16);
+                    if (!isStillRunning() || gen !== generation) { veil.remove(); return false; }
+                    veil.style.opacity = '1';
+                    await delayMs(180);
+                    if (!isStillRunning() || gen !== generation) { veil.remove(); return false; }
+                    // 先把底层正式归位到 B 封面，再撤掉过渡层，视觉上保持连续。
+                    if (!video.classList.contains('hidden')) clearVideo();
+                    stage.classList.remove('preview-stage-black');
+                    img.classList.remove('hidden');
+                    disableSoftFade(img);
+                    img.style.opacity = '1';
+                    if ((img.getAttribute('src') || '') !== nextCover) img.src = nextCover;
+                    try { window.applyPreviewImageStyle(img, nextItem); } catch (_) {}
+                    veil.remove();
+                    return true;
+                };
+
                 const scheduleHold = (gen, holdSec, after) => {
                     if (!after || !isStillRunning() || gen !== generation) return;
                     const ms = Math.max(50, Math.round(holdSec * 1000));
-                    if (media.length > 1) {
-                        preloadNextItem(media[(idx + 1) % media.length]);
-                    }
-                    timers.push(setTimeout(() => {
+                    const nextItem = media.length > 1 ? media[(idx + 1) % media.length] : media[0];
+                    if (nextItem) preloadNextItem(nextItem);
+                    timers.push(setTimeout(async () => {
+                        if (!isStillRunning() || gen !== generation) return;
+                        await fadeIntoNextCover(nextItem, gen);
                         if (!isStillRunning() || gen !== generation) return;
                         after();
                     }, ms));
@@ -2555,7 +2595,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     if (!isStillRunning()) return null;
                     if (Number.isFinite(duration) && duration > 0) {
                         // 提前一点回收，避免浏览器在 GIF 循环边界先露出下一轮的一两帧。
-                        const endGuardSec = 0.30;
+                        const endGuardSec = 0.16;
                         return Math.max(0.3, duration - endGuardSec);
                     }
                     return ANIMATED_FALLBACK_SEC;
@@ -2704,10 +2744,14 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
                     if (media.length > 1) preloadNextItem(media[(idx + 1) % media.length]);
                     const playMs = Math.max(window.VIDEO_PREVIEW_MIN_SEC, Math.min(window.VIDEO_PREVIEW_MAX_SEC, Number(item.previewDuration) || (defaultVideoHold / 1000))) * 1000;
-                    timers.push(setTimeout(() => {
+                    timers.push(setTimeout(async () => {
                         if (!isStillRunning() || gen !== generation) return;
-                        // 下一项会先画自己的封面；这里不主动清空舞台，避免视频→封面之间出现黑帧。
-                        if (after) after(); else clearVideo();
+                        if (after) {
+                            const nextItem = media.length > 1 ? media[(idx + 1) % media.length] : media[0];
+                            await fadeIntoNextCover(nextItem, gen);
+                            if (!isStillRunning() || gen !== generation) return;
+                            after();
+                        } else clearVideo();
                     }, playMs));
                 };
 
@@ -2745,7 +2789,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         let duration = null;
                         try { duration = await durationPromise; } catch (_) { duration = null; }
                         if (!isStillRunning() || gen !== generation) return;
-                        if (Number.isFinite(duration) && duration > 0) animatedHoldSec = Math.max(0.3, duration - 0.30);
+                        if (Number.isFinite(duration) && duration > 0) animatedHoldSec = Math.max(0.3, duration - 0.16);
                         else animatedHoldSec = ANIMATED_FALLBACK_SEC;
                         await applyImageItem(item, { hardHide: false });
                         if (!isStillRunning() || gen !== generation) return;
