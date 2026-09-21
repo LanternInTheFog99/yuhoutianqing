@@ -2551,26 +2551,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         ? String(nextItem.cover || '')
                         : String((isAnimatedImageItem(nextItem) ? (nextItem.cover || nextItem.src) : (nextItem.src || nextItem.cover)) || '');
 
-                    // 视频→视频最容易在退黑时露出一帧“逐行加载”的 poster。
-                    // 先把下一视频封面完整 decode 到浏览器缓存；这不会延长黑场，
-                    // 因为 decode 从转场开始前就并行进行，真正切换时只使用已完成的位图。
-                    let nextCoverDecoded = false;
-                    if (nextItem.type === 'video' && nextCover) {
-                        try {
-                            const coverPre = new Image();
-                            coverPre.src = nextCover;
-                            if (coverPre.decode) {
-                                await Promise.race([coverPre.decode().catch(()=>{}), delayMs(700)]);
-                            } else {
-                                await Promise.race([
-                                    new Promise(r => { coverPre.onload = coverPre.onerror = r; }),
-                                    delayMs(700)
-                                ]);
-                            }
-                            nextCoverDecoded = !!(coverPre.complete && coverPre.naturalWidth > 0);
-                        } catch (_) {}
-                    }
-
+                    // 视频→视频不在转场前等待封面；下一视频与固定转场并行加载。
                     // 一进入渐黑就并行预加载下一媒体；这里只观察状态，不 await。
                     let mediaReady = false;
                     (async()=>{
@@ -2591,13 +2572,13 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     dim.dataset.previewTransitionOverlay = '1';
                     Object.assign(dim.style, {
                         zIndex:'9', background:'#000', opacity:'0',
-                        transition:'opacity 220ms cubic-bezier(.4,0,.6,1)'
+                        transition:'opacity 260ms cubic-bezier(.4,0,.6,1)'
                     });
                     stage.appendChild(dim);
                     await delayMs(16);
                     if (!isStillRunning() || gen !== generation) { dim.remove(); return false; }
                     dim.style.opacity = '1';
-                    await delayMs(220);
+                    await delayMs(260);
                     if (!isStillRunning() || gen !== generation) { dim.remove(); return false; }
 
                     try { video.pause(); } catch (_) {}
@@ -2605,7 +2586,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     // 全黑点立即把下一媒体的封面/静态兜底放到底层。
                     // 即便媒体已经预加载完成，也不在这里 await 它的 DOM 解码，避免把黑屏拉长；
                     // 后续 presentItem 会立刻接管。若尚未完成，就自然继续显示这个封面。
-                    if (nextCover) {
+                    if (nextCover && nextItem.type !== 'video') {
                         if (!video.classList.contains('hidden')) clearVideo();
                         stage.classList.remove('preview-stage-black');
                         img.classList.remove('hidden');
@@ -2616,6 +2597,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         if ((img.getAttribute('src') || '') !== nextCover) img.src = nextCover;
                         try { window.applyPreviewImageStyle(img, nextItem); } catch (_) {}
                     }
+                    // 视频→视频：全黑时不插 poster。若下一视频已在固定转场内 ready，
+                    // 退黑后直接接视频；若仍未 ready，播放函数再显示封面兜底。
 
                     // 固定退黑：不论 mediaReady 是 true/false，都严格按同一时长结束。
                     // mediaReady 仅供后续起播路径使用，不再控制黑层寿命。
@@ -2627,9 +2610,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         delete img.dataset.previewNextVideoReady;
                     }
                     await delayMs(16);
-                    dim.style.transition = 'opacity 260ms cubic-bezier(.4,0,.2,1)';
+                    dim.style.transition = 'opacity 300ms cubic-bezier(.4,0,.2,1)';
                     dim.style.opacity = '0';
-                    await delayMs(260);
+                    await delayMs(300);
                     dim.remove();
                     return true;
                 };
@@ -2802,7 +2785,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     delete img.dataset.previewNextVideoReady;
                     delete img.dataset.previewNextPreloaded;
                     if(!directFromBlack && item.cover && !transitionVideoReady) await ensureCoverReady(item);
-                    const hasCover = directFromBlack ? false : showItemCover(item);
+                    const hasCover = (directFromBlack || transitionVideoReady) ? false : showItemCover(item);
                     // 如果视频已经在上一段固定转场期间预加载完成，就不再额外强制停 500ms 封面；
                     // 封面只作为主 video 元素完成 canplay 前的瞬时兜底。
                     video.src = item.src;
