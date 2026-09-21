@@ -2532,57 +2532,59 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     return true;
                 };
 
-                // A 媒体结束时，不再直接把同一个 img.src 秒切成 B 封面。
-                // 先把 B 的封面作为独立图层盖到 A 上方并淡入，完全遮住后再交给下一项，
-                // 这样 GIF / 视频结尾都会有一个短交叉淡化，不会产生“没播完就被切走”的闪感。
+                // 时间线预览：媒体结束后切下一项封面时不再做交叉淡入。
+                // 之前的半透明 veil 会在已经出现的封面上再跑一次 opacity 动画，视觉上像“闪一下”。
+                // 现在先把下一张封面完整加载/解码，再用 100% 不透明遮罩一次性盖住当前媒体；
+                // 底层正式封面准备完成后再撤遮罩，全程不改变 opacity。
                 const fadeIntoNextCover = async (nextItem, gen) => {
                     if (!nextItem || !isStillRunning() || gen !== generation) return false;
                     const nextCover = nextItem.type === 'video'
                         ? String(nextItem.cover || '')
                         : String((isAnimatedImageItem(nextItem) ? (nextItem.cover || nextItem.src) : (nextItem.src || nextItem.cover)) || '');
                     if (!nextCover) return false;
-                    await new Promise((resolve) => {
-                        const pre = new Image(); let done = false;
-                        const finish = () => { if (done) return; done = true; resolve(); };
-                        pre.onload = finish; pre.onerror = finish; pre.src = nextCover;
-                        timers.push(setTimeout(finish, 1400));
-                    });
+
+                    const pre = new Image();
+                    pre.src = nextCover;
+                    try {
+                        if (pre.decode) await Promise.race([pre.decode().catch(()=>{}), delayMs(1800)]);
+                        else if (!(pre.complete && pre.naturalWidth > 0)) await Promise.race([new Promise(r=>{pre.onload=pre.onerror=r;}), delayMs(1800)]);
+                    } catch (_) {}
                     if (!isStillRunning() || gen !== generation) return false;
+
                     const veil = document.createElement('img');
-                    veil.alt = ''; veil.draggable = false; veil.src = nextCover;
+                    veil.alt = '';
+                    veil.draggable = false;
+                    veil.src = nextCover;
                     veil.className = 'absolute inset-0 w-full h-full object-cover pointer-events-none';
-                    Object.assign(veil.style, { zIndex:'8', opacity:'0', transition:'opacity 180ms ease' });
+                    Object.assign(veil.style, {
+                        zIndex:'8',
+                        opacity:'1',
+                        transition:'none',
+                        animation:'none'
+                    });
                     stage.appendChild(veil);
                     try { window.applyPreviewImageStyle(veil, nextItem); } catch (_) {}
-                    try { if (veil.decode) await Promise.race([veil.decode().catch(()=>{}), delayMs(900)]); } catch (_) {}
-                    await delayMs(16);
+                    // 给浏览器一帧把完全不透明的封面合成到舞台上，再清理当前视频/GIF。
+                    await delayMs(20);
                     if (!isStillRunning() || gen !== generation) { veil.remove(); return false; }
-                    veil.style.opacity = '1';
-                    await delayMs(180);
-                    if (!isStillRunning() || gen !== generation) { veil.remove(); return false; }
-                    // 过渡层已经完整解码并覆盖 A。此时不要立刻撤掉它：
-                    // 先让底层正式的 B 封面完成 load/decode，再撤过渡层。
-                    // 否则 GIF 仍在底下跑时会短暂露帧；视频封面也会出现“从上到下刷出来”的渐进加载。
+
                     if (!video.classList.contains('hidden')) clearVideo();
                     stage.classList.remove('preview-stage-black');
                     img.classList.remove('hidden');
                     disableSoftFade(img);
-                    img.style.opacity = '0';
+                    img.style.transition = 'none';
+                    img.style.opacity = '1';
                     if ((img.getAttribute('src') || '') !== nextCover) img.src = nextCover;
                     try { window.applyPreviewImageStyle(img, nextItem); } catch (_) {}
                     try {
-                        if (img.decode) {
-                            await Promise.race([img.decode().catch(()=>{}), delayMs(1600)]);
-                        } else if (!(img.complete && img.naturalWidth > 0)) {
-                            await Promise.race([new Promise(r=>{
-                                const done=()=>{img.removeEventListener('load',done);img.removeEventListener('error',done);r();};
-                                img.addEventListener('load',done);img.addEventListener('error',done);
-                            }), delayMs(1600)]);
-                        }
+                        if (img.decode) await Promise.race([img.decode().catch(()=>{}), delayMs(1600)]);
+                        else if (!(img.complete && img.naturalWidth > 0)) await Promise.race([new Promise(r=>{
+                            const done=()=>{img.removeEventListener('load',done);img.removeEventListener('error',done);r();};
+                            img.addEventListener('load',done);img.addEventListener('error',done);
+                        }), delayMs(1600)]);
                     } catch (_) {}
                     if (!isStillRunning() || gen !== generation) { veil.remove(); return false; }
-                    img.style.opacity = '1';
-                    // 多留两帧，让浏览器完成合成；整个过程中 veil 仍完全盖住底层。
+                    // 底层和遮罩此时是同一张完整封面，撤罩不会产生第二次淡入/亮度变化。
                     await delayMs(34);
                     veil.remove();
                     return true;
