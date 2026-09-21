@@ -2366,7 +2366,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const PRELOAD_WAIT_MS = 60;
             const BLACK_FADE_MS = 150;
             const BLACK_HOLD_MS = 80;
-            const MEDIA_COVER_HOLD_MS = calm ? 900 : 700;
+            const MEDIA_COVER_MIN_HOLD_MS = calm ? 950 : 750;
+            const MEDIA_COVER_MAX_HOLD_MS = calm ? 2600 : 2000;
 
             const isAnimatedImageItem = (item) => {
                 if (!item || item.type !== 'image') return false;
@@ -2485,6 +2486,32 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         delayMs(ms)
                     ]);
                     return ready;
+                };
+
+                // 封面不是固定“插播”时长，而是作为媒体就绪前的遮罩：至少停留一段时间，
+                // 媒体加载较慢时继续保持封面，直到媒体可显示（最多到上限），避免中间露出黑屏。
+                const holdCoverUntil = async (readyPromise, gen) => {
+                    const started = performance.now();
+                    let ready = false;
+                    Promise.resolve(readyPromise).then(() => { ready = true; }, () => { ready = true; });
+                    await delayMs(MEDIA_COVER_MIN_HOLD_MS);
+                    while (isStillRunning() && gen === generation && !ready && performance.now() - started < MEDIA_COVER_MAX_HOLD_MS) {
+                        await delayMs(80);
+                    }
+                    return isStillRunning() && gen === generation;
+                };
+
+                const showItemCover = (item) => {
+                    const cover = item?.cover || '';
+                    if (!cover) return false;
+                    clearVideo();
+                    stage.classList.remove('preview-stage-black');
+                    img.classList.remove('hidden');
+                    img.style.opacity = '1';
+                    disableSoftFade(img);
+                    if ((img.getAttribute('src') || '') !== cover) img.src = cover;
+                    try { window.applyPreviewImageStyle(img, item); } catch (_) {}
+                    return true;
                 };
 
                 const scheduleHold = (gen, holdSec, after) => {
@@ -2637,63 +2664,49 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 const playVideoThen = async (item, after, gen, useBlack) => {
                     img.dataset.previewFrozen = '0';
                     delete img.dataset.previewFrozenSource;
-                    if (!item.src) {
-                        if (after) after();
-                        return;
-                    }
-                    // 时间线视频先展示封面，再开始播放。
-                    if(item.cover){
-                        clearVideo();
-                        img.classList.remove('hidden');
-                        img.style.opacity='1';
-                        img.src=item.cover;
-                        try { window.applyPreviewImageStyle(img, item); } catch (_) {}
-                        await delayMs(MEDIA_COVER_HOLD_MS);
-                        if (!isStillRunning() || gen !== generation) return;
-                    }
-                    if (useBlack) {
-                        await softBlackCover();
-                        if (!isStillRunning() || gen !== generation) return;
-                    } else {
-                        img.style.opacity = '0';
-                        img.classList.add('hidden');
-                        clearVideo();
-                    }
+                    if (!item.src) { if (after) after(); return; }
+
+                    // 先把封面放在舞台上。视频在后台加载；只有 canplay（或兜底超时）后才从封面切到视频。
+                    const hasCover = showItemCover(item);
                     video.src = item.src;
                     try { video.currentTime = 0; } catch (_) {}
-                    let holdStarted = false;
-                    const startHold = () => {
-                        if (holdStarted || !isStillRunning() || gen !== generation) return;
-                        holdStarted = true;
-                        video.play().catch(() => {});
-                        if (media.length > 1) {
-                            preloadNextItem(media[(idx + 1) % media.length]);
-                        }
-                        const playMs = Math.max(window.VIDEO_PREVIEW_MIN_SEC, Math.min(window.VIDEO_PREVIEW_MAX_SEC, Number(item.previewDuration) || (defaultVideoHold / 1000))) * 1000;
-                        timers.push(setTimeout(() => {
-                            if (!isStillRunning() || gen !== generation) return;
-                            if (after) after();
-                            else clearVideo();
-                        }, playMs));
-                    };
-                    await new Promise((resolve) => {
-                        const onCanPlay = () => {
-                            video.removeEventListener('canplay', onCanPlay);
-                            resolve();
-                        };
-                        video.addEventListener('canplay', onCanPlay, { once: true });
-                        try { video.load(); } catch (_) {}
-                        timers.push(setTimeout(resolve, 1200));
+                    const readyPromise = new Promise((resolve) => {
+                        let settled=false;
+                        const done=()=>{if(settled)return;settled=true;video.removeEventListener('canplay',done);resolve();};
+                        video.addEventListener('canplay',done,{once:true});
+                        try { video.load(); } catch (_) { done(); }
+                        timers.push(setTimeout(done, 1800));
                     });
-                    if (!isStillRunning() || gen !== generation) return;
-                    if (useBlack) {
-                        await softBlackRevealVideo();
+                    if (hasCover) {
+                        if (!(await holdCoverUntil(readyPromise, gen))) return;
                     } else {
-                        video.classList.remove('hidden');
-                        video.style.opacity = '1';
-                        stage.classList.remove('preview-stage-black');
+                        await readyPromise;
+                        if (!isStillRunning() || gen !== generation) return;
                     }
-                    startHold();
+                    if (!isStillRunning() || gen !== generation) return;
+
+                    // 封面一直保留到视频真正显示的这一刻，因此加载慢也不会露出黑屏。
+                    video.classList.remove('hidden');
+                    video.style.opacity='0';
+                    enableSoftFade(video);
+                    stage.classList.remove('preview-stage-black');
+                    video.play().catch(()=>{});
+                    await delayMs(16);
+                    if (!isStillRunning() || gen !== generation) return;
+                    video.style.opacity='1';
+                    await delayMs(BLACK_FADE_MS);
+                    if (!isStillRunning() || gen !== generation) return;
+                    img.style.opacity='0';
+                    img.classList.add('hidden');
+                    disableSoftFade(video);
+
+                    if (media.length > 1) preloadNextItem(media[(idx + 1) % media.length]);
+                    const playMs = Math.max(window.VIDEO_PREVIEW_MIN_SEC, Math.min(window.VIDEO_PREVIEW_MAX_SEC, Number(item.previewDuration) || (defaultVideoHold / 1000))) * 1000;
+                    timers.push(setTimeout(() => {
+                        if (!isStillRunning() || gen !== generation) return;
+                        // 下一项会先画自己的封面；这里不主动清空舞台，避免视频→封面之间出现黑帧。
+                        if (after) after(); else clearVideo();
+                    }, playMs));
                 };
 
                 const presentItem = async (item, after, isFirst) => {
@@ -2707,24 +2720,24 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         return;
                     }
 
-                    // 时间线 GIF 也先展示静态封面，停留后再播放动画。
+                    // GIF：封面先出现，同时在后台加载 GIF；加载越慢，封面自动多停留，
+                    // 不再先淡到黑色再等 GIF，因此 A→B 的媒体切换由 B 的封面直接遮住等待过程。
                     if(isAnimatedImageItem(item) && item.cover && item.cover !== item.src){
-                        clearVideo();
-                        img.classList.remove('hidden');
-                        img.style.opacity='1';
-                        img.src=item.cover;
-                        try { window.applyPreviewImageStyle(img, item); } catch (_) {}
-                        await delayMs(MEDIA_COVER_HOLD_MS);
+                        showItemCover(item);
+                        const animatedSrc=item.src||'';
+                        const preloadGif=new Promise((resolve)=>{
+                            if(!animatedSrc){resolve();return;}
+                            const pre=new Image(); let done=false;
+                            const finish=()=>{if(done)return;done=true;resolve();};
+                            pre.onload=finish;pre.onerror=finish;pre.src=animatedSrc;
+                            timers.push(setTimeout(finish,MEDIA_COVER_MAX_HOLD_MS));
+                        });
+                        if (!(await holdCoverUntil(preloadGif, gen))) return;
+                        await applyImageItem(item, { hardHide: false });
                         if (!isStillRunning() || gen !== generation) return;
-                    }
-
-                    if (useBlack) {
-                        await softBlackCover();
-                        if (!isStillRunning() || gen !== generation) return;
-                        await applyImageItem(item, { hardHide: true });
-                        if (!isStillRunning() || gen !== generation) return;
-                        await softBlackRevealImage();
+                        showImageNow();
                     } else {
+                        // 普通图片直接切换；有下一项封面时不再强制经过黑屏阶段。
                         await applyImageItem(item, { hardHide: false });
                         if (!isStillRunning() || gen !== generation) return;
                         showImageNow();
@@ -2739,7 +2752,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     if (!isStillRunning()) return;
                     if (media.length <= 1) {
                         const only = media[0];
-                        if (only && only.type === 'video' && only.src) {
+                        if (only && ((only.type === 'video' && only.src) || isAnimatedImageItem(only))) {
                             presentItem(only, () => { if (isStillRunning()) next(); }, false);
                         }
                         return;
@@ -2753,7 +2766,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         preloadNextItem(media[i]);
                     }
                 }
-                presentItem(media[0], (media.length > 1 || (media[0]?.type === 'video' && media[0]?.src)) ? next : null, true);
+                presentItem(media[0], (media.length > 1 || (media[0]?.type === 'video' && media[0]?.src) || isAnimatedImageItem(media[0])) ? next : null, true);
             };
             imgs.forEach(schedule);
             rootEl._previewSlideTimers = timers;
@@ -11640,14 +11653,15 @@ viewer.style.visibility='';
             const cover=img.dataset.gifCover||''; if(!cover)return;
             if(img.src!==cover)img.src=cover;
         };
-        // v165：详情 GIF 延长封面停留；时间线 GIF/视频统一先展示封面再播放。
+        // v166：详情 GIF 使用“封面停留→播放→封面停留”节奏；时间线用封面动态遮蔽媒体切换等待。
         window.initDetailGifSequence=function(viewer){
             viewer?._detailGifSequenceCleanup?.();
             if(!viewer)return;
             const gifs=[...viewer.querySelectorAll('[data-detail-image][data-gif-src][data-gif-cover]')];
             if(!gifs.length)return;
             let index=0,timer=0,paused=false,disposed=false,activeLayer=null;
-            const DETAIL_COVER_HOLD_MS=900;
+            const DETAIL_COVER_HOLD_MS=1200;
+            const DETAIL_POST_COVER_HOLD_MS=850;
             let playToken=0;
             const stopTimer=()=>{if(timer){clearTimeout(timer);timer=0;}};
             const removeActiveLayer=()=>{if(activeLayer){try{activeLayer.remove();}catch(_){}activeLayer=null;}};
@@ -11677,12 +11691,16 @@ viewer.style.visibility='';
                     // 先淡出 GIF 覆盖层，让底下已经存在的静态封面自然显露；
                     // 淡出完成后再切到下一张，避免硬切和循环边界闪帧。
                     layer.style.opacity='0';
+                    // 先让底层封面重新稳定露出，再进入下一张；只有一张 GIF 时也按同一节奏重播自身。
                     timer=setTimeout(()=>{
                         if(token!==playToken||disposed||paused)return;
                         removeActiveLayer();
-                        index=(index+1)%gifs.length;
-                        playCurrent();
-                    },190);
+                        timer=setTimeout(()=>{
+                            if(token!==playToken||disposed||paused)return;
+                            index=(index+1)%gifs.length;
+                            playCurrent();
+                        },DETAIL_POST_COVER_HOLD_MS);
+                    },240);
                 };
                 const onLoad=()=>{
                     if(token!==playToken||disposed||paused){removeActiveLayer();return;}
