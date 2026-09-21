@@ -2546,28 +2546,17 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 const fadeIntoNextCover = async (nextItem, gen, currentItem = null, switchAtBlack = null) => {
                     if (!nextItem || !isStillRunning() || gen !== generation) return false;
                     const involvesPlainImage = isPlainPreviewImageItem(currentItem) || isPlainPreviewImageItem(nextItem);
-                    // 只要切换涉及普通图片，沿用原来的较短节奏；
-                    // GIF/视频之间（GIF↔GIF、GIF↔视频、视频↔视频）统一使用较从容的媒体节奏。
-                    // 涉及普通图片：恢复此前更短的原始切换节奏。
-                    // 不涉及普通图片（GIF/视频互切）：再稍微放慢一点，形成更完整的媒体切换感。
-                    // 涉及普通图片：恢复到之前原本使用的转场时间，不再额外缩短。
-                    // 不涉及普通图片（GIF/视频互切）：保留 v28 稍长的媒体转场。
-                    // 图片相关保持原来的 220ms + 260ms。
-                    // 非图片媒体互切稍微加长，但仍保持固定总时长。
                     const fadeInMs = involvesPlainImage ? 220 : 340;
                     const fadeOutMs = involvesPlainImage ? 260 : 380;
-                    // v19：转场时长必须完全固定。资源加载只决定“退黑后看到媒体还是封面”，
-                    // 绝不能延长 100% 黑屏。pendingBlackHandoff 旧路径会让 GIF 在黑场里等待 apply/load，已停用。
+                    const readyGraceMs = involvesPlainImage ? 0 : 140;
                     pendingBlackHandoff = null;
 
                     const nextCover = nextItem.type === 'video'
                         ? String(nextItem.cover || '')
                         : String((isAnimatedImageItem(nextItem) ? (nextItem.cover || '') : (nextItem.src || nextItem.cover)) || '');
 
-                    // 视频→视频不在转场前等待封面；下一视频与固定转场并行加载。
-                    // 一进入渐黑就并行预加载下一媒体；这里只观察状态，不 await。
                     let mediaReady = false;
-                    (async()=>{
+                    const readyPromise = (async()=>{
                         try {
                             if (nextItem.type === 'video' && nextItem.src) {
                                 await preloadNextItem(nextItem);
@@ -2577,7 +2566,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                                 await preloadNextItem(nextItem);
                             }
                             mediaReady = true;
-                        } catch (_) {}
+                            return true;
+                        } catch (_) { return false; }
                     })();
 
                     const dim = document.createElement('div');
@@ -2590,85 +2580,56 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     stage.appendChild(dim);
                     await delayMs(16);
                     if (!isStillRunning() || gen !== generation) { dim.remove(); return false; }
-                    dim.style.opacity = '1';
+                    dim.style.opacity='1';
                     await delayMs(fadeInMs);
                     if (!isStillRunning() || gen !== generation) { dim.remove(); return false; }
 
                     try { video.pause(); } catch (_) {}
 
-                    // 到达全黑后只冻结视频播放；GIF 不再改写共享 img.src / frozen 标记。
-                    // GIF 的循环边界继续由既有 300ms 回收 + 黑层遮挡处理，避免破坏 after() 的媒体推进。
-                    if (currentItem?.type === 'video') {
-                        try { video.pause(); } catch (_) {}
-                    }
-
-                    // 真正的媒体索引切换必须发生在 100% 全黑这一刻。
-                    // 以前是黑层已经退完以后才 after()/next()，所以旧媒体必然有机会重新露出一帧。
+                    // 100% 全黑时先推进媒体。后续所有加载/封面切换都发生在黑层下面。
                     if (typeof switchAtBlack === 'function') {
                         switchAtBlack();
                         switchAtBlack = null;
                     }
 
-                    // 全黑点立即把下一媒体的封面/静态兜底放到底层。
-                    // 即便媒体已经预加载完成，也不在这里 await 它的 DOM 解码，避免把黑屏拉长；
-                    // 后续 presentItem 会立刻接管。若尚未完成，就自然继续显示这个封面。
-                    if (nextCover && nextItem.type !== 'video') {
-                        if (!video.classList.contains('hidden')) clearVideo();
-                        stage.classList.remove('preview-stage-black');
-                        img.classList.remove('hidden');
-                        img.style.visibility='visible';
-                        disableSoftFade(img);
-                        img.style.transition='none';
-                        img.style.opacity='1';
-                        if ((img.getAttribute('src') || '') !== nextCover) img.src = nextCover;
-                        try { window.applyPreviewImageStyle(img, nextItem); } catch (_) {}
+                    // GIF/视频之间允许最多 140ms 的“快要好了”宽限。
+                    // 如果这点时间内 ready，就直接露真实媒体，不插封面；否则才用封面兜底。
+                    if (!mediaReady && readyGraceMs > 0) {
+                        await Promise.race([readyPromise, delayMs(readyGraceMs)]);
                     }
-                    // 视频→视频：全黑时不插 poster。若下一视频已在固定转场内 ready，
-                    // 退黑后直接接视频；若仍未 ready，播放函数再显示封面兜底。
 
-                    // 固定退黑：不论 mediaReady 是 true/false，都严格按同一时长结束。
-                    // mediaReady 仅供后续起播路径使用，不再控制黑层寿命。
                     if (mediaReady) {
-                        img.dataset.previewNextPreloaded = '1';
-                        if (nextItem.type === 'video') img.dataset.previewNextVideoReady = '1';
+                        img.dataset.previewNextPreloaded='1';
+                        if (nextItem.type === 'video') img.dataset.previewNextVideoReady='1';
                     } else {
                         delete img.dataset.previewNextPreloaded;
                         delete img.dataset.previewNextVideoReady;
-                    }
-                    await delayMs(16);
-                    if (nextItem.type === 'video') {
-                        // 视频相关的媒体互切不再因为等待 canplay 而延长全黑时间。
-                        // 与 GIF→GIF 使用完全相同的固定 fadeOutMs；下一视频若来不及 ready，
-                        // 由封面兜底，而不是继续持有黑层。
-                        pendingBlackHandoff = { item: nextItem, overlay: dim, fadeOutMs, fixedClock: true };
-                        dim.style.transition = `opacity ${fadeOutMs}ms cubic-bezier(.4,0,.2,1)`;
-                        dim.style.opacity = '0';
-                        await delayMs(fadeOutMs);
-                        try { dim.remove(); } catch (_) {}
-                        // 黑层已经按固定时长完成，不再让 playVideoThen 二次退黑。
-                        if (pendingBlackHandoff?.overlay === dim) pendingBlackHandoff = null;
-                        return true;
-                    }
-                    dim.style.transition = `opacity ${fadeOutMs}ms cubic-bezier(.4,0,.2,1)`;
-                    dim.style.opacity = '0';
-                    await delayMs(fadeOutMs);
-                    dim.remove();
-                    return true;
-                };
 
-                const revealPendingBlack = async (item) => {
-                    const handoff = pendingBlackHandoff;
-                    if (!handoff || handoff.item !== item || !handoff.overlay) return false;
-                    pendingBlackHandoff = null;
-                    const dim = handoff.overlay;
-                    const fadeOutMs = Number(handoff.fadeOutMs) || 300;
-                    // 下一视频已经 canplay 且 video 层已经可见，此时才执行唯一一次固定退黑。
+                        // 只有确实没赶上转场/宽限时间，才显示静态封面。
+                        if (nextCover) {
+                            if (!video.classList.contains('hidden')) clearVideo();
+                            stage.classList.remove('preview-stage-black');
+                            img.classList.remove('hidden');
+                            img.style.visibility='visible';
+                            disableSoftFade(img);
+                            img.style.transition='none';
+                            img.style.opacity='1';
+                            if ((img.getAttribute('src') || '') !== nextCover) img.src=nextCover;
+                            try { window.applyPreviewImageStyle(img,nextItem); } catch (_) {}
+                        }
+                    }
+
                     await delayMs(16);
-                    dim.style.transition = `opacity ${fadeOutMs}ms cubic-bezier(.4,0,.2,1)`;
-                    dim.style.opacity = '0';
+                    dim.style.transition=`opacity ${fadeOutMs}ms cubic-bezier(.4,0,.2,1)`;
+                    dim.style.opacity='0';
                     await delayMs(fadeOutMs);
                     try { dim.remove(); } catch (_) {}
                     return true;
+                };
+
+                const revealPendingBlack = async () => {
+                    pendingBlackHandoff = null;
+                    return false;
                 };
 
                 const scheduleHold = (gen, holdSec, after, currentItem) => {
@@ -2892,21 +2853,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         if (!isStillRunning() || gen !== generation) return;
                         if (after) {
                             const nextItem = media.length > 1 ? media[(idx + 1) % media.length] : media[0];
-                            await fadeIntoNextCover(nextItem, gen, item);
-                            if (!isStillRunning() || gen !== generation) return;
-                            // 转场视觉结束后，下一媒体真正接管前，用无动画黑层封住 1~2 帧交接缝隙。
-                            // 这不是第二次渐入渐出，只防止上一媒体在 after() 前后重新露出。
-                            const handoffGuard = document.createElement('div');
-                            handoffGuard.className = 'absolute inset-0 pointer-events-none preview-handoff-guard';
-                            handoffGuard.dataset.previewTransitionOverlay = '1';
-                            Object.assign(handoffGuard.style, {zIndex:'10',background:'#000',opacity:'1',transition:'none'});
-                            stage.appendChild(handoffGuard);
-                            img.dataset.previewFrozen = '0';
-                            delete img.dataset.previewFrozenSource;
-                                                        after();
-                            requestAnimationFrame(() => requestAnimationFrame(() => {
-                                try { handoffGuard.remove(); } catch (_) {}
-                            }));
+                            await fadeIntoNextCover(nextItem, gen, item, after);
                         } else clearVideo();
                     }, playMs));
                 };
