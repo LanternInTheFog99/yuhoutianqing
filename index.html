@@ -360,7 +360,7 @@
         }
         .preview-slide-img.preview-soft-fade,
         .preview-inline-video.preview-soft-fade {
-            transition: opacity 0.15s ease;
+            transition: opacity 0.42s ease;
         }
         .preview-stage-black {
             background-color: #000 !important;
@@ -2364,11 +2364,11 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const defaultVideoHold = calm ? 5000 : 4000;
             const ANIMATED_FALLBACK_SEC = 3;
             const PRELOAD_WAIT_MS = 60;
-            const BLACK_FADE_MS = 150;
+            const BLACK_FADE_MS = 420;
             const BLACK_HOLD_MS = 80;
-            const MEDIA_COVER_MIN_HOLD_MS = calm ? 1100 : 900;
-            const MEDIA_COVER_MAX_HOLD_MS = calm ? 3200 : 2600;
-            const MEDIA_COVER_FADE_MS = 260;
+            const MEDIA_COVER_MIN_HOLD_MS = calm ? 900 : 650;
+            const MEDIA_COVER_MAX_HOLD_MS = calm ? 2600 : 2100;
+            const MEDIA_COVER_FADE_MS = 420;
 
             const isAnimatedImageItem = (item) => {
                 if (!item || item.type !== 'image') return false;
@@ -2542,7 +2542,11 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     }
                     if (!isStillRunning()) return null;
                     if (Number.isFinite(duration) && duration > 0) {
-                        return Math.max(0.3, duration);
+                        // GIF starts advancing while it fades in. End slightly before the decoded
+                        // loop boundary so the first frames of loop #2 never flash before the next cover.
+                        const fadeSec = MEDIA_COVER_FADE_MS / 1000;
+                        const loopGuardSec = 0.10;
+                        return Math.max(0.3, duration - fadeSec - loopGuardSec);
                     }
                     return ANIMATED_FALLBACK_SEC;
                 };
@@ -11650,7 +11654,7 @@ viewer.style.visibility='';
             const gifs=[...viewer.querySelectorAll('[data-detail-image][data-gif-src][data-gif-cover]')];
             if(!gifs.length)return;
             let index=0,timer=0,paused=false,disposed=false,activeGif=null,activeShield=null,playToken=0;
-            const PRE_COVER_MS=1500, POST_COVER_MS=1000, COVER_FADE_MS=360;
+            const PRE_COVER_MS=900, POST_COVER_MS=650, COVER_FADE_MS=480, GIF_LOOP_GUARD_MS=120;
             const stopTimer=()=>{if(timer){clearTimeout(timer);timer=0;}};
             const removeNode=n=>{if(n){try{n.remove();}catch(_){}}};
             const clearLayers=()=>{removeNode(activeGif);removeNode(activeShield);activeGif=null;activeShield=null;};
@@ -11684,7 +11688,7 @@ viewer.style.visibility='';
                                 timer=setTimeout(()=>{if(token!==playToken||disposed||paused)return;removeNode(shield);activeShield=null;nextCycle();},POST_COVER_MS);
                             },COVER_FADE_MS+40);};
                             if(shield.complete&&shield.naturalWidth>0)reveal();else{shield.addEventListener('load',reveal,{once:true});shield.addEventListener('error',reveal,{once:true});}
-                        },duration);
+                        },Math.max(320,duration-COVER_FADE_MS-GIF_LOOP_GUARD_MS));
                     };
                     gif.addEventListener('load',loaded,{once:true});gif.addEventListener('error',()=>{if(token===playToken){removeNode(gif);activeGif=null;timer=setTimeout(nextCycle,POST_COVER_MS);}},{once:true});gif.src=src;if(gif.complete&&gif.naturalWidth>0)queueMicrotask(loaded);
                 },PRE_COVER_MS);
