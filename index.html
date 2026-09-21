@@ -2724,6 +2724,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
                     // GIF：封面先出现，同时在后台加载 GIF；加载越慢，封面自动多停留，
                     // 不再先淡到黑色再等 GIF，因此 A→B 的媒体切换由 B 的封面直接遮住等待过程。
+                    let animatedHoldSec = null;
                     if(isAnimatedImageItem(item) && item.cover && item.cover !== item.src){
                         await ensureCoverReady(item);
                         if(!isStillRunning()||gen!==generation)return;
@@ -2736,8 +2737,16 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                             pre.onload=finish;pre.onerror=finish;pre.src=animatedSrc;
                             timers.push(setTimeout(finish,MEDIA_COVER_MAX_HOLD_MS));
                         });
-                        // 动图封面只做短暂起播缓冲；比视频封面更快进入播放，减少“静止太久”的感觉。
-                        if (!(await holdCoverUntil(preloadGif, gen, calm ? 750 : 550, calm ? 2200 : 1800))) return;
+                        // 关键：GIF 的总时长也在“封面阶段”解析完。以前是在 GIF 已经开始显示后
+                        // 才 await 时长解析，大 GIF / 云端 GIF 解析慢时，这段等待会吃掉实际播放时间。
+                        // 现在封面等待、资源加载、时长解析都不计入 GIF 的播放计时。
+                        const durationPromise = window.getAnimatedImageDuration(item).catch(()=>null);
+                        if (!(await holdCoverUntil(Promise.all([preloadGif, durationPromise]), gen, calm ? 750 : 550, calm ? 2200 : 1800))) return;
+                        let duration = null;
+                        try { duration = await durationPromise; } catch (_) { duration = null; }
+                        if (!isStillRunning() || gen !== generation) return;
+                        if (Number.isFinite(duration) && duration > 0) animatedHoldSec = Math.max(0.3, duration - 0.30);
+                        else animatedHoldSec = ANIMATED_FALLBACK_SEC;
                         await applyImageItem(item, { hardHide: false });
                         if (!isStillRunning() || gen !== generation) return;
                         showImageNow();
@@ -2748,7 +2757,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         showImageNow();
                     }
                     if (!isStillRunning() || gen !== generation) return;
-                    const holdSec = await resolveImageHoldSec(item);
+                    // GIF 从真正显示出来的这一刻才开始计时；封面展示和云端解析耗时不会再占用播放时长。
+                    const holdSec = animatedHoldSec != null ? animatedHoldSec : await resolveImageHoldSec(item);
                     if (!isStillRunning() || gen !== generation || holdSec == null) return;
                     scheduleHold(gen, holdSec, after);
                 };
