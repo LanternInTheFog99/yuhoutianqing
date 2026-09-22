@@ -520,6 +520,8 @@
             box-sizing:border-box;
         }
         #deepTextTools > * { position:relative; flex:0 0 auto; }
+        #deepTextTools.deep-tools-over-text { opacity:.28; transition:opacity .14s ease; }
+        #deepTextTools.deep-tools-over-text.deep-tools-near { opacity:.96; }
         @supports selector(::highlight(deep-saved-selection)) {
             ::highlight(deep-saved-selection) { background:Highlight; color:HighlightText; }
         }
@@ -1645,6 +1647,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             <div class="flex flex-col sm:flex-row justify-between items-center w-full mt-4 pt-3 border-t border-slate-800 gap-2">
                 <span></span>
                 <div class="flex gap-2 w-full sm:w-auto justify-end">
+                    <button id="cropGifCoverBtn" onclick="openGifCoverFromCropModal()" class="hidden px-4 py-2 bg-fuchsia-700 hover:bg-fuchsia-600 text-white rounded-lg text-xs font-medium"><i class="fa-solid fa-film mr-1"></i>截选封面</button>
                     <button onclick="closeCropModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium">取消</button>
                     <button onclick="confirmCropImage()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">完成截选并保存</button>
                 </div>
@@ -5057,10 +5060,40 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             return JSON.stringify(window.activityStableValue(clean));
         };
 
+        window.makeAutoFirstFrameCover=async function(src,kind,replaceCloudPath=''){
+            src=String(src||'');if(!src)return null;
+            if(kind==='video'){
+                const v=document.createElement('video');v.muted=true;v.playsInline=true;v.crossOrigin='anonymous';v.preload='auto';v.src=src;
+                await new Promise((ok,bad)=>{v.onloadeddata=ok;v.onerror=()=>bad(new Error('视频首帧读取失败'));});
+                try{v.currentTime=0;}catch(_){}
+                await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+                const w=v.videoWidth,h=v.videoHeight;if(!w||!h)throw new Error('视频首帧尺寸无效');
+                const max=1280,s=Math.min(1,max/w,max/h),c=document.createElement('canvas');c.width=Math.max(1,Math.round(w*s));c.height=Math.max(1,Math.round(h*s));c.getContext('2d').drawImage(v,0,0,c.width,c.height);
+                return await window.canvasToCloudCover(c,'video_cover',.84,replaceCloudPath||'');
+            }
+            const im=new Image();im.crossOrigin='anonymous';im.src=src;
+            await new Promise((ok,bad)=>{im.onload=ok;im.onerror=()=>bad(new Error('动图首帧读取失败'));});
+            const w=im.naturalWidth,h=im.naturalHeight;if(!w||!h)throw new Error('动图首帧尺寸无效');
+            const max=1280,s=Math.min(1,max/w,max/h),c=document.createElement('canvas');c.width=Math.max(1,Math.round(w*s));c.height=Math.max(1,Math.round(h*s));c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+            return await window.canvasToCloudCover(c,'gif_cover',.86,replaceCloudPath||'');
+        };
+        window.ensureAutomaticFirstFrameCovers=async function(eventData){
+            const jobs=[];
+            const addGif=obj=>{if(!obj||obj.gifCover)return;const src=obj.originalFull||obj.original||obj.outer||obj.src||'';if(!src||!window.isAnimatedImageSource?.(src,obj))return;jobs.push((async()=>{const up=await window.makeAutoFirstFrameCover(src,'gif',obj.gifCoverCloudPath||'');if(up){obj.gifCover=up.url;obj.gifCoverCloudPath=up.cloudPath||'';obj.gifCoverAuto=true;}})());};
+            const addVideo=obj=>{if(!obj||obj.cover)return;const src=obj.url||obj.src||obj.outer||obj.original||'';if(!src)return;jobs.push((async()=>{const up=await window.makeAutoFirstFrameCover(src,'video',obj.coverCloudPath||'');if(up){obj.cover=up.url;obj.coverCloudPath=up.cloudPath||'';obj.coverAuto=true;}})());};
+            (eventData.images||[]).forEach(addGif);(eventData.videos||[]).forEach(addVideo);
+            const seen=new WeakSet(),walk=o=>{if(!o||typeof o!=='object'||seen.has(o))return;seen.add(o);if(Array.isArray(o)){o.forEach(walk);return;}if(o.type==='media'){if(o.mediaKind==='video')addVideo(o);else addGif(o);}Object.values(o).forEach(walk);};
+            (eventData.images||[]).forEach(x=>walk(x?.deepDescription));(eventData.videos||[]).forEach(x=>walk(x?.deepDescription));walk(eventData.deepDescription);
+            await Promise.all(jobs);
+        };
+
         window.confirmSaveEvent = async function() {
             if (window.pendingSaveData) {
                 const eventData = window.pendingSaveData;
                 const isEdit = window.pendingSaveData._isEdit;
+
+                // 用户没有手动设置封面时，只在点击编辑界面的“大保存”这一刻自动补第一帧封面。
+                try{await window.ensureAutomaticFirstFrameCovers(eventData);}catch(err){console.warn('自动首帧封面生成失败',err);}
 
                 const previousEvent = isEdit
                     ? (window.findEventById?.(eventData.id) || window.events.find(e => String(e.id) === String(eventData.id)))
@@ -6820,7 +6853,14 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             tools.style.left=left+'px';
             tools.style.top=Math.max(8,top)+'px';
             tools.style.visibility='visible';
+            const tr=tools.getBoundingClientRect(),ir=el.getBoundingClientRect();
+            const overlaps=!(tr.right<ir.left||tr.left>ir.right||tr.bottom<ir.top||tr.top>ir.bottom);
+            tools.classList.toggle('deep-tools-over-text',overlaps);if(!overlaps)tools.classList.remove('deep-tools-near');
         };
+        if(!window._deepTextToolProximityBound){
+            window._deepTextToolProximityBound=true;
+            document.addEventListener('pointermove',e=>{const tools=document.getElementById('deepTextTools');if(!tools?.classList.contains('deep-tools-over-text'))return;const r=tools.getBoundingClientRect(),p=42;tools.classList.toggle('deep-tools-near',e.clientX>=r.left-p&&e.clientX<=r.right+p&&e.clientY>=r.top-p&&e.clientY<=r.bottom+p);},{passive:true});
+        }
         window.deepSetTextToolsExpanded=function(open){
             const tools=document.getElementById('deepTextTools');
             if(!tools)return;
@@ -6999,8 +7039,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     <div class="text-base font-bold">插入媒体</div>
                     <p class="mt-3 text-sm leading-6 text-slate-600">可以从本地上传，或从云端媒体库复用已有文件。</p>
                     <div class="mt-5 flex justify-end gap-2">
-                        <button type="button" data-deep-media-cloud class="px-4 py-2 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 text-sm">云端选择</button>
-                        <button type="button" data-deep-media-local class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold">本地上传</button>
+                        <button type="button" data-deep-media-local class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold">本地</button>
+                        <button type="button" data-deep-media-cloud class="px-4 py-2 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 text-sm">云端</button>
                     </div>
                 </div>`;
                 const finish=value=>{modal.classList.add('hidden');resolve(value);};
@@ -8444,8 +8484,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 if(item.type==='text' && window.deepTextTool) return;
                 before=window.deepClone(window.deepCanvasState); moved=false; window.deepCanvasSelected=item.id; window.deepSetDrawing(false); sx=e.clientX;sy=e.clientY;ox=item.x;oy=item.y;drag=true;el.setPointerCapture?.(e.pointerId);
             });
-            el.addEventListener('pointermove',e=>{if(!drag)return;if(Math.abs(e.clientX-sx)>2||Math.abs(e.clientY-sy)>2)moved=true;const [dx,dy]=window.deepClientDeltaToCanvas(e.clientX-sx,e.clientY-sy);item.x=Math.max(0,ox+dx);item.y=Math.max(0,oy+dy);window.renderDeepCanvas(false);});
-            el.addEventListener('pointerup',()=>{if(pointerStartedAt&&Date.now()-pointerStartedAt>420)el._deepLongPress=true;if(!drag)return;drag=false;if(moved){el._deepSuppressCropUntil=Date.now()+500;if(item.type==='text')item._suppressTextEditUntil=Date.now()+750;}if(before&&moved){window.deepCanvasUndo.push(before);if(window.deepCanvasUndo.length>40)window.deepCanvasUndo.shift();window.deepCanvasRedo=[];}before=null;});
+            el.addEventListener('pointermove',e=>{if(!drag)return;if(Math.abs(e.clientX-sx)>2||Math.abs(e.clientY-sy)>2)moved=true;const [dx,dy]=window.deepClientDeltaToCanvas(e.clientX-sx,e.clientY-sy);item.x=Math.max(0,ox+dx);item.y=Math.max(0,oy+dy);el.style.left=item.x+'px';el.style.top=item.y+'px';window.deepPositionTextTools?.();});
+            el.addEventListener('pointerup',()=>{if(pointerStartedAt&&Date.now()-pointerStartedAt>420)el._deepLongPress=true;if(!drag)return;drag=false;window.renderDeepCanvas(false);if(moved){el._deepSuppressCropUntil=Date.now()+500;if(item.type==='text')item._suppressTextEditUntil=Date.now()+750;}if(before&&moved){window.deepCanvasUndo.push(before);if(window.deepCanvasUndo.length>40)window.deepCanvasUndo.shift();window.deepCanvasRedo=[];}before=null;});
             if(item.type==='text'){
                 const t=el.querySelector('.deep-text-content');
                 t?.addEventListener('pointerdown',e=>{
@@ -9041,13 +9081,10 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const gifCoverBtn=document.getElementById('deepCropSetGifCover');
             if(gifCoverBtn)gifCoverBtn.onclick=()=>{
                 window.openGifCoverPicker?.(it.src,it.cloudPath||'',it.gifCoverCloudPath||window.cloudPathFromMediaUrl?.(it.gifCover||'')||'',(url,uploaded)=>{
-                    window.deepPushUndo?.();
-                    it.gifCover=url;
-                    it.gifCoverCloudPath=uploaded?.cloudPath||'';
-                    it.gifDurationMs=Math.max(50,Number(uploaded?.gifDurationMs)||0)||it.gifDurationMs||0;
-                    it.gifDurationSource=uploaded?.gifDurationSource||'';
-                    window.renderDeepCanvas?.();
-                });
+                    window.deepPushUndo?.();it.gifCover=url;it.gifCoverCloudPath=uploaded?.cloudPath||'';it.gifCoverManual=true;
+                    it.gifDurationMs=Math.max(50,Number(uploaded?.gifDurationMs)||0)||it.gifDurationMs||0;it.gifDurationSource=uploaded?.gifDurationSource||'';
+                    window.renderDeepCanvas?.(false);
+                },null,it.fileID||'',{mode:'deep',scale:crop.scale,offsetX:crop.offsetX,offsetY:crop.offsetY,stretchX:crop.stretchX,stretchY:crop.stretchY,frameW:frame.w,frameH:frame.h},{keepOpen:true});
             };
             if(tag==='video'){
                 const playBtn=document.getElementById('deepCropVideoPlay');
@@ -9078,7 +9115,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         c.getContext('2d').drawImage(media,0,0,c.width,c.height);
                         const uploaded=await window.canvasToCloudCover(c,'video_cover',.84,it.coverCloudPath||window.cloudPathFromMediaUrl?.(it.cover||'')||'');
                         window.deepPushUndo?.();
-                        it.cover=uploaded.url; it.coverCloudPath=uploaded.cloudPath||'';
+                        it.cover=uploaded.url; it.coverManual=true; it.coverCloudPath=uploaded.cloudPath||'';
                         window.renderDeepCanvas();
                         window.showToast?.('视频封面已更新','success');
                     }catch(err){
@@ -9210,8 +9247,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if(undoAutoFillBtn)undoAutoFillBtn.onclick=()=>{if(!lastAutoFill)return;crop.stretchX=lastAutoFill.stretchX;crop.stretchY=lastAutoFill.stretchY;lastAutoFill=null;undoAutoFillBtn.disabled=true;update();};
             document.getElementById('deepCropCancel').onclick=()=>{try{if(tag==='video')media.pause();}catch(_){}m.classList.add('hidden');m._deepCropRO?.disconnect?.();};
             document.getElementById('deepCropOk').onclick=()=>{deepPushUndo();it.w=Math.max(40,Math.round(frame.w));it.h=Math.max(40,Math.round(frame.h));it.crop={scale:Number(crop.scale.toFixed(2)),offsetX:Math.round(crop.offsetX),offsetY:Math.round(crop.offsetY),stretchX:Number((crop.stretchX||1).toFixed(3)),stretchY:Number((crop.stretchY||1).toFixed(3))};
-            // GIF 的封面与显示区域必须是同一套裁切状态；调整显示区域后旧封面不再强行覆盖新裁切。
-            if(window.isAnimatedImageSource?.(it.src,it)) it.gifCover='';
             try{if(tag==='video')media.pause();}catch(_){}m.classList.add('hidden');m._deepCropRO?.disconnect?.();window.renderDeepCanvas();};m.classList.remove('hidden');
         };
         window.closeDeepMediaPreview = function(){ const m=document.getElementById('deepMediaPreviewModal'); if(!m)return; m.querySelectorAll('video').forEach(video=>{try{video.pause();video.currentTime=0;}catch(_){}}); m.classList.add('hidden'); m.innerHTML=''; };
@@ -11132,7 +11167,7 @@ viewer.style.visibility='';
                 if(!target) throw new Error('capture_target_missing');
                 const uploadedCover=await window.canvasToCloudCover(canvas,'video_cover',0.84,target.coverCloudPath||window.cloudPathFromMediaUrl?.(target.cover||'')||'');
                 if(!uploadedCover?.url) throw new Error('capture_cover_upload_failed');
-                target.cover=uploadedCover.url;
+                target.cover=uploadedCover.url;target.coverManual=true;
                 target.coverCloudPath=uploadedCover.cloudPath||'';
                 target.previewCover=uploadedCover.url;
                 window.renderVideoPreviews();
@@ -11930,7 +11965,7 @@ viewer.style.visibility='';
             viewer._detailGifSequenceCleanup=()=>{disposed=true;playToken++;stopTimer();showBaseCovers();viewer._detailGifSequenceCleanup=null;};
             playCurrent();
         };
-        window.openGifCoverPicker=async function(src,cloudPath,coverCloudPath,onSaved,onCrop,fileID,crop=null){
+        window.openGifCoverPicker=async function(src,cloudPath,coverCloudPath,onSaved,onCrop,fileID,crop=null,options={}){
             src=String(src||''); if(!src)return;
             let modal=document.getElementById('gifCoverPickerModal');
             if(!modal){modal=document.createElement('div');modal.id='gifCoverPickerModal';modal.className='fixed inset-0 z-[490] hidden bg-slate-950/90 flex items-center justify-center p-3 sm:p-6';document.body.appendChild(modal);}
@@ -12005,7 +12040,13 @@ viewer.style.visibility='';
             }catch(err){console.warn('逐帧 GIF 截选不可用，回退到普通播放模式:',err);status.textContent='逐帧时间轴暂不可用：'+String(err?.message||err)+'。仍可播放到目标画面后设为封面。';img.classList.remove('hidden');canvas.classList.add('hidden');ui.classList.remove('hidden');ui.querySelectorAll('input,button').forEach(el=>el.disabled=true);}
             modal.querySelector('[data-gif-cover-save]').onclick=async()=>{const btn=modal.querySelector('[data-gif-cover-save]');btn.disabled=true;btn.textContent='正在保存…';try{let source=canvas.classList.contains('hidden')?img:canvas,w=source===img?img.naturalWidth:canvas.width,h=source===img?img.naturalHeight:canvas.height;if(!w||!h)throw new Error('动图尚未加载完成');const validCrop=crop&&Number(crop.sw)>0&&Number(crop.sh)>0;
                 let sx=0,sy=0,sw=w,sh=h;
-                if(validCrop){
+                if(crop?.mode==='deep'){
+                    const sc=Math.max(.01,Number(crop.scale)||1),stx=Math.max(.01,Number(crop.stretchX)||1),sty=Math.max(.01,Number(crop.stretchY)||1);
+                    const fw=Math.max(1,Number(crop.frameW)||w),fh=Math.max(1,Number(crop.frameH)||h);
+                    sw=Math.min(w,fw/(sc*stx));sh=Math.min(h,fh/(sc*sty));
+                    sx=Math.max(0,Math.min(w-sw,w/2-(fw/2+(Number(crop.offsetX)||0))/(sc*stx)));
+                    sy=Math.max(0,Math.min(h-sh,h/2-(fh/2+(Number(crop.offsetY)||0))/(sc*sty)));
+                }else if(validCrop){
                     const baseW=Math.max(1,Number(crop.naturalWidth)||w),baseH=Math.max(1,Number(crop.naturalHeight)||h);
                     const rx=w/baseW,ry=h/baseH;
                     sx=Math.max(0,Math.min(w-1,(Number(crop.sx)||0)*rx));
@@ -12013,11 +12054,28 @@ viewer.style.visibility='';
                     sw=Math.max(1,Math.min(w-sx,(Number(crop.sw)||baseW)*rx));
                     sh=Math.max(1,Math.min(h-sy,(Number(crop.sh)||baseH)*ry));
                 }
-                const max=1280,scale=Math.min(1,max/sw,max/sh),c=document.createElement('canvas');c.width=Math.max(1,Math.round(sw*scale));c.height=Math.max(1,Math.round(sh*scale));c.getContext('2d').drawImage(source,sx,sy,sw,sh,0,0,c.width,c.height);const blob=await new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(new Error('封面生成失败')),'image/jpeg',.86));const file=new File([blob],`gif_cover_${Date.now()}.jpg`,{type:'image/jpeg'});const media=await window.uploadLargeMediaToCloudBase(file,{purpose:'cover',replaceCloudPath:coverCloudPath||''});media.gifDurationMs=Math.max(50,Number(modal._parsedGifDurationMs)||Math.round(totalUs/1000)||0);media.gifDurationSource='gce';await onSaved?.(media.url,media,current);close();window.showToast?.('动图封面已保存','success');}catch(err){window.showToast?.('动图封面截取失败：'+(err?.message||err),'error');btn.disabled=false;btn.textContent='设为封面';}};
+                const max=1280,scale=Math.min(1,max/sw,max/sh),c=document.createElement('canvas');c.width=Math.max(1,Math.round(sw*scale));c.height=Math.max(1,Math.round(sh*scale));c.getContext('2d').drawImage(source,sx,sy,sw,sh,0,0,c.width,c.height);const blob=await new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(new Error('封面生成失败')),'image/jpeg',.86));const file=new File([blob],`gif_cover_${Date.now()}.jpg`,{type:'image/jpeg'});const media=await window.uploadLargeMediaToCloudBase(file,{purpose:'cover',replaceCloudPath:coverCloudPath||''});media.gifDurationMs=Math.max(50,Number(modal._parsedGifDurationMs)||Math.round(totalUs/1000)||0);media.gifDurationSource='gce';await onSaved?.(media.url,media,current);if(!options?.keepOpen)close();else{btn.disabled=false;btn.textContent='设为封面';}window.showToast?.('动图封面已保存','success');}catch(err){window.showToast?.('动图封面截取失败：'+(err?.message||err),'error');btn.disabled=false;btn.textContent='设为封面';}};
         };
+        window.openGifCoverFromCropModal=function(){
+            const index=cropState.index,item=window.editingImageFiles?.[index];
+            if(!item?.isAnimated)return;
+            if(cropState.naturalWidth&&cropState.scale){
+                let sx=(cropState.boxX-cropState.imgX)/cropState.scale,sy=(cropState.boxY-cropState.imgY)/cropState.scale;
+                let sw=cropState.boxW/cropState.scale,sh=cropState.boxH/cropState.scale;
+                sx=Math.max(0,sx);sy=Math.max(0,sy);sw=Math.max(1,Math.min(cropState.naturalWidth-sx,sw));sh=Math.max(1,Math.min(cropState.naturalHeight-sy,sh));
+                item.crop={sx,sy,sw,sh,naturalWidth:cropState.naturalWidth,naturalHeight:cropState.naturalHeight,mediaId:String(item.mediaId||'')};
+            }
+            const src=item.originalFull||item.original||item.outer||'';
+            window.openGifCoverPicker(src,item.cloudPath||'',item.gifCoverCloudPath||window.cloudPathFromMediaUrl?.(item.gifCover||'')||'',(url,media)=>{
+                item.gifCover=url;item.gifCoverCloudPath=media?.cloudPath||'';item.gifCoverManual=true;
+                item.gifDurationMs=Math.max(50,Number(media?.gifDurationMs)||0)||item.gifDurationMs||0;item.gifDurationSource=media?.gifDurationSource||'';
+                window.renderMicroPreviews?.();
+            },null,item.fileID||'',item.crop||null,{keepOpen:true});
+        };
+
         window.editGifCover=function(index){
             const item=window.editingImageFiles?.[index];if(!item)return;const src=item.originalFull||item.original||item.outer||'';
-            window.openGifCoverPicker(src,item.cloudPath||'',item.gifCoverCloudPath||window.cloudPathFromMediaUrl?.(item.gifCover||'')||'',(url,media)=>{item.gifCover=url;item.gifCoverCloudPath=media?.cloudPath||'';item.gifDurationMs=Math.max(50,Number(media?.gifDurationMs)||0)||item.gifDurationMs||0;item.gifDurationSource=media?.gifDurationSource||'';window.renderMicroPreviews?.();},()=>window.openCropModal(index),item.fileID||'',item.crop||null);
+            window.openGifCoverPicker(src,item.cloudPath||'',item.gifCoverCloudPath||window.cloudPathFromMediaUrl?.(item.gifCover||'')||'',(url,media)=>{item.gifCover=url;item.gifCoverCloudPath=media?.cloudPath||'';item.gifCoverManual=true;item.gifDurationMs=Math.max(50,Number(media?.gifDurationMs)||0)||item.gifDurationMs||0;item.gifDurationSource=media?.gifDurationSource||'';window.renderMicroPreviews?.();},()=>window.openCropModal(index),item.fileID||'',item.crop||null);
         };
         window.deepEditGifCover=function(item){
             if(!item)return;window.openGifCoverPicker(item.src,item.cloudPath||'',item.gifCoverCloudPath||window.cloudPathFromMediaUrl?.(item.gifCover||'')||'',(url,media)=>{deepPushUndo?.();item.gifCover=url;item.gifCoverCloudPath=media?.cloudPath||'';item.gifDurationMs=Math.max(50,Number(media?.gifDurationMs)||0)||item.gifDurationMs||0;item.gifDurationSource=media?.gifDurationSource||'';window.renderDeepCanvas?.();},null,item.fileID||'',item.crop||null);
@@ -12031,7 +12089,7 @@ viewer.style.visibility='';
                     ${imgObj.isAnimated&&imgObj.gifCover?`<img src="${window.escapeHtml(imgObj.gifCover)}" class="w-full h-full object-cover" draggable="false">`:imgObj.crop&&imgObj.isAnimated?window.getAnimatedCropPreviewHtml(imgObj):`<img src="${window.escapeHtml(imgObj.outer||src)}" class="w-full h-full object-cover" draggable="false">`}
                     <span class="absolute top-1 left-1 z-10 text-white/80 text-[9px] pointer-events-none"><i class="fa-solid fa-grip-vertical"></i></span>
                     <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
-                        ${imgObj.isAnimated?`<button type="button" onclick="event.stopPropagation();editGifCover(${idx})" title="编辑动图" class="bg-fuchsia-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px]"><i class="fa-solid fa-film"></i></button>`:`<button type="button" onclick="event.stopPropagation();openCropModal(${idx})" title="裁剪图片" class="bg-indigo-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px]"><i class="fa-solid fa-crop"></i></button>`}
+                        ${imgObj.isAnimated?`<button type="button" onclick="event.stopPropagation();openCropModal(${idx})" title="编辑动图" class="bg-fuchsia-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px]"><i class="fa-solid fa-film"></i></button>`:`<button type="button" onclick="event.stopPropagation();openCropModal(${idx})" title="裁剪图片" class="bg-indigo-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px]"><i class="fa-solid fa-crop"></i></button>`}
                         ${document.getElementById('deepDescriptionToggle')?.checked ? `<button type="button" onclick="event.stopPropagation();openDeepDescriptionEditor('image',${idx})" title="深入描述" class="bg-violet-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px]"><i class="fa-solid fa-feather-pointed"></i></button>` : ''}
                         <button type="button" onclick="event.stopPropagation();removeMicroPreview(${idx})" title="删除图片" class="bg-rose-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px]"><i class="fa-solid fa-xmark"></i></button>
                     </div>
@@ -12064,6 +12122,8 @@ viewer.style.visibility='';
 
             targetImg.onload = null;
             targetImg.src = imgObj.originalFull || imgObj.original || imgObj.outer || '';
+            const gifCoverBtn=document.getElementById('cropGifCoverBtn');
+            if(gifCoverBtn)gifCoverBtn.classList.toggle('hidden',!imgObj.isAnimated);
             modal.classList.remove('hidden');
             window.initCropInteractions();
 
@@ -12083,10 +12143,21 @@ viewer.style.visibility='';
                 const dispH = cropState.naturalHeight * cropState.scale;
                 cropState.imgX = (cw - dispW) / 2;
                 cropState.imgY = (ch - dispH) / 2;
-                cropState.boxW = Math.min(cw * 0.55, dispW * 0.85, 320);
-                cropState.boxH = Math.min(ch * 0.55, dispH * 0.85, 240);
-                cropState.boxX = (cw - cropState.boxW) / 2;
-                cropState.boxY = (ch - cropState.boxH) / 2;
+                const saved=window.editingImageFiles[currentIndex]?.crop;
+                if(saved&&Number(saved.sw)>0&&Number(saved.sh)>0){
+                    // 重新进入时恢复上次“显示区域”，不再回到默认中央裁切。
+                    cropState.boxW=Math.max(40,Math.min(cw,Number(saved.sw)*cropState.scale));
+                    cropState.boxH=Math.max(40,Math.min(ch,Number(saved.sh)*cropState.scale));
+                    cropState.boxX=(cw-cropState.boxW)/2;
+                    cropState.boxY=(ch-cropState.boxH)/2;
+                    cropState.imgX=cropState.boxX-Number(saved.sx||0)*cropState.scale;
+                    cropState.imgY=cropState.boxY-Number(saved.sy||0)*cropState.scale;
+                }else{
+                    cropState.boxW = Math.min(cw * 0.55, dispW * 0.85, 320);
+                    cropState.boxH = Math.min(ch * 0.55, dispH * 0.85, 240);
+                    cropState.boxX = (cw - cropState.boxW) / 2;
+                    cropState.boxY = (ch - cropState.boxH) / 2;
+                }
                 applyCropUI();
             };
 
@@ -12282,7 +12353,7 @@ viewer.style.visibility='';
                 window.showToast('截选完成并已应用', 'success');
                 window.renderMicroPreviews();
                 if (window._multiSharedSegmentIndex != null) window.multiRenderCurrentPage?.();
-                window.closeCropModal();
+                // 动图调整完显示区域后继续留在这里，可直接继续“截选封面”。
                 return;
             }
 
