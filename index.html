@@ -3436,8 +3436,14 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.cloudMediaDisplayName=function(a){
             const path=String(a?.cloudPath||'');
             const raw=String(a?.originalName||path||'');
-            const source=(path.split('/').pop()||raw);
-            return source.replace(/\.[^.]+$/,'').replace(/_[a-f0-9]{8}$/i,'');
+            let name=(path.split('/').pop()||raw).replace(/\.[^.]+$/,'');
+            // 当前格式：xxx_copy1_<base36时间戳>_<8hex>
+            name=name.replace(/_[a-z0-9]+_[a-f0-9]{8}$/i,'');
+            // 兼容旧 copy：xxx_<base36时间戳>_<8hex>_copy1[_copy2...]
+            name=name.replace(/_([a-z0-9]+_[a-f0-9]{8})(?=_copy\d+(?:_copy\d+)*$)/i,'');
+            // 再兼容极早期仅 8hex 的防重复后缀
+            name=name.replace(/_[a-f0-9]{8}$/i,'').replace(/_[a-f0-9]{8}(?=_copy\d+(?:_copy\d+)*$)/i,'');
+            return name;
         };
         window.cloudMediaFormatSize=function(n){n=Number(n)||0;if(n<1024)return n+' B';if(n<1048576)return (n/1024).toFixed(1)+' KB';return (n/1048576).toFixed(n<10485760?1:0)+' MB';};
         window.openCloudMediaLibrary=async function({folder='all',onSelect=null}={}){
