@@ -11887,9 +11887,27 @@ viewer.style.visibility='';
                     gif.addEventListener('load',loaded,{once:true});gif.addEventListener('error',()=>{if(token===playToken){removeNode(gif);activeGif=null;timer=setTimeout(nextCycle,POST_COVER_MS);}},{once:true});gif.src=src;if(gif.complete&&gif.naturalWidth>0)queueMicrotask(loaded);
                 },PRE_COVER_MS);
             };
+            let hoverGif=null;
             const pause=()=>{paused=true;playToken++;stopTimer();showBaseCovers();};
-            const resume=()=>{if(disposed)return;paused=false;playCurrent();};
-            [...viewer.querySelectorAll('[data-detail-image-card]')].forEach(card=>{card.addEventListener('mouseenter',pause);card.addEventListener('mouseleave',resume);});
+            const resume=()=>{if(disposed)return;hoverGif=null;paused=false;playCurrent();};
+            const hoverPlay=(card)=>{
+                if(disposed||window.isPhoneLikeDevice?.())return;
+                const img=card?.querySelector?.('[data-detail-image][data-gif-src][data-gif-cover]');
+                // 悬停普通图片时只暂停自动轮播；悬停 GIF 时只播放这一张。
+                hoverGif=img||null;
+                paused=true;playToken++;stopTimer();showBaseCovers();
+                if(hoverGif) window.gifPreviewPlay(hoverGif);
+            };
+            const hoverStop=(card)=>{
+                const img=card?.querySelector?.('[data-detail-image][data-gif-src][data-gif-cover]');
+                if(img) window.gifPreviewStop(img);
+                // 离开悬停后恢复详情页原本的自动 GIF 轮播。
+                resume();
+            };
+            [...viewer.querySelectorAll('[data-detail-image-card]')].forEach(card=>{
+                card.addEventListener('mouseenter',()=>hoverPlay(card));
+                card.addEventListener('mouseleave',()=>hoverStop(card));
+            });
             viewer._detailGifSequenceCleanup=()=>{disposed=true;playToken++;stopTimer();showBaseCovers();viewer._detailGifSequenceCleanup=null;};
             playCurrent();
         };
