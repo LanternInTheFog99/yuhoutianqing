@@ -3528,9 +3528,50 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             modal.querySelectorAll('[data-folder]').forEach(b=>b.onclick=()=>{current=b.dataset.folder;render();}); modal.querySelector('[data-media-search]').oninput=render;
             await load(); return modal;
         };
-        window.addCloudAssetToSingleImage=function(a){if(!a)return;window.editingImageFiles.push({mediaId:'img_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,9),original:a.url,originalFull:a.url,outer:a.url,inner:a.url,collection:a.url,isAnimated:a.folder==='gif',crop:null,cloudPath:a.cloudPath||''});window.renderMicroPreviews?.();};
-        window.addCloudAssetToSingleVideo=function(a){if(!a)return;window.editingVideos.push({mediaId:'vid_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,9),url:a.url,previewDuration:4,blobUrl:'',cover:'',mime:a.mime||'video/mp4',name:a.originalName||'',title:'',cloudPath:a.cloudPath||''});window.renderVideoPreviews?.();};
-        window.addCloudAssetToMulti=function(seg,kind,a){const s=window.multiTimeDraft?.[seg];if(!s||!a)return;if(kind==='image')s.images.push(window.multiNormalizeImage({mediaId:window.multiMediaId(),originalFull:a.url,original:a.url,outer:a.url,inner:a.url,collection:a.url,isAnimated:a.folder==='gif',deepDescription:null,cloudPath:a.cloudPath||''}));else s.videos.push(window.multiNormalizeVideo({url:a.url,blobUrl:'',cover:'',title:String(a.originalName||'').replace(/\.[^.]+$/,''),mime:a.mime||'',previewDuration:4,deepDescription:null,cloudPath:a.cloudPath||''}));window.multiRenderCurrentPage?.();};
+        // 直接引用已有云端媒体时，继承该媒体在已保存事件中的展示信息。
+        // 这里不复制 cover 文件本身，而是继续引用同一个 cover/crop；因此无需重新截封面或调显示区域。
+        window.getSavedCloudMediaPresentation=function(cloudPath){
+            const target=String(cloudPath||'').replace(/^\/+/,'');
+            if(!target)return null;
+            let found=null;
+            const seen=new WeakSet();
+            const walk=(value)=>{
+                if(found||!value||typeof value!=='object'||seen.has(value))return;
+                seen.add(value);
+                if(!Array.isArray(value)){
+                    const p=String(value.cloudPath||'').replace(/^\/+/,'');
+                    if(p===target){
+                        found=value;
+                        return;
+                    }
+                }
+                if(Array.isArray(value)){for(const x of value){walk(x);if(found)break;}}
+                else {for(const x of Object.values(value)){walk(x);if(found)break;}}
+            };
+            walk(Array.isArray(window.events)?window.events:[]);
+            return found;
+        };
+        window.cloudAssetInheritedImage=function(a){
+            const saved=window.getSavedCloudMediaPresentation(a?.cloudPath)||{};
+            return {
+                crop:saved.crop?JSON.parse(JSON.stringify(saved.crop)):null,
+                gifCover:saved.gifCover||'',
+                gifCoverCloudPath:saved.gifCoverCloudPath||'',
+                gifDurationMs:Math.max(0,Number(saved.gifDurationMs)||0),
+                gifDurationSource:saved.gifDurationSource||''
+            };
+        };
+        window.cloudAssetInheritedVideo=function(a){
+            const saved=window.getSavedCloudMediaPresentation(a?.cloudPath)||{};
+            return {
+                cover:saved.cover||'',
+                coverCloudPath:saved.coverCloudPath||'',
+                previewDuration:window.normalizeVideoPreviewDuration?window.normalizeVideoPreviewDuration(saved.previewDuration,4):(Number(saved.previewDuration)||4)
+            };
+        };
+        window.addCloudAssetToSingleImage=function(a){if(!a)return;const inherited=window.cloudAssetInheritedImage(a);window.editingImageFiles.push({mediaId:'img_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,9),original:a.url,originalFull:a.url,outer:a.url,inner:a.url,collection:a.url,isAnimated:a.folder==='gif',crop:inherited.crop,cloudPath:a.cloudPath||'',gifCover:inherited.gifCover,gifCoverCloudPath:inherited.gifCoverCloudPath,gifDurationMs:inherited.gifDurationMs,gifDurationSource:inherited.gifDurationSource});window.renderMicroPreviews?.();};
+        window.addCloudAssetToSingleVideo=function(a){if(!a)return;const inherited=window.cloudAssetInheritedVideo(a);window.editingVideos.push({mediaId:'vid_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,9),url:a.url,previewDuration:inherited.previewDuration,blobUrl:'',cover:inherited.cover,coverCloudPath:inherited.coverCloudPath,mime:a.mime||'video/mp4',name:a.originalName||'',title:'',cloudPath:a.cloudPath||''});window.renderVideoPreviews?.();};
+        window.addCloudAssetToMulti=function(seg,kind,a){const s=window.multiTimeDraft?.[seg];if(!s||!a)return;if(kind==='image'){const inherited=window.cloudAssetInheritedImage(a);s.images.push(window.multiNormalizeImage({mediaId:window.multiMediaId(),originalFull:a.url,original:a.url,outer:a.url,inner:a.url,collection:a.url,isAnimated:a.folder==='gif',crop:inherited.crop,gifCover:inherited.gifCover,gifCoverCloudPath:inherited.gifCoverCloudPath,gifDurationMs:inherited.gifDurationMs,gifDurationSource:inherited.gifDurationSource,deepDescription:null,cloudPath:a.cloudPath||''}));}else{const inherited=window.cloudAssetInheritedVideo(a);s.videos.push(window.multiNormalizeVideo({url:a.url,blobUrl:'',cover:inherited.cover,coverCloudPath:inherited.coverCloudPath,title:String(a.originalName||'').replace(/\.[^.]+$/,''),mime:a.mime||'',previewDuration:inherited.previewDuration,deepDescription:null,cloudPath:a.cloudPath||''}));}window.multiRenderCurrentPage?.();};
 
         window.ensureRoomAccess = async function(){
             if(window.roomAccessToken) return true;
