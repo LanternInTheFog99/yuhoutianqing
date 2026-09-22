@@ -3434,15 +3434,10 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if(pct>=100)setTimeout(()=>box?.remove(),900);
         };
         window.cloudMediaDisplayName=function(a){
-            const raw=String(a?.originalName||a?.cloudPath||'');
             const path=String(a?.cloudPath||'');
-            const file=(path.split('/').pop()||raw).replace(/\.[^.]+$/,'');
-            const m=file.match(/(?:^|_)(copy\d+(?:_copy\d+)*)$/i);
-            if(m){
-                const rawBase=raw.replace(/\.[^.]+$/,'').replace(/(?:_copy\d+)+$/i,'');
-                return `${rawBase||'media'}_${m[1]}`;
-            }
-            return raw;
+            const raw=String(a?.originalName||path||'');
+            const source=(path.split('/').pop()||raw);
+            return source.replace(/\.[^.]+$/,'').replace(/_[a-f0-9]{8}$/i,'');
         };
         window.cloudMediaFormatSize=function(n){n=Number(n)||0;if(n<1024)return n+' B';if(n<1048576)return (n/1024).toFixed(1)+' KB';return (n/1048576).toFixed(n<10485760?1:0)+' MB';};
         window.openCloudMediaLibrary=async function({folder='all',onSelect=null}={}){
@@ -3476,7 +3471,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 const shell=modal.querySelector(':scope > div');
                 const confirmLayer=document.createElement('div');
                 confirmLayer.className='absolute inset-0 z-20 bg-slate-950/35 backdrop-blur-[1px] flex items-center justify-center p-4';
-                confirmLayer.innerHTML=`<div class="w-full max-w-sm rounded-2xl bg-white border shadow-2xl p-4" onclick="event.stopPropagation()"><div class="font-bold text-slate-800">删除复制媒体</div><div class="text-xs text-slate-500 mt-2">只会删除当前页面刚刚创建的这个副本，不会影响原媒体。</div><div data-delete-progress class="hidden mt-4"><div class="flex justify-between text-[11px] text-slate-500"><span data-delete-text>正在删除…</span><span data-delete-pct>20%</span></div><div class="mt-1.5 h-1.5 rounded-full bg-slate-100 overflow-hidden"><div data-delete-bar class="h-full bg-rose-500 transition-all duration-300" style="width:20%"></div></div></div><div data-delete-actions class="mt-4 flex justify-end gap-2"><button type="button" data-delete-cancel class="px-3 py-1.5 rounded-lg border text-xs">取消</button><button type="button" data-delete-confirm class="px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs">删除</button></div></div>`;
+                confirmLayer.innerHTML=`<div class="w-full max-w-sm rounded-2xl bg-white border shadow-2xl p-4" onclick="event.stopPropagation()"><div class="font-bold text-slate-800">删除复制媒体</div><div data-delete-progress class="hidden mt-4"><div class="flex justify-between text-[11px] text-slate-500"><span data-delete-text>正在删除…</span><span data-delete-pct>20%</span></div><div class="mt-1.5 h-1.5 rounded-full bg-slate-100 overflow-hidden"><div data-delete-bar class="h-full bg-rose-500 transition-all duration-300" style="width:20%"></div></div></div><div data-delete-actions class="mt-4 flex justify-end gap-2"><button type="button" data-delete-cancel class="px-3 py-1.5 rounded-lg border text-xs">取消</button><button type="button" data-delete-confirm class="px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs">删除</button></div></div>`;
                 shell.classList.add('relative');shell.appendChild(confirmLayer);
                 confirmLayer.querySelector('[data-delete-cancel]').onclick=()=>confirmLayer.remove();
                 confirmLayer.querySelector('[data-delete-confirm]').onclick=async()=>{
