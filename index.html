@@ -2596,6 +2596,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     // 在 100% 全黑下面立刻换成下一条 GIF 的静态封面，确保退黑过程中
                     // 绝不会再次露出上一条正在循环的 GIF。
                     if (currentItem && isAnimatedImageItem(currentItem) && isAnimatedImageItem(nextItem)) {
+                        img.dataset.previewGifHandoff = '1';
                         const gifNextCover = String(nextItem.cover || '');
                         if (gifNextCover) {
                             disableSoftFade(img);
@@ -2889,8 +2890,10 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         return;
                     }
 
-                    // GIF：封面先出现，同时在后台加载 GIF；加载越慢，封面自动多停留，
-                    // 不再先淡到黑色再等 GIF，因此 A→B 的媒体切换由 B 的封面直接遮住等待过程。
+                    // GIF：如果是 GIF→GIF 的全黑交接，上一层转场已经负责了封面/遮挡，
+                    // 这里不要再执行一次“封面→GIF”的视觉交接，否则会形成退黑后的第二次闪动。
+                    const gifHandoff = img.dataset.previewGifHandoff === '1';
+                    delete img.dataset.previewGifHandoff;
                     let animatedHoldSec = null;
                     const directFromBlack = !!(pendingBlackHandoff && pendingBlackHandoff.item === item);
                     if(isAnimatedImageItem(item) && directFromBlack){
@@ -2917,14 +2920,27 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         // 才 await 时长解析，大 GIF / 云端 GIF 解析慢时，这段等待会吃掉实际播放时间。
                         // 现在封面等待、资源加载、时长解析都不计入 GIF 的播放计时。
                         const durationPromise = window.getAnimatedImageDuration(item).catch(()=>null);
-                        if (!(await holdCoverUntil(Promise.all([preloadGif, durationPromise]), gen, calm ? 600 : 500, calm ? 2200 : 1800))) return;
+                        if (gifHandoff) {
+                            // 转场已经完成封面阶段：只等待 GIF 资源准备，不再额外展示/切一次封面。
+                            await Promise.all([preloadGif, durationPromise]);
+                            if (!isStillRunning() || gen !== generation) return;
+                        } else {
+                            if (!(await holdCoverUntil(Promise.all([preloadGif, durationPromise]), gen, calm ? 600 : 500, calm ? 2200 : 1800))) return;
+                        }
                         let duration = null;
                         try { duration = await durationPromise; } catch (_) { duration = null; }
                         if (!isStillRunning() || gen !== generation) return;
                         if (Number.isFinite(duration) && duration > 0) animatedHoldSec = Math.max(0.3, duration - 0.35);
                         else animatedHoldSec = ANIMATED_FALLBACK_SEC;
-                        await applyImageItem(item, { hardHide: false });
+                        await applyImageItem(item, { hardHide: !!gifHandoff });
                         if (!isStillRunning() || gen !== generation) return;
+                        if (gifHandoff) {
+                            disableSoftFade(img);
+                            img.style.transition='none';
+                            img.style.opacity='1';
+                            img.style.visibility='visible';
+                            img.classList.remove('hidden');
+                        }
                         showImageNow();
                     } else {
                         // 普通图片直接切换；有下一项封面时不再强制经过黑屏阶段。
