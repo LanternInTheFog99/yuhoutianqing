@@ -2636,6 +2636,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 const scheduleHold = (gen, holdSec, after, currentItem) => {
                     if (!after || !isStillRunning() || gen !== generation) return;
                     const ms = Math.max(50, Math.round(holdSec * 1000));
+                    // 整个区域只有一张 GIF：不做任何渐入渐出，也不做“切回自己”的轮播。
+                    // 让浏览器自然播放/循环这张 GIF。
+                    if (media.length === 1 && isAnimatedImageItem(currentItem)) return;
                     const nextItem = media.length > 1 ? media[(idx + 1) % media.length] : media[0];
                     if (nextItem) preloadNextItem(nextItem);
                     timers.push(setTimeout(async () => {
@@ -2904,7 +2907,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         let duration = null;
                         try { duration = await durationPromise; } catch (_) { duration = null; }
                         if (!isStillRunning() || gen !== generation) return;
-                        if (Number.isFinite(duration) && duration > 0) animatedHoldSec = Math.max(0.3, duration - 0.35);
+                        if (Number.isFinite(duration) && duration > 0) {
+                            animatedHoldSec = media.length === 1 ? duration : Math.max(0.3, duration - 0.35);
+                        }
                         else animatedHoldSec = ANIMATED_FALLBACK_SEC;
                         await applyImageItem(item, { hardHide: false });
                         if (!isStillRunning() || gen !== generation) return;
