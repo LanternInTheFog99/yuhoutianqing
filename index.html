@@ -3306,9 +3306,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         };
         window.resolveGifCloudPath = function(src,cloudPath){
             const explicit=String(cloudPath||'').replace(/^\/+/, '');
-            if(/^gif\/[^?#]+/i.test(explicit))return explicit;
+            if(/^(?:gif|temp\/gif)\/[^?#]+/i.test(explicit))return explicit;
             const inferred=window.cloudPathFromMediaUrl(src);
-            return /^gif\/[^?#]+/i.test(inferred)?inferred:'';
+            return /^(?:gif|temp\/gif)\/[^?#]+/i.test(inferred)?inferred:'';
         };
         window.getGifDecodeFetchRequest = async function(src,cloudPath,fileID){
             const resolved=window.resolveGifCloudPath(src,cloudPath);
@@ -6819,7 +6819,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     <button type="button" onclick="deepRedo()" class="px-2.5 py-1.5 border rounded-lg text-xs" title="重做"><i class="fa-solid fa-rotate-right"></i></button>
                     <span id="deepEnabledStatus" class="hidden sm:inline px-2 py-1 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-500"></span>
                     <button type="button" id="deepEnableToggleBtn" onclick="deepToggleDescriptionEnabled()" class="px-3 py-1.5 border rounded-lg text-xs"><i data-deep-enable-toggle-icon class="fa-solid fa-eye-slash mr-1"></i><span data-deep-enable-toggle-label>停用</span></button>
-                    <button type="button" onclick="closeDeepDescriptionEditor(false)" class="px-3 py-1.5 border rounded-lg text-xs">取消</button>
+                    <button type="button" onclick="closeDeepDescriptionEditor(true)" class="px-3 py-1.5 border rounded-lg text-xs">取消</button>
                     <button type="button" onclick="saveDeepDescriptionEditor()" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold">保存</button>
                 </div>
                 <div class="deep-canvas-toolbar shrink-0 border-b border-slate-200 bg-slate-50 px-3 py-2 flex flex-wrap gap-1.5 items-center">
@@ -6894,7 +6894,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             window.deepSyncEnabledToggle?.();
             m.classList.remove('hidden'); window.deepSetTextToolsExpanded?.(false); window.deepSetDrawing(false); window.deepSetErasing(false); window.deepUpdateConnectorControls?.(); window.renderDeepCanvas(); window.deepStartAutosave?.();
         };
-        window.closeDeepDescriptionEditor = function(discard){
+        window.closeDeepDescriptionEditor = async function(discard){
             window.deepStopAutosave?.();
             const m=document.getElementById('deepDescriptionModal');
             if(discard&&window._deepEditSession){
@@ -6902,7 +6902,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 const obj=s.target?.multi?window.multiDeepMediaObject?.(s.target.segIndex,s.target.type,s.target.index):window.deepMediaObject?.(s.target?.type,s.target?.index);
                 if(obj)obj.deepDescription=window.deepClone(s.originalDeep);
                 window.deepDescriptionEnabledDraft=s.originalEnabled;
-                window.discardTempUploadsSince?.(s.tempMark);
+                await window.discardTempUploadsSince?.(s.tempMark);
             }
             if(m)m.classList.add('hidden');
             window._deepEditSession=null;
