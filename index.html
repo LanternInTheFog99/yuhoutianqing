@@ -2899,7 +2899,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         // 才 await 时长解析，大 GIF / 云端 GIF 解析慢时，这段等待会吃掉实际播放时间。
                         // 现在封面等待、资源加载、时长解析都不计入 GIF 的播放计时。
                         const durationPromise = window.getAnimatedImageDuration(item).catch(()=>null);
-                        if (!(await holdCoverUntil(Promise.all([preloadGif, durationPromise]), gen, calm ? 600 : 500, calm ? 2200 : 1800))) return;
+                        // GIF 封面不再强制固定展示 500/600ms。
+                        // 只保留极短的 80ms 防同帧闪烁；之后完全按 GIF 本体 + 时长解析的实际加载时间决定。
+                        if (!(await holdCoverUntil(Promise.all([preloadGif, durationPromise]), gen, 80, calm ? 2200 : 1800))) return;
                         let duration = null;
                         try { duration = await durationPromise; } catch (_) { duration = null; }
                         if (!isStillRunning() || gen !== generation) return;
