@@ -4703,6 +4703,36 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             ['confirmCropImage','confirmVideoFrameCapture','saveVideoEditModal','saveEditLinkModal'].forEach(wrap);
         }
 
+        window._editMediaTxn=null;
+        window.beginEditMediaTxn=function(){
+            if(window._editMediaTxn)return;
+            const clone=v=>{try{return structuredClone(v);}catch(_){return JSON.parse(JSON.stringify(v??null));}};
+            window._editMediaTxn={
+                images:clone(window.editingImageFiles||[]),
+                videos:clone(window.editingVideoFiles||[]),
+                deep:clone(window.deepCanvasState||null),
+                uploaded:new Set()
+            };
+        };
+        window.trackUnsavedMediaUpload=function(path){
+            path=String(path||'').trim();if(path&&window._editMediaTxn)window._editMediaTxn.uploaded.add(path);
+        };
+        window.rollbackEditMediaTxn=async function(){
+            const tx=window._editMediaTxn;if(!tx)return;
+            window.editingImageFiles=tx.images||[];
+            window.editingVideoFiles=tx.videos||[];
+            if(tx.deep)window.deepCanvasState=tx.deep;
+            const paths=[...tx.uploaded];
+            window._editMediaTxn=null;
+            for(const path of paths){
+                try{
+                    if(typeof window.deleteCloudMediaByPath==='function')await window.deleteCloudMediaByPath(path);
+                    else if(typeof window.deleteCloudFile==='function')await window.deleteCloudFile(path);
+                }catch(e){console.warn('清理未保存媒体失败',path,e);}
+            }
+        };
+        window.commitEditMediaTxn=function(){window._editMediaTxn=null;};
+
         window.handleNewEventClick = function() {
             if (window.isLocked) {
                 window.showToast("当前处于浏览模式，请先解锁密码", "error");
@@ -5079,8 +5109,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         };
         window.ensureAutomaticFirstFrameCovers=async function(eventData){
             const jobs=[];
-            const addGif=obj=>{if(!obj||obj.gifCover)return;const src=obj.originalFull||obj.original||obj.outer||obj.src||'';if(!src||!window.isAnimatedImageSource?.(src,obj))return;jobs.push((async()=>{const up=await window.makeAutoFirstFrameCover(src,'gif',obj.gifCoverCloudPath||'');if(up){obj.gifCover=up.url;obj.gifCoverCloudPath=up.cloudPath||'';obj.gifCoverAuto=true;}})());};
-            const addVideo=obj=>{if(!obj||obj.cover)return;const src=obj.url||obj.src||obj.outer||obj.original||'';if(!src)return;jobs.push((async()=>{const up=await window.makeAutoFirstFrameCover(src,'video',obj.coverCloudPath||'');if(up){obj.cover=up.url;obj.coverCloudPath=up.cloudPath||'';obj.coverAuto=true;}})());};
+            const addGif=obj=>{if(!obj||obj.gifCover)return;const src=obj.originalFull||obj.original||obj.outer||obj.src||'';if(!src||!window.isAnimatedImageSource?.(src,obj))return;jobs.push((async()=>{const up=await window.makeAutoFirstFrameCover(src,'gif',obj.gifCoverCloudPath||'');if(up){window.trackUnsavedMediaUpload?.(up.cloudPath||'');obj.gifCover=up.url;obj.gifCoverCloudPath=up.cloudPath||'';obj.gifCoverAuto=true;}})());};
+            const addVideo=obj=>{if(!obj||obj.cover)return;const src=obj.url||obj.src||obj.outer||obj.original||'';if(!src)return;jobs.push((async()=>{const up=await window.makeAutoFirstFrameCover(src,'video',obj.coverCloudPath||'');if(up){window.trackUnsavedMediaUpload?.(up.cloudPath||'');obj.cover=up.url;obj.coverCloudPath=up.cloudPath||'';obj.coverAuto=true;}})());};
             (eventData.images||[]).forEach(addGif);(eventData.videos||[]).forEach(addVideo);
             const seen=new WeakSet(),walk=o=>{if(!o||typeof o!=='object'||seen.has(o))return;seen.add(o);if(Array.isArray(o)){o.forEach(walk);return;}if(o.type==='media'){if(o.mediaKind==='video')addVideo(o);else addGif(o);}Object.values(o).forEach(walk);};
             (eventData.images||[]).forEach(x=>walk(x?.deepDescription));(eventData.videos||[]).forEach(x=>walk(x?.deepDescription));walk(eventData.deepDescription);
@@ -5109,6 +5139,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
                 delete eventData._isEdit;
 
+                window.commitEditMediaTxn?.();
                 window.closeConfirmSaveModal();
                 const savingModal = document.getElementById('savingModal');
                 const progressBar = document.getElementById('savingProgressBar');
@@ -7039,8 +7070,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     <div class="text-base font-bold">插入媒体</div>
                     <p class="mt-3 text-sm leading-6 text-slate-600">可以从本地上传，或从云端媒体库复用已有文件。</p>
                     <div class="mt-5 flex justify-end gap-2">
-                        <button type="button" data-deep-media-local class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold">本地</button>
-                        <button type="button" data-deep-media-cloud class="px-4 py-2 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 text-sm">云端</button>
+                        <button type="button" data-deep-media-local class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold">本地上传</button>
+                        <button type="button" data-deep-media-cloud class="px-4 py-2 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 text-sm">云端选择</button>
                     </div>
                 </div>`;
                 const finish=value=>{modal.classList.add('hidden');resolve(value);};
@@ -9084,7 +9115,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     window.deepPushUndo?.();it.gifCover=url;it.gifCoverCloudPath=uploaded?.cloudPath||'';it.gifCoverManual=true;
                     it.gifDurationMs=Math.max(50,Number(uploaded?.gifDurationMs)||0)||it.gifDurationMs||0;it.gifDurationSource=uploaded?.gifDurationSource||'';
                     window.renderDeepCanvas?.(false);
-                },null,it.fileID||'',{mode:'deep',scale:crop.scale,offsetX:crop.offsetX,offsetY:crop.offsetY,stretchX:crop.stretchX,stretchY:crop.stretchY,frameW:frame.w,frameH:frame.h},{keepOpen:true});
+                },null,it.fileID||'',{mode:'deep',scale:crop.scale,offsetX:crop.offsetX,offsetY:crop.offsetY,stretchX:crop.stretchX,stretchY:crop.stretchY,frameW:frame.w,frameH:frame.h});
             };
             if(tag==='video'){
                 const playBtn=document.getElementById('deepCropVideoPlay');
@@ -9115,7 +9146,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         c.getContext('2d').drawImage(media,0,0,c.width,c.height);
                         const uploaded=await window.canvasToCloudCover(c,'video_cover',.84,it.coverCloudPath||window.cloudPathFromMediaUrl?.(it.cover||'')||'');
                         window.deepPushUndo?.();
-                        it.cover=uploaded.url; it.coverManual=true; it.coverCloudPath=uploaded.cloudPath||'';
+                        window.trackUnsavedMediaUpload?.(uploaded.cloudPath||'');it.cover=uploaded.url; it.coverManual=true; it.coverCloudPath=uploaded.cloudPath||'';
                         window.renderDeepCanvas();
                         window.showToast?.('视频封面已更新','success');
                     }catch(err){
@@ -10889,6 +10920,7 @@ viewer.style.visibility='';
         };
 
         window.closeEditModal = function() {
+            window.rollbackEditMediaTxn?.();
             const returnStackDate=window._isEditingFromStack ? window._editingFromStackDate : null;
             const editedEventId=window.editingEventId;
             void window.releaseEventEditLock?.(editedEventId);
@@ -11167,7 +11199,7 @@ viewer.style.visibility='';
                 if(!target) throw new Error('capture_target_missing');
                 const uploadedCover=await window.canvasToCloudCover(canvas,'video_cover',0.84,target.coverCloudPath||window.cloudPathFromMediaUrl?.(target.cover||'')||'');
                 if(!uploadedCover?.url) throw new Error('capture_cover_upload_failed');
-                target.cover=uploadedCover.url;target.coverManual=true;
+                window.trackUnsavedMediaUpload?.(uploadedCover.cloudPath||'');target.cover=uploadedCover.url;target.coverManual=true;
                 target.coverCloudPath=uploadedCover.cloudPath||'';
                 target.previewCover=uploadedCover.url;
                 window.renderVideoPreviews();
@@ -11965,7 +11997,8 @@ viewer.style.visibility='';
             viewer._detailGifSequenceCleanup=()=>{disposed=true;playToken++;stopTimer();showBaseCovers();viewer._detailGifSequenceCleanup=null;};
             playCurrent();
         };
-        window.openGifCoverPicker=async function(src,cloudPath,coverCloudPath,onSaved,onCrop,fileID,crop=null,options={}){
+        window.openGifCoverPicker=async function(src,cloudPath,coverCloudPath,onSaved,onCrop,fileID,crop=null,options={
+            window.beginEditMediaTxn?.();}){
             src=String(src||''); if(!src)return;
             let modal=document.getElementById('gifCoverPickerModal');
             if(!modal){modal=document.createElement('div');modal.id='gifCoverPickerModal';modal.className='fixed inset-0 z-[490] hidden bg-slate-950/90 flex items-center justify-center p-3 sm:p-6';document.body.appendChild(modal);}
@@ -12054,7 +12087,7 @@ viewer.style.visibility='';
                     sw=Math.max(1,Math.min(w-sx,(Number(crop.sw)||baseW)*rx));
                     sh=Math.max(1,Math.min(h-sy,(Number(crop.sh)||baseH)*ry));
                 }
-                const max=1280,scale=Math.min(1,max/sw,max/sh),c=document.createElement('canvas');c.width=Math.max(1,Math.round(sw*scale));c.height=Math.max(1,Math.round(sh*scale));c.getContext('2d').drawImage(source,sx,sy,sw,sh,0,0,c.width,c.height);const blob=await new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(new Error('封面生成失败')),'image/jpeg',.86));const file=new File([blob],`gif_cover_${Date.now()}.jpg`,{type:'image/jpeg'});const media=await window.uploadLargeMediaToCloudBase(file,{purpose:'cover',replaceCloudPath:coverCloudPath||''});media.gifDurationMs=Math.max(50,Number(modal._parsedGifDurationMs)||Math.round(totalUs/1000)||0);media.gifDurationSource='gce';await onSaved?.(media.url,media,current);if(!options?.keepOpen)close();else{btn.disabled=false;btn.textContent='设为封面';}window.showToast?.('动图封面已保存','success');}catch(err){window.showToast?.('动图封面截取失败：'+(err?.message||err),'error');btn.disabled=false;btn.textContent='设为封面';}};
+                const max=1280,scale=Math.min(1,max/sw,max/sh),c=document.createElement('canvas');c.width=Math.max(1,Math.round(sw*scale));c.height=Math.max(1,Math.round(sh*scale));c.getContext('2d').drawImage(source,sx,sy,sw,sh,0,0,c.width,c.height);const blob=await new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(new Error('封面生成失败')),'image/jpeg',.86));const file=new File([blob],`gif_cover_${Date.now()}.jpg`,{type:'image/jpeg'});const media=await window.uploadLargeMediaToCloudBase(file,{purpose:'cover',replaceCloudPath:coverCloudPath||''});media.gifDurationMs=Math.max(50,Number(modal._parsedGifDurationMs)||Math.round(totalUs/1000)||0);media.gifDurationSource='gce';window.trackUnsavedMediaUpload?.(media.cloudPath||'');await onSaved?.(media.url,media,current);close();window.showToast?.('动图封面已保存','success');}catch(err){window.showToast?.('动图封面截取失败：'+(err?.message||err),'error');btn.disabled=false;btn.textContent='设为封面';}};
         };
         window.openGifCoverFromCropModal=function(){
             const index=cropState.index,item=window.editingImageFiles?.[index];
@@ -12070,7 +12103,7 @@ viewer.style.visibility='';
                 item.gifCover=url;item.gifCoverCloudPath=media?.cloudPath||'';item.gifCoverManual=true;
                 item.gifDurationMs=Math.max(50,Number(media?.gifDurationMs)||0)||item.gifDurationMs||0;item.gifDurationSource=media?.gifDurationSource||'';
                 window.renderMicroPreviews?.();
-            },null,item.fileID||'',item.crop||null,{keepOpen:true});
+            },null,item.fileID||'',item.crop||null);
         };
 
         window.editGifCover=function(index){
@@ -12106,6 +12139,7 @@ viewer.style.visibility='';
         };
 
         window.openCropModal = function(index) {
+            window.beginEditMediaTxn?.();
             const imgObj = window.editingImageFiles[index];
             if (!imgObj) return;
             const mediaId = String(imgObj.mediaId || '');
@@ -12143,21 +12177,10 @@ viewer.style.visibility='';
                 const dispH = cropState.naturalHeight * cropState.scale;
                 cropState.imgX = (cw - dispW) / 2;
                 cropState.imgY = (ch - dispH) / 2;
-                const saved=window.editingImageFiles[currentIndex]?.crop;
-                if(saved&&Number(saved.sw)>0&&Number(saved.sh)>0){
-                    // 重新进入时恢复上次“显示区域”，不再回到默认中央裁切。
-                    cropState.boxW=Math.max(40,Math.min(cw,Number(saved.sw)*cropState.scale));
-                    cropState.boxH=Math.max(40,Math.min(ch,Number(saved.sh)*cropState.scale));
-                    cropState.boxX=(cw-cropState.boxW)/2;
-                    cropState.boxY=(ch-cropState.boxH)/2;
-                    cropState.imgX=cropState.boxX-Number(saved.sx||0)*cropState.scale;
-                    cropState.imgY=cropState.boxY-Number(saved.sy||0)*cropState.scale;
-                }else{
-                    cropState.boxW = Math.min(cw * 0.55, dispW * 0.85, 320);
-                    cropState.boxH = Math.min(ch * 0.55, dispH * 0.85, 240);
-                    cropState.boxX = (cw - cropState.boxW) / 2;
-                    cropState.boxY = (ch - cropState.boxH) / 2;
-                }
+                cropState.boxW = Math.min(cw * 0.55, dispW * 0.85, 320);
+                cropState.boxH = Math.min(ch * 0.55, dispH * 0.85, 240);
+                cropState.boxX = (cw - cropState.boxW) / 2;
+                cropState.boxY = (ch - cropState.boxH) / 2;
                 applyCropUI();
             };
 
@@ -12353,7 +12376,7 @@ viewer.style.visibility='';
                 window.showToast('截选完成并已应用', 'success');
                 window.renderMicroPreviews();
                 if (window._multiSharedSegmentIndex != null) window.multiRenderCurrentPage?.();
-                // 动图调整完显示区域后继续留在这里，可直接继续“截选封面”。
+                window.closeCropModal();
                 return;
             }
 
