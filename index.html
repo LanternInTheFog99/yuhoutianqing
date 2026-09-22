@@ -2545,10 +2545,13 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 // 只有 B 仍未就绪时，才在黑场后落到 B 封面继续等待。
                 const fadeIntoNextCover = async (nextItem, gen, currentItem = null, switchAtBlack = null) => {
                     if (!nextItem || !isStillRunning() || gen !== generation) return false;
-                    const involvesPlainImage = isPlainPreviewImageItem(currentItem) || isPlainPreviewImageItem(nextItem);
-                    const fadeInMs = involvesPlainImage ? 220 : 340;
-                    const fadeOutMs = involvesPlainImage ? 260 : 380;
-                    const readyGraceMs = involvesPlainImage ? 0 : 140;
+                    // 现在只区分“图片→图片”和“其它所有组合”：
+                    // 图片→图片保持原来的短转场；只要任一侧是 GIF/视频，就统一使用较长转场。
+                    const isPlainImageToPlainImage =
+                        isPlainPreviewImageItem(currentItem) && isPlainPreviewImageItem(nextItem);
+                    const fadeInMs = isPlainImageToPlainImage ? 220 : 340;
+                    const fadeOutMs = isPlainImageToPlainImage ? 260 : 380;
+                    const readyGraceMs = isPlainImageToPlainImage ? 0 : 140;
                     pendingBlackHandoff = null;
 
                     const nextCover = nextItem.type === 'video'
