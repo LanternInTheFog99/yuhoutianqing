@@ -1644,25 +1644,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 <span id="imageScaleText" class="text-xs font-mono text-indigo-400 w-12 text-right">100%</span>
             </div>
 
-            <div id="inlineGifCoverPanel" class="hidden w-full mt-3 p-3 rounded-xl border border-slate-700 bg-slate-950/70">
-                <div class="flex items-center justify-between gap-3 mb-2">
-                    <span class="text-xs font-semibold text-fuchsia-300">截选封面</span>
-                    <span id="inlineGifFrameLabel" class="text-[11px] text-slate-400"></span>
-                </div>
-                <input id="inlineGifRange" type="range" min="0" max="0" value="0" step="1" class="w-full">
-                <div class="mt-2 flex flex-wrap items-center justify-center gap-2">
-                    <button type="button" id="inlineGifPrev" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs">上一帧</button>
-                    <button type="button" id="inlineGifPlay" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs">播放</button>
-                    <button type="button" id="inlineGifNext" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs">下一帧</button>
-                    <button type="button" id="inlineGifSetCover" class="px-3 py-1.5 rounded-lg bg-fuchsia-700 hover:bg-fuchsia-600 text-white text-xs font-semibold">设为封面</button>
-                </div>
-                <div id="inlineGifStatus" class="mt-2 text-[11px] text-slate-400 text-center">打开后将解析动图帧；显示区域保持当前状态。</div>
-            </div>
-
             <div class="flex flex-col sm:flex-row justify-between items-center w-full mt-4 pt-3 border-t border-slate-800 gap-2">
                 <span></span>
                 <div class="flex gap-2 w-full sm:w-auto justify-end">
-                    <button id="cropGifCoverBtn" onclick="toggleInlineGifCoverPicker()" class="hidden px-4 py-2 bg-fuchsia-700 hover:bg-fuchsia-600 text-white rounded-lg text-xs font-medium"><i class="fa-solid fa-film mr-1"></i>截选封面</button>
                     <button onclick="closeCropModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium">取消</button>
                     <button onclick="confirmCropImage()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">完成截选并保存</button>
                 </div>
@@ -12158,100 +12142,9 @@ viewer.style.visibility='';
                 }
                 const max=1280,scale=Math.min(1,max/sw,max/sh),c=document.createElement('canvas');c.width=Math.max(1,Math.round(sw*scale));c.height=Math.max(1,Math.round(sh*scale));c.getContext('2d').drawImage(source,sx,sy,sw,sh,0,0,c.width,c.height);const blob=await new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(new Error('封面生成失败')),'image/jpeg',.86));const file=new File([blob],`gif_cover_${Date.now()}.jpg`,{type:'image/jpeg'});const media=await window.uploadLargeMediaToCloudBase(file,{purpose:'cover',replaceCloudPath:coverCloudPath||''});media.gifDurationMs=Math.max(50,Number(modal._parsedGifDurationMs)||Math.round(totalUs/1000)||0);media.gifDurationSource='gce';window.trackUnsavedMediaUpload?.(media.cloudPath||'');await onSaved?.(media.url,media,current);close();window.showToast?.('动图封面已保存','success');}catch(err){window.showToast?.('动图封面截取失败：'+(err?.message||err),'error');btn.disabled=false;btn.textContent='设为封面';}};
         };
-        window._inlineGifPicker=null;
-        window.closeInlineGifCoverPicker=function(){
-            const s=window._inlineGifPicker;if(s){
-                s.closed=true;if(s.timer)clearTimeout(s.timer);try{s.decoder?.close?.();}catch(_){}
-            }
-            window._inlineGifPicker=null;
-            document.getElementById('inlineGifCoverPanel')?.classList.add('hidden');
-        };
-        window.toggleInlineGifCoverPicker=async function(){
-            const panel=document.getElementById('inlineGifCoverPanel');
-            if(!panel)return;
-            if(!panel.classList.contains('hidden')){window.closeInlineGifCoverPicker();return;}
-            const index=cropState.index,item=window.editingImageFiles?.[index];
-            if(!item?.isAnimated)return;
-            panel.classList.remove('hidden');
-            const status=document.getElementById('inlineGifStatus'),range=document.getElementById('inlineGifRange'),
-                  label=document.getElementById('inlineGifFrameLabel'),play=document.getElementById('inlineGifPlay');
-            status.textContent='正在解析动图帧…';
-            const src=item.originalFull||item.original||item.outer||'';
-            const state={decoder:null,closed:false,current:0,count:0,durations:[],starts:[],totalUs:0,timer:null,playing:false,originalSrc:src};
-            window._inlineGifPicker=state;
-            const stop=()=>{state.playing=false;if(state.timer){clearTimeout(state.timer);state.timer=null;}if(play)play.textContent='播放';};
-            const draw=async n=>{
-                if(state.closed||!state.decoder)return;
-                n=Math.max(0,Math.min(state.count-1,Number(n)||0));state.current=n;range.value=String(n);
-                const r=await state.decoder.decode({frameIndex:n});const vf=r.image;
-                const c=document.createElement('canvas');c.width=vf.displayWidth||vf.codedWidth;c.height=vf.displayHeight||vf.codedHeight;c.getContext('2d').drawImage(vf,0,0,c.width,c.height);vf.close?.();
-                const target=document.getElementById('cropTargetImg');
-                // Same viewport + same crop transform: only replace frame pixels, never change geometry.
-                target.src=c.toDataURL('image/png');
-                label.textContent=`第 ${n+1} / ${state.count} 帧`;
-            };
-            const nextLoop=()=>{if(!state.playing||state.closed)return;state.timer=setTimeout(async()=>{await draw((state.current+1)%state.count);nextLoop();},Math.max(20,Math.round((state.durations[state.current]||100000)/1000)));};
-            try{
-                if(!('ImageDecoder' in window))throw new Error('当前浏览器不支持逐帧解码');
-                const req=await window.getGifDecodeFetchRequest(src,item.cloudPath||'',item.fileID||'');
-                const r=await fetch(req.url,req.options||{});if(!r.ok)throw new Error('HTTP '+r.status);
-                const buf=await r.arrayBuffer();
-                state.decoder=new ImageDecoder({data:buf,type:'image/gif'});await state.decoder.tracks.ready;
-                const track=state.decoder.tracks.selectedTrack;if(!track?.frameCount)throw new Error('未读取到动图帧');
-                state.count=track.frameCount;range.max=String(state.count-1);
-                for(let i=0;i<state.count;i++){const rr=await state.decoder.decode({frameIndex:i});let d=Number(rr.image?.duration)||100000;if(d<10000)d=100000;state.starts[i]=state.totalUs;state.durations[i]=d;state.totalUs+=d;rr.image?.close?.();}
-                status.textContent='拖动时间轴选择封面；上方显示区域可同时继续调整。';
-                await draw(0);
-                range.oninput=()=>{stop();draw(Number(range.value));};
-                document.getElementById('inlineGifPrev').onclick=()=>{stop();draw((state.current-1+state.count)%state.count);};
-                document.getElementById('inlineGifNext').onclick=()=>{stop();draw((state.current+1)%state.count);};
-                play.onclick=()=>{if(state.playing){stop();return;}state.playing=true;play.textContent='暂停';nextLoop();};
-                document.getElementById('inlineGifSetCover').onclick=async()=>{
-                    const btn=document.getElementById('inlineGifSetCover');btn.disabled=true;btn.textContent='正在保存…';
-                    try{
-                        const target=document.getElementById('cropTargetImg');
-                        let sx=(cropState.boxX-cropState.imgX)/cropState.scale,sy=(cropState.boxY-cropState.imgY)/cropState.scale;
-                        let sw=cropState.boxW/cropState.scale,sh=cropState.boxH/cropState.scale;
-                        sx=Math.max(0,sx);sy=Math.max(0,sy);sw=Math.max(1,Math.min(cropState.naturalWidth-sx,sw));sh=Math.max(1,Math.min(cropState.naturalHeight-sy,sh));
-                        // Preserve aspect ratio exactly: output canvas ratio == selected display area ratio.
-                        const max=1280,scale=Math.min(1,max/sw,max/sh),c=document.createElement('canvas');
-                        c.width=Math.max(1,Math.round(sw*scale));c.height=Math.max(1,Math.round(sh*scale));
-                        c.getContext('2d').drawImage(target,sx,sy,sw,sh,0,0,c.width,c.height);
-                        const blob=await new Promise((ok,bad)=>c.toBlob(b=>b?ok(b):bad(new Error('封面生成失败')),'image/jpeg',.86));
-                        const file=new File([blob],`gif_cover_${Date.now()}.jpg`,{type:'image/jpeg'});
-                        const up=await window.uploadLargeMediaToCloudBase(file,{purpose:'cover',replaceCloudPath:item.gifCoverCloudPath||''});
-                        window.trackUnsavedMediaUpload?.(up.cloudPath||'');
-                        item.gifCover=up.url;item.gifCoverCloudPath=up.cloudPath||'';item.gifCoverManual=true;
-                        item.crop={sx,sy,sw,sh,naturalWidth:cropState.naturalWidth,naturalHeight:cropState.naturalHeight,mediaId:String(item.mediaId||'')};
-                        window.renderMicroPreviews?.();window.showToast?.('动图封面已保存','success');
-                    }catch(e){window.showToast?.('动图封面截取失败：'+(e?.message||e),'error');}
-                    finally{btn.disabled=false;btn.textContent='设为封面';}
-                };
-            }catch(e){
-                console.warn('内联 GIF 截选失败',e);status.textContent='动图逐帧解析失败：'+(e?.message||e);
-            }
-        };
-
-        window.openGifCoverFromCropModal=function(){
-            const index=cropState.index,item=window.editingImageFiles?.[index];
-            if(!item?.isAnimated)return;
-            if(cropState.naturalWidth&&cropState.scale){
-                let sx=(cropState.boxX-cropState.imgX)/cropState.scale,sy=(cropState.boxY-cropState.imgY)/cropState.scale;
-                let sw=cropState.boxW/cropState.scale,sh=cropState.boxH/cropState.scale;
-                sx=Math.max(0,sx);sy=Math.max(0,sy);sw=Math.max(1,Math.min(cropState.naturalWidth-sx,sw));sh=Math.max(1,Math.min(cropState.naturalHeight-sy,sh));
-                item.crop={sx,sy,sw,sh,naturalWidth:cropState.naturalWidth,naturalHeight:cropState.naturalHeight,mediaId:String(item.mediaId||'')};
-            }
-            const src=item.originalFull||item.original||item.outer||'';
-            window.openGifCoverPicker(src,item.cloudPath||'',item.gifCoverCloudPath||window.cloudPathFromMediaUrl?.(item.gifCover||'')||'',(url,media)=>{
-                item.gifCover=url;item.gifCoverCloudPath=media?.cloudPath||'';item.gifCoverManual=true;
-                item.gifDurationMs=Math.max(50,Number(media?.gifDurationMs)||0)||item.gifDurationMs||0;item.gifDurationSource=media?.gifDurationSource||'';
-                window.renderMicroPreviews?.();
-            },null,item.fileID||'',item.crop||null);
-        };
-
         window.editGifCover=function(index){
             const item=window.editingImageFiles?.[index];if(!item)return;const src=item.originalFull||item.original||item.outer||'';
-            window.openGifCoverPicker(src,item.cloudPath||'',item.gifCoverCloudPath||window.cloudPathFromMediaUrl?.(item.gifCover||'')||'',(url,media)=>{item.gifCover=url;item.gifCoverCloudPath=media?.cloudPath||'';item.gifCoverManual=true;item.gifDurationMs=Math.max(50,Number(media?.gifDurationMs)||0)||item.gifDurationMs||0;item.gifDurationSource=media?.gifDurationSource||'';window.renderMicroPreviews?.();},()=>window.openCropModal(index),item.fileID||'',item.crop||null);
+            window.openGifCoverPicker(src,item.cloudPath||'',item.gifCoverCloudPath||window.cloudPathFromMediaUrl?.(item.gifCover||'')||'',(url,media)=>{item.gifCover=url;item.gifCoverCloudPath=media?.cloudPath||'';item.gifCoverManual=true;item.gifDurationMs=Math.max(50,Number(media?.gifDurationMs)||0)||item.gifDurationMs||0;item.gifDurationSource=media?.gifDurationSource||'';window.renderMicroPreviews?.();},null,item.fileID||'',null);
         };
         window.deepEditGifCover=function(item){
             if(!item)return;window.openGifCoverPicker(item.src,item.cloudPath||'',item.gifCoverCloudPath||window.cloudPathFromMediaUrl?.(item.gifCover||'')||'',(url,media)=>{deepPushUndo?.();item.gifCover=url;item.gifCoverCloudPath=media?.cloudPath||'';item.gifDurationMs=Math.max(50,Number(media?.gifDurationMs)||0)||item.gifDurationMs||0;item.gifDurationSource=media?.gifDurationSource||'';window.renderDeepCanvas?.();},null,item.fileID||'',item.crop||null);
@@ -12262,10 +12155,10 @@ viewer.style.visibility='';
             container.innerHTML=window.editingImageFiles.map((imgObj,idx)=>{
                 const src=imgObj.originalFull||imgObj.original||imgObj.outer||'';
                 return `<div class="media-drag-item relative w-20 h-16 rounded-lg overflow-hidden border border-slate-200 group bg-slate-900 flex cursor-grab" draggable="${window.isLocked?'false':'true'}" data-media-index="${idx}">
-                    ${imgObj.isAnimated&&imgObj.gifCover?`<img src="${window.escapeHtml(imgObj.gifCover)}" class="w-full h-full object-cover" draggable="false">`:imgObj.crop&&imgObj.isAnimated?window.getAnimatedCropPreviewHtml(imgObj):`<img src="${window.escapeHtml(imgObj.outer||src)}" class="w-full h-full object-cover" draggable="false">`}
+                    ${imgObj.isAnimated&&imgObj.gifCover?`<img src="${window.escapeHtml(imgObj.gifCover)}" class="w-full h-full object-cover" draggable="false">`:`<img src="${window.escapeHtml(imgObj.outer||src)}" class="w-full h-full object-cover" draggable="false">`}
                     <span class="absolute top-1 left-1 z-10 text-white/80 text-[9px] pointer-events-none"><i class="fa-solid fa-grip-vertical"></i></span>
                     <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
-                        ${imgObj.isAnimated?`<button type="button" onclick="event.stopPropagation();openCropModal(${idx})" title="编辑动图" class="bg-fuchsia-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px]"><i class="fa-solid fa-film"></i></button>`:`<button type="button" onclick="event.stopPropagation();openCropModal(${idx})" title="裁剪图片" class="bg-indigo-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px]"><i class="fa-solid fa-crop"></i></button>`}
+                        ${imgObj.isAnimated?`<button type="button" onclick="event.stopPropagation();editGifCover(${idx})" title="编辑动图" class="bg-fuchsia-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px]"><i class="fa-solid fa-film"></i></button>`:`<button type="button" onclick="event.stopPropagation();openCropModal(${idx})" title="裁剪图片" class="bg-indigo-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px]"><i class="fa-solid fa-crop"></i></button>`}
                         ${document.getElementById('deepDescriptionToggle')?.checked ? `<button type="button" onclick="event.stopPropagation();openDeepDescriptionEditor('image',${idx})" title="深入描述" class="bg-violet-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px]"><i class="fa-solid fa-feather-pointed"></i></button>` : ''}
                         <button type="button" onclick="event.stopPropagation();removeMicroPreview(${idx})" title="删除图片" class="bg-rose-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px]"><i class="fa-solid fa-xmark"></i></button>
                     </div>
@@ -12302,8 +12195,6 @@ viewer.style.visibility='';
             targetImg.removeAttribute('src');
             const freshSrc=imgObj.originalFull || imgObj.original || imgObj.outer || '';
             targetImg.src = freshSrc;
-            const gifCoverBtn=document.getElementById('cropGifCoverBtn');
-            if(gifCoverBtn)gifCoverBtn.classList.toggle('hidden',!imgObj.isAnimated);
             modal.classList.remove('hidden');
             window.initCropInteractions();
 
@@ -12465,7 +12356,6 @@ viewer.style.visibility='';
         };
 
         window.closeCropModal = function() {
-            window.closeInlineGifCoverPicker?.();
             cropState.openToken = (cropState.openToken || 0) + 1;
             cropState.mediaId = '';
             cropState.index = -1;
