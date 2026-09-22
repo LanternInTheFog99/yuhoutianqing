@@ -2945,6 +2945,14 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         preloadNextItem(media[i]);
                     }
                 }
+                if (media[0]) {
+                    try {
+                        const first=media[0];
+                        const firstStatic=first.type==='video'?(first.cover||first.src||''):(isAnimatedImageItem(first)?(first.cover||first.src||''):(first.src||first.cover||''));
+                        if(firstStatic && (img.getAttribute('src')||'')!==firstStatic) img.src=firstStatic;
+                        window.applyPreviewImageStyle(img,first);
+                    } catch (_) {}
+                }
                 presentItem(media[0], (media.length > 1 || (media[0]?.type === 'video' && media[0]?.src) || isAnimatedImageItem(media[0])) ? next : null, true);
             };
             imgs.forEach(schedule);
@@ -2991,7 +2999,10 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 if (resetToFirst) {
                     const media = img._slideMedia || [];
                     const first = media[0];
-                    if (first) img.src = first.type === 'video' ? (first.cover || first.src || '') : (isAnimatedImageItem(first) ? (first.cover || first.src || '') : (first.src || first.cover || ''));
+                    if (first) {
+                        img.src = first.type === 'video' ? (first.cover || first.src || '') : (isAnimatedImageItem(first) ? (first.cover || first.src || '') : (first.src || first.cover || ''));
+                        try { window.applyPreviewImageStyle(img, first); } catch (_) {}
+                    }
                 }
             });
             rootEl.querySelectorAll('.preview-inline-video').forEach(v => {
@@ -5562,7 +5573,18 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     img._slideMedia = media.length ? media : (img.src ? [{type:'image', src:img.src, cover:img.src}] : []);
                     img._slideSrcs = img._slideMedia.map(m => m.cover || m.src).filter(Boolean);
                     const firstPreviewItem = img._slideMedia[0];
-                    if (firstPreviewItem && isAnimatedImageItem(firstPreviewItem) && firstPreviewItem.cover) img.src = firstPreviewItem.cover;
+                    if (firstPreviewItem) {
+                        // 时间线初始 DOM 就直接进入“第一媒体最终静止态”。
+                        // 尤其第一项是 GIF 时，不能先让浏览器画一次未经 crop 的原图，
+                        // 再等首次 hover 的 presentItem/applyPreviewImageStyle 去修正，否则只会首悬停闪一次。
+                        const initialSrc = firstPreviewItem.type === 'video'
+                            ? (firstPreviewItem.cover || firstPreviewItem.src || '')
+                            : (isAnimatedImageItem(firstPreviewItem)
+                                ? (firstPreviewItem.cover || firstPreviewItem.src || '')
+                                : (firstPreviewItem.src || firstPreviewItem.cover || ''));
+                        if (initialSrc && (img.getAttribute('src') || '') !== initialSrc) img.src = initialSrc;
+                        try { window.applyPreviewImageStyle(img, firstPreviewItem); } catch (_) {}
+                    }
                     img.style.transition = 'opacity 0.25s ease';
                 });
 
