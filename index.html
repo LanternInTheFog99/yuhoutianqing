@@ -2592,6 +2592,26 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         switchAtBlack = null;
                     }
 
+                    // GIF→GIF 特殊处理：共享 img 此时仍可能挂着上一条 GIF。
+                    // 在 100% 全黑下面立刻换成下一条 GIF 的静态封面，确保退黑过程中
+                    // 绝不会再次露出上一条正在循环的 GIF。
+                    if (currentItem && isAnimatedImageItem(currentItem) && isAnimatedImageItem(nextItem)) {
+                        const gifNextCover = String(nextItem.cover || '');
+                        if (gifNextCover) {
+                            disableSoftFade(img);
+                            img.style.transition='none';
+                            img.style.opacity='1';
+                            img.style.visibility='visible';
+                            img.classList.remove('hidden');
+                            if ((img.getAttribute('src') || '') !== gifNextCover) img.src = gifNextCover;
+                            try { window.applyPreviewImageStyle(img, nextItem); } catch (_) {}
+                        } else {
+                            // 没有静态封面时宁可继续由黑层遮住，也不重新露出上一 GIF。
+                            img.style.opacity='0';
+                            img.style.visibility='hidden';
+                        }
+                    }
+
                     // GIF/视频之间允许最多 140ms 的“快要好了”宽限。
                     // 如果这点时间内 ready，就直接露真实媒体，不插封面；否则才用封面兜底。
                     if (!mediaReady && readyGraceMs > 0) {
