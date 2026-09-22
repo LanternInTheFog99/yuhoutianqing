@@ -3334,7 +3334,17 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if(!file) throw new Error('NO_FILE');
             if(!window.hasTimelineEditToken?.()) throw Object.assign(new Error('请先解锁编辑模式再上传大文件'),{code:'EDIT_AUTH_REQUIRED'});
             window._cloudUploadNotice?.(`正在准备上传 ${file.name||'文件'}…`);
-            const meta=await timelineApiPost('getMediaUploadMetadata',{fileName:file.name||'file',mime:file.type||'application/octet-stream',size:file.size,purpose:String(options?.purpose||''),replaceCloudPath:String(options?.replaceCloudPath||'')},{auth:'edit',timeoutMs:25000});
+            const useTemp=!options?.bypassTemp;
+            if(useTemp)window.beginEditMediaTxn?.();
+            const finalPurpose=String(options?.purpose||'');
+            const meta=await timelineApiPost('getMediaUploadMetadata',{
+                fileName:file.name||'file',mime:file.type||'application/octet-stream',size:file.size,
+                purpose:useTemp?'temp':finalPurpose,
+                finalPurpose:useTemp?finalPurpose:'',
+                folder:useTemp?'temp':'',
+                temporary:useTemp,
+                replaceCloudPath:useTemp?'':String(options?.replaceCloudPath||'')
+            },{auth:'edit',timeoutMs:25000});
             const up=meta?.upload||{};
             if(!up.url||!up.authorization||!up.token||!up.cosFileID||!meta.cloudPath) throw new Error('上传凭证不完整');
             const folder=meta.mediaFolder||String(meta.cloudPath).split('/')[0]||'云存储';
@@ -3371,7 +3381,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const url=window.cloudMediaPublicUrl(meta.cloudPath);
             window._cloudUploadNotice?.(`上传完成：${meta.cloudPath}`);
             setTimeout(()=>window._cloudUploadNotice?.('',false),900);
-            return {url,cloudPath:meta.cloudPath,mediaFolder:folder,fileID:meta.fileID||'',mime:file.type||'',name:file.name||''};
+            const result={url,cloudPath:meta.cloudPath,mediaFolder:folder,fileID:meta.fileID||'',mime:file.type||'',name:file.name||''};
+            if(useTemp)window.trackUnsavedMediaUpload?.(meta.cloudPath,{url,finalPurpose,name:file.name||'',mime:file.type||''});
+            return result;
         };
         window.uploadCoverBlobToCloudBase = async function(blob, prefix='cover', replaceCloudPath=''){
             if(!blob) throw new Error('COVER_BLOB_EMPTY');
@@ -4693,6 +4705,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if(!window.multiActivateSharedSegment(segIndex))return;
             window.openDeepDescriptionEditor(type,index);
             if(window.deepCanvasTarget)window.deepCanvasTarget={multi:true,segIndex,type,index};
+            if(window._deepEditSession)window._deepEditSession.target={multi:true,segIndex,type,index};
         };
 
         // Shared save/crop callbacks refresh the active multi-time page only when invoked through the adapter.
@@ -4702,35 +4715,94 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             ['confirmCropImage','confirmVideoFrameCapture','saveVideoEditModal','saveEditLinkModal'].forEach(wrap);
         }
 
+        window._savedDeepDrafts=window._savedDeepDrafts||new Map();
+        window.deepDraftKey=t=>!t?'':(t.multi?`multi:${t.segIndex}:${t.type}:${t.index}`:`single:${t.type}:${t.index}`);
+        window.saveDeepDraftSnapshot=(x,d)=>{const k=window.deepDraftKey(x);if(k)window._savedDeepDrafts.set(k,window.deepClone(d));};
+        window.getDeepDraftSnapshot=x=>{const k=window.deepDraftKey(x);return k&&window._savedDeepDrafts.has(k)?window.deepClone(window._savedDeepDrafts.get(k)):null;};
         window._editMediaTxn=null;
         window.beginEditMediaTxn=function(){
             if(window._editMediaTxn)return;
             const clone=v=>{try{return structuredClone(v);}catch(_){return JSON.parse(JSON.stringify(v??null));}};
             window._editMediaTxn={
                 images:clone(window.editingImageFiles||[]),
-                videos:clone(window.editingVideoFiles||[]),
+                videos:clone(window.editingVideos||window.editingVideoFiles||[]),
                 deep:clone(window.deepCanvasState||null),
-                uploaded:new Set()
+                tempUploads:[],
+                committed:false
             };
         };
-        window.trackUnsavedMediaUpload=function(path){
-            path=String(path||'').trim();if(path&&window._editMediaTxn)window._editMediaTxn.uploaded.add(path);
+        window.getTempUploadMark=function(){return window._editMediaTxn?.tempUploads?.length||0;};
+        window.trackUnsavedMediaUpload=function(path,meta={}){
+            path=String(path||'').trim();if(!path)return;
+            window.beginEditMediaTxn?.();
+            const tx=window._editMediaTxn;
+            if(!tx)return;
+            if(!tx.tempUploads.some(x=>x.tempPath===path))tx.tempUploads.push({tempPath:path,tempUrl:meta.url||window.cloudMediaPublicUrl?.(path)||'',finalPurpose:meta.finalPurpose||'',name:meta.name||'',mime:meta.mime||''});
+        };
+        window.deleteTempCloudPath=async function(path){
+            path=String(path||'').trim();if(!path)return false;
+            try{await timelineApiPost('deleteMediaAsset',{cloudPath:path,temporary:true},{auth:'edit',timeoutMs:20000});return true;}
+            catch(err){console.warn('temp 文件删除接口失败',path,err);return false;}
+        };
+        window.discardTempUploadsSince=async function(mark=0){
+            const tx=window._editMediaTxn;if(!tx)return;
+            const cut=Math.max(0,Number(mark)||0), doomed=tx.tempUploads.splice(cut);
+            await Promise.allSettled(doomed.map(x=>window.deleteTempCloudPath(x.tempPath)));
         };
         window.rollbackEditMediaTxn=async function(){
             const tx=window._editMediaTxn;if(!tx)return;
             window.editingImageFiles=tx.images||[];
-            window.editingVideoFiles=tx.videos||[];
-            if(tx.deep)window.deepCanvasState=tx.deep;
-            const paths=[...tx.uploaded];
-            window._editMediaTxn=null;
-            for(const path of paths){
-                try{
-                    if(typeof window.deleteCloudMediaByPath==='function')await window.deleteCloudMediaByPath(path);
-                    else if(typeof window.deleteCloudFile==='function')await window.deleteCloudFile(path);
-                }catch(e){console.warn('清理未保存媒体失败',path,e);}
+            window.editingVideos=tx.videos||[];
+            for(const [key,draft] of (window._savedDeepDrafts||new Map())){
+                const p=key.split(':'),obj=p[0]==='single'?window.deepMediaObject?.(p[1],Number(p[2])):window.multiDeepMediaObject?.(Number(p[1]),p[2],Number(p[3]));
+                if(obj)obj.deepDescription=window.deepClone(draft);
             }
+            const doomed=[...(tx.tempUploads||[])];
+            window._editMediaTxn=null;
+            await Promise.allSettled(doomed.map(x=>window.deleteTempCloudPath(x.tempPath)));
         };
-        window.commitEditMediaTxn=function(){window._editMediaTxn=null;};
+        window.replaceTempMediaRefs=function(root,fromPath,toPath,toUrl){
+            if(!root||typeof root!=='object')return;
+            const fromUrl=window.cloudMediaPublicUrl?.(fromPath)||'';
+            const seen=new WeakSet();
+            const walk=o=>{
+                if(!o||typeof o!=='object'||seen.has(o))return;seen.add(o);
+                if(Array.isArray(o)){o.forEach(walk);return;}
+                for(const k of Object.keys(o)){
+                    const v=o[k];
+                    if(typeof v==='string'){
+                        if(v===fromPath)o[k]=toPath;
+                        else if(v===fromUrl||v===window.cloudMediaPublicUrl?.(fromPath))o[k]=toUrl;
+                    }else walk(v);
+                }
+            };walk(root);
+        };
+        window.promoteTempUploadsSince=async function(mark,root){
+            const tx=window._editMediaTxn;if(!tx)return;
+            const cut=Math.max(0,Number(mark)||0),selected=tx.tempUploads.slice(cut);
+            for(const rec of selected){
+                const resp=await fetch(rec.tempUrl||window.cloudMediaPublicUrl(rec.tempPath),{cache:'no-store'});if(!resp.ok)throw new Error('临时媒体读取失败 HTTP '+resp.status);
+                const blob=await resp.blob(),file=new File([blob],rec.name||('media_'+Date.now()),{type:rec.mime||blob.type||'application/octet-stream'});
+                const final=await window.uploadLargeMediaToCloudBase(file,{purpose:rec.finalPurpose||'',bypassTemp:true});
+                window.replaceTempMediaRefs(root,rec.tempPath,final.cloudPath,final.url);await window.deleteTempCloudPath(rec.tempPath);
+            }
+            tx.tempUploads.splice(cut,selected.length);
+        };
+        window.promoteTempUploads=async function(eventData){
+            const tx=window._editMediaTxn;if(!tx?.tempUploads?.length)return;
+            for(const rec of [...tx.tempUploads]){
+                const readUrl=rec.tempUrl||window.cloudMediaPublicUrl(rec.tempPath);
+                const resp=await fetch(readUrl,{cache:'no-store'});
+                if(!resp.ok)throw new Error('临时媒体读取失败 HTTP '+resp.status);
+                const blob=await resp.blob();
+                const file=new File([blob],rec.name||('media_'+Date.now()),{type:rec.mime||blob.type||'application/octet-stream'});
+                const final=await window.uploadLargeMediaToCloudBase(file,{purpose:rec.finalPurpose||'',bypassTemp:true});
+                window.replaceTempMediaRefs(eventData,rec.tempPath,final.cloudPath,final.url);
+                await window.deleteTempCloudPath(rec.tempPath);
+            }
+            tx.tempUploads=[];
+        };
+        window.commitEditMediaTxn=function(){if(window._editMediaTxn)window._editMediaTxn.committed=true;window._editMediaTxn=null;};
 
         window.handleNewEventClick = function() {
             if (window.isLocked) {
@@ -5120,6 +5192,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if (window.pendingSaveData) {
                 const eventData = window.pendingSaveData;
                 const isEdit = window.pendingSaveData._isEdit;
+                (function stripPendingDeep(o){if(!o||typeof o!=='object')return;if(Array.isArray(o)){o.forEach(stripPendingDeep);return;}delete o._pendingOuterSave;Object.values(o).forEach(stripPendingDeep);})(eventData);
 
                 // 用户没有手动设置封面时，只在点击编辑界面的“大保存”这一刻自动补第一帧封面。
                 try{await window.ensureAutomaticFirstFrameCovers(eventData);}catch(err){console.warn('自动首帧封面生成失败',err);}
@@ -5138,7 +5211,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
                 delete eventData._isEdit;
 
-                window.commitEditMediaTxn?.();
                 window.closeConfirmSaveModal();
                 const savingModal = document.getElementById('savingModal');
                 const progressBar = document.getElementById('savingProgressBar');
@@ -5148,6 +5220,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 try {
                     if (progressBar) setTimeout(() => progressBar.style.width = '60%', 400);
                     
+                    // 大保存才承认本次编辑：先把 temp/ 中的媒体提升到正式目录，并改写 eventData 引用。
+                    await window.promoteTempUploads?.(eventData);
                     const desiredConnections = eventData.connections || [];
                     delete eventData.connections;
                     const cloudSaved = await window.saveEventToCloud(eventData);
@@ -5155,6 +5229,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     
                     if (progressBar) progressBar.style.width = '80%';
                     await window.syncEditingConnections(eventData.id, desiredConnections);
+                    window._savedDeepDrafts?.clear?.();
                     
                     if (progressBar) progressBar.style.width = '100%';
                     await new Promise(r => setTimeout(r, 300));
@@ -6801,7 +6876,14 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const obj=window.deepMediaObject(type,index); if(!obj)return;
             const m=window.deepEnsureModal();
             window.deepCanvasTarget={type,index};
-            window.deepCanvasState=window.deepClone(obj.deepDescription)||window.deepDefaultState(type,obj);
+            window.beginEditMediaTxn?.();
+            window._deepEditSession={
+                target:{type,index},
+                originalDeep:window.deepClone(obj.deepDescription),
+                originalEnabled:window.deepDescriptionIsEnabled(obj.deepDescription),
+                tempMark:window.getTempUploadMark?.()||0
+            };
+            window.deepCanvasState=window.getDeepDraftSnapshot?.(window.deepCanvasTarget)||window.deepClone(obj.deepDescription)||window.deepDefaultState(type,obj);
             window.deepCanvasState.items=(window.deepCanvasState.items||[]).map(x=>{if(x&&['media','text','link'].includes(x.type)){const n=Number(x.layer);x.layer=Number.isFinite(n)?Math.max(-1,n):0;}return x;});
             window.deepCanvasState.items=(window.deepCanvasState.items||[]).filter(x=>x.type!=='arrow');
             window.deepCanvasState.items.forEach(x=>{if(x.type==='connector'){x.curve=Number(x.curve)||0;x.direction=x.direction||'forward';if(x.type==='text'&&!x._lastTextColor)x._lastTextColor=x.color||'#334155';}});
@@ -6812,7 +6894,20 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             window.deepSyncEnabledToggle?.();
             m.classList.remove('hidden'); window.deepSetTextToolsExpanded?.(false); window.deepSetDrawing(false); window.deepSetErasing(false); window.deepUpdateConnectorControls?.(); window.renderDeepCanvas(); window.deepStartAutosave?.();
         };
-        window.closeDeepDescriptionEditor = function(discard){ window.deepStopAutosave?.(); const m=document.getElementById('deepDescriptionModal'); if(m)closeDeepGifInline();m.classList.add('hidden'); window.deepCanvasTarget=null; window.deepDescriptionEnabledDraft=null; };
+        window.closeDeepDescriptionEditor = function(discard){
+            window.deepStopAutosave?.();
+            const m=document.getElementById('deepDescriptionModal');
+            if(discard&&window._deepEditSession){
+                const s=window._deepEditSession;
+                const obj=s.target?.multi?window.multiDeepMediaObject?.(s.target.segIndex,s.target.type,s.target.index):window.deepMediaObject?.(s.target?.type,s.target?.index);
+                if(obj)obj.deepDescription=window.deepClone(s.originalDeep);
+                window.deepDescriptionEnabledDraft=s.originalEnabled;
+                window.discardTempUploadsSince?.(s.tempMark);
+            }
+            if(m)m.classList.add('hidden');
+            window._deepEditSession=null;
+            window.deepCanvasTarget=null; window.deepDescriptionEnabledDraft=null;
+        };
         window.deepSyncEnabledToggle = function(){
             const enabled=!!window.deepDescriptionEnabledDraft;
             const status=document.getElementById('deepEnabledStatus');
@@ -6850,19 +6945,17 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             window.deepAutosaveTimer=setInterval(()=>window.deepAutosaveNow?.(),5*60*1000);
         };
         window.deepStopAutosave=function(){if(window.deepAutosaveTimer){clearInterval(window.deepAutosaveTimer);window.deepAutosaveTimer=null;}};
-        window.saveDeepDescriptionEditor = function(){
-            const t=window.deepCanvasTarget, st=window.deepCanvasState; if(!t||!st)return;
-            const obj=t.multi?window.multiDeepMediaObject(t.segIndex,t.type,t.index):window.deepMediaObject(t.type,t.index); if(!obj)return;
-            deepPushUndo();
-            const clean=window.deepClone(st);clean.enabled=!!window.deepDescriptionEnabledDraft;
-            window.deepWriteCanvasToTarget?.();
-            if(t.multi)window.multiRenderSegments();else if(t.type==='image')window.renderMicroPreviews();else window.renderVideoPreviews();
-            window.closeDeepDescriptionEditor();
-            if(!obj.deepDescription){
-                window.showToast('画布为空，已视为未添加深入描述','success');
-            }else{
-                window.showToast(clean.enabled?'深入描述已保存并启用':'深入描述已保存，当前未启用','success');
-            }
+        window.saveDeepDescriptionEditor=async function(){
+            const target=window.deepCanvasTarget;if(!target)return;
+            const obj=target.multi?window.multiDeepMediaObject?.(target.segIndex,target.type,target.index):window.deepMediaObject?.(target.type,target.index);if(!obj)return;
+            window.deepDescriptionEnabledDraft=!!document.getElementById('deepEnabled')?.checked;window.deepWriteCanvasToTarget?.();
+            if(obj.deepDescription)obj.deepDescription._pendingOuterSave=true;
+            try{
+                await window.promoteTempUploadsSince?.(window._deepEditSession?.tempMark||0,obj.deepDescription);
+                window.saveDeepDraftSnapshot?.(target,obj.deepDescription);
+                if(target.multi)window.multiRenderSegments();else if(target.type==='image')window.renderMicroPreviews();else window.renderVideoPreviews();
+                window.showToast?.('深入描述已保存','success');window.closeDeepDescriptionEditor(false);
+            }catch(err){console.error('深入描述保存失败',err);window.showToast?.('深入描述保存失败：'+String(err?.message||err),'error');}
         };
         window.deepPositionTextTools=function(){
             const tools=document.getElementById('deepTextTools');
@@ -12499,7 +12592,7 @@ viewer.style.visibility='';
                     mediaId: img.mediaId || ('img_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9)),
                     isAnimated: !!img.isAnimated,
                     crop: img.crop ? { ...img.crop, mediaId: String(img.mediaId || '') } : undefined,
-                    deepDescription: vCloneDeepDescription(img.deepDescription)
+                    deepDescription: (()=>{const d=vCloneDeepDescription(img.deepDescription);if(d)delete d._pendingOuterSave;return d;})()
                 })),
                 deepDescriptionEnabled: !!document.getElementById('deepDescriptionToggle')?.checked,
                 videos: window.editingVideos.map(v => ({
@@ -12510,7 +12603,7 @@ viewer.style.visibility='';
                     name: v.name || '',
                     title: v.title || '',
                     previewDuration: window.normalizeVideoPreviewDuration(v.previewDuration, 4),
-                    deepDescription: vCloneDeepDescription(v.deepDescription),
+                    deepDescription: (()=>{const d=vCloneDeepDescription(v.deepDescription);if(d)delete d._pendingOuterSave;return d;})(),
                     cloudPath: v.cloudPath || '',
                     coverCloudPath: v.coverCloudPath || window.cloudPathFromMediaUrl?.(v.cover || '') || ''
                 })),
