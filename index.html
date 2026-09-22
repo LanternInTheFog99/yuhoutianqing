@@ -2395,7 +2395,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 if (!media.length) return;
                 let idx = 0;
                 let generation = 0;
-                let
+                let pendingBlackHandoff = null;
                 const stage = img.parentElement || img;
                 let video = stage.querySelector(':scope > .preview-inline-video');
                 if (!video) {
@@ -2552,6 +2552,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     const fadeInMs = isPlainImageToPlainImage ? 220 : 340;
                     const fadeOutMs = isPlainImageToPlainImage ? 260 : 380;
                     const readyGraceMs = isPlainImageToPlainImage ? 0 : 140;
+                    pendingBlackHandoff = null;
 
                     const nextCover = nextItem.type === 'video'
                         ? String(nextItem.cover || '')
@@ -2626,7 +2627,13 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     try { dim.remove(); } catch (_) {}
                     return true;
                 };
-const scheduleHold = (gen, holdSec, after, currentItem) => {
+
+                const revealPendingBlack = async () => {
+                    pendingBlackHandoff = null;
+                    return false;
+                };
+
+                const scheduleHold = (gen, holdSec, after, currentItem) => {
                     if (!after || !isStillRunning() || gen !== generation) return;
                     const ms = Math.max(50, Math.round(holdSec * 1000));
                     // 整个区域只有一张 GIF：不做任何渐入渐出，也不做“切回自己”的轮播。
@@ -2840,7 +2847,7 @@ const scheduleHold = (gen, holdSec, after, currentItem) => {
                     img.classList.add('hidden');
                     stage.classList.remove('preview-stage-black');
                     video.play().catch(()=>{});
-                    if (directFromBlack)
+                    if (directFromBlack) await revealPendingBlack(item);
 
                     if (media.length > 1) preloadNextItem(media[(idx + 1) % media.length]);
                     const playMs = Math.max(window.VIDEO_PREVIEW_MIN_SEC, Math.min(window.VIDEO_PREVIEW_MAX_SEC, Number(item.previewDuration) || (defaultVideoHold / 1000))) * 1000;
@@ -2875,6 +2882,7 @@ const scheduleHold = (gen, holdSec, after, currentItem) => {
                         await applyImageItem(item,{hardHide:false});
                         if(!isStillRunning()||gen!==generation)return;
                         showImageNow();
+                        await revealPendingBlack(item);
                     } else if(isAnimatedImageItem(item) && item.cover && item.cover !== item.src){
                         await ensureCoverReady(item);
                         if(!isStillRunning()||gen!==generation)return;
