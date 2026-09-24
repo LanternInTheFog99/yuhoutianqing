@@ -3456,7 +3456,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if(!window.hasTimelineEditToken?.()){window.showToast?.('请先解锁编辑模式','error');return null;}
             let modal=document.getElementById('cloudMediaLibraryModal');
             if(!modal){modal=document.createElement('div');modal.id='cloudMediaLibraryModal';modal.className='fixed inset-0 z-[470] hidden bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5';document.body.appendChild(modal);}
-            modal.classList.remove('hidden');
             modal.innerHTML=`<div class="w-full max-w-3xl max-h-[86vh] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden" onclick="event.stopPropagation()"><div class="px-4 py-3 border-b flex items-center gap-2"><div class="font-bold text-slate-800"><i class="fa-solid fa-cloud text-indigo-600 mr-2"></i>云端数据库</div><div class="ml-auto flex items-center gap-2"><button data-media-close type="button" class="w-8 h-8 rounded-lg hover:bg-slate-100"><i class="fa-solid fa-xmark"></i></button></div></div><div class="px-4 py-3 border-b flex flex-wrap gap-2"><button data-folder="all" class="media-folder-btn px-3 py-1.5 rounded-lg text-xs border">全部</button><button data-folder="picture" class="media-folder-btn px-3 py-1.5 rounded-lg text-xs border">图片</button><button data-folder="gif" class="media-folder-btn px-3 py-1.5 rounded-lg text-xs border">动图</button><button data-folder="video" class="media-folder-btn px-3 py-1.5 rounded-lg text-xs border">视频</button><button data-folder="music" class="media-folder-btn px-3 py-1.5 rounded-lg text-xs border">音乐</button><input data-media-search class="ml-auto min-w-[150px] flex-1 max-w-xs px-3 py-1.5 rounded-lg border text-xs" placeholder="搜索文件名"></div><div data-media-list class="p-4 overflow-y-auto min-h-[240px]"><div class="text-sm text-slate-400 text-center py-12"><i class="fa-solid fa-spinner fa-spin mr-2"></i>正在读取云端媒体…</div></div></div>`;
             const close=()=>modal.classList.add('hidden'); modal.onclick=e=>{if(e.target===modal)close();}; modal.querySelector('[data-media-close]').onclick=close;
             const allowed=Array.isArray(allowedFolders)&&allowedFolders.length?new Set(allowedFolders.map(String)):null;
@@ -3513,7 +3512,10 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 const data=await timelineApiPost('listMediaAssets',{folder:'all'},{auth:'edit',timeoutMs:25000});
                 const candidates=(Array.isArray(data?.items)?data.items:[]).filter(a=>{
                     const p=String(a?.cloudPath||'').replace(/^\/+/, '');
-                    return !/^temp\//i.test(p) && !/^cover\//i.test(p) && String(a?.folder||'').toLowerCase()!=='cover';
+                    const logicalFolder=String(a?.folder||'').toLowerCase();
+                    // 云端数据库只展示可复用的正式媒体：inuse + unref。
+                    // temp 和任何生命周期目录下的 cover 都永远不展示。
+                    return !/(?:^|\/)(?:temp|cover)\//i.test(p) && logicalFolder!=='temp' && logicalFolder!=='cover';
                 });
                 const valid=new Array(candidates.length).fill(false);
                 const stale=[];
@@ -3534,6 +3536,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 stale.forEach(missingPath=>timelineApiPost('removeMissingMediaRegistration',{cloudPath:missingPath},{auth:'edit',timeoutMs:15000}).catch(err=>console.warn('清理失效媒体登记失败',missingPath,err)));
             }catch(err){modal.querySelector('[data-media-list]').innerHTML=`<div class="text-sm text-rose-600 text-center py-12">${err?.message||'云端数据库读取失败'}</div>`;}};
             modal.querySelectorAll('[data-folder]').forEach(b=>b.onclick=()=>{current=b.dataset.folder;render();}); modal.querySelector('[data-media-search]').oninput=render;
+            // 先同步应用 allowedFolders，再显示弹窗，避免所有分类按钮先闪现一帧。
+            render();
+            modal.classList.remove('hidden');
             await load(); return modal;
         };
         // 直接引用已有云端媒体时，继承该媒体在已保存事件中的展示信息。
