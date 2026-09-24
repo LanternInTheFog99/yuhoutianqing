@@ -3973,7 +3973,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             return cloudEvent;
         };
 
-        window.saveEventToCloud = async function(eventData, perfId="") {
+        window.saveEventToCloud = async function(eventData, perfId="", isNew=false) {
             const index = window.events.findIndex(e => String(e.id) === String(eventData.id));
             if (index >= 0) {
                 if (!Number.isFinite(Number(eventData.stackOrder)) && Number.isFinite(Number(window.events[index].stackOrder))) {
@@ -3999,7 +3999,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     err.cloudBytes = cloudBytes;
                     throw err;
                 }
-                await window.timelineApiWrite('upsertEvent', { event: cloudEvent, ...(perfId?{perfId}: {}) });
+                await window.timelineApiWrite('upsertEvent', { event: cloudEvent, isNew:isNew===true, ...(perfId?{perfId}: {}) });
                 return true;
             } catch (e) {
                 if (e?.code === 'EVENT_TOO_LARGE') {
@@ -5407,7 +5407,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     const connectionsChanged = !isEdit || window._connectionListFingerprint(previousConnections)!==window._connectionListFingerprint(desiredConnections);
                     delete eventData.connections;
                     let _tApi=performance.now();
-                    const cloudSaved = await window.saveEventToCloud(eventData,_perfId);
+                    const cloudSaved = await window.saveEventToCloud(eventData,_perfId,!isEdit);
                     _perfStep('saveEventApi',_tApi);
                     if (!cloudSaved) throw new Error('cloud save failed');
                     
