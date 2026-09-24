@@ -5240,7 +5240,12 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     if(!cloudDeleted)throw new Error('delete failed');
                     if(db)db.style.width='85%';
                     Promise.resolve(window.writeActivityLog?.('delete',logInfo)).catch(err=>console.warn('删除日志后台写入失败',err));
+                    const _uiStart=performance.now();
+                    const _uiTimes={};
+                    let _uiMark=performance.now();
                     window.closeEditModal();window.closeMultiTimeEventModal?.();
+                    _uiTimes.closeModals=Math.round((performance.now()-_uiMark)*10)/10;
+                    _uiMark=performance.now();
 
                     // 删除成功后重建时间线，并先释放连线 SVG 的旧尺寸。
                     const tc=document.getElementById('timelineContainer');
@@ -5264,11 +5269,16 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         oldTrack.style.minWidth='';
                     }
                     if(tc)tc.scrollLeft=0;
+                    _uiTimes.clearOldTimeline=Math.round((performance.now()-_uiMark)*10)/10;
 
                     // 按当前 events 完整重绘。
+                    _uiMark=performance.now();
                     window.renderEvents?.();
+                    _uiTimes.renderEvents=Math.round((performance.now()-_uiMark)*10)/10;
 
+                    const _rafScheduledAt=performance.now();
                     requestAnimationFrame(()=>requestAnimationFrame(()=>{
+                        const _rafStart=performance.now();
                         const freshTc=document.getElementById('timelineContainer');
                         if(freshTc){
                             // 此处的 scrollWidth 已不再包含删除前 SVG 的旧宽度。
@@ -5276,9 +5286,22 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                             freshTc.scrollLeft=wasNearTimelineRight ? maxScroll : Math.min(oldScrollLeft,maxScroll);
                         }
                         // 最后才按新的 container.scrollWidth 重新建立 SVG 尺寸。
+                        const _svgStart=performance.now();
                         window.renderSvgConnections?.();
+                        console.log(`[DELETE-UI-TIME][${_perfId}][RAF]`,{
+                            waitForDoubleRAF:Math.round((_rafStart-_rafScheduledAt)*10)/10,
+                            scrollRestore:Math.round((_svgStart-_rafStart)*10)/10,
+                            renderSvgConnections:Math.round((performance.now()-_svgStart)*10)/10
+                        });
                     }));
-                    if(db)db.style.width='100%';await new Promise(r=>setTimeout(r,220));dm?.classList.add('hidden');
+                    _uiMark=performance.now();
+                    if(db)db.style.width='100%';await new Promise(r=>setTimeout(r,220));
+                    _uiTimes.progressDelay=Math.round((performance.now()-_uiMark)*10)/10;
+                    _uiMark=performance.now();
+                    dm?.classList.add('hidden');
+                    _uiTimes.hideDeleteModal=Math.round((performance.now()-_uiMark)*10)/10;
+                    _uiTimes.measuredUiTotal=Math.round((performance.now()-_uiStart)*10)/10;
+                    console.log(`[DELETE-UI-TIME][${_perfId}][MAIN]`,_uiTimes);
                     console.log(`[PERF][${_perfId}][DELETE frontend]`,{deleteEventApi:_apiMs,postDeleteUi:Math.round((performance.now()-_tApi-_apiMs)*10)/10,total:Math.round((performance.now()-_perfStart)*10)/10});
                     window.showToast("删除成功","info");
                 }catch(_){dm?.classList.add('hidden');window.showToast("删除失败，请重试","error");}
