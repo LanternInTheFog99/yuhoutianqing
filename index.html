@@ -3296,10 +3296,11 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const qs=new URLSearchParams({room:window.currentRoomId||'default',cloudPath:String(cloudPath||''),ticket:String(data.ticket),mode:'stream'});
             return TIMELINE_API_BASE+'/media?'+qs.toString();
         };
-        // 当前媒体只认保存时记录的 cloudPath，不再从旧媒体 URL 猜测云端位置。
+        // 当前媒体优先使用保存时记录的 cloudPath，不再从普通外链 URL 猜测云端位置。
+        // 兼容迁移后的生命周期目录 inuse/temp/unref，以及迁移前的旧 gif/ 目录。
         window.resolveGifCloudPath = function(src,cloudPath){
             const explicit=String(cloudPath||'').replace(/^\/+/, '');
-            return /^(?:gif|temp\/gif)\/[^?#]+/i.test(explicit)?explicit:'';
+            return /^(?:(?:inuse|temp|unref)\/gif|gif)\/[^?#]+$/i.test(explicit)?explicit:'';
         };
         window.getGifDecodeFetchRequest = async function(src,cloudPath,fileID){
             const resolved=window.resolveGifCloudPath(src,cloudPath);
