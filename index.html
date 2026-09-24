@@ -1645,7 +1645,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 <span></span>
                 <div class="flex gap-2 w-full sm:w-auto justify-end">
                     <button onclick="closeCropModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-medium">取消</button>
-                    <button onclick="confirmCropImage()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">完成截选并保存</button>
+                    <button id="pictureCropSaveBtn" onclick="confirmCropImage()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">完成截选并保存</button>
                 </div>
             </div>
         </div>
@@ -12648,6 +12648,13 @@ viewer.style.visibility='';
         };
 
         window.confirmCropImage = function() {
+            const saveBtn = document.getElementById('pictureCropSaveBtn');
+            const oldBtnText = saveBtn?.textContent || '完成截选并保存';
+            const setSaving = (saving) => {
+                if (!saveBtn) return;
+                saveBtn.disabled = !!saving;
+                saveBtn.textContent = saving ? '正在保存…' : oldBtnText;
+            };
             const targetImg = document.getElementById('cropTargetImg');
             if (!targetImg || cropState.index < 0) return;
             if (!cropState.naturalWidth || !cropState.scale) {
@@ -12704,6 +12711,7 @@ viewer.style.visibility='';
                 return;
             }
 
+            setSaving(true);
             const canvas = document.createElement('canvas');
             canvas.width = outW;
             canvas.height = outH;
@@ -12729,12 +12737,14 @@ viewer.style.visibility='';
                     window.showToast("截选完成并已应用", "success");
                     window.renderMicroPreviews();
                     if (window._multiSharedSegmentIndex != null) window.multiRenderCurrentPage?.();
+                    setSaving(false);
                     window.closeCropModal();
                 }catch(err){
+                    setSaving(false);
                     window.showToast?.('图片截选保存失败：'+(err?.message||err),'error');
                 }
             };
-            imgObj.onerror = () => window.showToast("截选失败，请重试", "error");
+            imgObj.onerror = () => { setSaving(false); window.showToast("截选失败，请重试", "error"); };
             imgObj.src = targetImg.src;
         };
 
