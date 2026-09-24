@@ -12117,6 +12117,16 @@ viewer.style.visibility='';
             window.renderLinkPreviews();
         };
 
+        window.getAnimatedCoverCropPreviewHtml = function(imgObj) {
+            const cover=imgObj?.gifCover||'';
+            const c=imgObj?.gifCoverCrop||imgObj?.gifCrop||imgObj?.crop;
+            if(!cover)return '';
+            if(!c||!c.sw||!c.sh||!c.naturalWidth||!c.naturalHeight)
+                return `<img src="${window.escapeHtml(cover)}" class="w-full h-full object-cover" draggable="false">`;
+            const sx=Number(c.sx)||0,sy=Number(c.sy)||0,sw=Math.max(1,Number(c.sw)||1),sh=Math.max(1,Number(c.sh)||1);
+            const nw=Math.max(sw,Number(c.naturalWidth)||sw),nh=Math.max(sh,Number(c.naturalHeight)||sh);
+            return `<svg class="block w-full h-full" viewBox="${sx} ${sy} ${sw} ${sh}" preserveAspectRatio="xMidYMid slice" draggable="false"><image href="${window.escapeHtml(cover)}" x="0" y="0" width="${nw}" height="${nh}" preserveAspectRatio="none"></image></svg>`;
+        };
         window.getAnimatedCropPreviewHtml = function(imgObj) {
             const src = imgObj?.originalFull || imgObj?.original || imgObj?.outer || '';
             const c = imgObj?.gifCrop || imgObj?.crop;
@@ -12136,9 +12146,14 @@ viewer.style.visibility='';
             const c=cropOverride||imgObj?.gifCoverCrop||imgObj?.gifCrop||imgObj?.crop;
             if(!c||!c.sw||!c.sh||!c.naturalWidth||!c.naturalHeight)
                 return `<img ${extraAttrs} src="${window.escapeHtml(src)}" class="${extraClass}">`;
-            const w=Number(c.naturalWidth)/Number(c.sw)*100,h=Number(c.naturalHeight)/Number(c.sh)*100;
-            const left=-Number(c.sx)/Number(c.sw)*100,top=-Number(c.sy)/Number(c.sh)*100;
-            return `<div class="relative w-full h-full overflow-hidden bg-transparent"><img ${extraAttrs} src="${window.escapeHtml(src)}" class="absolute max-w-none ${extraClass}" style="width:${w}%;height:${h}%;left:${left}%;top:${top}%"></div>`;
+            const sx=Number(c.sx)||0,sy=Number(c.sy)||0,sw=Math.max(1,Number(c.sw)||1),sh=Math.max(1,Number(c.sh)||1);
+            const nw=Math.max(sw,Number(c.naturalWidth)||sw),nh=Math.max(sh,Number(c.naturalHeight)||sh);
+            return `<div class="relative w-full h-full overflow-hidden bg-transparent" data-detail-crop style="aspect-ratio:${sw}/${sh}">
+                <svg class="block w-full h-full" viewBox="${sx} ${sy} ${sw} ${sh}" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                    <image href="${window.escapeHtml(src)}" x="0" y="0" width="${nw}" height="${nh}" preserveAspectRatio="none"></image>
+                </svg>
+                <img ${extraAttrs} src="${window.escapeHtml(src)}" class="absolute inset-0 w-full h-full opacity-0 pointer-events-none ${extraClass}">
+            </div>`;
         };
         window.isAnimatedImageSource=function(src,obj=null){
             if(obj?.isAnimated)return true;
@@ -12178,8 +12193,17 @@ viewer.style.visibility='';
                 const duration=Math.max(600,Number(base.dataset.gifDuration)||5000);
                 timer=setTimeout(()=>{
                     if(token!==playToken||disposed||paused)return;
-                    const gif=base.cloneNode(false);gif.removeAttribute('id');[...gif.attributes].forEach(a=>{if(a.name.startsWith('data-'))gif.removeAttribute(a.name);});
-                    gif.alt='';gif.draggable=false;Object.assign(gif.style,{position:'absolute',zIndex:'2',pointerEvents:'none',opacity:'0',transition:`opacity ${COVER_FADE_MS}ms ease`});
+                    const cropHost=base.closest?.('[data-detail-crop]');
+                    const gif=cropHost ? cropHost.querySelector('svg')?.cloneNode(true) : base.cloneNode(false);
+                    if(!gif)return;
+                    if(cropHost){
+                        const gi=gif.querySelector('image');if(gi)gi.setAttribute('href',src);
+                        Object.assign(gif.style,{position:'absolute',inset:'0',width:'100%',height:'100%',zIndex:'2',pointerEvents:'none',opacity:'0',transition:`opacity ${COVER_FADE_MS}ms ease`});
+                    }else{
+                        gif.removeAttribute('id');[...gif.attributes].forEach(a=>{if(a.name.startsWith('data-'))gif.removeAttribute(a.name);});
+                        gif.alt='';gif.draggable=false;gif.src=src;
+                        Object.assign(gif.style,{position:'absolute',zIndex:'2',pointerEvents:'none',opacity:'0',transition:`opacity ${COVER_FADE_MS}ms ease`});
+                    }
                     activeGif=gif;host.appendChild(gif);
                     const loaded=()=>{
                         if(token!==playToken||disposed||paused){removeNode(gif);return;}
@@ -12188,17 +12212,31 @@ viewer.style.visibility='';
                             if(token!==playToken||disposed||paused)return;
                             // 不直接撤掉 GIF。先在 GIF 上方把封面淡入到完全不透明，再移除 GIF，
                             // 即使 GIF 此刻已经进入下一轮，也会被封面层遮住，不会闪帧。
-                            const shield=base.cloneNode(false);shield.removeAttribute('id');[...shield.attributes].forEach(a=>{if(a.name.startsWith('data-'))shield.removeAttribute(a.name);});
-                            shield.alt='';shield.draggable=false;shield.src=cover;Object.assign(shield.style,{position:'absolute',zIndex:'3',pointerEvents:'none',opacity:'0',transition:`opacity ${COVER_FADE_MS}ms ease`});
+                            const shield=cropHost ? cropHost.querySelector('svg')?.cloneNode(true) : base.cloneNode(false);
+                            if(!shield)return;
+                            if(cropHost){
+                                const si=shield.querySelector('image');if(si)si.setAttribute('href',cover);
+                                Object.assign(shield.style,{position:'absolute',inset:'0',width:'100%',height:'100%',zIndex:'3',pointerEvents:'none',opacity:'0',transition:`opacity ${COVER_FADE_MS}ms ease`});
+                            }else{
+                                shield.removeAttribute('id');[...shield.attributes].forEach(a=>{if(a.name.startsWith('data-'))shield.removeAttribute(a.name);});
+                                shield.alt='';shield.draggable=false;shield.src=cover;
+                                Object.assign(shield.style,{position:'absolute',zIndex:'3',pointerEvents:'none',opacity:'0',transition:`opacity ${COVER_FADE_MS}ms ease`});
+                            }
                             activeShield=shield;host.appendChild(shield);
                             const reveal=()=>{shield.style.transition='none';shield.style.opacity='1';timer=setTimeout(()=>{
                                 if(token!==playToken||disposed||paused)return;removeNode(gif);activeGif=null;
                                 timer=setTimeout(()=>{if(token!==playToken||disposed||paused)return;removeNode(shield);activeShield=null;nextCycle();},POST_COVER_MS);
                             },40);};
-                            if(shield.complete&&shield.naturalWidth>0)reveal();else{shield.addEventListener('load',reveal,{once:true});shield.addEventListener('error',reveal,{once:true});}
+                            if(cropHost)requestAnimationFrame(reveal);else if(shield.complete&&shield.naturalWidth>0)reveal();else{shield.addEventListener('load',reveal,{once:true});shield.addEventListener('error',reveal,{once:true});}
                         },Math.max(320,duration-GIF_END_GUARD_MS));
                     };
-                    gif.addEventListener('load',loaded,{once:true});gif.addEventListener('error',()=>{if(token===playToken){removeNode(gif);activeGif=null;timer=setTimeout(nextCycle,POST_COVER_MS);}},{once:true});gif.src=src;if(gif.complete&&gif.naturalWidth>0)queueMicrotask(loaded);
+                    if(cropHost){
+                        requestAnimationFrame(()=>loaded());
+                    }else{
+                        gif.addEventListener('load',loaded,{once:true});
+                        gif.addEventListener('error',()=>{if(token===playToken){removeNode(gif);activeGif=null;timer=setTimeout(nextCycle,POST_COVER_MS);}},{once:true});
+                        gif.src=src;if(gif.complete&&gif.naturalWidth>0)queueMicrotask(loaded);
+                    }
                 },PRE_COVER_MS);
             };
             let hoverGif=null;
@@ -12349,7 +12387,7 @@ viewer.style.visibility='';
                 if(!card || card.dataset.mediaSig!==sig){
                     const holder=document.createElement('div');
                     holder.innerHTML=`<div class="media-drag-item relative w-20 h-16 rounded-lg overflow-hidden border border-slate-200 group bg-slate-900 flex cursor-grab" draggable="${window.isLocked?'false':'true'}" data-media-index="${idx}" data-media-id="${window.escapeHtml(mediaId)}">
-                        ${imgObj.isAnimated&&imgObj.crop?window.getAnimatedCropPreviewHtml(imgObj):imgObj.isAnimated&&imgObj.gifCover?`<img src="${window.escapeHtml(imgObj.gifCover)}" class="w-full h-full object-cover" draggable="false">`:`<img src="${window.escapeHtml(imgObj.outer||src)}" class="w-full h-full object-cover" draggable="false">`}
+                        ${imgObj.isAnimated&&imgObj.gifCover?window.getAnimatedCoverCropPreviewHtml(imgObj):imgObj.isAnimated&&(imgObj.gifCrop||imgObj.crop)?window.getAnimatedCropPreviewHtml(imgObj):`<img src="${window.escapeHtml(imgObj.outer||src)}" class="w-full h-full object-cover" draggable="false">`}
                         <span class="absolute top-1 left-1 z-10 text-white/80 text-[9px] pointer-events-none"><i class="fa-solid fa-grip-vertical"></i></span>
                         <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
                             ${imgObj.isAnimated?`<button type="button" data-image-edit title="编辑动图" class="bg-fuchsia-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px]"><i class="fa-solid fa-film"></i></button>`:`<button type="button" data-image-crop title="裁剪图片" class="bg-indigo-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px]"><i class="fa-solid fa-crop"></i></button>`}
