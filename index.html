@@ -3209,6 +3209,13 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     throw new Error(data?.message || data?.error || `CloudBase HTTP ${response.status}`);
                 }
                 return data;
+            } catch (err) {
+                if (err?.name === 'AbortError' && !window._invalidRoomAccess) {
+                    const timeoutErr = new Error(`CloudBase 请求超时（${Math.round(timeoutMs / 1000)}秒），正在重试时请保持网络连接`);
+                    timeoutErr.code = 'cloudbase_timeout';
+                    throw timeoutErr;
+                }
+                throw err;
             } finally {
                 clearTimeout(timer);
                 window._invalidRoomControllers?.delete(controller);
@@ -3698,7 +3705,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             };
 
             // 附属数据与主事件同时开始读取，减少等待时间。
-            const metaPromise = fetchWithRetry('/timeline?type=meta', 16000, 2);
+            const metaPromise = fetchWithRetry('/timeline?type=meta', 25000, 2);
             const sideNames = ['逻辑关系','标签','BGM','活动日志','小晴儿台词'];
             const sidePaths = [
                 '/timeline?type=connections',
@@ -3707,7 +3714,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 '/timeline?type=activityLogs',
                 '/timeline?type=xiaoqinger'
             ];
-            const sidePromise = Promise.allSettled(sidePaths.map(p => fetchWithRetry(p, 16000, 2)));
+            const sidePromise = Promise.allSettled(sidePaths.map(p => fetchWithRetry(p, 25000, 2)));
 
             // 先拿第一页，同时从响应中的 total 计算剩余页；每页 5 条并发读取，避免 59 个大事件串行请求过慢。
             const firstPage = await fetchWithRetry(
@@ -3732,7 +3739,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     if (idx >= offsets.length) return;
                     const off = offsets[idx];
                     pageResults[idx] = await fetchWithRetry(
-                        `/timeline?type=events&offset=${encodeURIComponent(off)}&limit=${TIMELINE_EVENT_PAGE_LIMIT}`,
+                        `/timeline?type=events&offset=${encodeURIComponent(off)}&limit=${TIMELINE_EVENT_PAGE_LIMIT}&total=${encodeURIComponent(totalEvents)}`,
                         45000,
                         3
                     );
