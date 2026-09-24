@@ -5248,10 +5248,17 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     const _apiMs=Math.round((performance.now()-_tApi)*10)/10;
                     if(!cloudDeleted)throw new Error('delete failed');
                     if(db)db.style.width='85%';
+                    const _uiStart=performance.now();
+                    const _uiTimes={};
+                    let _u=performance.now();
                     Promise.resolve(window.writeActivityLog?.('delete',logInfo)).catch(err=>console.warn('删除日志后台写入失败',err));
+                    _uiTimes.activityLogDispatch=Math.round((performance.now()-_u)*10)/10;
+                    _u=performance.now();
                     window.closeEditModal();window.closeMultiTimeEventModal?.();
+                    _uiTimes.closeModals=Math.round((performance.now()-_u)*10)/10;
 
                     // 删除成功后重建时间线，并先释放连线 SVG 的旧尺寸。
+                    _u=performance.now();
                     const tc=document.getElementById('timelineContainer');
                     const oldScrollLeft=tc?.scrollLeft||0;
                     const oldSvg=document.getElementById('svgConnectionsGroup');
@@ -5273,21 +5280,45 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         oldTrack.style.minWidth='';
                     }
                     if(tc)tc.scrollLeft=0;
+                    _uiTimes.clearOldTimeline=Math.round((performance.now()-_u)*10)/10;
 
                     // 按当前 events 完整重绘。
+                    _u=performance.now();
                     window.renderEvents?.();
+                    _uiTimes.renderEvents=Math.round((performance.now()-_u)*10)/10;
 
+                    const _rafScheduled=performance.now();
                     requestAnimationFrame(()=>requestAnimationFrame(()=>{
+                        const _rafStart=performance.now();
                         const freshTc=document.getElementById('timelineContainer');
+                        let _scrollMs=0;
                         if(freshTc){
+                            const _rs=performance.now();
                             // 此处的 scrollWidth 已不再包含删除前 SVG 的旧宽度。
                             const maxScroll=Math.max(0,freshTc.scrollWidth-freshTc.clientWidth);
                             freshTc.scrollLeft=wasNearTimelineRight ? maxScroll : Math.min(oldScrollLeft,maxScroll);
+                            _scrollMs=Math.round((performance.now()-_rs)*10)/10;
                         }
+                        const _rc=performance.now();
                         // 最后才按新的 container.scrollWidth 重新建立 SVG 尺寸。
                         window.renderSvgConnections?.();
+                        const _connectionsMs=Math.round((performance.now()-_rc)*10)/10;
+                        console.log(`[DELETE-UI-TIME][${_perfId}][RAF]`,{
+                            waitForDoubleRAF:Math.round((_rafStart-_rafScheduled)*10)/10,
+                            scrollRestore:_scrollMs,
+                            renderSvgConnections:_connectionsMs,
+                            rafWorkTotal:Math.round((performance.now()-_rafStart)*10)/10
+                        });
                     }));
-                    if(db)db.style.width='100%';await new Promise(r=>setTimeout(r,220));dm?.classList.add('hidden');
+                    _u=performance.now();
+                    if(db)db.style.width='100%';
+                    await new Promise(r=>setTimeout(r,220));
+                    _uiTimes.progressDelay=Math.round((performance.now()-_u)*10)/10;
+                    _u=performance.now();
+                    dm?.classList.add('hidden');
+                    _uiTimes.hideDeleteModal=Math.round((performance.now()-_u)*10)/10;
+                    _uiTimes.measuredUiTotal=Math.round((performance.now()-_uiStart)*10)/10;
+                    console.log(`[DELETE-UI-TIME][${_perfId}][MAIN]`,_uiTimes);
                     console.log(`[PERF][${_perfId}][DELETE frontend]`,{deleteEventApi:_apiMs,postDeleteUi:Math.round((performance.now()-_tApi-_apiMs)*10)/10,total:Math.round((performance.now()-_perfStart)*10)/10});
                     window.showToast("删除成功","info");
                 }catch(_){dm?.classList.add('hidden');window.showToast("删除失败，请重试","error");}
