@@ -3345,6 +3345,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 fileName:file.name||'file',mime:file.type||'application/octet-stream',size:file.size,
                 purpose:useTemp?'temp':finalPurpose,
                 finalPurpose:useTemp?finalPurpose:'',coverEventLabel:String(options.coverEventLabel||''),
+                coverSourcePath:String(options?.coverSourcePath||''),
+                coverKind:String(options?.coverKind||''),
                 folder:useTemp?'temp':'',
                 temporary:useTemp,
                 replaceCloudPath:useTemp?'':String(options?.replaceCloudPath||'')
@@ -3386,17 +3388,17 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             uploadNotice('正在加载媒体，请稍候…');
             setTimeout(()=>uploadNotice('',false),250);
             const result={url,cloudPath:meta.cloudPath,mediaFolder:folder,fileID:meta.fileID||'',mime:file.type||'',name:file.name||''};
-            if(useTemp)window.trackUnsavedMediaUpload?.(meta.cloudPath,{url,finalPurpose,name:file.name||'',mime:file.type||''});
+            if(useTemp)window.trackUnsavedMediaUpload?.(meta.cloudPath,{url,finalPurpose,name:file.name||'',mime:file.type||'',coverSourcePath:String(options?.coverSourcePath||''),coverKind:String(options?.coverKind||'')});
             return result;
         };
-        window.uploadCoverBlobToCloudBase = async function(blob, prefix='cover', replaceCloudPath=''){
+        window.uploadCoverBlobToCloudBase = async function(blob, prefix='cover', replaceCloudPath='', coverSourcePath='', coverKind=''){
             if(!blob) throw new Error('COVER_BLOB_EMPTY');
             const file=new File([blob],`${prefix}_${Date.now()}.jpg`,{type:'image/jpeg'});
-            return await window.uploadLargeMediaToCloudBase(file,{purpose:'cover',replaceCloudPath,coverEventLabel:String(document.getElementById('eventTitle')?.value||window.currentEditingEvent?.title||window.currentEditingEvent?.id||'event')});
+            return await window.uploadLargeMediaToCloudBase(file,{purpose:'cover',replaceCloudPath,coverSourcePath,coverKind,coverEventLabel:String(document.getElementById('eventTitle')?.value||window.currentEditingEvent?.title||window.currentEditingEvent?.id||'event')});
         };
-        window.canvasToCloudCover = async function(canvas,prefix='cover',quality=.84,replaceCloudPath=''){
+        window.canvasToCloudCover = async function(canvas,prefix='cover',quality=.84,replaceCloudPath='',coverSourcePath='',coverKind=''){
             const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('封面生成失败')),'image/jpeg',quality));
-            return await window.uploadCoverBlobToCloudBase(blob,prefix,replaceCloudPath);
+            return await window.uploadCoverBlobToCloudBase(blob,prefix,replaceCloudPath,coverSourcePath,coverKind);
         };
 
         window.localOrCloudMediaUrl = async function(file,{compressStaticImage=false}={}){
@@ -4881,7 +4883,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             window.beginEditMediaTxn?.();
             const tx=window._editMediaTxn;
             if(!tx)return;
-            if(!tx.tempUploads.some(x=>x.tempPath===path))tx.tempUploads.push({tempPath:path,tempUrl:meta.url||window.cloudMediaPublicUrl?.(path)||'',finalPurpose:meta.finalPurpose||'',name:meta.name||'',mime:meta.mime||''});
+            if(!tx.tempUploads.some(x=>x.tempPath===path))tx.tempUploads.push({tempPath:path,tempUrl:meta.url||window.cloudMediaPublicUrl?.(path)||'',finalPurpose:meta.finalPurpose||'',name:meta.name||'',mime:meta.mime||'',coverSourcePath:meta.coverSourcePath||'',coverKind:meta.coverKind||''});
         };
         window.deleteTempCloudPath=async function(path){
             path=String(path||'').trim();if(!path)return false;
@@ -4927,7 +4929,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             for(const rec of selected){
                 const resp=await fetch(rec.tempUrl||window.cloudMediaPublicUrl(rec.tempPath),{cache:'no-store'});if(!resp.ok)throw new Error('临时媒体读取失败 HTTP '+resp.status);
                 const blob=await resp.blob(),file=new File([blob],rec.name||('media_'+Date.now()),{type:rec.mime||blob.type||'application/octet-stream'});
-                const final=await window.uploadLargeMediaToCloudBase(file,{purpose:rec.finalPurpose||'',bypassTemp:true});
+                const final=await window.uploadLargeMediaToCloudBase(file,{purpose:rec.finalPurpose||'',bypassTemp:true,coverSourcePath:rec.coverSourcePath||'',coverKind:rec.coverKind||''});
                 window.replaceTempMediaRefs(root,rec.tempPath,final.cloudPath,final.url);await window.deleteTempCloudPath(rec.tempPath);
             }
             tx.tempUploads.splice(cut,selected.length);
@@ -4940,7 +4942,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 if(!resp.ok)throw new Error('临时媒体读取失败 HTTP '+resp.status);
                 const blob=await resp.blob();
                 const file=new File([blob],rec.name||('media_'+Date.now()),{type:rec.mime||blob.type||'application/octet-stream'});
-                const final=await window.uploadLargeMediaToCloudBase(file,{purpose:rec.finalPurpose||'',bypassTemp:true});
+                const final=await window.uploadLargeMediaToCloudBase(file,{purpose:rec.finalPurpose||'',bypassTemp:true,coverSourcePath:rec.coverSourcePath||'',coverKind:rec.coverKind||''});
                 window.replaceTempMediaRefs(eventData,rec.tempPath,final.cloudPath,final.url);
                 await window.deleteTempCloudPath(rec.tempPath);
             }
@@ -11416,7 +11418,7 @@ viewer.style.visibility='';
                 ctx.drawImage(capturePlayer,0,0,canvas.width,canvas.height);
                 const target=window.editingVideos[activeVideoCropIndex];
                 if(!target) throw new Error('capture_target_missing');
-                const uploadedCover=await window.canvasToCloudCover(canvas,'video_cover',0.84,target.coverCloudPath||'');
+                const uploadedCover=await window.canvasToCloudCover(canvas,'video_cover',0.84,target.coverCloudPath||'',target.cloudPath||'', 'video');
                 if(!uploadedCover?.url) throw new Error('capture_cover_upload_failed');
                 window.trackUnsavedMediaUpload?.(uploadedCover.cloudPath||'');target.cover=uploadedCover.url;target.coverManual=true;
                 target.coverCloudPath=uploadedCover.cloudPath||'';
@@ -12353,7 +12355,7 @@ viewer.style.visibility='';
                     sw=Math.max(1,Math.min(w-sx,(Number(crop.sw)||baseW)*rx));
                     sh=Math.max(1,Math.min(h-sy,(Number(crop.sh)||baseH)*ry));
                 }
-                const max=1280,scale=Math.min(1,max/sw,max/sh),c=document.createElement('canvas');c.width=Math.max(1,Math.round(sw*scale));c.height=Math.max(1,Math.round(sh*scale));c.getContext('2d').drawImage(source,sx,sy,sw,sh,0,0,c.width,c.height);const blob=await new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(new Error('封面生成失败')),'image/jpeg',.86));const file=new File([blob],`gif_cover_${Date.now()}.jpg`,{type:'image/jpeg'});const media=await window.uploadLargeMediaToCloudBase(file,{purpose:'cover',replaceCloudPath:coverCloudPath||''});media.gifDurationMs=Math.max(50,Number(modal._parsedGifDurationMs)||Math.round(totalUs/1000)||0);media.gifDurationSource='gce';window.trackUnsavedMediaUpload?.(media.cloudPath||'');await onSaved?.(media.url,media,current);close();window.showToast?.('动图封面已保存','success');}catch(err){window.showToast?.('动图封面截取失败：'+(err?.message||err),'error');btn.disabled=false;btn.textContent='设为封面';}};
+                const max=1280,scale=Math.min(1,max/sw,max/sh),c=document.createElement('canvas');c.width=Math.max(1,Math.round(sw*scale));c.height=Math.max(1,Math.round(sh*scale));c.getContext('2d').drawImage(source,sx,sy,sw,sh,0,0,c.width,c.height);const blob=await new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(new Error('封面生成失败')),'image/jpeg',.86));const file=new File([blob],`gif_cover_${Date.now()}.jpg`,{type:'image/jpeg'});const media=await window.uploadLargeMediaToCloudBase(file,{purpose:'cover',replaceCloudPath:coverCloudPath||'',coverSourcePath:String(current?.cloudPath||''),coverKind:'gif'});media.gifDurationMs=Math.max(50,Number(modal._parsedGifDurationMs)||Math.round(totalUs/1000)||0);media.gifDurationSource='gce';window.trackUnsavedMediaUpload?.(media.cloudPath||'');await onSaved?.(media.url,media,current);close();window.showToast?.('动图封面已保存','success');}catch(err){window.showToast?.('动图封面截取失败：'+(err?.message||err),'error');btn.disabled=false;btn.textContent='设为封面';}};
         };
         window.editGifCover=function(index){
             window.beginEditMediaTxn?.();
