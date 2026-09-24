@@ -3418,7 +3418,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 return {url:dataUrl,cloudPath:'',fileID:'',isCloud:false,mime:file.type||'',name:file.name||''};
             }
 
-            window._cloudUploadNotice?.('',true);
             try{
                 const uploaded=await window.uploadLargeMediaToCloudBase(file);
                 return {...uploaded,isCloud:true,mime:file.type||uploaded.mime||'',name:file.name||uploaded.name||''};
@@ -4936,24 +4935,32 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         };
         window.promoteTempUploadsSince=async function(mark,root){
             const tx=window._editMediaTxn;if(!tx)return;
-            const cut=Math.max(0,Number(mark)||0),selected=tx.tempUploads.slice(cut);
+            const cut=Math.max(0,Number(mark)||0),selected=tx.tempUploads.slice(cut).sort((a,b)=>Number((a.finalPurpose||'')==='cover')-Number((b.finalPurpose||'')==='cover'));
+            const promoted=new Map();
             for(const rec of selected){
                 const resp=await fetch(rec.tempUrl||window.cloudMediaPublicUrl(rec.tempPath),{cache:'no-store'});if(!resp.ok)throw new Error('临时媒体读取失败 HTTP '+resp.status);
                 const blob=await resp.blob(),file=new File([blob],rec.name||('media_'+Date.now()),{type:rec.mime||blob.type||'application/octet-stream'});
-                const final=await window.uploadLargeMediaToCloudBase(file,{purpose:rec.finalPurpose||'',bypassTemp:true,coverSourcePath:rec.coverSourcePath||'',coverKind:rec.coverKind||''});
+                const sourcePath=promoted.get(rec.coverSourcePath)||rec.coverSourcePath||'';
+                const final=await window.uploadLargeMediaToCloudBase(file,{purpose:rec.finalPurpose||'',bypassTemp:true,coverSourcePath:sourcePath,coverKind:rec.coverKind||''});
+                promoted.set(rec.tempPath,final.cloudPath);
                 window.replaceTempMediaRefs(root,rec.tempPath,final.cloudPath,final.url);await window.deleteTempCloudPath(rec.tempPath);
             }
             tx.tempUploads.splice(cut,selected.length);
         };
         window.promoteTempUploads=async function(eventData){
             const tx=window._editMediaTxn;if(!tx?.tempUploads?.length)return;
-            for(const rec of [...tx.tempUploads]){
+            // 源媒体必须先于 cover 提升；coverSourcePath 随源媒体 temp -> inuse 一起改写。
+            const selected=[...tx.tempUploads].sort((a,b)=>Number((a.finalPurpose||'')==='cover')-Number((b.finalPurpose||'')==='cover'));
+            const promoted=new Map();
+            for(const rec of selected){
                 const readUrl=rec.tempUrl||window.cloudMediaPublicUrl(rec.tempPath);
                 const resp=await fetch(readUrl,{cache:'no-store'});
                 if(!resp.ok)throw new Error('临时媒体读取失败 HTTP '+resp.status);
                 const blob=await resp.blob();
                 const file=new File([blob],rec.name||('media_'+Date.now()),{type:rec.mime||blob.type||'application/octet-stream'});
-                const final=await window.uploadLargeMediaToCloudBase(file,{purpose:rec.finalPurpose||'',bypassTemp:true,coverSourcePath:rec.coverSourcePath||'',coverKind:rec.coverKind||''});
+                const sourcePath=promoted.get(rec.coverSourcePath)||rec.coverSourcePath||'';
+                const final=await window.uploadLargeMediaToCloudBase(file,{purpose:rec.finalPurpose||'',bypassTemp:true,coverSourcePath:sourcePath,coverKind:rec.coverKind||''});
+                promoted.set(rec.tempPath,final.cloudPath);
                 window.replaceTempMediaRefs(eventData,rec.tempPath,final.cloudPath,final.url);
                 await window.deleteTempCloudPath(rec.tempPath);
             }
@@ -5351,9 +5358,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 const isEdit = window.pendingSaveData._isEdit;
                 (function stripPendingDeep(o){if(!o||typeof o!=='object')return;if(Array.isArray(o)){o.forEach(stripPendingDeep);return;}delete o._pendingOuterSave;Object.values(o).forEach(stripPendingDeep);})(eventData);
 
-                // 用户没有手动设置封面时，只在点击编辑界面的“大保存”这一刻自动补第一帧封面。
-                try{await window.ensureAutomaticFirstFrameCovers(eventData);}catch(err){console.warn('自动首帧封面生成失败',err);}
-
                 const previousEvent = isEdit
                     ? (window.findEventById?.(eventData.id) || window.events.find(e => String(e.id) === String(eventData.id)))
                     : null;
@@ -5377,7 +5381,12 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 try {
                     if (progressBar) setTimeout(() => progressBar.style.width = '60%', 400);
                     
-                    // 大保存才承认本次编辑：先把 temp/ 中的媒体提升到正式目录，并改写 eventData 引用。
+                    // 第一阶段先提升用户上传/手动封面，让源媒体先拥有最终 inuse 路径。
+                    await window.promoteTempUploads?.(eventData);
+                    // 用户未手动设置封面时，大保存静默截取第一帧。此时 coverSourcePath 已是最终源路径，
+                    // 因而自动封面与手动封面都使用“源媒体名_cover”的稳定命名。
+                    try{await window.ensureAutomaticFirstFrameCovers(eventData);}catch(err){console.warn('自动首帧封面生成失败',err);}
+                    // 自动封面刚写入 temp/cover，再立即提升并改写 eventData 中的 cover URL/cloudPath。
                     await window.promoteTempUploads?.(eventData);
                     const desiredConnections = eventData.connections || [];
                     delete eventData.connections;
@@ -7383,7 +7392,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 const x=pos.x,y=pos.y;
                 deepPushUndo(); window.deepCanvasState.items.push({id:'media_'+Date.now().toString(36),type:'media',x,y,w,h,src,mediaKind:kind,cloudPath:String(cloudPath||''),layer:0}); window.renderDeepCanvas(); window.deepSetMediaLoading?.(false);
             };
-            if(useLocal==='cloud'){ window.openCloudMediaLibrary({folder:'all',onSelect:a=>{if(!a)return;const kind=a.folder==='video'?'video':'image';window.deepSetMediaLoading?.(true,'正在加载云端媒体…');if(kind==='image'){const im=new Image();im.onload=()=>addBySrc(a.url,kind,im.naturalWidth,im.naturalHeight,a.cloudPath||'');im.onerror=()=>addBySrc(a.url,kind,640,360,a.cloudPath||'');im.src=a.url;}else{const v=document.createElement('video');v.preload='metadata';v.onloadedmetadata=()=>addBySrc(a.url,kind,v.videoWidth,v.videoHeight,a.cloudPath||'');v.onerror=()=>addBySrc(a.url,kind,640,360,a.cloudPath||'');v.src=a.url;}}}); return;}
+            if(useLocal==='cloud'){ window.openCloudMediaLibrary({folder:'all',allowedFolders:['picture','gif','video'],onSelect:a=>{if(!a)return;const kind=a.folder==='video'?'video':'image';window.deepSetMediaLoading?.(true,'正在加载云端媒体…');if(kind==='image'){const im=new Image();im.onload=()=>addBySrc(a.url,kind,im.naturalWidth,im.naturalHeight,a.cloudPath||'');im.onerror=()=>addBySrc(a.url,kind,640,360,a.cloudPath||'');im.src=a.url;}else{const v=document.createElement('video');v.preload='metadata';v.onloadedmetadata=()=>addBySrc(a.url,kind,v.videoWidth,v.videoHeight,a.cloudPath||'');v.onerror=()=>addBySrc(a.url,kind,640,360,a.cloudPath||'');v.src=a.url;}}}); return;}
             if(useLocal==='local'){ const input=document.createElement('input'); input.type='file'; input.accept='image/*,video/*'; input.onchange=async()=>{const f=input.files?.[0];if(!f)return;window.deepSetMediaLoading?.(true,'正在读取并加载本地媒体…');try{const media=await window.uploadLargeMediaToCloudBase(f,{silentNotice:true});const src=media.url,kind=f.type.startsWith('video/')?'video':'image';if(kind==='image'){const im=new Image();im.onload=()=>addBySrc(src,kind,im.naturalWidth,im.naturalHeight,media.cloudPath||'');im.onerror=()=>addBySrc(src,kind,640,360,media.cloudPath||'');im.src=src;}else{const v=document.createElement('video');v.preload='metadata';v.onloadedmetadata=()=>addBySrc(src,kind,v.videoWidth,v.videoHeight,media.cloudPath||'');v.onerror=()=>addBySrc(src,kind,640,360,media.cloudPath||'');v.src=src;}}catch(err){window.deepSetMediaLoading?.(false);window._cloudUploadNotice?.('',false);window.showToast?.(err?.message||'本地媒体上传失败','error');}}; input.click(); return; }
         };
 
@@ -11010,7 +11019,7 @@ viewer.style.visibility='';
                         <div class="space-y-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
                             <div class="flex items-center justify-between gap-3 bg-indigo-50/70 border border-indigo-100 rounded-xl px-3 py-2.5">
                                 <div><div class="text-xs font-bold text-slate-700"><i class="fa-solid fa-expand text-indigo-600 mr-1"></i>深入描述</div><p class="text-[10px] text-slate-500 mt-0.5">开启后，每个图片、动图、视频都可以进入独立的全屏画布进行图文解析。</p></div>
-                                <label class="relative inline-flex items-center cursor-pointer shrink-0"><input type="checkbox" id="deepDescriptionToggle" class="sr-only peer" ${event.deepDescriptionEnabled !== false ? 'checked' : ''} onchange="toggleDeepDescriptionFeature(this.checked)"><span class="w-10 h-5 bg-slate-300 peer-checked:bg-indigo-600 rounded-full transition-colors"></span><span class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5"></span></label>
+                                <label class="relative inline-flex items-center cursor-pointer shrink-0"><input type="checkbox" id="deepDescriptionToggle" class="sr-only peer" ${event.deepDescriptionEnabled === true ? 'checked' : ''} onchange="toggleDeepDescriptionFeature(this.checked)"><span class="w-10 h-5 bg-slate-300 peer-checked:bg-indigo-600 rounded-full transition-colors"></span><span class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5"></span></label>
                             </div>
                             <label class="block text-xs font-bold text-slate-700"><i class="fa-solid fa-photo-film text-indigo-600 mr-1"></i>媒体与网址附件</label>
                             
@@ -11358,7 +11367,6 @@ viewer.style.visibility='';
 
         window.confirmVideoFrameCapture = async function() {
             if (activeVideoCropIndex < 0) return;
-            window._cloudUploadNotice?.('',true);
             const player = document.getElementById('videoCropPlayer');
             if (!player) return;
             if (player.readyState < 1 || !Number.isFinite(Number(player.currentTime))) {
@@ -11981,7 +11989,7 @@ viewer.style.visibility='';
                     <span class="text-slate-300 text-[10px]"><i class="fa-solid fa-grip-vertical"></i></span>
                     ${v.cover?`<img src="${window.escapeHtml(v.cover)}" class="w-10 h-7 object-cover rounded border shrink-0">`:`<div class="w-10 h-7 bg-slate-100 rounded flex items-center justify-center text-[9px] text-slate-400 shrink-0">视频</div>`}
                     <div class="min-w-0 flex-1"><div class="text-xs font-semibold text-slate-700 truncate">${window.escapeHtml(v.title||v.name||'未命名视频')}</div>
-                        <div class="text-[10px] text-slate-400 truncate">${window.escapeHtml(v.url||'')}</div></div>
+                        </div>
                     <span class="text-[10px] text-indigo-500 shrink-0">${Number(v.previewDuration)||4}s</span>
                     <button type="button" onclick="event.stopPropagation();openVideoEditModal(${idx})" class="px-2 py-1 bg-indigo-50 text-indigo-600 rounded text-[10px]">编辑</button>
                     ${document.getElementById('deepDescriptionToggle')?.checked ? `<button type="button" onclick="event.stopPropagation();openDeepDescriptionEditor('video',${idx})" data-deep-edit-btn class="px-2 py-1 bg-violet-50 text-violet-600 rounded text-[10px]">深入描述</button>` : ''}
@@ -14223,7 +14231,7 @@ viewer.style.visibility='';
         window.multiSegmentPageHtml=function(segIndex){
             const s=window.multiTimeDraft[segIndex];if(!s)return'';
             const images=(s.images||[]).map((im,j)=>`<div draggable="true" data-multi-drag data-seg="${segIndex}" data-key="images" data-index="${j}" class="media-drag-item relative w-20 h-16 rounded-lg overflow-hidden border border-slate-200 bg-slate-900 group cursor-grab"><img src="${window.multiEsc(window.multiGetImageThumb(im))}" class="w-full h-full object-cover" draggable="false"><span class="absolute top-1 left-1 text-white/80 text-[9px]"><i class="fa-solid fa-grip-vertical"></i></span><div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1"><button type="button" onclick="event.stopPropagation();multiOpenCropModal(${segIndex},${j})" class="w-6 h-6 rounded-full bg-indigo-600 text-white" title="截选"><i class="fa-solid fa-crop text-[10px]"></i></button>${window.multiTimeDeepEnabledDraft?`<button type="button" onclick="event.stopPropagation();multiOpenDeepDescriptionEditor(${segIndex},'image',${j})" class="w-6 h-6 rounded-full bg-violet-600 text-white" title="深入描述"><i class="fa-solid fa-feather-pointed text-[10px]"></i></button>`:''}<button type="button" onclick="event.stopPropagation();multiRemoveMedia(${segIndex},'images',${j})" class="w-6 h-6 rounded-full bg-rose-600 text-white" title="删除"><i class="fa-solid fa-xmark text-[10px]"></i></button></div></div>`).join('');
-            const videos=(s.videos||[]).map((v,j)=>`<div draggable="true" data-multi-drag data-seg="${segIndex}" data-key="videos" data-index="${j}" class="media-drag-item video-edit-card border border-slate-200 rounded-lg px-2.5 py-2 flex items-center gap-2 cursor-grab bg-white"><i class="fa-solid fa-grip-vertical text-slate-300 text-[10px]"></i>${v.cover?`<img src="${window.multiEsc(v.cover)}" class="w-10 h-7 object-cover rounded">`:`<div class="w-10 h-7 bg-slate-100 rounded text-[9px] text-slate-400 flex items-center justify-center">视频</div>`}<div class="min-w-0 flex-1"><div class="text-xs font-semibold truncate text-slate-700">${window.multiEsc(v.title||'未命名视频')}</div><div class="text-[10px] text-slate-400 truncate">${window.multiEsc(v.url||'')}</div></div><span class="text-[10px] text-indigo-500">${Number(v.previewDuration)||4}s</span><button type="button" onclick="multiOpenVideoEdit(${segIndex},${j})" class="px-2 py-1 bg-indigo-50 text-indigo-600 rounded text-[10px]">编辑</button>${window.multiTimeDeepEnabledDraft?`<button type="button" onclick="multiOpenDeepDescriptionEditor(${segIndex},'video',${j})" class="px-2 py-1 bg-violet-50 text-violet-600 rounded text-[10px]">深入描述</button>`:''}<button type="button" onclick="multiOpenVideoCropModal(${segIndex},${j})" class="px-2 py-1 bg-slate-100 text-slate-600 rounded text-[10px]">截选</button><button type="button" onclick="multiRemoveMedia(${segIndex},'videos',${j})" class="text-rose-500 w-6 h-6"><i class="fa-solid fa-xmark"></i></button></div>`).join('');
+            const videos=(s.videos||[]).map((v,j)=>`<div draggable="true" data-multi-drag data-seg="${segIndex}" data-key="videos" data-index="${j}" class="media-drag-item video-edit-card border border-slate-200 rounded-lg px-2.5 py-2 flex items-center gap-2 cursor-grab bg-white"><i class="fa-solid fa-grip-vertical text-slate-300 text-[10px]"></i>${v.cover?`<img src="${window.multiEsc(v.cover)}" class="w-10 h-7 object-cover rounded">`:`<div class="w-10 h-7 bg-slate-100 rounded text-[9px] text-slate-400 flex items-center justify-center">视频</div>`}<div class="min-w-0 flex-1"><div class="text-xs font-semibold truncate text-slate-700">${window.multiEsc(v.title||'未命名视频')}</div></div><span class="text-[10px] text-indigo-500">${Number(v.previewDuration)||4}s</span><button type="button" onclick="multiOpenVideoEdit(${segIndex},${j})" class="px-2 py-1 bg-indigo-50 text-indigo-600 rounded text-[10px]">编辑</button>${window.multiTimeDeepEnabledDraft?`<button type="button" onclick="multiOpenDeepDescriptionEditor(${segIndex},'video',${j})" class="px-2 py-1 bg-violet-50 text-violet-600 rounded text-[10px]">深入描述</button>`:''}<button type="button" onclick="multiOpenVideoCropModal(${segIndex},${j})" class="px-2 py-1 bg-slate-100 text-slate-600 rounded text-[10px]">截选</button><button type="button" onclick="multiRemoveMedia(${segIndex},'videos',${j})" class="text-rose-500 w-6 h-6"><i class="fa-solid fa-xmark"></i></button></div>`).join('');
             const links=(s.links||[]).map((l,j)=>`<div draggable="true" data-multi-drag data-seg="${segIndex}" data-key="links" data-index="${j}" class="flex items-center gap-2 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs cursor-grab bg-white"><i class="fa-solid fa-grip-vertical text-slate-300"></i><button type="button" onclick="multiOpenLinkEdit(${segIndex},${j})" class="min-w-0 flex-1 text-left truncate text-slate-700"><i class="fa-solid fa-globe text-indigo-500 mr-1"></i>${window.multiEsc(l.title||l.url)}</button><button type="button" onclick="multiRemoveMedia(${segIndex},'links',${j})" class="text-rose-500"><i class="fa-solid fa-xmark"></i></button></div>`).join('');
             return `<div class="space-y-3.5">
                 <div class="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
@@ -14339,8 +14347,8 @@ viewer.style.visibility='';
             const old=isEdit?window.findEventById(eventId):null;
             if(isEdit&&(!old||old.timeMode!=='multi')){window.openEditModal(eventId);return;}
             if(isEdit && !(await window.acquireEventEditLock(eventId)))return;
-            const ev=old||{id:Date.now(),title:'',type:'minor',tags:[],timeMode:'multi',timeSegments:[window.multiNewSegment()],deepDescriptionEnabled:true};
-            window.multiTimeEditingId=ev.id;window.multiTimeIsEdit=isEdit;window.multiTimeDeepEnabledDraft=ev.deepDescriptionEnabled!==false;
+            const ev=old||{id:Date.now(),title:'',type:'minor',tags:[],timeMode:'multi',timeSegments:[window.multiNewSegment()],deepDescriptionEnabled:false};
+            window.multiTimeEditingId=ev.id;window.multiTimeIsEdit=isEdit;window.multiTimeDeepEnabledDraft=ev.deepDescriptionEnabled===true;
             window.multiTimeDraft=window.multiNormalizeDraft(JSON.parse(JSON.stringify((ev.timeSegments&&ev.timeSegments.length)?ev.timeSegments:[window.multiNewSegment()])));
             window.multiTimeGeneralDraft={title:ev.title||'',type:ev.type||'minor',tags:Array.isArray(ev.tags)?ev.tags.slice():[]};
             window.multiTimeConnections=isEdit?window.getEditingConnectionsForEvent(ev.id):[];window.multiTimePage=0;
