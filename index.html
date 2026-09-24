@@ -3973,7 +3973,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             return cloudEvent;
         };
 
-        window.saveEventToCloud = async function(eventData) {
+        window.saveEventToCloud = async function(eventData, perfId="") {
             const index = window.events.findIndex(e => String(e.id) === String(eventData.id));
             if (index >= 0) {
                 if (!Number.isFinite(Number(eventData.stackOrder)) && Number.isFinite(Number(window.events[index].stackOrder))) {
@@ -3999,7 +3999,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     err.cloudBytes = cloudBytes;
                     throw err;
                 }
-                await window.timelineApiWrite('upsertEvent', { event: cloudEvent });
+                await window.timelineApiWrite('upsertEvent', { event: cloudEvent, ...(perfId?{perfId}: {}) });
                 return true;
             } catch (e) {
                 if (e?.code === 'EVENT_TOO_LARGE') {
@@ -4012,7 +4012,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             }
         };
 
-        window.deleteEventFromCloud = async function(eventId) {
+        window.deleteEventFromCloud = async function(eventId, perfId="") {
             const oldEvents = window.events.slice();
             const oldConnections = window.connections.slice();
             window.events = window.events.filter(e => String(e.id) !== String(eventId));
@@ -4022,7 +4022,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
             if (!window.hasTimelineEditToken?.()) return false;
             try {
-                await window.timelineApiWrite('deleteEvent', { eventId });
+                await window.timelineApiWrite('deleteEvent', { eventId, ...(perfId?{perfId}: {}) });
                 return true;
             } catch (e) {
                 window.events = oldEvents;
@@ -5218,6 +5218,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
         window.confirmDeleteEvent = async function() {
             if (window.pendingDeleteId !== null) {
+                const _perfStart=performance.now();
+                const _perfId='delete-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7);
                 const targetId = window.pendingDeleteId;
                 const targetEvent = window.findEventById?.(targetId) || window.events.find(e => String(e.id) === String(targetId));
                 const logInfo = { id: targetId, title: targetEvent?.title || '未命名事件' };
@@ -5229,7 +5231,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 dm?.classList.remove('hidden');if(db)db.style.width='25%';
                 try{
                     if(db)setTimeout(()=>db.style.width='55%',250);
-                    const cloudDeleted=await window.deleteEventFromCloud(targetId);
+                    const _tApi=performance.now();
+                    const cloudDeleted=await window.deleteEventFromCloud(targetId,_perfId);
+                    const _apiMs=Math.round((performance.now()-_tApi)*10)/10;
                     if(!cloudDeleted)throw new Error('delete failed');
                     if(db)db.style.width='85%';
                     Promise.resolve(window.writeActivityLog?.('delete',logInfo)).catch(err=>console.warn('删除日志后台写入失败',err));
@@ -5272,6 +5276,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         window.renderSvgConnections?.();
                     }));
                     if(db)db.style.width='100%';await new Promise(r=>setTimeout(r,220));dm?.classList.add('hidden');
+                    console.log(`[PERF][${_perfId}][DELETE frontend]`,{deleteEventApi:_apiMs,postDeleteUi:Math.round((performance.now()-_tApi-_apiMs)*10)/10,total:Math.round((performance.now()-_perfStart)*10)/10});
                     window.showToast("删除成功","info");
                 }catch(_){dm?.classList.add('hidden');window.showToast("删除失败，请重试","error");}
             }
@@ -5359,6 +5364,10 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
         window.confirmSaveEvent = async function() {
             if (window.pendingSaveData) {
+                const _perfStart=performance.now();
+                const _perfId='save-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7);
+                const _perfMarks={};
+                const _perfStep=(name,start)=>{_perfMarks[name]=Math.round((performance.now()-start)*10)/10;};
                 const eventData = window.pendingSaveData;
                 const isEdit = window.pendingSaveData._isEdit;
                 (function stripPendingDeep(o){if(!o||typeof o!=='object')return;if(Array.isArray(o)){o.forEach(stripPendingDeep);return;}delete o._pendingOuterSave;Object.values(o).forEach(stripPendingDeep);})(eventData);
@@ -5390,19 +5399,23 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     // 新上传媒体仍保持原流程：主媒体先进入 inuse，再仅为缺封面的新媒体生成首帧封面。
                     const hadPendingTemp=window._hasPendingTempUploads?.()===true;
                     if(hadPendingTemp){
-                        await window.promoteTempUploads?.(eventData);
-                        try{await window.ensureAutomaticFirstFrameCovers(eventData);}catch(err){console.warn('自动首帧封面生成失败',err);}
-                        if(window._hasPendingTempUploads?.()) await window.promoteTempUploads?.(eventData);
-                    }
+                        let _t=performance.now(); await window.promoteTempUploads?.(eventData); _perfStep('promoteMain',_t);
+                        _t=performance.now(); try{await window.ensureAutomaticFirstFrameCovers(eventData);}catch(err){console.warn('自动首帧封面生成失败',err);} _perfStep('autoCover',_t);
+                        if(window._hasPendingTempUploads?.()){_t=performance.now();await window.promoteTempUploads?.(eventData);_perfStep('promoteCover',_t);}
+                    }else{_perfMarks.promoteMain=0;_perfMarks.autoCover=0;_perfMarks.promoteCover=0;}
                     const desiredConnections = eventData.connections || [];
                     const connectionsChanged = !isEdit || window._connectionListFingerprint(previousConnections)!==window._connectionListFingerprint(desiredConnections);
                     delete eventData.connections;
-                    const cloudSaved = await window.saveEventToCloud(eventData);
+                    let _tApi=performance.now();
+                    const cloudSaved = await window.saveEventToCloud(eventData,_perfId);
+                    _perfStep('saveEventApi',_tApi);
                     if (!cloudSaved) throw new Error('cloud save failed');
                     
                     if (progressBar) progressBar.style.width = '80%';
                     // 关系没有变化时不再发 delete/upsertConnection 请求。
+                    let _tConn=performance.now();
                     if(connectionsChanged) await window.syncEditingConnections(eventData.id, desiredConnections);
+                    _perfStep('syncConnections',_tConn);
                     window._savedDeepDrafts?.clear?.();
                     
                     if (progressBar) progressBar.style.width = '100%';
@@ -5413,6 +5426,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         Promise.resolve(window.writeActivityLog?.(isEdit ? 'edit' : 'create', eventData)).catch(err=>console.warn('活动日志后台写入失败',err));
                     }
                     window.pendingSaveData = null;
+                    _perfMarks.total=Math.round((performance.now()-_perfStart)*10)/10;
+                    console.log(`[PERF][${_perfId}][SAVE frontend]`,{hadPendingTemp,connectionsChanged,..._perfMarks});
                     if (!isEdit) {
                         requestAnimationFrame(() => {
                             window.scrollTimelineToEvent(eventData);
