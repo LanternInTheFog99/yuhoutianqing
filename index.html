@@ -3316,10 +3316,11 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             let el=document.getElementById('cloudMediaUploadNotice');
             if(!el){
                 el=document.createElement('div'); el.id='cloudMediaUploadNotice';
-                el.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:99999;background:rgba(15,23,42,.92);color:white;padding:9px 14px;border-radius:999px;font-size:13px;box-shadow:0 8px 28px rgba(0,0,0,.22);pointer-events:none;max-width:86vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+                el.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:99999;background:rgba(15,23,42,.90);color:white;width:38px;height:38px;border-radius:999px;box-shadow:0 8px 28px rgba(0,0,0,.22);pointer-events:none;display:none;align-items:center;justify-content:center';
+                el.innerHTML='<i class="fa-solid fa-spinner fa-spin" style="font-size:15px"></i>';
                 document.body.appendChild(el);
             }
-            el.textContent=text||'正在上传…'; el.style.display=show?'block':'none';
+            el.style.display=show?'flex':'none';
         };
         window.uploadLargeMediaToCloudBase = async function(file, options={}){
             if(!file) throw new Error('NO_FILE');
@@ -3387,15 +3388,16 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         };
 
         window.localOrCloudMediaUrl = async function(file,{compressStaticImage=false}={}){
-            if(file.size > window.CLOUD_MEDIA_THRESHOLD){
-                const uploaded=await window.uploadLargeMediaToCloudBase(file);
-                return {...uploaded,isCloud:true};
-            }
-            if(compressStaticImage){
-                return {url:await compressImage(file),isCloud:false,mime:file.type||'',name:file.name||''};
-            }
-            const url=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=e=>resolve(String(e.target.result||''));r.onerror=reject;r.readAsDataURL(file);});
-            return {url,isCloud:false,mime:file.type||'',name:file.name||''};
+            window._cloudUploadNotice?.('',true);
+            try{
+                if(file.size > window.CLOUD_MEDIA_THRESHOLD){
+                    const uploaded=await window.uploadLargeMediaToCloudBase(file);
+                    return {...uploaded,isCloud:true};
+                }
+                if(compressStaticImage)return {url:await compressImage(file),isCloud:false,mime:file.type||'',name:file.name||''};
+                const url=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=e=>resolve(String(e.target.result||''));r.onerror=reject;r.readAsDataURL(file);});
+                return {url,isCloud:false,mime:file.type||'',name:file.name||''};
+            }finally{setTimeout(()=>window._cloudUploadNotice?.('',false),250);}
         };
 
 
@@ -7022,7 +7024,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             window.deepCanvasState.items.forEach(x=>{if(x.type==='connector'){x.curve=Number(x.curve)||0;x.direction=x.direction||'forward';if(x.type==='text'&&!x._lastTextColor)x._lastTextColor=x.color||'#334155';}});
             window.deepCanvasUndo=[]; window.deepCanvasRedo=[]; window.deepCanvasSelected=null; window.deepCanvasDrawing=false; window.deepCanvasErasing=false; window.deepCanvasSelecting=false; window.deepDrawToolsActive=false; window.deepDrawSubtool='pen'; window.deepDrawSelection=[]; window.deepDrawSelectionLasso=[]; window.deepDrawColor='#334155'; window.deepDrawSize=4; window.deepDrawShapeAssist=false; window.deepEraserSize=24; window.deepZoom=1; window.deepConnectMode=false; window.deepConnectPending=[];
             const title=document.getElementById('deepEditorTitle'); if(title)title.textContent=`深入描述 · ${type==='image'?'图片':'视频'} ${index+1}`;
-            const enabled=window.deepDescriptionIsEnabled(obj.deepDescription);
+            const enabled=obj.deepDescription ? window.deepDescriptionIsEnabled(obj.deepDescription) : true;
             window.deepDescriptionEnabledDraft=enabled;
             window.deepSyncEnabledToggle?.();
             m.classList.remove('hidden'); window.deepSetTextToolsExpanded?.(false); window.deepSetDrawing(false); window.deepSetErasing(false); window.deepUpdateConnectorControls?.(); window.renderDeepCanvas(); window.deepStartAutosave?.();
@@ -7081,7 +7083,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.saveDeepDescriptionEditor=async function(){
             const target=window.deepCanvasTarget;if(!target)return;
             const obj=target.multi?window.multiDeepMediaObject?.(target.segIndex,target.type,target.index):window.deepMediaObject?.(target.type,target.index);if(!obj)return;
-            window.deepDescriptionEnabledDraft=!!document.getElementById('deepEnabled')?.checked;window.deepWriteCanvasToTarget?.();
+            window.deepDescriptionEnabledDraft=window.deepDescriptionEnabledDraft!==false;window.deepWriteCanvasToTarget?.();
             if(obj.deepDescription)obj.deepDescription._pendingOuterSave=true;
             try{
                 await window.promoteTempUploadsSince?.(window._deepEditSession?.tempMark||0,obj.deepDescription);
@@ -10374,7 +10376,7 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
                     const imgs=imageList.map((im,ii)=>{
                         const thumb=window.multiGetImageThumb(im);
                         const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(im?.deepDescription);
-                        return `<div class="group relative rounded-xl overflow-hidden border border-slate-800 cursor-pointer bg-transparent shadow-md hover:border-indigo-500 transition-colors" style="height:${imageHeight}px;" onpointerdown="if(window.isPhoneLikeDevice?.()){mobileDetailTapStart(event,this)}else if(event.isPrimary&&event.button===0){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openMultiLightbox('${event.id}',${si},${ii}))}" onpointermove="if(window.isPhoneLikeDevice?.())mobileDetailTapMove(event,this)" onpointerup="if(window.isPhoneLikeDevice?.()&&mobileDetailTapEnd(event,this)){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openMultiLightbox('${event.id}',${si},${ii}),this._mobileOpenedAt=performance.now())}" onclick="if(window.isPhoneLikeDevice?.()){event.preventDefault();event.stopPropagation();mobileDetailTapOpen(this,()=>{window.suspendMobileDetailVideosForOverlay?.();openMultiLightbox('${event.id}',${si},${ii})})}"><img loading="lazy" decoding="async" src="${window.multiEsc(thumb)}" class="block w-full h-full object-cover bg-transparent group-hover:scale-[1.02] transition-all duration-300">${hasDeep?'<span class="absolute right-1.5 bottom-1.5 text-sm opacity-0 group-hover:opacity-45">🐢✌🏻</span>':''}</div>`;
+                        return `<div class="group relative rounded-xl overflow-hidden border border-slate-800 cursor-pointer bg-transparent shadow-md hover:border-indigo-500 transition-colors" style="height:${imageHeight}px;" onpointerdown="if(window.isPhoneLikeDevice?.()){mobileDetailTapStart(event,this)}else if(event.isPrimary&&event.button===0){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openMultiLightbox('${event.id}',${si},${ii}))}" onpointermove="if(window.isPhoneLikeDevice?.())mobileDetailTapMove(event,this)" onpointerup="if(window.isPhoneLikeDevice?.()&&mobileDetailTapEnd(event,this)){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openMultiLightbox('${event.id}',${si},${ii}),this._mobileOpenedAt=performance.now())}" onclick="if(window.isPhoneLikeDevice?.()){event.preventDefault();event.stopPropagation();mobileDetailTapOpen(this,()=>{window.suspendMobileDetailVideosForOverlay?.();openMultiLightbox('${event.id}',${si},${ii})})}">${im?.crop?window.getDetailCroppedImageHtml(im,thumb,'loading="lazy" decoding="async"','block group-hover:scale-[1.02] transition-all duration-300'):`<img loading="lazy" decoding="async" src="${window.multiEsc(thumb)}" class="block w-full h-full object-cover bg-transparent group-hover:scale-[1.02] transition-all duration-300">`}${hasDeep?'<span class="absolute right-1.5 bottom-1.5 text-sm opacity-0 group-hover:opacity-45">🐢✌🏻</span>':''}</div>`;
                     }).join('');
                     const imagesBlock=imageCount
                         ? `<div class="grid gap-2" style="grid-template-columns:repeat(${imageCols},minmax(0,1fr));">${imgs}</div>`
@@ -10395,7 +10397,7 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
             }
             const detailHasImages=Array.isArray(event.images)&&event.images.length>0,detailHasVideos=Array.isArray(event.videos)&&event.videos.length>0,detailDescriptionText=String(event.description||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/gi,' ').trim(),detailHasDescription=!!detailDescriptionText;
             let viewer=document.getElementById('fullscreenViewer');if(!viewer){viewer=document.createElement('div');viewer.id='fullscreenViewer';viewer.className='fixed inset-0 bg-slate-950/90 text-white z-50 overflow-y-auto backdrop-blur-md p-3 sm:p-8 flex flex-col items-center';viewer.addEventListener('click',e=>{if(e.target===viewer)window.closeReadOnlyFullscreen(viewer.dataset.fromStackDate||'');});document.body.appendChild(viewer);}viewer.dataset.fromStackDate=fromStackDate||'';viewer.dataset.eventId=String(event.id||'');
-            let imagesHtml='';if(detailHasImages){const fullSrcList=event.images.map(imgObj=>typeof imgObj==='string'?imgObj:(imgObj.originalFull||imgObj.original||imgObj.outer||imgObj.inner||imgObj.collection||''));imagesHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">事件配图</h4><div data-detail-images>${event.images.map((imgObj,idx)=>{const thumbSrc=typeof imgObj==='string'?imgObj:(imgObj.inner||imgObj.original||imgObj.originalFull||imgObj.outer||imgObj.collection);const listStr=JSON.stringify(fullSrcList).replace(/"/g,'&quot;');const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(imgObj?.deepDescription);return `<div data-detail-image-card onpointerdown="if(window.isPhoneLikeDevice?.()){mobileDetailTapStart(event,this)}else if(event.isPrimary&&event.button===0){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openLightbox(${listStr},${idx},'${event.id}','image'),this._mobileOpenedAt=performance.now())}" onpointermove="if(window.isPhoneLikeDevice?.())mobileDetailTapMove(event,this)" onpointerup="if(window.isPhoneLikeDevice?.()&&mobileDetailTapEnd(event,this)){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openLightbox(${listStr},${idx},'${event.id}','image'))}" onclick="if(window.isPhoneLikeDevice?.()){event.preventDefault();event.stopPropagation();mobileDetailTapOpen(this,()=>{window.suspendMobileDetailVideosForOverlay?.();openLightbox(${listStr},${idx},'${event.id}','image')})}" class="group relative bg-transparent rounded-xl overflow-hidden border border-slate-800 cursor-pointer shadow-md hover:border-indigo-500 transition-colors">${(()=>{const gif=window.isAnimatedImageSource(thumbSrc,imgObj),cover=typeof imgObj==='object'?(imgObj.gifCover||''):'';const shown=gif&&cover?cover:thumbSrc;return `<img data-detail-image data-full-src="${fullSrcList[idx]||thumbSrc}" ${gif&&cover?`data-gif-src="${fullSrcList[idx]||thumbSrc}" data-gif-cover="${cover}" data-gif-duration="${imgObj?.gifDurationSource==='gce'?Math.max(50,Number(imgObj?.gifDurationMs)||5000):5000}"`:''} loading="lazy" decoding="async" ${window.isPhoneLikeDevice?.()?`data-phone-src="${shown}" style="visibility:hidden"`:`src="${shown}"`} class="block group-hover:scale-[1.02] transition-all duration-300">`;})()}${hasDeep?'<span class="absolute right-1.5 bottom-1.5 z-10 text-[13px] sm:text-sm opacity-0 group-hover:opacity-45 transition-opacity pointer-events-none select-none drop-shadow" aria-hidden="true">🐢✌🏻</span>':''}</div>`;}).join('')}</div></div>`;}
+            let imagesHtml='';if(detailHasImages){const fullSrcList=event.images.map(imgObj=>typeof imgObj==='string'?imgObj:(imgObj.originalFull||imgObj.original||imgObj.outer||imgObj.inner||imgObj.collection||''));imagesHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">事件配图</h4><div data-detail-images>${event.images.map((imgObj,idx)=>{const thumbSrc=typeof imgObj==='string'?imgObj:(imgObj.inner||imgObj.original||imgObj.originalFull||imgObj.outer||imgObj.collection);const listStr=JSON.stringify(fullSrcList).replace(/"/g,'&quot;');const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(imgObj?.deepDescription);return `<div data-detail-image-card onpointerdown="if(window.isPhoneLikeDevice?.()){mobileDetailTapStart(event,this)}else if(event.isPrimary&&event.button===0){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openLightbox(${listStr},${idx},'${event.id}','image'),this._mobileOpenedAt=performance.now())}" onpointermove="if(window.isPhoneLikeDevice?.())mobileDetailTapMove(event,this)" onpointerup="if(window.isPhoneLikeDevice?.()&&mobileDetailTapEnd(event,this)){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openLightbox(${listStr},${idx},'${event.id}','image'))}" onclick="if(window.isPhoneLikeDevice?.()){event.preventDefault();event.stopPropagation();mobileDetailTapOpen(this,()=>{window.suspendMobileDetailVideosForOverlay?.();openLightbox(${listStr},${idx},'${event.id}','image')})}" class="group relative bg-transparent rounded-xl overflow-hidden border border-slate-800 cursor-pointer shadow-md hover:border-indigo-500 transition-colors">${(()=>{const gif=window.isAnimatedImageSource(thumbSrc,imgObj),cover=typeof imgObj==='object'?(imgObj.gifCover||''):'';const shown=gif&&cover?cover:thumbSrc;const attrs=`data-detail-image data-full-src="${fullSrcList[idx]||thumbSrc}" ${gif&&cover?`data-gif-src="${fullSrcList[idx]||thumbSrc}" data-gif-cover="${cover}" data-gif-duration="${imgObj?.gifDurationSource==='gce'?Math.max(50,Number(imgObj?.gifDurationMs)||5000):5000}"`:''} loading="lazy" decoding="async"`;return imgObj?.crop?window.getDetailCroppedImageHtml(imgObj,shown,attrs,'block group-hover:scale-[1.02] transition-all duration-300'):`<img ${attrs} src="${shown}" class="block group-hover:scale-[1.02] transition-all duration-300">`;})()}${hasDeep?'<span class="absolute right-1.5 bottom-1.5 z-10 text-[13px] sm:text-sm opacity-0 group-hover:opacity-45 transition-opacity pointer-events-none select-none drop-shadow" aria-hidden="true">🐢✌🏻</span>':''}</div>`;}).join('')}</div></div>`;}
             let videosHtml='';if(detailHasVideos){videosHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-video mr-1"></i>事件视频</h4><div data-detail-videos>${event.videos.map((v,vidx)=>{const vUrl=typeof v==='object'?(v.blobUrl||v.url):v,vCover=typeof v==='object'?(v.cover||''):'',vTitle=typeof v==='object'?(v.title||''):'',vType=typeof v==='object'&&v.mime?`type="${v.mime}"`:'';const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(v?.deepDescription);return `<div data-detail-video-card data-detail-video-index="${vidx}" data-detail-video-deep="${hasDeep?'1':'0'}" class="bg-black rounded-xl overflow-hidden border border-slate-800 ${hasDeep?'cursor-pointer':''}">${vTitle?`<div data-detail-video-title class="px-3 py-2 bg-slate-900 text-xs font-semibold text-slate-200 border-b border-slate-800">${escapeHtml(vTitle)}</div>`:''}<div data-detail-video-stage class="relative bg-black overflow-hidden"><video ${vCover?`poster="${vCover}"`:''} playsinline webkit-playsinline preload="none" class="block bg-black object-contain"><source src="${vUrl}" ${vType}></video>${hasDeep?'<span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">🐢</span><span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">✌🏻</span>':''}</div></div>`;}).join('')}</div></div>`;}
             let linksHtml='';if(event.links&&event.links.length>0){linksHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-link mr-1"></i>跳转网址</h4><div class="flex flex-wrap gap-2">${event.links.map(l=>`<a href="${l.url}" target="_blank" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-indigo-300 hover:text-indigo-200 px-3 py-2 rounded-xl text-xs transition-colors"><i class="fa-solid fa-globe"></i><span class="font-medium">${l.title||l.url}</span></a>`).join('')}</div></div>`;}
             const descriptionHtml=detailHasDescription?`<div data-detail-description class="border-t border-slate-800 pt-6 mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">事件经过与描述</h4><div class="event-description-html text-sm sm:text-base leading-relaxed whitespace-pre-wrap">${window.prepareDescriptionForView?window.prepareDescriptionForView(event.description):event.description}</div></div>`:'';
@@ -10975,7 +10977,7 @@ viewer.style.visibility='';
                         <div class="space-y-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
                             <div class="flex items-center justify-between gap-3 bg-indigo-50/70 border border-indigo-100 rounded-xl px-3 py-2.5">
                                 <div><div class="text-xs font-bold text-slate-700"><i class="fa-solid fa-expand text-indigo-600 mr-1"></i>深入描述</div><p class="text-[10px] text-slate-500 mt-0.5">开启后，每个图片、动图、视频都可以进入独立的全屏画布进行图文解析。</p></div>
-                                <label class="relative inline-flex items-center cursor-pointer shrink-0"><input type="checkbox" id="deepDescriptionToggle" class="sr-only peer" ${event.deepDescriptionEnabled ? 'checked' : ''} onchange="toggleDeepDescriptionFeature(this.checked)"><span class="w-10 h-5 bg-slate-300 peer-checked:bg-indigo-600 rounded-full transition-colors"></span><span class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5"></span></label>
+                                <label class="relative inline-flex items-center cursor-pointer shrink-0"><input type="checkbox" id="deepDescriptionToggle" class="sr-only peer" ${event.deepDescriptionEnabled !== false ? 'checked' : ''} onchange="toggleDeepDescriptionFeature(this.checked)"><span class="w-10 h-5 bg-slate-300 peer-checked:bg-indigo-600 rounded-full transition-colors"></span><span class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5"></span></label>
                             </div>
                             <label class="block text-xs font-bold text-slate-700"><i class="fa-solid fa-photo-film text-indigo-600 mr-1"></i>媒体与网址附件</label>
                             
@@ -11323,6 +11325,7 @@ viewer.style.visibility='';
 
         window.confirmVideoFrameCapture = async function() {
             if (activeVideoCropIndex < 0) return;
+            window._cloudUploadNotice?.('',true);
             const player = document.getElementById('videoCropPlayer');
             if (!player) return;
             if (player.readyState < 1 || !Number.isFinite(Number(player.currentTime))) {
@@ -11407,6 +11410,7 @@ viewer.style.visibility='';
                 window.showToast(base.slice(0,180),"error");
             } finally {
                 if(capturePlayer){try{capturePlayer.pause();capturePlayer.removeAttribute('src');capturePlayer.load();capturePlayer.remove();}catch(_){}}
+                window._cloudUploadNotice?.('',false);
             }
         };
 
@@ -11947,7 +11951,7 @@ viewer.style.visibility='';
                         <div class="text-[10px] text-slate-400 truncate">${window.escapeHtml(v.url||'')}</div></div>
                     <span class="text-[10px] text-indigo-500 shrink-0">${Number(v.previewDuration)||4}s</span>
                     <button type="button" onclick="event.stopPropagation();openVideoEditModal(${idx})" class="px-2 py-1 bg-indigo-50 text-indigo-600 rounded text-[10px]">编辑</button>
-                    ${document.getElementById('deepDescriptionToggle')?.checked ? `<button type="button" onclick="event.stopPropagation();openDeepDescriptionEditor('video',${idx})" class="px-2 py-1 bg-violet-50 text-violet-600 rounded text-[10px]">深入描述</button>` : ''}
+                    ${document.getElementById('deepDescriptionToggle')?.checked ? `<button type="button" onclick="event.stopPropagation();openDeepDescriptionEditor('video',${idx})" data-deep-edit-btn class="px-2 py-1 bg-violet-50 text-violet-600 rounded text-[10px]">深入描述</button>` : ''}
                     <button type="button" onclick="event.stopPropagation();openVideoCropModal(${idx})" class="px-2 py-1 bg-slate-100 text-slate-600 rounded text-[10px]">截选</button>
                     <button type="button" onclick="event.stopPropagation();removeVideo(${idx})" class="text-rose-500 p-1"><i class="fa-solid fa-xmark"></i></button>
                 </div>`).join('');
@@ -12108,6 +12112,14 @@ viewer.style.visibility='';
             return `<div class="relative w-full h-full overflow-hidden bg-slate-900"><img src="${window.escapeHtml(src)}" class="absolute max-w-none" style="width:${w}px;height:${h}px;left:${left}px;top:${top}px;" draggable="false"></div>`;
         };
 
+        window.getDetailCroppedImageHtml=function(imgObj,src,extraAttrs='',extraClass=''){
+            const c=imgObj?.crop;
+            if(!c||!c.sw||!c.sh||!c.naturalWidth||!c.naturalHeight)
+                return `<img ${extraAttrs} src="${window.escapeHtml(src)}" class="${extraClass}">`;
+            const w=Number(c.naturalWidth)/Number(c.sw)*100,h=Number(c.naturalHeight)/Number(c.sh)*100;
+            const left=-Number(c.sx)/Number(c.sw)*100,top=-Number(c.sy)/Number(c.sh)*100;
+            return `<div class="relative w-full h-full overflow-hidden bg-transparent"><img ${extraAttrs} src="${window.escapeHtml(src)}" class="absolute max-w-none ${extraClass}" style="width:${w}%;height:${h}%;left:${left}%;top:${top}%"></div>`;
+        };
         window.isAnimatedImageSource=function(src,obj=null){
             if(obj?.isAnimated)return true;
             return /\.(gif|webp)(?:$|[?#])/i.test(String(src||'')) || /^data:image\/(?:gif|webp)/i.test(String(src||''));
@@ -12295,20 +12307,61 @@ viewer.style.visibility='';
         };
 
         window.renderMicroPreviews = function() {
-            const container=document.getElementById('imageMicroPreviews'); if(!container)return;
-            container.innerHTML=window.editingImageFiles.map((imgObj,idx)=>{
+            const container=document.getElementById('imageMicroPreviews');
+            if(!container)return;
+
+            const oldById=new Map(
+                [...container.querySelectorAll('[data-media-id]')].map(el=>[String(el.dataset.mediaId||''),el])
+            );
+            const frag=document.createDocumentFragment();
+
+            window.editingImageFiles.forEach((imgObj,idx)=>{
+                if(!imgObj.mediaId) imgObj.mediaId='img_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,9);
+                const mediaId=String(imgObj.mediaId);
                 const src=imgObj.originalFull||imgObj.original||imgObj.outer||'';
-                return `<div class="media-drag-item relative w-20 h-16 rounded-lg overflow-hidden border border-slate-200 group bg-slate-900 flex cursor-grab" draggable="${window.isLocked?'false':'true'}" data-media-index="${idx}">
-                    ${imgObj.isAnimated&&imgObj.gifCover?`<img src="${window.escapeHtml(imgObj.gifCover)}" class="w-full h-full object-cover" draggable="false">`:imgObj.crop&&imgObj.isAnimated?window.getAnimatedCropPreviewHtml(imgObj):`<img src="${window.escapeHtml(imgObj.outer||src)}" class="w-full h-full object-cover" draggable="false">`}
-                    <span class="absolute top-1 left-1 z-10 text-white/80 text-[9px] pointer-events-none"><i class="fa-solid fa-grip-vertical"></i></span>
-                    <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
-                        ${imgObj.isAnimated?`<button type="button" onclick="event.stopPropagation();editGifCover(${idx})" title="编辑动图" class="bg-fuchsia-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px]"><i class="fa-solid fa-film"></i></button>`:`<button type="button" onclick="event.stopPropagation();openCropModal(${idx})" title="裁剪图片" class="bg-indigo-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px]"><i class="fa-solid fa-crop"></i></button>`}
-                        ${document.getElementById('deepDescriptionToggle')?.checked ? `<button type="button" onclick="event.stopPropagation();openDeepDescriptionEditor('image',${idx})" title="深入描述" class="bg-violet-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px]"><i class="fa-solid fa-feather-pointed"></i></button>` : ''}
-                        <button type="button" onclick="event.stopPropagation();removeMicroPreview(${idx})" title="删除图片" class="bg-rose-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px]"><i class="fa-solid fa-xmark"></i></button>
-                    </div>
-                </div>`;
-            }).join('');
-            if(!window.isLocked) window.initMediaDragDrop(container,'image');
+                const deepOn=!!document.getElementById('deepDescriptionToggle')?.checked;
+                const sig=JSON.stringify([
+                    src,imgObj.outer||'',!!imgObj.isAnimated,imgObj.gifCover||'',
+                    imgObj.gifCoverCloudPath||'',imgObj.crop||null,deepOn
+                ]);
+
+                let card=oldById.get(mediaId);
+                if(!card || card.dataset.mediaSig!==sig){
+                    const holder=document.createElement('div');
+                    holder.innerHTML=`<div class="media-drag-item relative w-20 h-16 rounded-lg overflow-hidden border border-slate-200 group bg-slate-900 flex cursor-grab" draggable="${window.isLocked?'false':'true'}" data-media-index="${idx}" data-media-id="${window.escapeHtml(mediaId)}">
+                        ${imgObj.isAnimated&&imgObj.crop?window.getAnimatedCropPreviewHtml(imgObj):imgObj.isAnimated&&imgObj.gifCover?`<img src="${window.escapeHtml(imgObj.gifCover)}" class="w-full h-full object-cover" draggable="false">`:`<img src="${window.escapeHtml(imgObj.outer||src)}" class="w-full h-full object-cover" draggable="false">`}
+                        <span class="absolute top-1 left-1 z-10 text-white/80 text-[9px] pointer-events-none"><i class="fa-solid fa-grip-vertical"></i></span>
+                        <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
+                            ${imgObj.isAnimated?`<button type="button" data-image-edit title="编辑动图" class="bg-fuchsia-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px]"><i class="fa-solid fa-film"></i></button>`:`<button type="button" data-image-crop title="裁剪图片" class="bg-indigo-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px]"><i class="fa-solid fa-crop"></i></button>`}
+                            ${deepOn?`<button type="button" data-deep-edit-btn data-image-deep title="深入描述" class="bg-violet-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px]"><i class="fa-solid fa-feather-pointed"></i></button>`:''}
+                            <button type="button" data-image-remove title="删除图片" class="bg-rose-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-[10px]"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                    </div>`;
+                    card=holder.firstElementChild;
+                    card.dataset.mediaSig=sig;
+                }
+
+                // 索引可能因前面的媒体增删而改变；节点本身继续复用。
+                card.dataset.mediaIndex=String(idx);
+                card.onclick=null;
+
+                const edit=card.querySelector('[data-image-edit]');
+                if(edit) edit.onclick=e=>{e.stopPropagation();window.editGifCover(idx);};
+                const crop=card.querySelector('[data-image-crop]');
+                if(crop) crop.onclick=e=>{e.stopPropagation();window.openCropModal(idx);};
+                const deep=card.querySelector('[data-image-deep]');
+                if(deep) deep.onclick=e=>{e.stopPropagation();window.openDeepDescriptionEditor('image',idx);};
+                const remove=card.querySelector('[data-image-remove]');
+                if(remove) remove.onclick=e=>{e.stopPropagation();window.removeMicroPreview(idx);};
+
+                frag.appendChild(card);
+                oldById.delete(mediaId);
+            });
+
+            // replaceChildren 会移动复用节点，而不是重建它们；未变化 GIF 因此保持当前加载/播放状态。
+            container.replaceChildren(frag);
+            container.dataset.dragInited='';
+            if(!window.isLocked)window.initMediaDragDrop(container,'image');
         };
 
         window.removeMicroPreview = function(index) {
@@ -12634,8 +12687,7 @@ viewer.style.visibility='';
 
         window.toggleDeepDescriptionFeature = function(enabled) {
             window.deepDescriptionEnabledDraft = !!enabled;
-            window.renderMicroPreviews();
-            window.renderVideoPreviews();
+            document.querySelectorAll('[data-deep-edit-btn]').forEach(btn=>btn.classList.toggle('hidden',!enabled));
         };
 
         window.handlePreSaveEvent = function(e, idRaw, isEdit) {
@@ -14213,8 +14265,8 @@ viewer.style.visibility='';
             const old=isEdit?window.findEventById(eventId):null;
             if(isEdit&&(!old||old.timeMode!=='multi')){window.openEditModal(eventId);return;}
             if(isEdit && !(await window.acquireEventEditLock(eventId)))return;
-            const ev=old||{id:Date.now(),title:'',type:'minor',tags:[],timeMode:'multi',timeSegments:[window.multiNewSegment()],deepDescriptionEnabled:false};
-            window.multiTimeEditingId=ev.id;window.multiTimeIsEdit=isEdit;window.multiTimeDeepEnabledDraft=ev.deepDescriptionEnabled===true;
+            const ev=old||{id:Date.now(),title:'',type:'minor',tags:[],timeMode:'multi',timeSegments:[window.multiNewSegment()],deepDescriptionEnabled:true};
+            window.multiTimeEditingId=ev.id;window.multiTimeIsEdit=isEdit;window.multiTimeDeepEnabledDraft=ev.deepDescriptionEnabled!==false;
             window.multiTimeDraft=window.multiNormalizeDraft(JSON.parse(JSON.stringify((ev.timeSegments&&ev.timeSegments.length)?ev.timeSegments:[window.multiNewSegment()])));
             window.multiTimeGeneralDraft={title:ev.title||'',type:ev.type||'minor',tags:Array.isArray(ev.tags)?ev.tags.slice():[]};
             window.multiTimeConnections=isEdit?window.getEditingConnectionsForEvent(ev.id):[];window.multiTimePage=0;
