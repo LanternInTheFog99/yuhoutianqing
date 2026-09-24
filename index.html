@@ -3510,30 +3510,14 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 const listEl=modal.querySelector('[data-media-list]');
                 listEl.innerHTML='<div class="text-sm text-slate-400 text-center py-12"><i class="fa-solid fa-spinner fa-spin mr-2"></i>正在读取云端数据库…</div>';
                 const data=await timelineApiPost('listMediaAssets',{folder:'all'},{auth:'edit',timeoutMs:25000});
-                const candidates=(Array.isArray(data?.items)?data.items:[]).filter(a=>{
+                // listMediaAssets 已经负责过滤 temp / cover。这里直接渲染，避免每次打开媒体库
+                // 对几十个云存储对象逐个 HEAD；实体文件审计交给 manager/cleanup。
+                items=(Array.isArray(data?.items)?data.items:[]).filter(a=>{
                     const p=String(a?.cloudPath||'').replace(/^\/+/, '');
                     const logicalFolder=String(a?.folder||'').toLowerCase();
-                    // 云端数据库只展示可复用的正式媒体：inuse + unref。
-                    // temp 和任何生命周期目录下的 cover 都永远不展示。
                     return !/(?:^|\/)(?:temp|cover)\//i.test(p) && logicalFolder!=='temp' && logicalFolder!=='cover';
                 });
-                const valid=new Array(candidates.length).fill(false);
-                const stale=[];
-                const workers=Array.from({length:Math.min(6,candidates.length)},async(_,worker)=>{
-                    for(let i=worker;i<candidates.length;i+=6){
-                        const a=candidates[i];
-                        try{
-                            const r=await fetch(window.cloudMediaPublicUrl(a.cloudPath),{method:'HEAD',cache:'no-store'});
-                            if(r.status===404||r.status===410)stale.push(String(a.cloudPath||''));
-                            else valid[i]=true;
-                        }catch(_){valid[i]=true;}
-                    }
-                });
-                await Promise.all(workers);
-                items=candidates.filter((_,i)=>valid[i]);
                 render();
-                // 已确认不存在的对象不先显示，因此 cover/幽灵登记都不会再“闪一下再消失”。
-                stale.forEach(missingPath=>timelineApiPost('removeMissingMediaRegistration',{cloudPath:missingPath},{auth:'edit',timeoutMs:15000}).catch(err=>console.warn('清理失效媒体登记失败',missingPath,err)));
             }catch(err){modal.querySelector('[data-media-list]').innerHTML=`<div class="text-sm text-rose-600 text-center py-12">${err?.message||'云端数据库读取失败'}</div>`;}};
             modal.querySelectorAll('[data-folder]').forEach(b=>b.onclick=()=>{current=b.dataset.folder;render();}); modal.querySelector('[data-media-search]').oninput=render;
             // 先同步应用 allowedFolders，再显示弹窗，避免所有分类按钮先闪现一帧。
@@ -3566,21 +3550,25 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         };
         window.cloudAssetInheritedImage=function(a){
             const saved=window.getSavedCloudMediaPresentation(a?.cloudPath)||{};
+            const assetCoverPath=String(a?.coverCloudPath||'');
+            const assetCover=assetCoverPath?window.cloudMediaPublicUrl(assetCoverPath):'';
             return {
                 crop:saved.crop?JSON.parse(JSON.stringify(saved.crop)):null,
                 gifCrop:(saved.gifCrop||saved.crop)?JSON.parse(JSON.stringify(saved.gifCrop||saved.crop)):null,
                 gifCoverCrop:(saved.gifCoverCrop||saved.crop)?JSON.parse(JSON.stringify(saved.gifCoverCrop||saved.crop)):null,
-                gifCover:saved.gifCover||'',
-                gifCoverCloudPath:saved.gifCoverCloudPath||'',
+                gifCover:saved.gifCover||assetCover||'',
+                gifCoverCloudPath:saved.gifCoverCloudPath||assetCoverPath||'',
                 gifDurationMs:Math.max(0,Number(saved.gifDurationMs)||0),
                 gifDurationSource:saved.gifDurationSource||''
             };
         };
         window.cloudAssetInheritedVideo=function(a){
             const saved=window.getSavedCloudMediaPresentation(a?.cloudPath)||{};
+            const assetCoverPath=String(a?.coverCloudPath||'');
+            const assetCover=assetCoverPath?window.cloudMediaPublicUrl(assetCoverPath):'';
             return {
-                cover:saved.cover||'',
-                coverCloudPath:saved.coverCloudPath||'',
+                cover:saved.cover||assetCover||'',
+                coverCloudPath:saved.coverCloudPath||assetCoverPath||'',
                 previewDuration:window.normalizeVideoPreviewDuration?window.normalizeVideoPreviewDuration(saved.previewDuration,4):(Number(saved.previewDuration)||4)
             };
         };
