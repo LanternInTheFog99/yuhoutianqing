@@ -3403,15 +3403,25 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         };
 
         window.localOrCloudMediaUrl = async function(file,{compressStaticImage=false}={}){
+            if(!file) throw new Error('NO_FILE');
+            const type=String(file.type||'').toLowerCase(), name=String(file.name||'');
+            const animated=/^(image\/(?:gif|webp))$/i.test(type)||/\.(?:gif|webp)$/i.test(name);
+            const video=type.startsWith('video/')||/\.(?:mp4|webm|mov|m4v)$/i.test(name);
+
+            // 普通单时间事件的既定规则：只有静态图片 <= 1 MiB 才保存为 Base64。
+            // GIF/动图和视频无论大小都必须进入 CloudBase；深入描述和多时间事件
+            // 不调用本函数的 Base64 分支，它们始终直接 uploadLargeMediaToCloudBase。
+            if(!animated&&!video&&type.startsWith('image/')&&Number(file.size||0)<=window.CLOUD_MEDIA_THRESHOLD){
+                const dataUrl=compressStaticImage
+                    ? await compressImage(file)
+                    : await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result||''));r.onerror=()=>reject(new Error('图片读取失败'));r.readAsDataURL(file);});
+                return {url:dataUrl,cloudPath:'',fileID:'',isCloud:false,mime:file.type||'',name:file.name||''};
+            }
+
             window._cloudUploadNotice?.('',true);
             try{
-                if(file.size > window.CLOUD_MEDIA_THRESHOLD){
-                    const uploaded=await window.uploadLargeMediaToCloudBase(file);
-                    return {...uploaded,isCloud:true};
-                }
-                if(compressStaticImage)return {url:await compressImage(file),isCloud:false,mime:file.type||'',name:file.name||''};
-                const url=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=e=>resolve(String(e.target.result||''));r.onerror=reject;r.readAsDataURL(file);});
-                return {url,isCloud:false,mime:file.type||'',name:file.name||''};
+                const uploaded=await window.uploadLargeMediaToCloudBase(file);
+                return {...uploaded,isCloud:true,mime:file.type||uploaded.mime||'',name:file.name||uploaded.name||''};
             }finally{setTimeout(()=>window._cloudUploadNotice?.('',false),250);}
         };
 
