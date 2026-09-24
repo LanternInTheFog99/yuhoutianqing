@@ -3324,10 +3324,10 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 document.body.appendChild(box);
             }
             const label=box.querySelector('[data-cloud-media-loading-text]');
-            if(label)label.textContent='正在加载媒体，请稍候…';
-            if(window._cloudUploadNoticeTimer){clearTimeout(window._cloudUploadNoticeTimer);window._cloudUploadNoticeTimer=null;}
-            if(!show){box.classList.add('hidden');return;}
-            box.classList.add('hidden');
+            if(label)label.textContent=String(text||'正在处理媒体，请稍候…');
+            if(!show){if(window._cloudUploadNoticeTimer){clearTimeout(window._cloudUploadNoticeTimer);window._cloudUploadNoticeTimer=null;}box.classList.add('hidden');return;}
+            if(!box.classList.contains('hidden'))return;
+            if(window._cloudUploadNoticeTimer)return;
             window._cloudUploadNoticeTimer=setTimeout(()=>{
                 window._cloudUploadNoticeTimer=null;
                 document.getElementById('cloudMediaUploadNotice')?.classList.remove('hidden');
@@ -3336,7 +3336,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.uploadLargeMediaToCloudBase = async function(file, options={}){
             if(!file) throw new Error('NO_FILE');
             const silentUploadNotice=!!options?.silentNotice || !!options?.bypassTemp;
-            const uploadNotice=(text,show=true)=>{if(!silentUploadNotice)window._cloudUploadNotice?.('正在加载媒体，请稍候…',show);};
+            const uploadNotice=(text,show=true)=>{if(!silentUploadNotice)window._cloudUploadNotice?.(options?.purpose==='cover'?'正在保存封面…':(text||'正在上传媒体，请稍候…'),show);};
             if(!window.hasTimelineEditToken?.()) throw Object.assign(new Error('请先解锁编辑模式再上传大文件'),{code:'EDIT_AUTH_REQUIRED'});
             uploadNotice('正在加载媒体，请稍候…');
             const useTemp=!options?.bypassTemp;
@@ -3392,14 +3392,14 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if(useTemp)window.trackUnsavedMediaUpload?.(meta.cloudPath,{url,finalPurpose,name:file.name||'',mime:file.type||'',coverSourcePath:String(options?.coverSourcePath||''),coverKind:String(options?.coverKind||'')});
             return result;
         };
-        window.uploadCoverBlobToCloudBase = async function(blob, prefix='cover', replaceCloudPath='', coverSourcePath='', coverKind=''){
+        window.uploadCoverBlobToCloudBase = async function(blob, prefix='cover', replaceCloudPath='', coverSourcePath='', coverKind='', silentNotice=false){
             if(!blob) throw new Error('COVER_BLOB_EMPTY');
             const file=new File([blob],`${prefix}_${Date.now()}.jpg`,{type:'image/jpeg'});
-            return await window.uploadLargeMediaToCloudBase(file,{purpose:'cover',replaceCloudPath,coverSourcePath,coverKind,coverEventLabel:String(document.getElementById('eventTitle')?.value||window.currentEditingEvent?.title||window.currentEditingEvent?.id||'event')});
+            return await window.uploadLargeMediaToCloudBase(file,{purpose:'cover',replaceCloudPath,coverSourcePath,coverKind,silentNotice,coverEventLabel:String(document.getElementById('eventTitle')?.value||window.currentEditingEvent?.title||window.currentEditingEvent?.id||'event')});
         };
-        window.canvasToCloudCover = async function(canvas,prefix='cover',quality=.84,replaceCloudPath='',coverSourcePath='',coverKind=''){
+        window.canvasToCloudCover = async function(canvas,prefix='cover',quality=.84,replaceCloudPath='',coverSourcePath='',coverKind='',silentNotice=false){
             const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('封面生成失败')),'image/jpeg',quality));
-            return await window.uploadCoverBlobToCloudBase(blob,prefix,replaceCloudPath,coverSourcePath,coverKind);
+            return await window.uploadCoverBlobToCloudBase(blob,prefix,replaceCloudPath,coverSourcePath,coverKind,silentNotice);
         };
 
         window.localOrCloudMediaUrl = async function(file,{compressStaticImage=false}={}){
@@ -5308,7 +5308,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             return JSON.stringify(window.activityStableValue(clean));
         };
 
-        window.makeAutoFirstFrameCover=async function(src,kind,replaceCloudPath=''){
+        window.makeAutoFirstFrameCover=async function(src,kind,replaceCloudPath='',coverSourcePath=''){
             src=String(src||'');if(!src)return null;
             if(kind==='video'){
                 const v=document.createElement('video');v.muted=true;v.playsInline=true;v.crossOrigin='anonymous';v.preload='auto';v.src=src;
@@ -5317,18 +5317,18 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
                 const w=v.videoWidth,h=v.videoHeight;if(!w||!h)throw new Error('视频首帧尺寸无效');
                 const max=1280,s=Math.min(1,max/w,max/h),c=document.createElement('canvas');c.width=Math.max(1,Math.round(w*s));c.height=Math.max(1,Math.round(h*s));c.getContext('2d').drawImage(v,0,0,c.width,c.height);
-                return await window.canvasToCloudCover(c,'video_cover',.84,replaceCloudPath||'');
+                return await window.canvasToCloudCover(c,'video_cover',.84,replaceCloudPath||'',coverSourcePath||'','video',true);
             }
             const im=new Image();im.crossOrigin='anonymous';im.src=src;
             await new Promise((ok,bad)=>{im.onload=ok;im.onerror=()=>bad(new Error('动图首帧读取失败'));});
             const w=im.naturalWidth,h=im.naturalHeight;if(!w||!h)throw new Error('动图首帧尺寸无效');
             const max=1280,s=Math.min(1,max/w,max/h),c=document.createElement('canvas');c.width=Math.max(1,Math.round(w*s));c.height=Math.max(1,Math.round(h*s));c.getContext('2d').drawImage(im,0,0,c.width,c.height);
-            return await window.canvasToCloudCover(c,'gif_cover',.86,replaceCloudPath||'');
+            return await window.canvasToCloudCover(c,'gif_cover',.86,replaceCloudPath||'',coverSourcePath||'','gif',true);
         };
         window.ensureAutomaticFirstFrameCovers=async function(eventData){
             const jobs=[];
-            const addGif=obj=>{if(!obj||obj.gifCover)return;const src=obj.originalFull||obj.original||obj.outer||obj.src||'';if(!src||!window.isAnimatedImageSource?.(src,obj))return;jobs.push((async()=>{const up=await window.makeAutoFirstFrameCover(src,'gif',obj.gifCoverCloudPath||'');if(up){window.trackUnsavedMediaUpload?.(up.cloudPath||'');obj.gifCover=up.url;obj.gifCoverCloudPath=up.cloudPath||'';obj.gifCoverAuto=true;}})());};
-            const addVideo=obj=>{if(!obj||obj.cover)return;const src=obj.url||obj.src||obj.outer||obj.original||'';if(!src)return;jobs.push((async()=>{const up=await window.makeAutoFirstFrameCover(src,'video',obj.coverCloudPath||'');if(up){window.trackUnsavedMediaUpload?.(up.cloudPath||'');obj.cover=up.url;obj.coverCloudPath=up.cloudPath||'';obj.coverAuto=true;}})());};
+            const addGif=obj=>{if(!obj||obj.gifCover)return;const src=obj.originalFull||obj.original||obj.outer||obj.src||'';if(!src||!window.isAnimatedImageSource?.(src,obj))return;jobs.push((async()=>{const up=await window.makeAutoFirstFrameCover(src,'gif',obj.gifCoverCloudPath||'',obj.cloudPath||'');if(up){window.trackUnsavedMediaUpload?.(up.cloudPath||'');obj.gifCover=up.url;obj.gifCoverCloudPath=up.cloudPath||'';obj.gifCoverAuto=true;}})());};
+            const addVideo=obj=>{if(!obj||obj.cover)return;const src=obj.url||obj.src||obj.outer||obj.original||'';if(!src)return;jobs.push((async()=>{const up=await window.makeAutoFirstFrameCover(src,'video',obj.coverCloudPath||'',obj.cloudPath||'');if(up){window.trackUnsavedMediaUpload?.(up.cloudPath||'');obj.cover=up.url;obj.coverCloudPath=up.cloudPath||'';obj.coverAuto=true;}})());};
             (eventData.images||[]).forEach(addGif);(eventData.videos||[]).forEach(addVideo);
             const seen=new WeakSet(),walk=o=>{if(!o||typeof o!=='object'||seen.has(o))return;seen.add(o);if(Array.isArray(o)){o.forEach(walk);return;}if(o.type==='media'){if(o.mediaKind==='video')addVideo(o);else addGif(o);}Object.values(o).forEach(walk);};
             (eventData.images||[]).forEach(x=>walk(x?.deepDescription));(eventData.videos||[]).forEach(x=>walk(x?.deepDescription));walk(eventData.deepDescription);
@@ -9366,7 +9366,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         c.width=Math.max(1,Math.round(media.videoWidth*sc));
                         c.height=Math.max(1,Math.round(media.videoHeight*sc));
                         c.getContext('2d').drawImage(media,0,0,c.width,c.height);
-                        const uploaded=await window.canvasToCloudCover(c,'video_cover',.84,it.coverCloudPath||'');
+                        const uploaded=await window.canvasToCloudCover(c,'video_cover',.84,it.coverCloudPath||'',it.cloudPath||'','video');
                         window.deepPushUndo?.();
                         window.trackUnsavedMediaUpload?.(uploaded.cloudPath||'');it.cover=uploaded.url; it.coverManual=true; it.coverCloudPath=uploaded.cloudPath||'';
                         window.renderDeepCanvas();
