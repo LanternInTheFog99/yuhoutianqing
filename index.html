@@ -1822,7 +1822,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     </div>
                 </div>
             </div><div id="helpEditChangelog" class="hidden">
-                <div class="border border-green-300 rounded-xl p-4 bg-green-50"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.22</span><span class="px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-semibold">本次更新</span></div>
+                <div class="border border-green-300 rounded-xl p-4 bg-green-50"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.24</span><span class="px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 text-[10px] font-semibold">本次更新</span></div><div class="space-y-2 leading-7 mb-3"><p>优化了事件保存与删除速度</p><p>优化了云端数据库的媒体读取与显示</p></div><div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.22</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
                     <div class="space-y-2 leading-7 mb-3"><p>增加了动图截选封面功能</p><p>优化了时间线预览及详情页预览</p><p>优化了云端数据库显示</p></div><div class="border-t border-green-200 pt-3"><div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.16</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div><div class="space-y-2 leading-7 mb-3"><p>优化了手机端事件详情页内的视频播放与显示功能</p><p>优化了手机端事件详情页内的媒体布局</p><p>增加了密码多次输入错误的冷却功能</p><p>优化了事件删除反馈</p><p>增加了小晴儿摸头互动功能</p></div></div>
                     <div class="border-t border-green-200 pt-3">
                     <div class="flex items-center gap-2 mb-2"><span class="font-bold text-indigo-700">2026.09.15</span><span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">历史更新</span></div>
@@ -3973,7 +3973,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             return cloudEvent;
         };
 
-        window.saveEventToCloud = async function(eventData, perfId="", isNew=false) {
+        window.saveEventToCloud = async function(eventData, isNew=false) {
             const index = window.events.findIndex(e => String(e.id) === String(eventData.id));
             const existingDocumentId = index >= 0 ? String(window.events[index]?.__cloudDocId || '') : '';
             if(existingDocumentId && !eventData.__cloudDocId) eventData.__cloudDocId = existingDocumentId;
@@ -4001,7 +4001,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     err.cloudBytes = cloudBytes;
                     throw err;
                 }
-                const saveResult = await window.timelineApiWrite('upsertEvent', { event: cloudEvent, isNew:isNew===true, ...(perfId?{perfId}: {}) });
+                const saveResult = await window.timelineApiWrite('upsertEvent', { event: cloudEvent, isNew:isNew===true });
                 if(saveResult?.documentId){
                     eventData.__cloudDocId=String(saveResult.documentId);
                     const liveIndex=window.events.findIndex(e=>String(e?.id)===String(eventData.id));
@@ -4019,7 +4019,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             }
         };
 
-        window.deleteEventFromCloud = async function(eventId, perfId="", beforeEvent=null) {
+        window.deleteEventFromCloud = async function(eventId, beforeEvent=null) {
             const oldEvents = window.events.slice();
             const oldConnections = window.connections.slice();
             // Fast-delete snapshot: capture the already-loaded event before local removal so
@@ -4033,7 +4033,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if (!window.hasTimelineEditToken?.()) return false;
             try {
                 const documentId=String(deleteSnapshot?.__cloudDocId||'');
-                const result=await window.timelineApiWrite('deleteEvent', { eventId, ...(documentId?{documentId}:{}), ...(deleteSnapshot?{beforeEvent:deleteSnapshot}:{}), ...(perfId?{perfId}: {}) });
+                const result=await window.timelineApiWrite('deleteEvent', { eventId, ...(documentId?{documentId}:{}), ...(deleteSnapshot?{beforeEvent:deleteSnapshot}:{}) });
                 if(!(Number(result?.removed)>0)) throw new Error('event_delete_not_confirmed');
                 return true;
             } catch (e) {
@@ -5230,8 +5230,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
         window.confirmDeleteEvent = async function() {
             if (window.pendingDeleteId !== null) {
-                const _perfStart=performance.now();
-                const _perfId='delete-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7);
                 const targetId = window.pendingDeleteId;
                 const targetEvent = window.findEventById?.(targetId) || window.events.find(e => String(e.id) === String(targetId));
                 const logInfo = { id: targetId, title: targetEvent?.title || '未命名事件' };
@@ -5243,36 +5241,24 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 dm?.classList.remove('hidden');if(db)db.style.width='25%';
                 try{
                     if(db)setTimeout(()=>db.style.width='55%',250);
-                    const _tApi=performance.now();
-                    const cloudDeleted=await window.deleteEventFromCloud(targetId,_perfId,targetEvent);
-                    const _apiMs=Math.round((performance.now()-_tApi)*10)/10;
+                    const cloudDeleted=await window.deleteEventFromCloud(targetId,targetEvent);
                     if(!cloudDeleted)throw new Error('delete failed');
                     if(db)db.style.width='85%';
-                    const _uiStart=performance.now();
-                    const _uiTimes={};
-                    let _u=performance.now();
                     Promise.resolve(window.writeActivityLog?.('delete',logInfo)).catch(err=>console.warn('删除日志后台写入失败',err));
-                    _uiTimes.activityLogDispatch=Math.round((performance.now()-_u)*10)/10;
-                    _u=performance.now();
                     window.closeEditModal();window.closeMultiTimeEventModal?.();
-                    _uiTimes.closeModals=Math.round((performance.now()-_u)*10)/10;
 
-                    // 删除成功后重建时间线，并先释放连线 SVG 的旧尺寸。
-                    _u=performance.now();
+                    // 删除成功后完整重建时间线，避免日期分组、合并节点、轴线尺寸与筛选布局残留。
                     const tc=document.getElementById('timelineContainer');
                     const oldScrollLeft=tc?.scrollLeft||0;
                     const oldSvg=document.getElementById('svgConnectionsGroup');
                     if(oldSvg)oldSvg.innerHTML='';
                     const svgOverlay=document.getElementById('timelineSvgOverlay');
                     if(svgOverlay){
-                        // 必须连 SVG 自身的旧尺寸一起归零；只清空 <g> 不会释放它撑出的旧 scrollWidth。
                         svgOverlay.style.width='0px';
                         svgOverlay.style.height='0px';
                         svgOverlay.setAttribute('width','0');
                         svgOverlay.setAttribute('height','0');
                     }
-
-                    // 清空旧时间线，释放已删除末端事件留下的布局宽度。
                     const oldTrack=document.getElementById('timelineNodesTrack');
                     if(oldTrack){
                         oldTrack.innerHTML='<div id="timelineMainAxis" class="absolute left-0 right-0 h-1 bg-slate-300 rounded-full z-0 pointer-events-none"></div>';
@@ -5280,49 +5266,17 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         oldTrack.style.minWidth='';
                     }
                     if(tc)tc.scrollLeft=0;
-                    _uiTimes.clearOldTimeline=Math.round((performance.now()-_u)*10)/10;
-
-                    // 按当前 events 完整重绘。
-                    _u=performance.now();
                     window.renderEvents?.();
-                    _uiTimes.renderEvents=Math.round((performance.now()-_u)*10)/10;
-
-                    const _rafScheduled=performance.now();
                     requestAnimationFrame(()=>requestAnimationFrame(()=>{
-                        const _rafStart=performance.now();
                         const freshTc=document.getElementById('timelineContainer');
-                        let _scrollMs=0;
                         if(freshTc){
-                            const _rs=performance.now();
-                            // 此处的 scrollWidth 已不再包含删除前 SVG 的旧宽度。
                             const maxScroll=Math.max(0,freshTc.scrollWidth-freshTc.clientWidth);
                             freshTc.scrollLeft=wasNearTimelineRight ? maxScroll : Math.min(oldScrollLeft,maxScroll);
-                            _scrollMs=Math.round((performance.now()-_rs)*10)/10;
                         }
-                        const _rc=performance.now();
-                        // 最后才按新的 container.scrollWidth 重新建立 SVG 尺寸。
                         window.renderSvgConnections?.();
-                        const _connectionsMs=Math.round((performance.now()-_rc)*10)/10;
-                        console.log(`[DELETE-UI-TIME][${_perfId}][RAF]`,{
-                            waitForDoubleRAF:Math.round((_rafStart-_rafScheduled)*10)/10,
-                            scrollRestore:_scrollMs,
-                            renderSvgConnections:_connectionsMs,
-                            rafWorkTotal:Math.round((performance.now()-_rafStart)*10)/10
-                        });
                     }));
-                    _u=performance.now();
                     if(db)db.style.width='100%';
-                    // 删除已经由后端确认 removed=1，无需再人为停留 220ms。
-                    // 保留完整 renderEvents 重绘：它同时负责日期分组、合并节点、轴线尺寸、筛选结果布局等，
-                    // 直接改成增量 DOM 删除会有较高的布局/分组回归风险。
-                    _uiTimes.progressDelay=0;
-                    _uiTimes.noDelayBuild='v2';
-                    _u=performance.now();
                     dm?.classList.add('hidden');
-                    _uiTimes.hideDeleteModal=Math.round((performance.now()-_u)*10)/10;
-                    _uiTimes.measuredUiTotal=Math.round((performance.now()-_uiStart)*10)/10;
-                    console.log(`[DELETE-UI-TIME][${_perfId}][MAIN]`,_uiTimes);
-                    console.log(`[PERF][${_perfId}][DELETE frontend]`,{deleteEventApi:_apiMs,postDeleteUi:Math.round((performance.now()-_tApi-_apiMs)*10)/10,total:Math.round((performance.now()-_perfStart)*10)/10});
                     window.showToast("删除成功","info");
                 }catch(_){dm?.classList.add('hidden');window.showToast("删除失败，请重试","error");}
             }
@@ -5410,10 +5364,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
         window.confirmSaveEvent = async function() {
             if (window.pendingSaveData) {
-                const _perfStart=performance.now();
-                const _perfId='save-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7);
-                const _perfMarks={};
-                const _perfStep=(name,start)=>{_perfMarks[name]=Math.round((performance.now()-start)*10)/10;};
                 const eventData = window.pendingSaveData;
                 const isEdit = window.pendingSaveData._isEdit;
                 (function stripPendingDeep(o){if(!o||typeof o!=='object')return;if(Array.isArray(o)){o.forEach(stripPendingDeep);return;}delete o._pendingOuterSave;Object.values(o).forEach(stripPendingDeep);})(eventData);
@@ -5445,23 +5395,19 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     // 新上传媒体仍保持原流程：主媒体先进入 inuse，再仅为缺封面的新媒体生成首帧封面。
                     const hadPendingTemp=window._hasPendingTempUploads?.()===true;
                     if(hadPendingTemp){
-                        let _t=performance.now(); await window.promoteTempUploads?.(eventData); _perfStep('promoteMain',_t);
-                        _t=performance.now(); try{await window.ensureAutomaticFirstFrameCovers(eventData);}catch(err){console.warn('自动首帧封面生成失败',err);} _perfStep('autoCover',_t);
-                        if(window._hasPendingTempUploads?.()){_t=performance.now();await window.promoteTempUploads?.(eventData);_perfStep('promoteCover',_t);}
-                    }else{_perfMarks.promoteMain=0;_perfMarks.autoCover=0;_perfMarks.promoteCover=0;}
+                        await window.promoteTempUploads?.(eventData);
+                        try{await window.ensureAutomaticFirstFrameCovers(eventData);}catch(err){console.warn('自动首帧封面生成失败',err);}
+                        if(window._hasPendingTempUploads?.()) await window.promoteTempUploads?.(eventData);
+                    }
                     const desiredConnections = eventData.connections || [];
                     const connectionsChanged = !isEdit || window._connectionListFingerprint(previousConnections)!==window._connectionListFingerprint(desiredConnections);
                     delete eventData.connections;
-                    let _tApi=performance.now();
-                    const cloudSaved = await window.saveEventToCloud(eventData,_perfId,!isEdit);
-                    _perfStep('saveEventApi',_tApi);
+                    const cloudSaved = await window.saveEventToCloud(eventData,!isEdit);
                     if (!cloudSaved) throw new Error('cloud save failed');
                     
                     if (progressBar) progressBar.style.width = '80%';
                     // 关系没有变化时不再发 delete/upsertConnection 请求。
-                    let _tConn=performance.now();
                     if(connectionsChanged) await window.syncEditingConnections(eventData.id, desiredConnections);
-                    _perfStep('syncConnections',_tConn);
                     window._savedDeepDrafts?.clear?.();
                     
                     if (progressBar) progressBar.style.width = '100%';
@@ -5472,8 +5418,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         Promise.resolve(window.writeActivityLog?.(isEdit ? 'edit' : 'create', eventData)).catch(err=>console.warn('活动日志后台写入失败',err));
                     }
                     window.pendingSaveData = null;
-                    _perfMarks.total=Math.round((performance.now()-_perfStart)*10)/10;
-                    console.log(`[PERF][${_perfId}][SAVE frontend]`,{hadPendingTemp,connectionsChanged,..._perfMarks});
                     if (!isEdit) {
                         requestAnimationFrame(() => {
                             window.scrollTimelineToEvent(eventData);
