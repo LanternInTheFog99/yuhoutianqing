@@ -3312,20 +3312,32 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             return {url:gifUrl,options:{cache:'no-store',headers:{'Cache-Control':'no-cache'}},cloudPath:resolved};
         };
 
-        window._cloudUploadNotice = function(text, show=true){
-            let el=document.getElementById('cloudMediaUploadNotice');
-            if(!el){
-                el=document.createElement('div'); el.id='cloudMediaUploadNotice';
-                el.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:99999;background:rgba(15,23,42,.90);color:white;width:38px;height:38px;border-radius:999px;box-shadow:0 8px 28px rgba(0,0,0,.22);pointer-events:none;display:none;align-items:center;justify-content:center';
-                el.innerHTML='<i class="fa-solid fa-spinner fa-spin" style="font-size:15px"></i>';
-                document.body.appendChild(el);
+        window._cloudUploadNoticeTimer=null;
+        window._cloudUploadNotice = function(text='正在加载媒体，请稍候…', show=true){
+            let box=document.getElementById('cloudMediaUploadNotice');
+            if(!box){
+                box=document.createElement('div');
+                box.id='cloudMediaUploadNotice';
+                box.className='fixed left-1/2 top-20 -translate-x-1/2 z-[465] hidden rounded-xl border border-indigo-200 bg-white/95 px-4 py-2.5 shadow-xl backdrop-blur text-xs font-semibold text-indigo-700 flex items-center gap-2';
+                box.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i><span data-cloud-media-loading-text>正在加载媒体，请稍候…</span>';
+                document.body.appendChild(box);
             }
-            el.style.display=show?'flex':'none';
+            const label=box.querySelector('[data-cloud-media-loading-text]');
+            if(label)label.textContent='正在加载媒体，请稍候…';
+            if(window._cloudUploadNoticeTimer){clearTimeout(window._cloudUploadNoticeTimer);window._cloudUploadNoticeTimer=null;}
+            if(!show){box.classList.add('hidden');return;}
+            box.classList.add('hidden');
+            window._cloudUploadNoticeTimer=setTimeout(()=>{
+                window._cloudUploadNoticeTimer=null;
+                document.getElementById('cloudMediaUploadNotice')?.classList.remove('hidden');
+            },450);
         };
         window.uploadLargeMediaToCloudBase = async function(file, options={}){
             if(!file) throw new Error('NO_FILE');
+            const silentUploadNotice=!!options?.silentNotice || !!options?.bypassTemp;
+            const uploadNotice=(text,show=true)=>{if(!silentUploadNotice)window._cloudUploadNotice?.('正在加载媒体，请稍候…',show);};
             if(!window.hasTimelineEditToken?.()) throw Object.assign(new Error('请先解锁编辑模式再上传大文件'),{code:'EDIT_AUTH_REQUIRED'});
-            window._cloudUploadNotice?.(`正在准备上传 ${file.name||'文件'}…`);
+            uploadNotice('正在加载媒体，请稍候…');
             const useTemp=!options?.bypassTemp;
             if(useTemp)window.beginEditMediaTxn?.();
             const finalPurpose=String(options?.purpose||'');
@@ -3340,7 +3352,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const up=meta?.upload||{};
             if(!up.url||!up.authorization||!up.token||!up.cosFileID||!meta.cloudPath) throw new Error('上传凭证不完整');
             const folder=meta.mediaFolder||String(meta.cloudPath).split('/')[0]||'云存储';
-            window._cloudUploadNotice?.(`正在上传到 ${folder}/：${file.name||'文件'}… 0%`);
+            uploadNotice('正在加载媒体，请稍候…');
             // v105: CloudBase getUploadMetadata returns COS PUT credentials.
             // Upload the raw File body directly; do not use the old multipart/form-data POST flow.
             await new Promise((resolve,reject)=>{
@@ -3353,7 +3365,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 xhr.upload.onprogress=(ev)=>{
                     if(ev.lengthComputable){
                         const pct=Math.max(0,Math.min(100,Math.round(ev.loaded/ev.total*100)));
-                        window._cloudUploadNotice?.(`正在上传到 ${folder}/：${file.name||'文件'}… ${pct}%`);
+                        uploadNotice('正在加载媒体，请稍候…');
                     }
                 };
                 xhr.onerror=()=>{
@@ -3371,8 +3383,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             });
             try{ await timelineApiPost('finalizeMediaUpload',{cloudPath:meta.cloudPath},{auth:'edit',timeoutMs:15000}); }catch(err){ console.warn('媒体登记失败',err); }
             const url=window.cloudMediaPublicUrl(meta.cloudPath);
-            window._cloudUploadNotice?.(`上传完成：${meta.cloudPath}`);
-            setTimeout(()=>window._cloudUploadNotice?.('',false),900);
+            uploadNotice('正在加载媒体，请稍候…');
+            setTimeout(()=>uploadNotice('',false),250);
             const result={url,cloudPath:meta.cloudPath,mediaFolder:folder,fileID:meta.fileID||'',mime:file.type||'',name:file.name||''};
             if(useTemp)window.trackUnsavedMediaUpload?.(meta.cloudPath,{url,finalPurpose,name:file.name||'',mime:file.type||''});
             return result;
@@ -3428,15 +3440,17 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             return name;
         };
         window.cloudMediaFormatSize=function(n){n=Number(n)||0;if(n<1024)return n+' B';if(n<1048576)return (n/1024).toFixed(1)+' KB';return (n/1048576).toFixed(n<10485760?1:0)+' MB';};
-        window.openCloudMediaLibrary=async function({folder='all',onSelect=null}={}){
+        window.openCloudMediaLibrary=async function({folder='all',allowedFolders=null,onSelect=null}={}){
             if(!window.hasTimelineEditToken?.()){window.showToast?.('请先解锁编辑模式','error');return null;}
             let modal=document.getElementById('cloudMediaLibraryModal');
             if(!modal){modal=document.createElement('div');modal.id='cloudMediaLibraryModal';modal.className='fixed inset-0 z-[470] hidden bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5';document.body.appendChild(modal);}
             modal.classList.remove('hidden');
             modal.innerHTML=`<div class="w-full max-w-3xl max-h-[86vh] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden" onclick="event.stopPropagation()"><div class="px-4 py-3 border-b flex items-center gap-2"><div class="font-bold text-slate-800"><i class="fa-solid fa-cloud text-indigo-600 mr-2"></i>云端数据库</div><div class="ml-auto flex items-center gap-2"><button data-media-close type="button" class="w-8 h-8 rounded-lg hover:bg-slate-100"><i class="fa-solid fa-xmark"></i></button></div></div><div class="px-4 py-3 border-b flex flex-wrap gap-2"><button data-folder="all" class="media-folder-btn px-3 py-1.5 rounded-lg text-xs border">全部</button><button data-folder="picture" class="media-folder-btn px-3 py-1.5 rounded-lg text-xs border">图片</button><button data-folder="gif" class="media-folder-btn px-3 py-1.5 rounded-lg text-xs border">动图</button><button data-folder="video" class="media-folder-btn px-3 py-1.5 rounded-lg text-xs border">视频</button><button data-folder="music" class="media-folder-btn px-3 py-1.5 rounded-lg text-xs border">音乐</button><input data-media-search class="ml-auto min-w-[150px] flex-1 max-w-xs px-3 py-1.5 rounded-lg border text-xs" placeholder="搜索文件名"></div><div data-media-list class="p-4 overflow-y-auto min-h-[240px]"><div class="text-sm text-slate-400 text-center py-12"><i class="fa-solid fa-spinner fa-spin mr-2"></i>正在读取云端媒体…</div></div></div>`;
             const close=()=>modal.classList.add('hidden'); modal.onclick=e=>{if(e.target===modal)close();}; modal.querySelector('[data-media-close]').onclick=close;
+            const allowed=Array.isArray(allowedFolders)&&allowedFolders.length?new Set(allowedFolders.map(String)):null;
             let current=folder,items=[];
-            const render=()=>{const q=String(modal.querySelector('[data-media-search]')?.value||'').trim().toLowerCase();const list=modal.querySelector('[data-media-list]');const shown=items.filter(a=>(current==='all'||a.folder===current)&&(!q||String(a.originalName||a.cloudPath).toLowerCase().includes(q)));modal.querySelectorAll('.media-folder-btn').forEach(b=>{const on=b.dataset.folder===current;b.className='media-folder-btn px-3 py-1.5 rounded-lg text-xs border '+(on?'bg-indigo-600 border-indigo-600 text-white':'bg-white text-slate-600 hover:bg-slate-50');});if(!shown.length){list.innerHTML='<div class="text-sm text-slate-400 text-center py-12">这里还没有可用媒体</div>';return;}list.innerHTML='<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">'+shown.map((a,i)=>{const url=window.cloudMediaPublicUrl(a.cloudPath),icon=a.folder==='video'?'fa-video':a.folder==='music'?'fa-music':a.folder==='gif'?'fa-photo-film':'fa-image';const pending=a.unreferencedSince!=null?'<span class="text-amber-600">当前未被事件引用</span>':'<span class="text-emerald-600">使用中</span>';return `<div data-media-index="${items.indexOf(a)}" class="relative text-left border rounded-xl p-3 hover:border-indigo-300 hover:bg-indigo-50/40 flex gap-3 items-center cursor-pointer group"><div class="w-11 h-11 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 text-indigo-500"><i class="fa-solid ${icon}"></i></div><div class="min-w-0 flex-1 pr-1"><div class="text-xs font-semibold text-slate-700 truncate">${window.escapeHtml?window.escapeHtml(window.cloudMediaDisplayName(a)):window.cloudMediaDisplayName(a)}</div><div class="text-[10px] text-slate-400 truncate mt-0.5">${a.cloudPath}</div><div class="text-[10px] mt-1 flex gap-2"><span class="text-slate-400">${window.cloudMediaFormatSize(a.size)}</span>${pending}</div></div><div class="absolute right-2 top-2 flex items-center gap-1 opacity-75 group-hover:opacity-100 transition-opacity"><button type="button" data-media-copy="${items.indexOf(a)}" class="w-7 h-7 rounded-lg border border-slate-200 bg-white/95 shadow-sm hover:bg-indigo-50 text-indigo-500 flex items-center justify-center" title="复制云端媒体"><i class="fa-solid fa-copy text-[11px]"></i></button><button type="button" data-media-use="${items.indexOf(a)}" class="w-7 h-7 rounded-lg border border-slate-200 bg-white/95 shadow-sm hover:bg-indigo-50 text-indigo-500 flex items-center justify-center" title="使用这个媒体"><i class="fa-solid fa-plus text-[11px]"></i></button>${window._sessionCloudCopies?.has(String(a.cloudPath||''))?`<button type="button" data-media-delete-copy="${items.indexOf(a)}" class="w-7 h-7 rounded-lg border border-rose-200 bg-white/95 shadow-sm hover:bg-rose-50 text-rose-500 flex items-center justify-center" title="删除本页创建的复制媒体"><i class="fa-solid fa-trash text-[11px]"></i></button>`:''}</div></div>`;}).join('')+'</div>';const useAsset=(idx)=>{const a=items[Number(idx)];if(!a)return;const picked={...a,url:window.cloudMediaPublicUrl(a.cloudPath),isCloud:true};close();if(typeof onSelect==='function')onSelect(picked);};list.querySelectorAll('[data-media-index]').forEach(card=>card.onclick=(ev)=>{if(ev.target.closest('[data-media-copy],[data-media-use],[data-media-delete-copy]'))return;useAsset(card.dataset.mediaIndex);});list.querySelectorAll('[data-media-use]').forEach(btn=>btn.onclick=(ev)=>{ev.preventDefault();ev.stopPropagation();useAsset(btn.dataset.mediaUse);});list.querySelectorAll('[data-media-copy]').forEach(btn=>btn.onclick=async(ev)=>{
+            if(allowed && current!=='all' && !allowed.has(current)) current=[...allowed][0]||'all';
+            const render=()=>{const q=String(modal.querySelector('[data-media-search]')?.value||'').trim().toLowerCase();const list=modal.querySelector('[data-media-list]');const shown=items.filter(a=>(!allowed||allowed.has(String(a.folder||'')))&&(current==='all'||a.folder===current)&&(!q||String(a.originalName||a.cloudPath).toLowerCase().includes(q)));modal.querySelectorAll('.media-folder-btn').forEach(b=>{const permitted=!allowed||b.dataset.folder==='all'||allowed.has(b.dataset.folder);b.classList.toggle('hidden',!permitted);const on=b.dataset.folder===current;b.className='media-folder-btn px-3 py-1.5 rounded-lg text-xs border '+(on?'bg-indigo-600 border-indigo-600 text-white':'bg-white text-slate-600 hover:bg-slate-50');});if(!shown.length){list.innerHTML='<div class="text-sm text-slate-400 text-center py-12">这里还没有可用媒体</div>';return;}list.innerHTML='<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">'+shown.map((a,i)=>{const url=window.cloudMediaPublicUrl(a.cloudPath),icon=a.folder==='video'?'fa-video':a.folder==='music'?'fa-music':a.folder==='gif'?'fa-photo-film':'fa-image';const pending=a.unreferencedSince!=null?'<span class="text-amber-600">当前未被事件引用</span>':'<span class="text-emerald-600">使用中</span>';return `<div data-media-index="${items.indexOf(a)}" class="relative text-left border rounded-xl p-3 hover:border-indigo-300 hover:bg-indigo-50/40 flex gap-3 items-center cursor-pointer group"><div class="w-11 h-11 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 text-indigo-500"><i class="fa-solid ${icon}"></i></div><div class="min-w-0 flex-1 pr-1"><div class="text-xs font-semibold text-slate-700 truncate">${window.escapeHtml?window.escapeHtml(window.cloudMediaDisplayName(a)):window.cloudMediaDisplayName(a)}</div><div class="text-[10px] text-slate-400 truncate mt-0.5">${a.cloudPath}</div><div class="text-[10px] mt-1 flex gap-2"><span class="text-slate-400">${window.cloudMediaFormatSize(a.size)}</span>${pending}</div></div><div class="absolute right-2 top-2 flex items-center gap-1 opacity-75 group-hover:opacity-100 transition-opacity"><button type="button" data-media-copy="${items.indexOf(a)}" class="w-7 h-7 rounded-lg border border-slate-200 bg-white/95 shadow-sm hover:bg-indigo-50 text-indigo-500 flex items-center justify-center" title="复制云端媒体"><i class="fa-solid fa-copy text-[11px]"></i></button><button type="button" data-media-use="${items.indexOf(a)}" class="w-7 h-7 rounded-lg border border-slate-200 bg-white/95 shadow-sm hover:bg-indigo-50 text-indigo-500 flex items-center justify-center" title="使用这个媒体"><i class="fa-solid fa-plus text-[11px]"></i></button>${window._sessionCloudCopies?.has(String(a.cloudPath||''))?`<button type="button" data-media-delete-copy="${items.indexOf(a)}" class="w-7 h-7 rounded-lg border border-rose-200 bg-white/95 shadow-sm hover:bg-rose-50 text-rose-500 flex items-center justify-center" title="删除本页创建的复制媒体"><i class="fa-solid fa-trash text-[11px]"></i></button>`:''}</div></div>`;}).join('')+'</div>';const useAsset=(idx)=>{const a=items[Number(idx)];if(!a)return;const picked={...a,url:window.cloudMediaPublicUrl(a.cloudPath),isCloud:true};close();if(typeof onSelect==='function')onSelect(picked);};list.querySelectorAll('[data-media-index]').forEach(card=>card.onclick=(ev)=>{if(ev.target.closest('[data-media-copy],[data-media-use],[data-media-delete-copy]'))return;useAsset(card.dataset.mediaIndex);});list.querySelectorAll('[data-media-use]').forEach(btn=>btn.onclick=(ev)=>{ev.preventDefault();ev.stopPropagation();useAsset(btn.dataset.mediaUse);});list.querySelectorAll('[data-media-copy]').forEach(btn=>btn.onclick=async(ev)=>{
                 ev.preventDefault();ev.stopPropagation();
                 const a=items[Number(btn.dataset.mediaCopy)];if(!a)return;
                 try{
@@ -7351,7 +7365,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 deepPushUndo(); window.deepCanvasState.items.push({id:'media_'+Date.now().toString(36),type:'media',x,y,w,h,src,mediaKind:kind,cloudPath:String(cloudPath||''),layer:0}); window.renderDeepCanvas(); window.deepSetMediaLoading?.(false);
             };
             if(useLocal==='cloud'){ window.openCloudMediaLibrary({folder:'all',onSelect:a=>{if(!a)return;const kind=a.folder==='video'?'video':'image';window.deepSetMediaLoading?.(true,'正在加载云端媒体…');if(kind==='image'){const im=new Image();im.onload=()=>addBySrc(a.url,kind,im.naturalWidth,im.naturalHeight,a.cloudPath||'');im.onerror=()=>addBySrc(a.url,kind,640,360,a.cloudPath||'');im.src=a.url;}else{const v=document.createElement('video');v.preload='metadata';v.onloadedmetadata=()=>addBySrc(a.url,kind,v.videoWidth,v.videoHeight,a.cloudPath||'');v.onerror=()=>addBySrc(a.url,kind,640,360,a.cloudPath||'');v.src=a.url;}}}); return;}
-            if(useLocal==='local'){ const input=document.createElement('input'); input.type='file'; input.accept='image/*,video/*'; input.onchange=async()=>{const f=input.files?.[0];if(!f)return;window.deepSetMediaLoading?.(true,'正在读取并加载本地媒体…');try{const media=await window.uploadLargeMediaToCloudBase(f);const src=media.url,kind=f.type.startsWith('video/')?'video':'image';if(kind==='image'){const im=new Image();im.onload=()=>addBySrc(src,kind,im.naturalWidth,im.naturalHeight,media.cloudPath||'');im.onerror=()=>addBySrc(src,kind,640,360,media.cloudPath||'');im.src=src;}else{const v=document.createElement('video');v.preload='metadata';v.onloadedmetadata=()=>addBySrc(src,kind,v.videoWidth,v.videoHeight,media.cloudPath||'');v.onerror=()=>addBySrc(src,kind,640,360,media.cloudPath||'');v.src=src;}}catch(err){window.deepSetMediaLoading?.(false);window._cloudUploadNotice?.('',false);window.showToast?.(err?.message||'本地媒体上传失败','error');}}; input.click(); return; }
+            if(useLocal==='local'){ const input=document.createElement('input'); input.type='file'; input.accept='image/*,video/*'; input.onchange=async()=>{const f=input.files?.[0];if(!f)return;window.deepSetMediaLoading?.(true,'正在读取并加载本地媒体…');try{const media=await window.uploadLargeMediaToCloudBase(f,{silentNotice:true});const src=media.url,kind=f.type.startsWith('video/')?'video':'image';if(kind==='image'){const im=new Image();im.onload=()=>addBySrc(src,kind,im.naturalWidth,im.naturalHeight,media.cloudPath||'');im.onerror=()=>addBySrc(src,kind,640,360,media.cloudPath||'');im.src=src;}else{const v=document.createElement('video');v.preload='metadata';v.onloadedmetadata=()=>addBySrc(src,kind,v.videoWidth,v.videoHeight,media.cloudPath||'');v.onerror=()=>addBySrc(src,kind,640,360,media.cloudPath||'');v.src=src;}}catch(err){window.deepSetMediaLoading?.(false);window._cloudUploadNotice?.('',false);window.showToast?.(err?.message||'本地媒体上传失败','error');}}; input.click(); return; }
         };
 
         // 可直接粘贴包含说明文字的内容，自动提取其中第一个 http/https 网址。
@@ -10985,7 +10999,7 @@ viewer.style.visibility='';
                                 <span class="block text-[11px] font-bold text-slate-600">添加图片</span>
                                 <div class="flex gap-2">
                                     <button type="button" onclick="document.getElementById('editFileInput').click()" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-xs text-slate-700 flex items-center gap-1"><i class="fa-solid fa-upload text-indigo-600"></i> 本地上传图片</button>
-                                    <button type="button" onclick="openCloudMediaLibrary({folder:'picture',onSelect:addCloudAssetToSingleImage})" class="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-indigo-600 flex items-center gap-1"><i class="fa-solid fa-cloud"></i> 云端选择</button>
+                                    <button type="button" onclick="openCloudMediaLibrary({folder:'all',allowedFolders:['picture','gif'],onSelect:addCloudAssetToSingleImage})" class="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-indigo-600 flex items-center gap-1"><i class="fa-solid fa-cloud"></i> 云端选择</button>
                                     <input type="file" id="editFileInput" multiple accept="image/*" class="hidden" onchange="handleLocalImageUpload(event)">
                                 </div>
                                 <div id="imageMicroPreviews" class="flex flex-wrap gap-2"></div>
@@ -10995,7 +11009,7 @@ viewer.style.visibility='';
                                 <span class="block text-[11px] font-bold text-slate-600">添加视频</span>
                                 <div class="flex flex-col gap-2">
                                     <div class="flex gap-2">
-                                        <button type="button" onclick="document.getElementById('videoFileInput').click()" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-xs text-slate-700 flex items-center gap-1"><i class="fa-solid fa-upload text-indigo-600"></i> 本地上传视频</button><button type="button" onclick="openCloudMediaLibrary({folder:'video',onSelect:addCloudAssetToSingleVideo})" class="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-indigo-600 flex items-center gap-1"><i class="fa-solid fa-cloud"></i> 云端选择</button>
+                                        <button type="button" onclick="document.getElementById('videoFileInput').click()" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-xs text-slate-700 flex items-center gap-1"><i class="fa-solid fa-upload text-indigo-600"></i> 本地上传视频</button><button type="button" onclick="openCloudMediaLibrary({folder:'video',allowedFolders:['video'],onSelect:addCloudAssetToSingleVideo})" class="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-indigo-600 flex items-center gap-1"><i class="fa-solid fa-cloud"></i> 云端选择</button>
                                         <input type="file" id="videoFileInput" multiple accept="video/*" class="hidden" onchange="handleLocalVideoUpload(event)">
                                     </div>
 
@@ -12142,7 +12156,7 @@ viewer.style.visibility='';
             if(!gifs.length)return;
             let index=0,timer=0,paused=false,disposed=false,activeGif=null,activeShield=null,playToken=0;
             // 封面更快进入动图；播放结束则略提前回收，避免 GIF 循环边界闪出下一轮的一两帧。
-            const PRE_COVER_MS=0, POST_COVER_MS=120, COVER_FADE_MS=120, GIF_END_GUARD_MS=300;
+            const PRE_COVER_MS=300, POST_COVER_MS=120, COVER_FADE_MS=120, GIF_END_GUARD_MS=300;
             const stopTimer=()=>{if(timer){clearTimeout(timer);timer=0;}};
             const removeNode=n=>{if(n){try{n.remove();}catch(_){}}};
             const clearLayers=()=>{removeNode(activeGif);removeNode(activeShield);activeGif=null;activeShield=null;};
@@ -12159,7 +12173,7 @@ viewer.style.visibility='';
                 timer=setTimeout(()=>{
                     if(token!==playToken||disposed||paused)return;
                     const gif=base.cloneNode(false);gif.removeAttribute('id');[...gif.attributes].forEach(a=>{if(a.name.startsWith('data-'))gif.removeAttribute(a.name);});
-                    gif.alt='';gif.draggable=false;Object.assign(gif.style,{position:'absolute',inset:'0',width:'100%',height:'100%',zIndex:'2',pointerEvents:'none',opacity:'0',transition:`opacity ${COVER_FADE_MS}ms ease`});
+                    gif.alt='';gif.draggable=false;Object.assign(gif.style,{position:'absolute',zIndex:'2',pointerEvents:'none',opacity:'0',transition:`opacity ${COVER_FADE_MS}ms ease`});
                     activeGif=gif;host.appendChild(gif);
                     const loaded=()=>{
                         if(token!==playToken||disposed||paused){removeNode(gif);return;}
@@ -12169,7 +12183,7 @@ viewer.style.visibility='';
                             // 不直接撤掉 GIF。先在 GIF 上方把封面淡入到完全不透明，再移除 GIF，
                             // 即使 GIF 此刻已经进入下一轮，也会被封面层遮住，不会闪帧。
                             const shield=base.cloneNode(false);shield.removeAttribute('id');[...shield.attributes].forEach(a=>{if(a.name.startsWith('data-'))shield.removeAttribute(a.name);});
-                            shield.alt='';shield.draggable=false;shield.src=cover;Object.assign(shield.style,{position:'absolute',inset:'0',width:'100%',height:'100%',zIndex:'3',pointerEvents:'none',opacity:'0',transition:`opacity ${COVER_FADE_MS}ms ease`});
+                            shield.alt='';shield.draggable=false;shield.src=cover;Object.assign(shield.style,{position:'absolute',zIndex:'3',pointerEvents:'none',opacity:'0',transition:`opacity ${COVER_FADE_MS}ms ease`});
                             activeShield=shield;host.appendChild(shield);
                             const reveal=()=>{shield.style.transition='none';shield.style.opacity='1';timer=setTimeout(()=>{
                                 if(token!==playToken||disposed||paused)return;removeNode(gif);activeGif=null;
@@ -14162,13 +14176,13 @@ viewer.style.visibility='';
 
                     <div class="space-y-2">
                         <span class="block text-[11px] font-bold text-slate-600">添加图片</span>
-                        <div class="flex gap-2"><button type="button" onclick="document.getElementById('multiImageFile_${segIndex}').click()" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-xs text-slate-700 flex items-center gap-1"><i class="fa-solid fa-upload text-indigo-600"></i> 本地上传图片</button><button type="button" onclick="openCloudMediaLibrary({folder:'picture',onSelect:a=>addCloudAssetToMulti(${segIndex},'image',a)})" class="px-2.5 py-1.5 bg-white border rounded-lg text-[11px] text-indigo-600"><i class="fa-solid fa-cloud mr-1"></i>云端选择</button><input type="file" id="multiImageFile_${segIndex}" multiple accept="image/*" class="hidden" onchange="multiAddFiles(${segIndex},'image',this.files);this.value=''"></div>
+                        <div class="flex gap-2"><button type="button" onclick="document.getElementById('multiImageFile_${segIndex}').click()" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-xs text-slate-700 flex items-center gap-1"><i class="fa-solid fa-upload text-indigo-600"></i> 本地上传图片</button><button type="button" onclick="openCloudMediaLibrary({folder:'all',allowedFolders:['picture','gif'],onSelect:a=>addCloudAssetToMulti(${segIndex},'image',a)})" class="px-2.5 py-1.5 bg-white border rounded-lg text-[11px] text-indigo-600"><i class="fa-solid fa-cloud mr-1"></i>云端选择</button><input type="file" id="multiImageFile_${segIndex}" multiple accept="image/*" class="hidden" onchange="multiAddFiles(${segIndex},'image',this.files);this.value=''"></div>
                         <div class="flex flex-wrap gap-2">${images||'<span class="text-[11px] text-slate-400">暂无图片</span>'}</div>
                     </div>
                     <div class="space-y-2 pt-2 border-t border-slate-200">
                         <span class="block text-[11px] font-bold text-slate-600">添加视频</span>
                         <div class="flex flex-col gap-2">
-                            <div class="flex gap-2"><button type="button" onclick="document.getElementById('multiVideoFile_${segIndex}').click()" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-xs text-slate-700 flex items-center gap-1"><i class="fa-solid fa-upload text-indigo-600"></i> 本地上传视频</button><button type="button" onclick="openCloudMediaLibrary({folder:'video',onSelect:a=>addCloudAssetToMulti(${segIndex},'video',a)})" class="px-2.5 py-1.5 bg-white border rounded-lg text-[11px] text-indigo-600"><i class="fa-solid fa-cloud mr-1"></i>云端选择</button><input type="file" id="multiVideoFile_${segIndex}" multiple accept="video/*" class="hidden" onchange="multiAddFiles(${segIndex},'video',this.files);this.value=''"></div>
+                            <div class="flex gap-2"><button type="button" onclick="document.getElementById('multiVideoFile_${segIndex}').click()" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-xs text-slate-700 flex items-center gap-1"><i class="fa-solid fa-upload text-indigo-600"></i> 本地上传视频</button><button type="button" onclick="openCloudMediaLibrary({folder:'video',allowedFolders:['video'],onSelect:a=>addCloudAssetToMulti(${segIndex},'video',a)})" class="px-2.5 py-1.5 bg-white border rounded-lg text-[11px] text-indigo-600"><i class="fa-solid fa-cloud mr-1"></i>云端选择</button><input type="file" id="multiVideoFile_${segIndex}" multiple accept="video/*" class="hidden" onchange="multiAddFiles(${segIndex},'video',this.files);this.value=''"></div>
                         </div>
                         <div class="space-y-1.5">${videos||'<span class="text-[11px] text-slate-400">暂无视频</span>'}</div>
                     </div>
