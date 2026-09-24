@@ -3209,13 +3209,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     throw new Error(data?.message || data?.error || `CloudBase HTTP ${response.status}`);
                 }
                 return data;
-            } catch (err) {
-                if (err?.name === 'AbortError' && !window._invalidRoomAccess) {
-                    const timeoutErr = new Error(`CloudBase 请求超时（${Math.round(timeoutMs / 1000)}秒），正在重试时请保持网络连接`);
-                    timeoutErr.code = 'cloudbase_timeout';
-                    throw timeoutErr;
-                }
-                throw err;
             } finally {
                 clearTimeout(timer);
                 window._invalidRoomControllers?.delete(controller);
@@ -3698,16 +3691,25 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     try { return await timelineApiFetch(path, timeoutMs); }
                     catch (err) {
                         lastErr = err;
-                        if (i + 1 < attempts) await new Promise(r => setTimeout(r, 420));
+                        if (i + 1 < attempts) await new Promise(r => setTimeout(r, 320));
                     }
                 }
                 throw lastErr || new Error('CloudBase 请求失败');
             };
 
-            // Initial sync uses only two core HTTP streams: one bootstrap request for
-            // small supporting data, plus paged events. This avoids a burst of 7+
-            // concurrent cloud-function requests on page load.
-            const bootstrapPromise = fetchWithRetry('/timeline?type=bootstrap', 45000, 3);
+            // 附属数据与主事件同时开始读取，减少等待时间。
+            const metaPromise = fetchWithRetry('/timeline?type=meta', 16000, 2);
+            const sideNames = ['逻辑关系','标签','BGM','活动日志','小晴儿台词'];
+            const sidePaths = [
+                '/timeline?type=connections',
+                '/timeline?type=tags',
+                '/timeline?type=bgm',
+                '/timeline?type=activityLogs',
+                '/timeline?type=xiaoqinger'
+            ];
+            const sidePromise = Promise.allSettled(sidePaths.map(p => fetchWithRetry(p, 16000, 2)));
+
+            // 先拿第一页，同时从响应中的 total 计算剩余页；每页 5 条并发读取，避免 59 个大事件串行请求过慢。
             const firstPage = await fetchWithRetry(
                 `/timeline?type=events&offset=0&limit=${TIMELINE_EVENT_PAGE_LIMIT}`,
                 45000,
@@ -3716,46 +3718,70 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const cloudEvents = Array.isArray(firstPage?.items) ? firstPage.items.slice() : [];
             const totalEvents = Math.max(cloudEvents.length, Number(firstPage?.total) || 0);
             const offsets = [];
-            for (let off = Number(firstPage?.nextOffset) || TIMELINE_EVENT_PAGE_LIMIT; off < totalEvents; off += TIMELINE_EVENT_PAGE_LIMIT) offsets.push(off);
+            for (let off = Number(firstPage?.nextOffset) || TIMELINE_EVENT_PAGE_LIMIT; off < totalEvents; off += TIMELINE_EVENT_PAGE_LIMIT) {
+                offsets.push(off);
+            }
 
-            // Keep event paging modest: two workers are enough and leave capacity for bootstrap.
+            // 控制并发为 3，兼顾速度与函数压力。
+            // 使用共享结果数组，以 3 路并发读取所有剩余事件页。
             const pageResults = new Array(offsets.length);
             let cursor = 0;
-            const pool = Array.from({length: Math.min(2, offsets.length)}, async () => {
+            const pool = Array.from({length: Math.min(3, offsets.length)}, async () => {
                 while (true) {
                     const idx = cursor++;
                     if (idx >= offsets.length) return;
                     const off = offsets[idx];
                     pageResults[idx] = await fetchWithRetry(
-                        `/timeline?type=events&offset=${encodeURIComponent(off)}&limit=${TIMELINE_EVENT_PAGE_LIMIT}&total=${encodeURIComponent(totalEvents)}`,
+                        `/timeline?type=events&offset=${encodeURIComponent(off)}&limit=${TIMELINE_EVENT_PAGE_LIMIT}`,
                         45000,
                         3
                     );
                 }
             });
             await Promise.all(pool);
-            pageResults.forEach(page => { if (Array.isArray(page?.items)) cloudEvents.push(...page.items); });
+            pageResults.forEach(page => {
+                if (Array.isArray(page?.items)) cloudEvents.push(...page.items);
+            });
 
-            const bootstrap = await bootstrapPromise;
-            if (totalEvents && cloudEvents.length !== totalEvents) {
-                console.warn(`CloudBase 事件计数在读取期间发生变化：实际 ${cloudEvents.length} / ${totalEvents}`);
+            const [meta, results] = await Promise.all([metaPromise, sidePromise]);
+            const expectedEvents = Number(meta?.counts?.events ?? totalEvents);
+            if (expectedEvents && cloudEvents.length !== expectedEvents) {
+                console.warn(`CloudBase 事件计数在读取期间发生变化：实际 ${cloudEvents.length} / 元数据 ${expectedEvents}`);
             }
 
             window._cloudPartialFailures = [];
-            window.events = cloudEvents;
-            window.connections = Array.isArray(bootstrap?.connections) ? bootstrap.connections : [];
-            window.availableTags = Array.isArray(bootstrap?.tags) ? bootstrap.tags : [];
-            window.bgmPlaylist = Array.isArray(bootstrap?.bgm)
-                ? bootstrap.bgm.filter(song => /^https?:\/\//i.test(song?.url || ''))
-                : [];
+            results.forEach((r, i) => {
+                if (r.status === 'rejected') {
+                    window._cloudPartialFailures.push(sideNames[i]);
+                    console.warn(`CloudBase ${sideNames[i]}读取失败:`, r.reason);
+                }
+            });
+            const value = i => results[i].status === 'fulfilled' ? results[i].value : null;
+            const connectionsData = value(0);
+            const tagsData = value(1);
+            const bgmData = value(2);
+            const activityData = value(3);
+            const xiaoqingerData = value(4);
 
-            const cloudXiaoqinger = window.normalizeXiaoqingerStoredConfig?.(bootstrap?.xiaoqinger);
+            window.events = cloudEvents;
+            window.connections = Array.isArray(connectionsData?.items) ? connectionsData.items : [];
+            window.availableTags = Array.isArray(tagsData?.items) ? tagsData.items : [];
+            window.bgmPlaylist = Array.isArray(bgmData?.items)
+                ? bgmData.items.filter(song => /^https?:\/\//i.test(song?.url || ''))
+                : [];
+            window.activityLogs = Array.isArray(activityData?.items) ? activityData.items : [];
+            window.activityLogs.sort((a, b) => (Number(b?.timestamp) || 0) - (Number(a?.timestamp) || 0));
+            window._activityListenerReady = true;
+            window.renderActivityLogs?.();
+
+            const cloudXiaoqinger = window.normalizeXiaoqingerStoredConfig?.(xiaoqingerData?.config);
             if (cloudXiaoqinger) {
                 window.xiaoqingerDialogueConfig = cloudXiaoqinger;
                 window.xiaoqingerSimpleDialogues = cloudXiaoqinger.lines.slice();
             } else {
                 window.loadXiaoqingerDialogues?.();
             }
+            // 小晴儿本体/拖动位置只属于当前浏览器；云端只同步台词。
             window.ensureXiaoqingerVisible?.();
             window.initXiaoqingerSimplePet?.();
 
@@ -3766,25 +3792,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
             window.timelineCloudSource = 'cloudbase';
             window.cloudWriteReady = true;
-            window._cloudbaseTimelineVersion = String(bootstrap?.version || '');
+            window._cloudbaseTimelineVersion = String(meta?.version || '');
             window.updateLockButtonUI?.();
-
-            // Activity logs are non-critical. Load them only after the timeline is usable;
-            // failure here must never turn a successful timeline sync into a failure.
-            window.activityLogs = [];
-            window._activityListenerReady = false;
-            fetchWithRetry('/timeline?type=activityLogs', 45000, 2).then(activityData => {
-                window.activityLogs = Array.isArray(activityData?.items) ? activityData.items : [];
-                window.activityLogs.sort((a, b) => (Number(b?.timestamp) || 0) - (Number(a?.timestamp) || 0));
-                window._activityListenerReady = true;
-                window.renderActivityLogs?.();
-            }).catch(err => {
-                window._cloudPartialFailures.push('活动日志');
-                window._activityListenerReady = true;
-                console.warn('CloudBase 活动日志读取失败:', err);
-            });
-
-            return bootstrap;
+            return meta;
         }
 
         async function initAppAndCloudSync() {
