@@ -3456,10 +3456,11 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if(!window.hasTimelineEditToken?.()){window.showToast?.('请先解锁编辑模式','error');return null;}
             let modal=document.getElementById('cloudMediaLibraryModal');
             if(!modal){modal=document.createElement('div');modal.id='cloudMediaLibraryModal';modal.className='fixed inset-0 z-[470] hidden bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5';document.body.appendChild(modal);}
-            modal.innerHTML=`<div class="w-full max-w-3xl max-h-[86vh] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden" onclick="event.stopPropagation()"><div class="px-4 py-3 border-b flex items-center gap-2"><div class="font-bold text-slate-800"><i class="fa-solid fa-cloud text-indigo-600 mr-2"></i>云端数据库</div><div class="ml-auto flex items-center gap-2"><button data-media-close type="button" class="w-8 h-8 rounded-lg hover:bg-slate-100"><i class="fa-solid fa-xmark"></i></button></div></div><div class="px-4 py-3 border-b flex flex-wrap gap-2"><button data-folder="all" class="media-folder-btn px-3 py-1.5 rounded-lg text-xs border">全部</button><button data-folder="picture" class="media-folder-btn px-3 py-1.5 rounded-lg text-xs border">图片</button><button data-folder="gif" class="media-folder-btn px-3 py-1.5 rounded-lg text-xs border">动图</button><button data-folder="video" class="media-folder-btn px-3 py-1.5 rounded-lg text-xs border">视频</button><button data-folder="music" class="media-folder-btn px-3 py-1.5 rounded-lg text-xs border">音乐</button><input data-media-search class="ml-auto min-w-[150px] flex-1 max-w-xs px-3 py-1.5 rounded-lg border text-xs" placeholder="搜索文件名"></div><div data-media-list class="p-4 overflow-y-auto min-h-[240px]"><div class="text-sm text-slate-400 text-center py-12"><i class="fa-solid fa-spinner fa-spin mr-2"></i>正在读取云端媒体…</div></div></div>`;
+            modal.innerHTML=`<div class="w-full max-w-3xl max-h-[86vh] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden" onclick="event.stopPropagation()"><div class="px-4 py-3 border-b flex items-center gap-2"><div class="font-bold text-slate-800"><i class="fa-solid fa-cloud text-indigo-600 mr-2"></i>云端数据库</div><div class="ml-auto flex items-center gap-2"><button data-media-close type="button" class="w-8 h-8 rounded-lg hover:bg-slate-100"><i class="fa-solid fa-xmark"></i></button></div></div><div class="px-4 py-3 border-b flex flex-wrap gap-2"><button data-folder="all" class="media-folder-btn px-3 py-1.5 rounded-lg text-xs border">全部</button><button data-folder="picture" class="media-folder-btn px-3 py-1.5 rounded-lg text-xs border">图片</button><button data-folder="gif" class="media-folder-btn px-3 py-1.5 rounded-lg text-xs border">动图</button><button data-folder="video" class="media-folder-btn px-3 py-1.5 rounded-lg text-xs border">视频</button><input data-media-search class="ml-auto min-w-[150px] flex-1 max-w-xs px-3 py-1.5 rounded-lg border text-xs" placeholder="搜索文件名"></div><div data-media-list class="p-4 overflow-y-auto min-h-[240px]"><div class="text-sm text-slate-400 text-center py-12"><i class="fa-solid fa-spinner fa-spin mr-2"></i>正在读取云端媒体…</div></div></div>`;
             const close=()=>modal.classList.add('hidden'); modal.onclick=e=>{if(e.target===modal)close();}; modal.querySelector('[data-media-close]').onclick=close;
-            const allowed=Array.isArray(allowedFolders)&&allowedFolders.length?new Set(allowedFolders.map(String)):null;
-            let current=folder,items=[];
+            const allowed=Array.isArray(allowedFolders)&&allowedFolders.length?new Set(allowedFolders.map(String).filter(x=>x!=='music')):null;
+            if(allowed) allowed.delete('music');
+            let current=(folder==='music'?'all':folder),items=[];
             if(allowed && current!=='all' && !allowed.has(current)) current=[...allowed][0]||'all';
             const render=()=>{const q=String(modal.querySelector('[data-media-search]')?.value||'').trim().toLowerCase();const list=modal.querySelector('[data-media-list]');const shown=items.filter(a=>(!allowed||allowed.has(String(a.folder||'')))&&(current==='all'||a.folder===current)&&(!q||String(a.originalName||a.cloudPath).toLowerCase().includes(q)));modal.querySelectorAll('.media-folder-btn').forEach(b=>{const permitted=!allowed||b.dataset.folder==='all'||allowed.has(b.dataset.folder);const on=b.dataset.folder===current;b.className='media-folder-btn px-3 py-1.5 rounded-lg text-xs border '+(!permitted?'hidden ':(on?'bg-indigo-600 border-indigo-600 text-white':'bg-white text-slate-600 hover:bg-slate-50'));});if(!shown.length){list.innerHTML='<div class="text-sm text-slate-400 text-center py-12">这里还没有可用媒体</div>';return;}list.innerHTML='<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">'+shown.map((a,i)=>{const url=window.cloudMediaPublicUrl(a.cloudPath),icon=a.folder==='video'?'fa-video':a.folder==='music'?'fa-music':a.folder==='gif'?'fa-photo-film':'fa-image';const pending=a.unreferencedSince!=null?'<span class="text-amber-600">当前未被事件引用</span>':'<span class="text-emerald-600">使用中</span>';return `<div data-media-index="${items.indexOf(a)}" class="relative text-left border rounded-xl p-3 hover:border-indigo-300 hover:bg-indigo-50/40 flex gap-3 items-center cursor-pointer group"><div class="w-11 h-11 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 text-indigo-500"><i class="fa-solid ${icon}"></i></div><div class="min-w-0 flex-1 pr-1"><div class="text-xs font-semibold text-slate-700 truncate">${window.escapeHtml?window.escapeHtml(window.cloudMediaDisplayName(a)):window.cloudMediaDisplayName(a)}</div><div class="text-[10px] text-slate-400 truncate mt-0.5">${a.cloudPath}</div><div class="text-[10px] mt-1 flex gap-2"><span class="text-slate-400">${window.cloudMediaFormatSize(a.size)}</span>${pending}</div></div><div class="absolute right-2 top-2 flex items-center gap-1 opacity-75 group-hover:opacity-100 transition-opacity"><button type="button" data-media-copy="${items.indexOf(a)}" class="w-7 h-7 rounded-lg border border-slate-200 bg-white/95 shadow-sm hover:bg-indigo-50 text-indigo-500 flex items-center justify-center" title="复制云端媒体"><i class="fa-solid fa-copy text-[11px]"></i></button><button type="button" data-media-use="${items.indexOf(a)}" class="w-7 h-7 rounded-lg border border-slate-200 bg-white/95 shadow-sm hover:bg-indigo-50 text-indigo-500 flex items-center justify-center" title="使用这个媒体"><i class="fa-solid fa-plus text-[11px]"></i></button>${window._sessionCloudCopies?.has(String(a.cloudPath||''))?`<button type="button" data-media-delete-copy="${items.indexOf(a)}" class="w-7 h-7 rounded-lg border border-rose-200 bg-white/95 shadow-sm hover:bg-rose-50 text-rose-500 flex items-center justify-center" title="删除本页创建的复制媒体"><i class="fa-solid fa-trash text-[11px]"></i></button>`:''}</div></div>`;}).join('')+'</div>';const useAsset=(idx)=>{const a=items[Number(idx)];if(!a)return;const picked={...a,url:window.cloudMediaPublicUrl(a.cloudPath),isCloud:true};close();if(typeof onSelect==='function')onSelect(picked);};list.querySelectorAll('[data-media-index]').forEach(card=>card.onclick=(ev)=>{if(ev.target.closest('[data-media-copy],[data-media-use],[data-media-delete-copy]'))return;useAsset(card.dataset.mediaIndex);});list.querySelectorAll('[data-media-use]').forEach(btn=>btn.onclick=(ev)=>{ev.preventDefault();ev.stopPropagation();useAsset(btn.dataset.mediaUse);});list.querySelectorAll('[data-media-copy]').forEach(btn=>btn.onclick=async(ev)=>{
                 ev.preventDefault();ev.stopPropagation();
@@ -3515,7 +3516,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 items=(Array.isArray(data?.items)?data.items:[]).filter(a=>{
                     const p=String(a?.cloudPath||'').replace(/^\/+/, '');
                     const logicalFolder=String(a?.folder||'').toLowerCase();
-                    return !/(?:^|\/)(?:temp|cover)\//i.test(p) && logicalFolder!=='temp' && logicalFolder!=='cover';
+                    return !/(?:^|\/)(?:temp|cover)\//i.test(p) && logicalFolder!=='temp' && logicalFolder!=='cover' && logicalFolder!=='music';
                 });
                 render();
             }catch(err){modal.querySelector('[data-media-list]').innerHTML=`<div class="text-sm text-rose-600 text-center py-12">${err?.message||'云端数据库读取失败'}</div>`;}};
@@ -3530,6 +3531,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.getSavedCloudMediaPresentation=function(cloudPath){
             const target=String(cloudPath||'').replace(/^\/+/,'');
             if(!target)return null;
+            const identity=p=>String(p||'').replace(/^\/+/,'').replace(/^(?:temp|inuse|unref)\//i,'');
+            const targetIdentity=identity(target);
             let found=null;
             const seen=new WeakSet();
             const walk=(value)=>{
@@ -3537,7 +3540,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 seen.add(value);
                 if(!Array.isArray(value)){
                     const p=String(value.cloudPath||'').replace(/^\/+/,'');
-                    if(p===target){
+                    if(p===target || (p && identity(p)===targetIdentity)){
                         found=value;
                         return;
                     }
@@ -5229,7 +5232,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     const cloudDeleted=await window.deleteEventFromCloud(targetId);
                     if(!cloudDeleted)throw new Error('delete failed');
                     if(db)db.style.width='85%';
-                    await window.writeActivityLog?.('delete',logInfo);
+                    Promise.resolve(window.writeActivityLog?.('delete',logInfo)).catch(err=>console.warn('删除日志后台写入失败',err));
                     window.closeEditModal();window.closeMultiTimeEventModal?.();
 
                     // 删除成功后重建时间线，并先释放连线 SVG 的旧尺寸。
@@ -5345,6 +5348,15 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             await Promise.all(jobs);
         };
 
+        window._connectionListFingerprint=function(list){
+            return JSON.stringify((Array.isArray(list)?list:[]).map(c=>({
+                id:String(c?.id??''),sourceId:String(c?.sourceId??''),targetId:String(c?.targetId??''),
+                type:String(c?.type??''),label:String(c?.label??''),color:String(c?.color??''),
+                style:String(c?.style??''),direction:String(c?.direction??'')
+            })).sort((a,b)=>a.id.localeCompare(b.id)));
+        };
+        window._hasPendingTempUploads=function(){return !!window._editMediaTxn?.tempUploads?.length;};
+
         window.confirmSaveEvent = async function() {
             if (window.pendingSaveData) {
                 const eventData = window.pendingSaveData;
@@ -5374,30 +5386,31 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 try {
                     if (progressBar) setTimeout(() => progressBar.style.width = '60%', 400);
                     
-                    // 第一阶段先提升用户上传/手动封面，让源媒体先拥有最终 inuse 路径。
-                    await window.promoteTempUploads?.(eventData);
-                    // 用户未手动设置封面时，大保存静默截取第一帧。此时 coverSourcePath 已是最终源路径，
-                    // 因而自动封面与手动封面都使用“源媒体名_cover”的稳定命名。
-                    try{await window.ensureAutomaticFirstFrameCovers(eventData);}catch(err){console.warn('自动首帧封面生成失败',err);}
-                    // 自动封面刚写入 temp/cover，再立即提升并改写 eventData 中的 cover URL/cloudPath。
-                    await window.promoteTempUploads?.(eventData);
+                    // 快速路径：没有本次新上传的 temp 时，不再扫描/提升媒体，也不重复检查旧视频/GIF封面。
+                    // 新上传媒体仍保持原流程：主媒体先进入 inuse，再仅为缺封面的新媒体生成首帧封面。
+                    const hadPendingTemp=window._hasPendingTempUploads?.()===true;
+                    if(hadPendingTemp){
+                        await window.promoteTempUploads?.(eventData);
+                        try{await window.ensureAutomaticFirstFrameCovers(eventData);}catch(err){console.warn('自动首帧封面生成失败',err);}
+                        if(window._hasPendingTempUploads?.()) await window.promoteTempUploads?.(eventData);
+                    }
                     const desiredConnections = eventData.connections || [];
+                    const connectionsChanged = !isEdit || window._connectionListFingerprint(previousConnections)!==window._connectionListFingerprint(desiredConnections);
                     delete eventData.connections;
                     const cloudSaved = await window.saveEventToCloud(eventData);
                     if (!cloudSaved) throw new Error('cloud save failed');
                     
                     if (progressBar) progressBar.style.width = '80%';
-                    await window.syncEditingConnections(eventData.id, desiredConnections);
+                    // 关系没有变化时不再发 delete/upsertConnection 请求。
+                    if(connectionsChanged) await window.syncEditingConnections(eventData.id, desiredConnections);
                     window._savedDeepDrafts?.clear?.();
                     
                     if (progressBar) progressBar.style.width = '100%';
-                    await new Promise(r => setTimeout(r, 300));
-                    
                     if (savingModal) savingModal.classList.add('hidden');
                     if (eventData.timeMode === 'multi') window.closeMultiTimeEventModal?.(); else window.closeEditModal();
                     window.showToast(isEdit ? "保存成功" : "新建事件成功", "success");
                     if (cloudSaved && (!isEdit || hasActualEditChange)) {
-                        await window.writeActivityLog?.(isEdit ? 'edit' : 'create', eventData);
+                        Promise.resolve(window.writeActivityLog?.(isEdit ? 'edit' : 'create', eventData)).catch(err=>console.warn('活动日志后台写入失败',err));
                     }
                     window.pendingSaveData = null;
                     if (!isEdit) {
