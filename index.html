@@ -4012,9 +4012,12 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             }
         };
 
-        window.deleteEventFromCloud = async function(eventId, perfId="") {
+        window.deleteEventFromCloud = async function(eventId, perfId="", beforeEvent=null) {
             const oldEvents = window.events.slice();
             const oldConnections = window.connections.slice();
+            // Fast-delete snapshot: capture the already-loaded event before local removal so
+            // the API can update media reference counts without re-reading the same event.
+            const deleteSnapshot = beforeEvent || oldEvents.find(e => String(e?.id) === String(eventId)) || null;
             window.events = window.events.filter(e => String(e.id) !== String(eventId));
             window.connections = window.connections.filter(c => String(c.sourceId) !== String(eventId) && String(c.targetId) !== String(eventId));
             window.renderEvents();
@@ -4022,7 +4025,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
             if (!window.hasTimelineEditToken?.()) return false;
             try {
-                await window.timelineApiWrite('deleteEvent', { eventId, ...(perfId?{perfId}: {}) });
+                await window.timelineApiWrite('deleteEvent', { eventId, ...(deleteSnapshot?{beforeEvent:deleteSnapshot}:{}), ...(perfId?{perfId}: {}) });
                 return true;
             } catch (e) {
                 window.events = oldEvents;
@@ -5232,7 +5235,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 try{
                     if(db)setTimeout(()=>db.style.width='55%',250);
                     const _tApi=performance.now();
-                    const cloudDeleted=await window.deleteEventFromCloud(targetId,_perfId);
+                    const cloudDeleted=await window.deleteEventFromCloud(targetId,_perfId,targetEvent);
                     const _apiMs=Math.round((performance.now()-_tApi)*10)/10;
                     if(!cloudDeleted)throw new Error('delete failed');
                     if(db)db.style.width='85%';
