@@ -8688,6 +8688,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
                     item.x=Math.max(0,nx);item.y=Math.max(0,ny);item.w=nw;item.h=nh;
                     window.renderDeepCanvas(false);
+                    window.deepScheduleLiveGeometryRefresh?.();
                     if(item.type==='text'&&!item.editing&&!window.deepTextTool){
                         const currentEl=document.querySelector(`[data-deep-id="${CSS.escape(item.id)}"]`);
                         const live=currentEl?.querySelector('.deep-text-content');
@@ -8723,6 +8724,17 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             window.deepPositionTextTools?.();
         };
 
+        // 在拖动/缩放过程中按帧刷新依赖几何位置的覆盖层，避免联结线、文字工具等到 pointerup 才跳到新位置。
+        window.deepScheduleLiveGeometryRefresh=function(){
+            if(window._deepLiveGeometryRAF)return;
+            window._deepLiveGeometryRAF=requestAnimationFrame(()=>{
+                window._deepLiveGeometryRAF=0;
+                window.deepUpdateConnectors?.();
+                window.deepPositionTextTools?.();
+                window.deepRefreshEraserCursor?.();
+            });
+        };
+
         window.deepBindItem=function(el,item){
             let sx=0,sy=0,ox=0,oy=0,drag=false,before=null,moved=false,pointerStartedAt=0;
             el.addEventListener('pointerdown',e=>{
@@ -8740,7 +8752,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 if(item.type==='text' && window.deepTextTool) return;
                 before=window.deepClone(window.deepCanvasState); moved=false; window.deepCanvasSelected=item.id; window.deepSetDrawing(false); sx=e.clientX;sy=e.clientY;ox=item.x;oy=item.y;drag=true;el.setPointerCapture?.(e.pointerId);
             });
-            el.addEventListener('pointermove',e=>{if(!drag)return;if(Math.abs(e.clientX-sx)>2||Math.abs(e.clientY-sy)>2)moved=true;const [dx,dy]=window.deepClientDeltaToCanvas(e.clientX-sx,e.clientY-sy);item.x=Math.max(0,ox+dx);item.y=Math.max(0,oy+dy);el.style.left=item.x+'px';el.style.top=item.y+'px';window.deepPositionTextTools?.();});
+            el.addEventListener('pointermove',e=>{if(!drag)return;if(Math.abs(e.clientX-sx)>2||Math.abs(e.clientY-sy)>2)moved=true;const [dx,dy]=window.deepClientDeltaToCanvas(e.clientX-sx,e.clientY-sy);item.x=Math.max(0,ox+dx);item.y=Math.max(0,oy+dy);el.style.left=item.x+'px';el.style.top=item.y+'px';window.deepScheduleLiveGeometryRefresh?.();});
             el.addEventListener('pointerup',()=>{if(pointerStartedAt&&Date.now()-pointerStartedAt>420)el._deepLongPress=true;if(!drag)return;drag=false;window.renderDeepCanvas(false);if(moved){el._deepSuppressCropUntil=Date.now()+500;if(item.type==='text')item._suppressTextEditUntil=Date.now()+750;}if(before&&moved){window.deepCanvasUndo.push(before);if(window.deepCanvasUndo.length>40)window.deepCanvasUndo.shift();window.deepCanvasRedo=[];}before=null;});
             if(item.type==='text'){
                 const t=el.querySelector('.deep-text-content');
