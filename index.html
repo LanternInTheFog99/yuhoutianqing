@@ -2354,7 +2354,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const ANIMATED_FALLBACK_SEC = 3;
             const PRELOAD_WAIT_MS = 60;
             const BLACK_FADE_MS = 260;
-            const BLACK_HOLD_MS = 80;
+            const BLACK_HOLD_MS = 0;
             const MEDIA_COVER_MIN_HOLD_MS = calm ? 600 : 500;
             const MEDIA_COVER_MAX_HOLD_MS = calm ? 3200 : 2600;
             const MEDIA_COVER_FADE_MS = 260;
@@ -2536,9 +2536,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     // 图片→图片保持原来的短转场；只要任一侧是 GIF/视频，就统一使用较长转场。
                     const isPlainImageToPlainImage =
                         isPlainPreviewImageItem(currentItem) && isPlainPreviewImageItem(nextItem);
-                    const fadeInMs = isPlainImageToPlainImage ? 240 : 320;
-                    const fadeOutMs = isPlainImageToPlainImage ? 460 : 560;
-                    const readyGraceMs = isPlainImageToPlainImage ? 0 : 80;
+                    const fadeInMs = isPlainImageToPlainImage ? 360 : 420;
+                    const fadeOutMs = isPlainImageToPlainImage ? 360 : 420;
+                    const readyGraceMs = isPlainImageToPlainImage ? 120 : 220;
                     pendingBlackHandoff = null;
 
                     const nextCover = nextItem.type === 'video'
@@ -2565,34 +2565,30 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     dim.dataset.previewTransitionOverlay = '1';
                     Object.assign(dim.style, {
                         zIndex:'9', background:'#000', opacity:'0',
-                        transition:`opacity ${fadeInMs}ms cubic-bezier(.22,.61,.36,1)`
+                        transition:`opacity ${fadeInMs}ms cubic-bezier(.45,.05,.55,.95)`
                     });
+                    // 任何为下一媒体预留的等待都放在转场开始前完成。
+                    // 最暗点本身绝不再等待，否则即使 opacity 是连续插值，肉眼仍会把它感知成“黑屏停顿”。
+                    if (!mediaReady && readyGraceMs > 0) {
+                        await Promise.race([readyPromise, delayMs(readyGraceMs)]);
+                    }
+                    if (!isStillRunning() || gen !== generation) return false;
+
                     stage.appendChild(dim);
                     await delayMs(16);
                     if (!isStillRunning() || gen !== generation) { dim.remove(); return false; }
-                    dim.style.opacity='0.58';
+                    // 保留较深暗场，但它只是连续曲线的一个瞬时峰值，不设置任何黑场 hold。
+                    dim.style.opacity='0.88';
                     await delayMs(fadeInMs);
                     if (!isStillRunning() || gen !== generation) { dim.remove(); return false; }
 
                     try { video.pause(); } catch (_) {}
 
-                    // 100% 全黑时先彻底隐藏旧的共享图片层，再推进媒体。
-                    // 下一媒体的 presentItem 会自行恢复它；这样旧图片/GIF 不可能在退黑时冒出 1 帧。
-                    disableSoftFade(img);
-                    img.style.transition='none';
-                    img.style.opacity='0';
-                    img.style.visibility='hidden';
-                    img.classList.add('hidden');
-
+                    // opacity 由浏览器逐帧连续插值；到达最暗点后同一任务立即交接媒体并开始回亮，
+                    // 不在峰值插入加载等待、定时停顿或额外黑屏阶段。
                     if (typeof switchAtBlack === 'function') {
                         switchAtBlack();
                         switchAtBlack = null;
-                    }
-
-                    // GIF/视频之间允许最多 140ms 的“快要好了”宽限。
-                    // 如果这点时间内 ready，就直接露真实媒体，不插封面；否则才用封面兜底。
-                    if (!mediaReady && readyGraceMs > 0) {
-                        await Promise.race([readyPromise, delayMs(readyGraceMs)]);
                     }
 
                     if (mediaReady) {
@@ -2608,7 +2604,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     }
 
                     await delayMs(16);
-                    dim.style.transition=`opacity ${fadeOutMs}ms cubic-bezier(.22,.61,.36,1)`;
+                    dim.style.transition=`opacity ${fadeOutMs}ms cubic-bezier(.45,.05,.55,.95)`;
                     dim.style.opacity='0';
                     await delayMs(fadeOutMs);
                     try { dim.remove(); } catch (_) {}
@@ -6003,7 +5999,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const inactiveScale = 0.85;
             // 只展示当前卡片及其后/前最多三层：第二张明显多露、第三张次之、第四张只露窄边。
             // 第五张起与第四张完全叠放且隐藏，不再占用视觉空间。
-            const reveals = [76, 42, 18];
+            const reveals = [62, 34, 14];
             const offsetFor = distance => {
                 let x=0;
                 for(let i=0;i<Math.min(distance,reveals.length);i++) x+=reveals[i];
@@ -6955,8 +6951,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             m.className='fixed inset-0 z-[300] hidden bg-slate-950/80 backdrop-blur-sm p-0 text-slate-800';
             m.innerHTML=`<div class="w-full h-full bg-white flex flex-col">
                 <div class="h-14 shrink-0 border-b border-slate-200 flex items-center gap-2 px-3 sm:px-5 bg-white">
-                    <div class="font-bold text-sm sm:text-base flex items-center gap-2 mr-auto min-w-0"><i class="fa-solid fa-feather-pointed text-violet-600"></i><span id="deepEditorTitle">深入描述</span><button type="button" onclick="deepOpenHelp()" class="ml-1 px-2 py-1 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-[10px] font-semibold whitespace-nowrap" title="深入描述使用说明"><i class="fa-solid fa-circle-question mr-1"></i>使用说明</button></div>
-                    <span id="deepEnabledStatus" class="whitespace-nowrap rounded-full border px-1.5 py-px text-[8px] leading-[11px] font-semibold bg-white shadow-sm"></span>
+                    <div class="font-bold text-sm sm:text-base flex items-center gap-2 mr-auto min-w-0"><i class="fa-solid fa-feather-pointed text-violet-600"></i><span id="deepEditorTitle">深入描述</span><button type="button" onclick="deepOpenHelp()" class="ml-1 px-2.5 py-1.5 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-semibold whitespace-nowrap" title="深入描述使用说明"><i class="fa-solid fa-circle-question mr-1"></i>使用说明</button></div>
+                    <span id="deepEnabledStatus" class="whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] leading-4 font-semibold bg-white shadow-sm"></span>
                     <button type="button" id="deepEnableToggleBtn" onclick="deepToggleDescriptionEnabled()" class="px-3 py-1.5 border rounded-lg text-xs"><i data-deep-enable-toggle-icon class="fa-solid fa-eye-slash mr-1"></i><span data-deep-enable-toggle-label>停用</span></button>
                     <span class="w-1.5 sm:w-3"></span>
                     <button type="button" onclick="deepUndo()" class="px-2.5 py-1.5 border rounded-lg text-xs" title="撤回"><i class="fa-solid fa-rotate-left"></i></button>
