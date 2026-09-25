@@ -1290,9 +1290,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 <button id="developerModeBtn" onclick="requestDeveloperMode()" title="" aria-label="开发者模式" class="hidden fixed right-[4.5rem] bottom-2 z-[80] w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-slate-400/20 hover:text-slate-500/80 hover:bg-slate-200/60 transition-all opacity-25 hover:opacity-100">
                     <i class="fa-solid fa-code"></i>
                 </button>
-                <button type="button" id="developerLockManagerBtn" onclick="requestDeveloperLockManager(event)" title="请先进入开发者模式" aria-label="批量设置开发者锁" class="hidden fixed right-10 bottom-2 z-[80] w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-slate-400/20 hover:text-slate-500/80 hover:bg-slate-200/60 transition-all opacity-25 hover:opacity-100">
-                    <i class="fa-solid fa-lock"></i>
-                </button>
                 <button id="manualBackupBtn" onclick="requestTimelineBackup()" title="" aria-label="导出 JSON 备份" class="hidden fixed right-2 bottom-2 z-[80] w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-slate-400/20 hover:text-slate-500/80 hover:bg-slate-200/60 transition-all opacity-25 hover:opacity-100">
                     <i class="fa-solid fa-download"></i>
                 </button>
@@ -3597,18 +3594,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.updateManagementButtons = function(){
             if(window.isLocked){try{sessionStorage.removeItem(developerTokenKey());}catch(_){}}
             const show=!window.isLocked && !!window.hasTimelineEditToken?.() && !window.forceMobileBrowseMode?.();
-            ['xiaoqingerDialogueEditorBtn','developerModeBtn','developerLockManagerBtn','manualBackupBtn'].forEach(id=>document.getElementById(id)?.classList.toggle('hidden',!show));
+            ['xiaoqingerDialogueEditorBtn','developerModeBtn','manualBackupBtn'].forEach(id=>document.getElementById(id)?.classList.toggle('hidden',!show));
             const dev=document.getElementById('developerModeBtn');
             if(dev){ dev.classList.toggle('text-indigo-500',show&&window.isDeveloperMode?.()); dev.title=window.isDeveloperMode?.()?'开发者模式已启用':'开发者模式'; }
-            const manager=document.getElementById('developerLockManagerBtn');
-            if(manager){
-                const enabled=show&&window.isDeveloperMode?.();
-                manager.classList.toggle('text-indigo-500',enabled);
-                manager.classList.toggle('cursor-not-allowed',show&&!enabled);
-                manager.classList.toggle('opacity-100',enabled);
-                manager.style.pointerEvents=show?'auto':'none';
-                manager.title=enabled?'批量设置开发者锁':'请先进入开发者模式';
-            }
         };
         window.requestDeveloperMode = async function(){
             if(!window.canEditNow?.()){ window.showToast?.('请先进入编辑模式','error'); return; }
@@ -15444,35 +15432,5 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
 
 </script>
 
-<div id="globalDeveloperLockModal" class="hidden fixed inset-0 z-[240] bg-slate-900/60 backdrop-blur-sm items-center justify-center p-3"><div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[88vh] flex flex-col"><div class="flex items-center justify-between p-4 border-b"><div><h3 class="font-bold text-slate-800">批量设置开发者锁</h3><p class="text-[10px] text-slate-400 mt-0.5">临时管理工具：可一次修改多个事件并统一保存</p></div><button onclick="closeGlobalDeveloperLockManager()" class="w-8 h-8 rounded-full text-slate-400 hover:bg-slate-100"><i class="fa-solid fa-xmark"></i></button></div><div class="p-4 border-b"><input id="globalDevLockSearch" oninput="renderGlobalDeveloperLockList(this.value)" placeholder="搜索事件名称" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"></div><div id="globalDeveloperLockList" class="p-4 overflow-y-auto flex-1"></div><div class="p-4 border-t flex justify-end gap-2"><button onclick="closeGlobalDeveloperLockManager()" class="px-4 py-2 border border-slate-300 rounded-lg text-xs">取消</button><button id="saveGlobalDevLocksBtn" onclick="saveGlobalDeveloperLocks()" class="px-5 py-2 bg-indigo-600 text-white rounded-lg text-xs font-semibold">统一保存</button></div></div></div>
-<script>
-window._globalDevLockDraft=new Map();
-window.requestDeveloperLockManager=async function(ev){
-    ev?.preventDefault?.(); ev?.stopPropagation?.();
-    if(!window.canEditNow?.()){window.showToast?.('请先进入编辑模式','error');return;}
-    if(!window.isDeveloperMode?.()){window.showToast?.('请先进入开发者模式','error');return;}
-    const password=window.prompt('请再次输入开发者模式密码：');
-    if(password===null)return;
-    try{
-        const result=await timelineApiPost('developerAuth',{password},{auth:false,timeoutMs:12000});
-        if(!result?.token)throw new Error('developer_token_empty');
-        window.setDeveloperToken(result.token);
-        window.openGlobalDeveloperLockManager();
-    }catch(e){
-        window.showToast?.(e?.code==='bad_password'?'开发者模式密码错误':e?.code==='password_cooldown'?'密码错误次数过多，请稍候再试':e?.code==='developer_password_not_configured'?'服务端尚未配置开发者模式密码':'开发者锁管理授权失败','error');
-    }
-};
-window.openGlobalDeveloperLockManager=function(){
-    if(!window.isDeveloperMode?.()){window.showToast?.('请先进入开发者模式','error');return;}
-    window._globalDevLockDraft=new Map((window.events||[]).map(e=>[String(e.id),e.developerLocked===true]));
-    const m=document.getElementById('globalDeveloperLockModal');
-    if(!m){window.showToast?.('开发者锁管理窗口加载失败','error');return;}
-    m.classList.remove('hidden'); m.classList.add('flex'); m.style.display='flex';
-    window.renderGlobalDeveloperLockList('');
-};
-window.closeGlobalDeveloperLockManager=function(){const m=document.getElementById('globalDeveloperLockModal');if(!m)return;m.classList.add('hidden');m.classList.remove('flex');m.style.display='none';};
-window.renderGlobalDeveloperLockList=function(q=''){const h=document.getElementById('globalDeveloperLockList');if(!h)return;const query=String(q||'').trim().toLowerCase();const rows=(window.events||[]).filter(e=>!query||String(e.title||'').toLowerCase().includes(query));h.innerHTML=rows.length?`<div class="space-y-1">${rows.map(e=>`<label class="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border border-slate-200 hover:bg-slate-50"><span class="text-xs text-slate-700 truncate">${window.escapeHtml?.(e.title||'未命名事件')||e.title}</span><input type="checkbox" ${window._globalDevLockDraft.get(String(e.id))?'checked':''} onchange="window._globalDevLockDraft.set('${String(e.id).replace(/'/g,"\'")}',this.checked)" class="w-4 h-4 accent-rose-600"></label>`).join('')}</div>`:'<div class="text-center text-xs text-slate-400 py-8">没有匹配事件</div>';};
-window.saveGlobalDeveloperLocks=async function(){const btn=document.getElementById('saveGlobalDevLocksBtn');if(btn){btn.disabled=true;btn.textContent='正在保存…';}try{const changes=(window.events||[]).filter(e=>window._globalDevLockDraft.has(String(e.id))&&window._globalDevLockDraft.get(String(e.id))!==(e.developerLocked===true)).map(e=>({eventId:e.id,developerLocked:window._globalDevLockDraft.get(String(e.id))}));if(changes.length)await timelineApiPost('bulkDeveloperLocks',{changes,ownerToken:window.getEditorOwnerToken?.()||''},{timeoutMs:30000});for(const e of window.events||[])if(window._globalDevLockDraft.has(String(e.id)))e.developerLocked=window._globalDevLockDraft.get(String(e.id));window.showToast?.(changes.length?`已保存 ${changes.length} 个事件的开发者锁`:'没有需要保存的更改','success');window.closeGlobalDeveloperLockManager();}catch(e){window.showToast?.(e?.message||'批量保存失败','error');}finally{if(btn){btn.disabled=false;btn.textContent='统一保存';}}};
-</script>
 </body>
 </html>
