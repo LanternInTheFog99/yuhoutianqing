@@ -1284,7 +1284,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     <i class="fa-solid fa-tags text-slate-500"></i>
                     <span id="mobileTagLabel" class="hidden md:inline">tag库</span>
                 </button>
-<button id="oneoffMediaRepairBtn" onclick="repairCloudMediaSourceUrl('')" title="" aria-label="直链修复" class="fixed right-[4.5rem] bottom-2 z-[80] w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-slate-400/20 hover:text-slate-500/80 hover:bg-slate-200/60 transition-all opacity-25 hover:opacity-100">
+<button id="oneoffMediaRepairBtn" onclick="openOneoffMediaRepairPicker()" title="" aria-label="直链修复" class="fixed right-[4.5rem] bottom-2 z-[80] w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-slate-400/20 hover:text-slate-500/80 hover:bg-slate-200/60 transition-all opacity-25 hover:opacity-100">
                     <i class="fa-solid fa-link"></i>
                 </button>
                 <button id="xiaoqingerDialogueEditorBtn" onclick="requestXiaoqingerDialogueEditor()" title="" aria-label="小晴儿台词编辑" class="fixed right-10 bottom-2 z-[80] w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-slate-400/20 hover:text-slate-500/80 hover:bg-slate-200/60 transition-all opacity-25 hover:opacity-100">
@@ -3441,6 +3441,40 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             name=name.replace(/_[a-f0-9]{8}$/i,'').replace(/_[a-f0-9]{8}(?=_copy\d+(?:_copy\d+)*$)/i,'');
             return name;
         };
+        // TEMP 2026-09-25: choose an existing timeline media first; cloudPath stays internal.
+        window.openOneoffMediaRepairPicker=function(){
+            const found=[], seenPaths=new Set();
+            const events=Array.isArray(window.events)?window.events:[];
+            const esc=(v)=>window.escapeHtml?window.escapeHtml(String(v||'')):String(v||'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
+            const visit=(value,event,path=[])=>{
+                if(!value||typeof value!=='object')return;
+                if(Array.isArray(value)){value.forEach((x,i)=>visit(x,event,path.concat(i)));return;}
+                const insideDeep=path.some(x=>String(x)==='deepDescription');
+                const cp=String(value.cloudPath||'').trim();
+                const looksOuter=!!(value.originalFull||value.original||value.outer||value.inner||value.collection||value.url||value.mime||value.isAnimated||value.deepDescription);
+                if(cp&&!insideDeep&&looksOuter&&!seenPaths.has(cp)){
+                    seenPaths.add(cp);
+                    const src=String(value.originalFull||value.original||value.outer||value.url||value.collection||'');
+                    found.push({cloudPath:cp,src,eventTitle:String(event?.title||event?.name||event?.date||'未命名事件'),kind:/video/i.test(String(value.mime||''))||('previewDuration' in value)?'视频':(value.isAnimated?'动图':'图片'),hasDeep:!!value.deepDescription});
+                }
+                Object.entries(value).forEach(([k,v])=>{if(k!=='deepDescription')visit(v,event,path.concat(k));});
+            };
+            events.forEach(e=>visit(e,e,[]));
+            let modal=document.getElementById('oneoffMediaRepairPicker');
+            if(!modal){modal=document.createElement('div');modal.id='oneoffMediaRepairPicker';modal.className='fixed inset-0 z-[520] hidden bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5';document.body.appendChild(modal);}
+            modal.innerHTML=`<div class="w-full max-w-3xl max-h-[86vh] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden" onclick="event.stopPropagation()"><div class="px-4 py-3 border-b flex items-center gap-2"><div class="font-bold text-slate-800"><i class="fa-solid fa-link text-indigo-600 mr-2"></i>选择要替换的媒体</div><button data-close class="ml-auto w-8 h-8 rounded-lg hover:bg-slate-100"><i class="fa-solid fa-xmark"></i></button></div><div class="px-4 py-3 border-b"><input data-search class="w-full px-3 py-2 rounded-lg border text-sm" placeholder="搜索事件标题或文件名"></div><div data-list class="p-4 overflow-y-auto min-h-[260px]"></div><div class="px-4 py-2 border-t text-[11px] text-slate-400">这里列出当前时间线中已有的图片、动图和视频，包括加载失败的媒体；cloudPath 会自动读取，无需手动填写。</div></div>`;
+            const close=()=>modal.classList.add('hidden');modal.onclick=e=>{if(e.target===modal)close();};modal.querySelector('[data-close]').onclick=close;
+            const render=()=>{
+                const q=String(modal.querySelector('[data-search]').value||'').trim().toLowerCase();
+                const rows=found.filter(x=>!q||(x.eventTitle+' '+x.cloudPath+' '+x.kind).toLowerCase().includes(q));
+                const list=modal.querySelector('[data-list]');
+                if(!rows.length){list.innerHTML='<div class="text-sm text-slate-400 text-center py-12">没有找到可替换的媒体</div>';return;}
+                list.innerHTML='<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">'+rows.map((x,i)=>`<button type="button" data-pick="${found.indexOf(x)}" class="text-left border rounded-xl p-3 hover:border-indigo-300 hover:bg-indigo-50/40 flex gap-3 items-center"><div class="w-14 h-14 rounded-lg bg-slate-100 overflow-hidden shrink-0 flex items-center justify-center">${x.src?`<img src="${esc(x.src)}" class="w-full h-full object-cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span style="display:none" class="w-full h-full items-center justify-center text-rose-400"><i class="fa-solid fa-image"></i></span>`:'<i class="fa-solid fa-image text-slate-400"></i>'}</div><div class="min-w-0"><div class="text-xs font-semibold text-slate-700 truncate">${esc(x.eventTitle)}</div><div class="text-[10px] text-slate-500 mt-1">${x.kind}${x.hasDeep?' · 有深入描述':''}</div><div class="text-[10px] text-slate-400 truncate mt-1">${esc(x.cloudPath.split('/').pop())}</div></div></button>`).join('')+'</div>';
+                list.querySelectorAll('[data-pick]').forEach(btn=>btn.onclick=()=>{const x=found[Number(btn.dataset.pick)];if(!x)return;close();window.repairCloudMediaSourceUrl(x.cloudPath);});
+            };
+            modal.querySelector('[data-search]').oninput=render;render();modal.classList.remove('hidden');
+        };
+
         // TEMP 2026-09-25: one-off repair tool for lost media URLs.
         window.repairCloudMediaSourceUrl=async function(cloudPath){
             let oldPath=String(cloudPath||'').trim();
