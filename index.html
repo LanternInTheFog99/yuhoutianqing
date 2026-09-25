@@ -7014,12 +7014,37 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             window._deepGlobalUndoBound=true;
             document.addEventListener('keydown',function(e){
                 if(e._deepUndoHandled)return;
-                if(!(e.ctrlKey||e.metaKey) || String(e.key).toLowerCase()!=='z')return;
                 const modal=document.getElementById('deepDescriptionModal');
                 if(!modal || modal.classList.contains('hidden'))return;
+                const key=String(e.key).toLowerCase();
+                if((e.ctrlKey||e.metaKey) && key==='z'){
+                    e.preventDefault();
+                    e._deepUndoHandled=true;
+                    if(e.shiftKey)window.deepRedo?.(); else window.deepUndo?.();
+                    return;
+                }
+                if(e.ctrlKey && !e.metaKey && key==='r'){
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e._deepUndoHandled=true;
+                    window.deepClearCanvas?.();
+                }
+            },true);
+        }
+
+        if(!window._editModalEnterGuardBound){
+            window._editModalEnterGuardBound=true;
+            document.addEventListener('keydown',function(e){
+                if(e.key!=='Enter')return;
+                const root=e.target?.closest?.('#editModal,#multiTimeEventModal');
+                if(!root || root.classList.contains('hidden'))return;
+                const tag=String(e.target?.tagName||'').toLowerCase();
+                if(tag==='textarea' || e.target?.isContentEditable || e.target?.closest?.('[contenteditable="true"]'))return;
+                if(tag!=='input' && tag!=='select')return;
+                // 编辑界面中的单行输入不绑定 Enter 保存/应用等快捷操作。
                 e.preventDefault();
-                e._deepUndoHandled=true;
-                if(e.shiftKey)window.deepRedo?.(); else window.deepUndo?.();
+                e.stopPropagation();
+                e.stopImmediatePropagation?.();
             },true);
         }
 
@@ -12863,9 +12888,11 @@ viewer.style.visibility='';
             hint.classList.toggle('hidden',!duplicated);
             if(input){
                 input.classList.toggle('border-rose-500',duplicated);
-                input.classList.toggle('focus:ring-0',duplicated);
+                input.classList.toggle('ring-2',duplicated);
+                input.classList.toggle('ring-rose-500',duplicated);
                 input.classList.toggle('focus:border-rose-500',duplicated);
-                input.classList.toggle('focus:ring-2',!duplicated);
+                input.classList.toggle('focus:ring-2',true);
+                input.classList.toggle('focus:ring-rose-500',duplicated);
                 input.classList.toggle('focus:ring-indigo-500',!duplicated);
             }
             return duplicated;
@@ -12879,9 +12906,9 @@ viewer.style.visibility='';
             return `<div data-inline-date="${safeId}" class="space-y-1">
                 <input type="hidden" id="${safeId}" value="${window.escapeHtml(normalized||String(value||''))}">
                 <div class="grid grid-cols-[1.25fr_.85fr_.85fr] gap-1.5">
-                    <input data-date-part="year" inputmode="numeric" maxlength="4" placeholder="年" value="${window.escapeHtml(y)}" oninput="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-                    <input data-date-part="month" inputmode="numeric" maxlength="2" placeholder="月" value="${window.escapeHtml(m)}" oninput="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-                    <input data-date-part="day" inputmode="numeric" maxlength="2" placeholder="日" value="${window.escapeHtml(d)}" oninput="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                    <label class="flex items-center gap-1 min-w-0"><input data-date-part="year" inputmode="numeric" maxlength="4" placeholder="数字" value="${window.escapeHtml(y)}" oninput="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" onblur="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"><span class="shrink-0 text-xs text-slate-400">年</span></label>
+                    <label class="flex items-center gap-1 min-w-0"><input data-date-part="month" inputmode="numeric" maxlength="2" placeholder="数字" value="${window.escapeHtml(m)}" oninput="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" onblur="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"><span class="shrink-0 text-xs text-slate-400">月</span></label>
+                    <label class="flex items-center gap-1 min-w-0"><input data-date-part="day" inputmode="numeric" maxlength="2" placeholder="数字" value="${window.escapeHtml(d)}" oninput="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" onblur="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"><span class="shrink-0 text-xs text-slate-400">日</span></label>
                 </div>
                 <p data-date-hint class="hidden text-[11px] text-rose-600"></p>
             </div>`;
@@ -12903,7 +12930,7 @@ viewer.style.visibility='';
             let val='';
             if(!msg && yy){ let raw=yy; if(mm)raw+='-'+mm; if(dd)raw+='-'+dd; val=window.normalizePartialDate(raw); if(!val){msg='日期无效';badPart=dd?'day':(mm?'month':'year');} }
             const bad=!!msg;
-            [[y,'year'],[m,'month'],[d,'day']].forEach(([el,part])=>{if(!el)return;const fieldBad=bad&&badPart===part;el.classList.toggle('border-rose-500',fieldBad);el.classList.toggle('focus:ring-0',fieldBad);el.classList.toggle('focus:border-rose-500',fieldBad);el.classList.toggle('focus:ring-2',!fieldBad);el.classList.toggle('focus:ring-indigo-500',!fieldBad);});
+            [[y,'year'],[m,'month'],[d,'day']].forEach(([el,part])=>{if(!el)return;const fieldBad=bad&&badPart===part;el.classList.toggle('border-rose-500',fieldBad);el.classList.toggle('ring-2',fieldBad);el.classList.toggle('ring-rose-500',fieldBad);el.classList.toggle('focus:ring-rose-500',fieldBad);el.classList.toggle('focus:border-rose-500',fieldBad);el.classList.toggle('focus:ring-2',true);el.classList.toggle('focus:ring-indigo-500',!fieldBad);});
             if(hint){hint.textContent=msg;hint.classList.toggle('hidden',!bad);}
             target.value=bad?'':val;
             target.dataset.dateInvalid=bad?'1':'0';
