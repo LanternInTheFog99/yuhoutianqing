@@ -1284,10 +1284,13 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     <i class="fa-solid fa-tags text-slate-500"></i>
                     <span id="mobileTagLabel" class="hidden md:inline">tag库</span>
                 </button>
-<button id="xiaoqingerDialogueEditorBtn" onclick="requestXiaoqingerDialogueEditor()" title="" aria-label="小晴儿台词编辑" class="fixed right-10 bottom-2 z-[80] w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-slate-400/20 hover:text-slate-500/80 hover:bg-slate-200/60 transition-all opacity-25 hover:opacity-100">
+<button id="xiaoqingerDialogueEditorBtn" onclick="requestXiaoqingerDialogueEditor()" title="" aria-label="小晴儿台词编辑" class="hidden fixed right-[4.5rem] bottom-2 z-[80] w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-slate-400/20 hover:text-slate-500/80 hover:bg-slate-200/60 transition-all opacity-25 hover:opacity-100">
                     <i class="fa-solid fa-comment-dots"></i>
                 </button>
-                <button id="manualBackupBtn" onclick="requestTimelineBackup()" title="" aria-label="导出 JSON 备份" class="fixed right-2 bottom-2 z-[80] w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-slate-400/20 hover:text-slate-500/80 hover:bg-slate-200/60 transition-all opacity-25 hover:opacity-100">
+                <button id="developerModeBtn" onclick="requestDeveloperMode()" title="" aria-label="开发者模式" class="hidden fixed right-10 bottom-2 z-[80] w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-slate-400/20 hover:text-slate-500/80 hover:bg-slate-200/60 transition-all opacity-25 hover:opacity-100">
+                    <i class="fa-solid fa-code"></i>
+                </button>
+                <button id="manualBackupBtn" onclick="requestTimelineBackup()" title="" aria-label="导出 JSON 备份" class="hidden fixed right-2 bottom-2 z-[80] w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-slate-400/20 hover:text-slate-500/80 hover:bg-slate-200/60 transition-all opacity-25 hover:opacity-100">
                     <i class="fa-solid fa-download"></i>
                 </button>
 
@@ -2075,6 +2078,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         const TIMELINE_EVENT_PAGE_LIMIT = 5;
         const timelineEditTokenKey = () => `yht_timeline_edit_token_session:${window.currentRoomId}`;
         const xiaoqingerEditTokenKey = () => `yht_xiaoqinger_edit_token_session:${window.currentRoomId}`;
+        const developerTokenKey = () => `yht_timeline_developer_token_session:${window.currentRoomId}`;
         window.timelineCloudSource = 'cloudbase';
         window.cloudWriteReady = false;
         window._cloudbaseTimelineVersion = '';
@@ -2104,6 +2108,11 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         };
         window.clearXiaoqingerEditToken = function() { window.setXiaoqingerEditToken(''); };
         window.hasXiaoqingerEditToken = function() { return !!window.getXiaoqingerEditToken(); };
+
+        window.getDeveloperToken = function(){ try{return sessionStorage.getItem(developerTokenKey())||'';}catch(_){return '';} };
+        window.setDeveloperToken = function(token){ try{if(token)sessionStorage.setItem(developerTokenKey(),token);else sessionStorage.removeItem(developerTokenKey());}catch(_){} window.updateManagementButtons?.(); };
+        window.clearDeveloperToken = function(){ window.setDeveloperToken(''); };
+        window.isDeveloperMode = function(){ return !!window.getDeveloperToken(); };
 
         window.events = [];
         window.connections = [];
@@ -3193,7 +3202,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
         async function timelineApiPost(action, payload = {}, { auth = 'edit', timeoutMs = 25000 } = {}) {
             if(window._invalidRoomAccess) throw Object.assign(new Error('此链接无效'),{code:'invalid_room_link'});
-            if(['auth','bootstrapRoomAccess','xiaoqingerAuth','backupAuth'].includes(String(action||''))){
+            if(['auth','bootstrapRoomAccess','xiaoqingerAuth','backupAuth','developerAuth'].includes(String(action||''))){
                 payload={...payload,clientId:window.getTimelineAuthClientId?.()||''};
             }
             const controller = new AbortController();
@@ -3212,7 +3221,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 }
                 const response = await fetch(TIMELINE_API_BASE + '/timeline', {
                     method:'POST', cache:'no-store', signal:controller.signal, headers,
-                    body: JSON.stringify({ room: window.currentRoomId || 'default', accessToken: window.roomAccessToken || '', action, ...payload })
+                    body: JSON.stringify({ room: window.currentRoomId || 'default', accessToken: window.roomAccessToken || '', action, ...payload, ...(window.isDeveloperMode?.() ? {developerToken:window.getDeveloperToken()} : {}) })
                 });
                 const raw = await response.text();
                 let data = null;
@@ -3220,6 +3229,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 catch (_) { throw new Error(`CloudBase 返回了无法解析的数据（HTTP ${response.status}）`); }
                 if (response.status === 401) {
                     if (auth === 'xiaoqinger') window.clearXiaoqingerEditToken?.();
+                    else if (action === 'developerAuth') window.clearDeveloperToken?.();
                     else if (auth) {
                         window.clearTimelineEditToken?.();
                         window.isLocked = true;
@@ -3581,6 +3591,39 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             }
         };
 
+        window.updateManagementButtons = function(){
+            if(window.isLocked){try{sessionStorage.removeItem(developerTokenKey());}catch(_){}}
+            const show=!window.isLocked && !!window.hasTimelineEditToken?.() && !window.forceMobileBrowseMode?.();
+            ['xiaoqingerDialogueEditorBtn','developerModeBtn','manualBackupBtn'].forEach(id=>document.getElementById(id)?.classList.toggle('hidden',!show));
+            const dev=document.getElementById('developerModeBtn');
+            if(dev){ dev.classList.toggle('text-indigo-500',show&&window.isDeveloperMode?.()); dev.title=window.isDeveloperMode?.()?'开发者模式已启用':'开发者模式'; }
+        };
+        window.requestDeveloperMode = async function(){
+            if(!window.canEditNow?.()){ window.showToast?.('请先进入编辑模式','error'); return; }
+            if(window.isDeveloperMode?.()){ window.clearDeveloperToken(); window.showToast?.('已退出开发者模式','success'); return; }
+            const password=window.prompt('请输入开发者模式密码：');
+            if(password===null)return;
+            try{
+                const result=await timelineApiPost('developerAuth',{password},{auth:false,timeoutMs:12000});
+                if(!result?.token)throw new Error('developer_token_empty');
+                window.setDeveloperToken(result.token);
+                window.showToast?.('已进入开发者模式','success');
+            }catch(e){
+                window.showToast?.(e?.code==='bad_password'?'开发者密码错误':e?.code==='password_cooldown'?'密码错误次数过多，请稍候再试':'开发者模式授权失败','error');
+            }
+        };
+        window.eventPermissionDeniedMessage=function(code){return code==='developer_locked'?'该事件已启用开发者锁，只有开发者模式可以编辑':'没有该事件的编辑权限';};
+        window.eventPermissionSettingsHtml=function(event,isNew=false){
+            const owner=window.getEditorOwnerToken?.()||'';
+            const hasCreator=event?.creatorOwned===true || event?.creatorOnlyEdit===true;
+            const isCreator=isNew || event?.creatorOwned===true;
+            const dev=window.isDeveloperMode?.()===true;
+            const canCreatorToggle=isNew || isCreator || dev;
+            const creatorChecked=event?.creatorOnlyEdit===true;
+            const devChecked=event?.developerLocked===true;
+            return `<div class="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200"><div class="text-xs font-bold text-slate-700"><i class="fa-solid fa-shield-halved text-indigo-600 mr-1"></i>事件编辑权限</div><label class="flex items-center justify-between gap-3"><span><span class="block text-xs text-slate-700">仅创建者可编辑</span>${!hasCreator&&!isNew?'<span class="block text-[10px] text-slate-400 mt-0.5">旧事件没有创建者记录，无法启用此项</span>':''}</span><input id="eventCreatorOnlyEdit" type="checkbox" ${creatorChecked?'checked':''} ${canCreatorToggle&& (hasCreator||isNew||dev)?'':'disabled'} class="w-4 h-4 accent-indigo-600 disabled:opacity-40"></label>${dev?`<label class="flex items-center justify-between gap-3 pt-2 border-t border-slate-200"><span><span class="block text-xs font-semibold text-rose-700">开发者锁</span><span class="block text-[10px] text-slate-400 mt-0.5">开启后只有开发者模式可以编辑此事件</span></span><input id="eventDeveloperLocked" type="checkbox" ${devChecked?'checked':''} class="w-4 h-4 accent-rose-600"></label>`:''}</div>`;
+        };
+
         window.authenticateTimelineEditor = async function(password) {
             const result = await timelineApiPost('auth', { password }, { auth:false, timeoutMs:12000 });
             if (!result?.token) throw new Error('未收到编辑令牌');
@@ -3664,7 +3707,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
             // 先拿第一页，同时从响应中的 total 计算剩余页；每页 5 条并发读取，避免 59 个大事件串行请求过慢。
             const firstPage = await fetchWithRetry(
-                `/timeline?type=events&offset=0&limit=${TIMELINE_EVENT_PAGE_LIMIT}`,
+                `/timeline?type=events&offset=0&limit=${TIMELINE_EVENT_PAGE_LIMIT}&ownerToken=${encodeURIComponent(window.getEditorOwnerToken?.()||'')}`,
                 45000,
                 3
             );
@@ -3685,7 +3728,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     if (idx >= offsets.length) return;
                     const off = offsets[idx];
                     pageResults[idx] = await fetchWithRetry(
-                        `/timeline?type=events&offset=${encodeURIComponent(off)}&limit=${TIMELINE_EVENT_PAGE_LIMIT}`,
+                        `/timeline?type=events&offset=${encodeURIComponent(off)}&limit=${TIMELINE_EVENT_PAGE_LIMIT}&ownerToken=${encodeURIComponent(window.getEditorOwnerToken?.()||'')}`,
                         45000,
                         3
                     );
@@ -3960,7 +4003,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     err.cloudBytes = cloudBytes;
                     throw err;
                 }
-                const saveResult = await window.timelineApiWrite('upsertEvent', { event: cloudEvent, isNew:isNew===true });
+                const saveResult = await window.timelineApiWrite('upsertEvent', { event: cloudEvent, isNew:isNew===true, ownerToken:window.getEditorOwnerToken?.()||'' });
+                if(isNew) eventData.creatorOwned=true;
                 if(saveResult?.documentId){
                     eventData.__cloudDocId=String(saveResult.documentId);
                     const liveIndex=window.events.findIndex(e=>String(e?.id)===String(eventData.id));
@@ -3992,7 +4036,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if (!window.hasTimelineEditToken?.()) return false;
             try {
                 const documentId=String(deleteSnapshot?.__cloudDocId||'');
-                const result=await window.timelineApiWrite('deleteEvent', { eventId, ...(documentId?{documentId}:{}), ...(deleteSnapshot?{beforeEvent:deleteSnapshot}:{}) });
+                const result=await window.timelineApiWrite('deleteEvent', { eventId, ownerToken:window.getEditorOwnerToken?.()||'', ...(documentId?{documentId}:{}), ...(deleteSnapshot?{beforeEvent:deleteSnapshot}:{}) });
                 if(!(Number(result?.removed)>0)) throw new Error('event_delete_not_confirmed');
                 return true;
             } catch (e) {
@@ -4521,6 +4565,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             lockBtn.className = nextClass;
             lockBtn.title = nextTitle;
             lockBtn.disabled = nextDisabled;
+            window.updateManagementButtons?.();
         };
 
         if(!window._mobileBrowseForceBound){
@@ -10788,6 +10833,7 @@ viewer.style.visibility='';
                 return true;
             }catch(e){
                 if(e?.code==='edit_locked') window.showToast('有其他人正在编辑此事件，请稍候再试','error');
+                else if(e?.code==='event_edit_forbidden'||e?.code==='developer_locked') window.showToast(window.eventPermissionDeniedMessage?.(e.code)||'没有该事件的编辑权限','error');
                 else window.showToast('暂时无法确认事件编辑状态，请稍候再试','error');
                 return false;
             }
@@ -10933,6 +10979,7 @@ viewer.style.visibility='';
 
                         <div id="editPage1" class="space-y-3.5">
                             <div><label class="block text-xs font-bold text-slate-700 mb-1">事件名称 *</label><input type="text" id="editTitle" value="${event.title}" required placeholder="输入事件标题" oninput="updateEventTitleDuplicateHint(this,'editTitleDuplicateHint',window.editingEventId)" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"><p id="editTitleDuplicateHint" class="hidden mt-1 text-[11px] text-rose-600">该名称已存在</p></div>
+                            ${window.eventPermissionSettingsHtml?.(event,!isEdit)||''}
                             <div class="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
                                 <div class="flex items-center justify-between"><label class="block text-xs font-bold text-slate-700">时间与日期范围 *</label><label class="cursor-pointer text-xs text-indigo-600 flex items-center gap-1 font-medium select-none"><input type="checkbox" id="isRangeToggle" ${isRangeDate ? 'checked' : ''} onchange="toggleDateRangeMode(this)"><span>启用日期范围</span></label></div>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="singleDateContainer" style="display: ${isRangeDate ? 'none' : 'grid'};"><div><span class="block text-[10px] text-slate-500 mb-0.5">具体日期</span>${window.inlineDateFieldsHtml('editDate',startDateVal,'')}</div></div>
@@ -12983,6 +13030,7 @@ viewer.style.visibility='';
             }
 
             const existingEv = window.events.find(e => String(e.id) === String(id));
+            const preservedCreatorOwned = isEdit ? existingEv?.creatorOwned===true : true;
             const preservedStackOrder = (existingEv && Number.isFinite(Number(existingEv.stackOrder)))
                 ? Number(existingEv.stackOrder)
                 : undefined;
@@ -13016,6 +13064,9 @@ viewer.style.visibility='';
                 })),
                 links: [...window.editingLinks],
                 connections: [...window.editingConnections],
+                creatorOnlyEdit: !!document.getElementById('eventCreatorOnlyEdit')?.checked,
+                developerLocked: !!document.getElementById('eventDeveloperLocked')?.checked,
+                creatorOwned: preservedCreatorOwned,
                 _isEdit: isEdit
             };
             if (preservedStackOrder !== undefined) {
@@ -14371,6 +14422,7 @@ viewer.style.visibility='';
                 : '<p class="text-xs text-slate-400 italic">暂无可用 tag</p>';
             return `<div class="space-y-3.5">
                 <div><label class="block text-xs font-bold text-slate-700 mb-1">事件名称 *</label><input id="multiEventTitle" value="${window.multiEsc(ev.title||'')}" placeholder="输入事件标题" oninput="multiTimeGeneralDraft.title=this.value;updateEventTitleDuplicateHint(this,'multiTitleDuplicateHint',window.multiTimeEditingId)" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"><p id="multiTitleDuplicateHint" class="hidden mt-1 text-[11px] text-rose-600">该名称已存在</p></div>
+                ${window.eventPermissionSettingsHtml?.(window.multiTimePermissionDraft||{},!window.multiTimeIsEdit)||''}
                 <div><label class="block text-xs font-bold text-slate-700 mb-1">节点类型</label><select id="multiEventType" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"><option value="minor" ${ev.type==='minor'?'selected':''}>普通事件</option><option value="major" ${ev.type==='major'?'selected':''}>重大里程碑</option></select></div>
                 <div><label class="block text-xs font-bold text-slate-700 mb-1">选择 tag (多选)</label><div class="flex flex-wrap gap-1.5 p-2 border border-slate-200 rounded-lg bg-slate-50 max-h-28 overflow-y-auto">${tagHtml}</div></div>
                 <div class="space-y-2 bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
@@ -14472,7 +14524,7 @@ viewer.style.visibility='';
                 </div>            </div>`;
         };
 
-        window.multiPersistCurrentPage=function(){const title=document.getElementById('multiEventTitle');if(title)window.multiTimeGeneralDraft.title=title.value;const type=document.getElementById('multiEventType');if(type)window.multiTimeGeneralDraft.type=type.value;const tags=document.querySelectorAll('.multi-tag');if(tags.length)window.multiTimeGeneralDraft.tags=Array.from(tags).filter(x=>x.checked).map(x=>x.value);if(window.multiTimePage>0&&window.multiTimeDraft?.[window.multiTimePage-1]){const ed=document.getElementById('editDescription');if(ed){window.richSyncDecorationGeometry?.();window.multiTimeDraft[window.multiTimePage-1].description=(window.normalizeDescriptionDefaultFontSize?.(ed.innerHTML)||ed.innerHTML).trim().replace(/^<br>+|<br>+$/g,'').trim();}}};
+        window.multiPersistCurrentPage=function(){const title=document.getElementById('multiEventTitle');if(title)window.multiTimeGeneralDraft.title=title.value;const creatorOnly=document.getElementById('eventCreatorOnlyEdit');if(creatorOnly)window.multiTimePermissionDraft.creatorOnlyEdit=creatorOnly.checked;const devLock=document.getElementById('eventDeveloperLocked');if(devLock)window.multiTimePermissionDraft.developerLocked=devLock.checked;const type=document.getElementById('multiEventType');if(type)window.multiTimeGeneralDraft.type=type.value;const tags=document.querySelectorAll('.multi-tag');if(tags.length)window.multiTimeGeneralDraft.tags=Array.from(tags).filter(x=>x.checked).map(x=>x.value);if(window.multiTimePage>0&&window.multiTimeDraft?.[window.multiTimePage-1]){const ed=document.getElementById('editDescription');if(ed){window.richSyncDecorationGeometry?.();window.multiTimeDraft[window.multiTimePage-1].description=(window.normalizeDescriptionDefaultFontSize?.(ed.innerHTML)||ed.innerHTML).trim().replace(/^<br>+|<br>+$/g,'').trim();}}};
         window.multiRenderPageTabs=function(){
             const host=document.getElementById('multiPageTabs');if(!host)return;
             const total=window.multiTimeDraft.length+1;
@@ -14523,7 +14575,7 @@ viewer.style.visibility='';
             const ev=old||{id:Date.now(),title:'',type:'minor',tags:[],timeMode:'multi',timeSegments:[window.multiNewSegment()],deepDescriptionEnabled:false};
             window.multiTimeEditingId=ev.id;window.multiTimeIsEdit=isEdit;window.multiTimeDeepEnabledDraft=ev.deepDescriptionEnabled===true;
             window.multiTimeDraft=window.multiNormalizeDraft(JSON.parse(JSON.stringify((ev.timeSegments&&ev.timeSegments.length)?ev.timeSegments:[window.multiNewSegment()])));
-            window.multiTimeGeneralDraft={title:ev.title||'',type:ev.type||'minor',tags:Array.isArray(ev.tags)?ev.tags.slice():[]};
+            window.multiTimeGeneralDraft={title:ev.title||'',type:ev.type||'minor',tags:Array.isArray(ev.tags)?ev.tags.slice():[]};window.multiTimePermissionDraft={creatorOwned:ev.creatorOwned===true,creatorOnlyEdit:ev.creatorOnlyEdit===true,developerLocked:ev.developerLocked===true};
             window.multiTimeConnections=isEdit?window.getEditingConnectionsForEvent(ev.id):[];window.multiTimePage=0;
             window.richResetOpacitySelection?.();window.richSelectionRange=null;window.richOpacitySpan=null;
             const singleEdit=document.getElementById('editModal');if(singleEdit){singleEdit.classList.add('hidden');singleEdit.innerHTML='';}
@@ -14548,7 +14600,7 @@ viewer.style.visibility='';
             window.multiTimeDeepEnabledDraft=!!enabled;
             window.multiRenderCurrentPage?.();
         };
-        window.saveMultiTimeEvent=function(){window.multiPersistCurrentPage();const title=String(window.multiTimeGeneralDraft?.title||'').trim();if(window.eventTitleExists(title,window.multiTimeEditingId)){window.multiTimePage=0;window.multiRenderCurrentPage();window.updateEventTitleDuplicateHint(document.getElementById('multiEventTitle'),'multiTitleDuplicateHint',window.multiTimeEditingId);window.showToast('该名称已存在','error');return;}if(!title){window.showToast('请填写事件名称','error');window.multiTimePage=0;window.multiRenderCurrentPage();return;}const segs=window.multiNormalizeDraft(JSON.parse(JSON.stringify(window.multiTimeDraft||[])));for(let si=0;si<segs.length;si++){const seg=segs[si];const inputId=`multiDateInput_${si}`;if(document.getElementById(inputId)&&!window.validateInlineDateTarget(inputId)){window.showToast('请为每个时间填写有效日期','error');return;}const d=window.normalizePartialDate(String(seg.date||''));if(!d){window.showToast('请为每个时间填写有效日期','error');return;}seg.date=d;seg.subtitle=String(seg.subtitle||'').trim();seg.description=String(seg.description||'');}segs.sort((a,b)=>String(a.date).localeCompare(String(b.date)));const date=window.getMultiEventDisplayDate(segs);const existing=window.findEventById(window.multiTimeEditingId);window.pendingSaveData={id:window.multiTimeEditingId,title,date,type:window.multiTimeGeneralDraft.type||'minor',tags:window.multiTimeGeneralDraft.tags||[],timeMode:'multi',timeSegments:segs,deepDescriptionEnabled:!!window.multiTimeDeepEnabledDraft,images:[],videos:[],links:[],description:'',connections:window.multiTimeConnections||[],_isEdit:!!window.multiTimeIsEdit};if(existing&&Number.isFinite(Number(existing.stackOrder)))window.pendingSaveData.stackOrder=existing.stackOrder;document.getElementById('confirmSaveModal')?.classList.remove('hidden');};
+        window.saveMultiTimeEvent=function(){window.multiPersistCurrentPage();const title=String(window.multiTimeGeneralDraft?.title||'').trim();if(window.eventTitleExists(title,window.multiTimeEditingId)){window.multiTimePage=0;window.multiRenderCurrentPage();window.updateEventTitleDuplicateHint(document.getElementById('multiEventTitle'),'multiTitleDuplicateHint',window.multiTimeEditingId);window.showToast('该名称已存在','error');return;}if(!title){window.showToast('请填写事件名称','error');window.multiTimePage=0;window.multiRenderCurrentPage();return;}const segs=window.multiNormalizeDraft(JSON.parse(JSON.stringify(window.multiTimeDraft||[])));for(let si=0;si<segs.length;si++){const seg=segs[si];const inputId=`multiDateInput_${si}`;if(document.getElementById(inputId)&&!window.validateInlineDateTarget(inputId)){window.showToast('请为每个时间填写有效日期','error');return;}const d=window.normalizePartialDate(String(seg.date||''));if(!d){window.showToast('请为每个时间填写有效日期','error');return;}seg.date=d;seg.subtitle=String(seg.subtitle||'').trim();seg.description=String(seg.description||'');}segs.sort((a,b)=>String(a.date).localeCompare(String(b.date)));const date=window.getMultiEventDisplayDate(segs);const existing=window.findEventById(window.multiTimeEditingId);window.pendingSaveData={id:window.multiTimeEditingId,title,date,type:window.multiTimeGeneralDraft.type||'minor',tags:window.multiTimeGeneralDraft.tags||[],timeMode:'multi',timeSegments:segs,deepDescriptionEnabled:!!window.multiTimeDeepEnabledDraft,images:[],videos:[],links:[],description:'',connections:window.multiTimeConnections||[],creatorOnlyEdit:!!window.multiTimePermissionDraft?.creatorOnlyEdit,developerLocked:!!window.multiTimePermissionDraft?.developerLocked,creatorOwned:window.multiTimeIsEdit?window.multiTimePermissionDraft?.creatorOwned===true:true,_isEdit:!!window.multiTimeIsEdit};if(existing&&Number.isFinite(Number(existing.stackOrder)))window.pendingSaveData.stackOrder=existing.stackOrder;document.getElementById('confirmSaveModal')?.classList.remove('hidden');};
 
         window.multiRenderSegments=function(){ window.multiRenderCurrentPage?.(); };
 
