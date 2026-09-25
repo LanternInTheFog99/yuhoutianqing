@@ -2587,8 +2587,11 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     // opacity 由浏览器逐帧连续插值；到达最暗点后同一任务立即交接媒体并开始回亮，
                     // 不在峰值插入加载等待、定时停顿或额外黑屏阶段。
                     if (typeof switchAtBlack === 'function') {
-                        switchAtBlack();
+                        const handoff = switchAtBlack();
                         switchAtBlack = null;
+                        // 等下一媒体真正提交到舞台后再退遮罩，避免退黑结束的单帧仍显示上一媒体。
+                        if (handoff && typeof handoff.then === 'function') await handoff;
+                        if (!isStillRunning() || gen !== generation) { dim.remove(); return false; }
                     }
 
                     if (mediaReady) {
@@ -2918,7 +2921,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         return;
                     }
                     idx = (idx + 1) % media.length;
-                    presentItem(media[idx], next, false);
+                    return presentItem(media[idx], next, false);
                 };
 
                 if (media.length > 1) {
@@ -5999,7 +6002,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const inactiveScale = 0.85;
             // 只展示当前卡片及其后/前最多三层：第二张明显多露、第三张次之、第四张只露窄边。
             // 第五张起与第四张完全叠放且隐藏，不再占用视觉空间。
-            const reveals = [62, 34, 14];
+            const reveals = [46, 29, 17, 9];
             const offsetFor = distance => {
                 let x=0;
                 for(let i=0;i<Math.min(distance,reveals.length);i++) x+=reveals[i];
@@ -6011,10 +6014,11 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 const dir = offset >= 0 ? 1 : -1;
                 const translateX = dir * offsetFor(distance);
                 card.style.zIndex = idx === activeIndex ? 30 : Math.max(1, 25 - distance);
+                card.style.transformOrigin = idx === activeIndex ? 'center center' : (dir > 0 ? 'left center' : 'right center');
                 card.style.transform = `translateX(${translateX}px) scale(${idx===activeIndex?1:inactiveScale})`;
-                card.style.opacity = distance <= 3 ? '1' : '0';
-                card.style.visibility = distance <= 3 ? 'visible' : 'hidden';
-                card.style.pointerEvents = distance <= 3 ? 'auto' : 'none';
+                card.style.opacity = distance <= 4 ? '1' : '0';
+                card.style.visibility = distance <= 4 ? 'visible' : 'hidden';
+                card.style.pointerEvents = distance <= 4 ? 'auto' : 'none';
             });
             cards.forEach((card, idx) => {
                 if (typeof window.startPreviewSlideshow !== 'function') return;
@@ -7062,7 +7066,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const btn=document.getElementById('deepEnableToggleBtn');
             if(status){
                 status.textContent=enabled?'已启用':'未启用';
-                status.className='whitespace-nowrap rounded-full border px-1.5 py-px text-[8px] leading-[11px] font-semibold bg-white shadow-sm '+(enabled?'text-emerald-600 border-emerald-200':'text-slate-400 border-slate-200');
+                status.className='whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] leading-4 font-semibold bg-white shadow-sm '+(enabled?'text-emerald-600 border-emerald-200':'text-slate-400 border-slate-200');
             }
             if(btn){
                 const label=btn.querySelector('[data-deep-enable-toggle-label]');
