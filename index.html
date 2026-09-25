@@ -360,7 +360,7 @@
         }
         .preview-slide-img.preview-soft-fade,
         .preview-inline-video.preview-soft-fade {
-            transition: opacity 0.28s cubic-bezier(.22,.61,.36,1);
+            transition: opacity 0.58s cubic-bezier(.16,1,.3,1);
         }
         .preview-stage-black {
             background-color: #000 !important;
@@ -2353,7 +2353,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const defaultVideoHold = calm ? 5000 : 4000;
             const ANIMATED_FALLBACK_SEC = 3;
             const PRELOAD_WAIT_MS = 60;
-            const BLACK_FADE_MS = 150;
+            const BLACK_FADE_MS = 260;
             const BLACK_HOLD_MS = 80;
             const MEDIA_COVER_MIN_HOLD_MS = calm ? 600 : 500;
             const MEDIA_COVER_MAX_HOLD_MS = calm ? 3200 : 2600;
@@ -2537,7 +2537,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     const isPlainImageToPlainImage =
                         isPlainPreviewImageItem(currentItem) && isPlainPreviewImageItem(nextItem);
                     const fadeInMs = isPlainImageToPlainImage ? 300 : 440;
-                    const fadeOutMs = isPlainImageToPlainImage ? 360 : 500;
+                    const fadeOutMs = isPlainImageToPlainImage ? 620 : 760;
                     const readyGraceMs = isPlainImageToPlainImage ? 0 : 140;
                     pendingBlackHandoff = null;
 
@@ -3435,7 +3435,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if(allowed) allowed.delete('music');
             let current=(folder==='music'?'all':folder),items=[];
             if(allowed && current!=='all' && !allowed.has(current)) current=[...allowed][0]||'all';
-            const render=()=>{const q=String(modal.querySelector('[data-media-search]')?.value||'').trim().toLowerCase();const status=String(modal._mediaStatus||'all');const list=modal.querySelector('[data-media-list]');const shown=items.filter(a=>(!allowed||allowed.has(String(a.folder||'')))&&(current==='all'||a.folder===current)&&(status==='all'||(status==='inuse'?a.unreferencedSince==null:a.unreferencedSince!=null))&&(!q||String(a.originalName||a.cloudPath).toLowerCase().includes(q)));modal.querySelectorAll('.media-folder-btn').forEach(b=>{const permitted=!allowed||b.dataset.folder==='all'||allowed.has(b.dataset.folder);const on=b.dataset.folder===current;b.className='media-folder-btn px-3 py-1.5 rounded-lg text-xs border '+(!permitted?'hidden ':(on?'bg-indigo-600 border-indigo-600 text-white':'bg-white text-slate-600 hover:bg-slate-50'));});if(!shown.length){list.innerHTML='<div class="text-sm text-slate-400 text-center py-12">这里还没有可用媒体</div>';return;}list.innerHTML='<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">'+shown.map((a,i)=>{const url=window.cloudMediaPublicUrl(a.cloudPath),icon=a.folder==='video'?'fa-video':a.folder==='music'?'fa-music':a.folder==='gif'?'fa-photo-film':'fa-image';const pending=a.unreferencedSince!=null?'<span class="text-amber-600">当前未被事件引用</span>':'<span class="text-emerald-600">使用中</span>';return `<div data-media-index="${items.indexOf(a)}" class="relative text-left border rounded-xl p-3 hover:border-indigo-300 hover:bg-indigo-50/40 flex gap-3 items-center cursor-pointer group"><button type="button" data-media-preview="${items.indexOf(a)}" class="w-11 h-11 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 text-indigo-500 overflow-hidden" title="预览">${a.folder==='picture'||a.folder==='gif'?`<img src="${window.escapeHtml(url)}" class="w-full h-full object-cover" loading="lazy">`:`<i class="fa-solid ${icon}"></i>`}</button><div class="min-w-0 flex-1 pr-1"><div class="text-xs font-semibold text-slate-700 truncate">${window.escapeHtml?window.escapeHtml(window.cloudMediaDisplayName(a)):window.cloudMediaDisplayName(a)}</div><div class="text-[10px] text-slate-400 truncate mt-0.5" title="${window.escapeHtml(String(a.cloudPath||''))}"><i class="fa-solid fa-location-dot mr-1 text-slate-300"></i>悬停查看文件位置</div><div class="text-[10px] mt-1 flex gap-2"><span class="text-slate-400">${window.cloudMediaFormatSize(a.size)}</span>${pending}</div></div><div class="absolute right-2 top-2 flex items-center gap-1 opacity-75 group-hover:opacity-100 transition-opacity"><button type="button" data-media-copy="${items.indexOf(a)}" class="w-7 h-7 rounded-lg border border-slate-200 bg-white/95 shadow-sm hover:bg-indigo-50 text-indigo-500 flex items-center justify-center" title="复制云端媒体"><i class="fa-solid fa-copy text-[11px]"></i></button><button type="button" data-media-use="${items.indexOf(a)}" class="w-7 h-7 rounded-lg border border-slate-200 bg-white/95 shadow-sm hover:bg-indigo-50 text-indigo-500 flex items-center justify-center" title="使用这个媒体"><i class="fa-solid fa-plus text-[11px]"></i></button>${window._sessionCloudCopies?.has(String(a.cloudPath||''))?`<button type="button" data-media-delete-copy="${items.indexOf(a)}" class="w-7 h-7 rounded-lg border border-rose-200 bg-white/95 shadow-sm hover:bg-rose-50 text-rose-500 flex items-center justify-center" title="删除本页创建的复制媒体"><i class="fa-solid fa-trash text-[11px]"></i></button>`:''}</div></div>`;}).join('')+'</div>';const useAsset=(idx)=>{const a=items[Number(idx)];if(!a)return;const picked={...a,url:window.cloudMediaPublicUrl(a.cloudPath),isCloud:true};close();if(typeof onSelect==='function')onSelect(picked);};list.querySelectorAll('[data-media-index]').forEach(card=>card.onclick=null);list.querySelectorAll('[data-media-preview]').forEach(btn=>btn.onclick=(ev)=>{ev.preventDefault();ev.stopPropagation();const a=items[Number(btn.dataset.mediaPreview)];if(!a)return;let pv=document.getElementById('cloudMediaPreviewModal');if(!pv){pv=document.createElement('div');pv.id='cloudMediaPreviewModal';pv.className='fixed inset-0 z-[495] hidden bg-slate-950/85 flex items-center justify-center p-4';document.body.appendChild(pv);}const u=window.cloudMediaPublicUrl(a.cloudPath);pv.innerHTML=`<div class="relative max-w-[92vw] max-h-[88vh]"><button type="button" data-pv-close class="absolute -top-10 right-0 text-white w-8 h-8">×</button>${a.folder==='video'?`<video src="${window.escapeHtml(u)}" controls autoplay class="max-w-[92vw] max-h-[82vh] rounded-xl bg-black"></video>`:`<img src="${window.escapeHtml(u)}" class="max-w-[92vw] max-h-[82vh] object-contain rounded-xl bg-black">`}</div>`;pv.classList.remove('hidden');const closePv=()=>{pv.querySelector('video')?.pause?.();pv.classList.add('hidden');};pv.onclick=e=>{if(e.target===pv)closePv();};pv.querySelector('[data-pv-close]').onclick=closePv;});list.querySelectorAll('[data-media-use]').forEach(btn=>btn.onclick=(ev)=>{ev.preventDefault();ev.stopPropagation();useAsset(btn.dataset.mediaUse);});list.querySelectorAll('[data-media-copy]').forEach(btn=>btn.onclick=async(ev)=>{
+            const render=()=>{const q=String(modal.querySelector('[data-media-search]')?.value||'').trim().toLowerCase();const status=String(modal._mediaStatus||'all');const list=modal.querySelector('[data-media-list]');const shown=items.filter(a=>(!allowed||allowed.has(String(a.folder||'')))&&(current==='all'||a.folder===current)&&(status==='all'||(status==='inuse'?a.unreferencedSince==null:a.unreferencedSince!=null))&&(!q||String(a.originalName||a.cloudPath).toLowerCase().includes(q)));modal.querySelectorAll('.media-folder-btn').forEach(b=>{const permitted=!allowed||b.dataset.folder==='all'||allowed.has(b.dataset.folder);const on=b.dataset.folder===current;b.className='media-folder-btn px-3 py-1.5 rounded-lg text-xs border '+(!permitted?'hidden ':(on?'bg-indigo-600 border-indigo-600 text-white':'bg-white text-slate-600 hover:bg-slate-50'));});if(!shown.length){list.innerHTML='<div class="text-sm text-slate-400 text-center py-12">这里还没有可用媒体</div>';return;}list.innerHTML='<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">'+shown.map((a,i)=>{const url=window.cloudMediaPublicUrl(a.cloudPath),icon=a.folder==='video'?'fa-video':a.folder==='music'?'fa-music':a.folder==='gif'?'fa-photo-film':'fa-image';const pending=a.unreferencedSince!=null?'<span class="text-amber-600">当前未被事件引用</span>':'<span class="text-emerald-600">使用中</span>';return `<div data-media-index="${items.indexOf(a)}" class="relative text-left border rounded-xl p-3 hover:border-indigo-300 hover:bg-indigo-50/40 flex gap-3 items-center cursor-pointer group" title="${window.escapeHtml(String(a.cloudPath||''))}"><button type="button" data-media-preview="${items.indexOf(a)}" class="w-11 h-11 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 text-indigo-500 overflow-hidden" title="预览">${a.folder==='picture'||a.folder==='gif'?`<img src="${window.escapeHtml(url)}" class="w-full h-full object-cover" loading="lazy">`:`<i class="fa-solid ${icon}"></i>`}</button><div class="min-w-0 flex-1 pr-1"><div class="text-xs font-semibold text-slate-700 truncate">${window.escapeHtml?window.escapeHtml(window.cloudMediaDisplayName(a)):window.cloudMediaDisplayName(a)}</div><div class="text-[10px] mt-1 flex gap-2"><span class="text-slate-400">${window.cloudMediaFormatSize(a.size)}</span>${pending}</div></div><div class="absolute right-2 top-2 flex items-center gap-1 opacity-75 group-hover:opacity-100 transition-opacity"><button type="button" data-media-copy="${items.indexOf(a)}" class="w-7 h-7 rounded-lg border border-slate-200 bg-white/95 shadow-sm hover:bg-indigo-50 text-indigo-500 flex items-center justify-center" title="复制云端媒体"><i class="fa-solid fa-copy text-[11px]"></i></button><button type="button" data-media-use="${items.indexOf(a)}" class="w-7 h-7 rounded-lg border border-slate-200 bg-white/95 shadow-sm hover:bg-indigo-50 text-indigo-500 flex items-center justify-center" title="使用这个媒体"><i class="fa-solid fa-plus text-[11px]"></i></button>${window._sessionCloudCopies?.has(String(a.cloudPath||''))?`<button type="button" data-media-delete-copy="${items.indexOf(a)}" class="w-7 h-7 rounded-lg border border-rose-200 bg-white/95 shadow-sm hover:bg-rose-50 text-rose-500 flex items-center justify-center" title="删除本页创建的复制媒体"><i class="fa-solid fa-trash text-[11px]"></i></button>`:''}</div></div>`;}).join('')+'</div>';const useAsset=(idx)=>{const a=items[Number(idx)];if(!a)return;const picked={...a,url:window.cloudMediaPublicUrl(a.cloudPath),isCloud:true};close();if(typeof onSelect==='function')onSelect(picked);};list.querySelectorAll('[data-media-index]').forEach(card=>card.onclick=null);list.querySelectorAll('[data-media-preview]').forEach(btn=>btn.onclick=(ev)=>{ev.preventDefault();ev.stopPropagation();const a=items[Number(btn.dataset.mediaPreview)];if(!a)return;let pv=document.getElementById('cloudMediaPreviewModal');if(!pv){pv=document.createElement('div');pv.id='cloudMediaPreviewModal';pv.className='fixed inset-0 z-[495] hidden bg-slate-950/85 flex items-center justify-center p-4';document.body.appendChild(pv);}const u=window.cloudMediaPublicUrl(a.cloudPath);pv.innerHTML=`<div class="relative max-w-[92vw] max-h-[88vh]"><button type="button" data-pv-close class="absolute -top-10 right-0 text-white w-8 h-8">×</button>${a.folder==='video'?`<video src="${window.escapeHtml(u)}" controls autoplay class="max-w-[92vw] max-h-[82vh] rounded-xl bg-black"></video>`:`<img src="${window.escapeHtml(u)}" class="max-w-[92vw] max-h-[82vh] object-contain rounded-xl bg-black">`}</div>`;pv.classList.remove('hidden');const closePv=()=>{pv.querySelector('video')?.pause?.();pv.classList.add('hidden');};pv.onclick=e=>{if(e.target===pv)closePv();};pv.querySelector('[data-pv-close]').onclick=closePv;});list.querySelectorAll('[data-media-use]').forEach(btn=>btn.onclick=(ev)=>{ev.preventDefault();ev.stopPropagation();useAsset(btn.dataset.mediaUse);});list.querySelectorAll('[data-media-copy]').forEach(btn=>btn.onclick=async(ev)=>{
                 ev.preventDefault();ev.stopPropagation();
                 const a=items[Number(btn.dataset.mediaCopy)];if(!a)return;
                 try{
@@ -6001,9 +6001,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const cards = Array.from(wrapper.querySelectorAll('.stack-card'));
             if (!cards.length) return;
             const inactiveScale = 0.85;
-            // 只展示当前卡片及其后/前最多三层：第二张露 36px、第三张再露 20px、第四张再露 10px。
+            // 只展示当前卡片及其后/前最多三层：第二张明显多露、第三张次之、第四张只露窄边。
             // 第五张起与第四张完全叠放且隐藏，不再占用视觉空间。
-            const reveals = [36, 20, 10];
+            const reveals = [52, 30, 14];
             const offsetFor = distance => {
                 let x=0;
                 for(let i=0;i<Math.min(distance,reveals.length);i++) x+=reveals[i];
@@ -6958,7 +6958,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     <div class="font-bold text-sm sm:text-base flex items-center gap-2 mr-auto"><i class="fa-solid fa-feather-pointed text-violet-600"></i><span id="deepEditorTitle">深入描述</span></div>
                     <button type="button" onclick="deepOpenHelp()" class="px-2.5 py-1.5 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-semibold" title="深入描述使用说明"><i class="fa-solid fa-circle-question mr-1"></i>使用说明</button>
                     <span class="w-1.5 sm:w-3"></span>
-                    <div class="relative flex flex-col items-center"><button type="button" id="deepEnableToggleBtn" onclick="deepToggleDescriptionEnabled()" class="px-3 py-1.5 border rounded-lg text-xs"><i data-deep-enable-toggle-icon class="fa-solid fa-eye-slash mr-1"></i><span data-deep-enable-toggle-label>停用</span></button><span id="deepEnabledStatus" class="absolute top-full mt-0.5 whitespace-nowrap text-[9px] font-semibold text-slate-500"></span></div>
+                    <div class="relative flex flex-col items-center"><button type="button" id="deepEnableToggleBtn" onclick="deepToggleDescriptionEnabled()" class="px-3 py-1.5 border rounded-lg text-xs"><i data-deep-enable-toggle-icon class="fa-solid fa-eye-slash mr-1"></i><span data-deep-enable-toggle-label>停用</span></button><span id="deepEnabledStatus" class="absolute top-full mt-[1px] whitespace-nowrap rounded-full border px-1.5 py-px text-[8px] leading-[12px] font-semibold bg-white shadow-sm"></span></div>
                     <span class="w-1.5 sm:w-3"></span>
                     <button type="button" onclick="deepUndo()" class="px-2.5 py-1.5 border rounded-lg text-xs" title="撤回"><i class="fa-solid fa-rotate-left"></i></button>
                     <button type="button" onclick="deepRedo()" class="px-2.5 py-1.5 border rounded-lg text-xs" title="重做"><i class="fa-solid fa-rotate-right"></i></button>
@@ -7067,7 +7067,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const btn=document.getElementById('deepEnableToggleBtn');
             if(status){
                 status.textContent=enabled?'已启用':'未启用';
-                status.className='absolute top-full mt-0.5 whitespace-nowrap text-[9px] font-semibold '+(enabled?'text-emerald-600':'text-slate-400');
+                status.className='absolute top-full mt-[1px] whitespace-nowrap rounded-full border px-1.5 py-px text-[8px] leading-[12px] font-semibold bg-white shadow-sm '+(enabled?'text-emerald-600 border-emerald-200':'text-slate-400 border-slate-200');
             }
             if(btn){
                 const label=btn.querySelector('[data-deep-enable-toggle-label]');
@@ -12798,8 +12798,9 @@ viewer.style.visibility='';
                 const hasCanvas=[...(window.editingImageFiles||[]),...(window.editingVideos||[])].some(x=>window.deepCanvasHasContent?.(x?.deepDescription));
                 if(hasCanvas){
                     const cb=document.getElementById('deepDescriptionToggle'); if(cb)cb.checked=true;
-                    const ok=await window.deepAppConfirm({title:'确认关闭深入描述？',desc:'当前事件已有深入描述画布。关闭后画布数据仍会保留，只会隐藏深入描述入口。',confirmText:'确认关闭',danger:true});
+                    const ok=await window.deepAppConfirm({title:'确认关闭深入描述？',desc:'当前事件已有深入描述画布。关闭后画布数据将被删除，画布引用的云端媒体会在事件保存后解除引用并进入未引用状态。',confirmText:'确认关闭并删除画布',danger:true});
                     if(!ok)return; if(cb)cb.checked=false;
+                    [...(window.editingImageFiles||[]),...(window.editingVideos||[])].forEach(x=>{if(x&&typeof x==='object')x.deepDescription=null;});
                 }
             }
             window.deepDescriptionEnabledDraft = !!enabled;
@@ -14256,7 +14257,7 @@ viewer.style.visibility='';
                 <div class="space-y-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
                     <div class="flex items-center justify-between gap-3 bg-indigo-50/70 border border-indigo-100 rounded-xl px-3 py-2.5">
                         <div><div class="text-xs font-bold text-slate-700"><i class="fa-solid fa-expand text-indigo-600 mr-1"></i>深入描述</div><p class="text-[10px] text-slate-500 mt-0.5">开启后，每个图片、动图、视频都可以进入独立的全屏画布进行图文解析。</p></div>
-                        <label class="relative inline-flex items-center cursor-pointer shrink-0"><input id="multiDeepToggle" type="checkbox" ${window.multiTimeDeepEnabledDraft?'checked':''} onchange="multiTimeDeepEnabledDraft=this.checked;multiRenderCurrentPage()" class="sr-only peer"><span class="w-10 h-5 bg-slate-300 peer-checked:bg-indigo-600 rounded-full transition-colors"></span><span class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5"></span></label>
+                        <label class="relative inline-flex items-center cursor-pointer shrink-0"><input id="multiDeepToggle" type="checkbox" ${window.multiTimeDeepEnabledDraft?'checked':''} onchange="multiToggleDeepDescriptionFeature(this.checked)" class="sr-only peer"><span class="w-10 h-5 bg-slate-300 peer-checked:bg-indigo-600 rounded-full transition-colors"></span><span class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5"></span></label>
                     </div>
                 </div>
                 <button type="button" onclick="multiAddSegment()" class="w-full border-2 border-dashed border-slate-300 rounded-xl p-3 text-center hover:bg-slate-50 transition-colors text-xs text-slate-600 font-medium"><i class="fa-solid fa-plus text-indigo-500 mr-1.5"></i>新建时间</button>
@@ -14392,6 +14393,23 @@ viewer.style.visibility='';
             let modal=document.getElementById('multiTimeEventModal');
             if(!modal){modal=document.createElement('div');modal.id='multiTimeEventModal';modal.className='fixed inset-0 z-[105] bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-2 sm:p-4 overflow-y-auto';document.body.appendChild(modal);}
             modal.classList.remove('hidden');modal.classList.add('flex');window.multiRenderEditorShell();
+        };
+
+        window.multiToggleDeepDescriptionFeature=async function(enabled){
+            const cb=document.getElementById('multiDeepToggle');
+            if(!enabled){
+                const all=(window.multiTimeDraft||[]).flatMap(seg=>[...(seg?.images||[]),...(seg?.videos||[])]);
+                const hasCanvas=all.some(x=>window.deepCanvasHasContent?.(x?.deepDescription));
+                if(hasCanvas){
+                    if(cb)cb.checked=true;
+                    const ok=await window.deepAppConfirm({title:'确认关闭深入描述？',desc:'当前事件已有深入描述画布。关闭后画布数据将被删除，画布引用的云端媒体会在事件保存后解除引用并进入未引用状态。',confirmText:'确认关闭并删除画布',danger:true});
+                    if(!ok)return;
+                    all.forEach(x=>{if(x&&typeof x==='object')x.deepDescription=null;});
+                    if(cb)cb.checked=false;
+                }
+            }
+            window.multiTimeDeepEnabledDraft=!!enabled;
+            window.multiRenderCurrentPage?.();
         };
         window.saveMultiTimeEvent=function(){window.multiPersistCurrentPage();const title=String(window.multiTimeGeneralDraft?.title||'').trim();if(!title){window.showToast('请填写事件名称','error');window.multiTimePage=0;window.multiRenderCurrentPage();return;}const segs=window.multiNormalizeDraft(JSON.parse(JSON.stringify(window.multiTimeDraft||[])));for(const seg of segs){const d=window.normalizePartialDate(String(seg.date||''));if(!d){window.showToast('请为每个时间填写有效日期','error');return;}seg.date=d;seg.subtitle=String(seg.subtitle||'').trim();seg.description=String(seg.description||'');}segs.sort((a,b)=>String(a.date).localeCompare(String(b.date)));const date=window.getMultiEventDisplayDate(segs);const existing=window.findEventById(window.multiTimeEditingId);window.pendingSaveData={id:window.multiTimeEditingId,title,date,type:window.multiTimeGeneralDraft.type||'minor',tags:window.multiTimeGeneralDraft.tags||[],timeMode:'multi',timeSegments:segs,deepDescriptionEnabled:!!window.multiTimeDeepEnabledDraft,images:[],videos:[],links:[],description:'',connections:window.multiTimeConnections||[],_isEdit:!!window.multiTimeIsEdit};if(existing&&Number.isFinite(Number(existing.stackOrder)))window.pendingSaveData.stackOrder=existing.stackOrder;document.getElementById('confirmSaveModal')?.classList.remove('hidden');};
 
