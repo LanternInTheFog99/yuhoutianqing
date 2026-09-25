@@ -12930,7 +12930,15 @@ viewer.style.visibility='';
             let val='';
             if(!msg && yy){ let raw=yy; if(mm)raw+='-'+mm; if(dd)raw+='-'+dd; val=window.normalizePartialDate(raw); if(!val){msg='日期无效';badPart=dd?'day':(mm?'month':'year');} }
             const bad=!!msg;
-            [[y,'year'],[m,'month'],[d,'day']].forEach(([el,part])=>{if(!el)return;const fieldBad=bad&&badPart===part;el.classList.toggle('border-rose-500',fieldBad);el.classList.toggle('ring-2',fieldBad);el.classList.toggle('ring-rose-500',fieldBad);el.classList.toggle('focus:ring-rose-500',fieldBad);el.classList.toggle('focus:border-rose-500',fieldBad);el.classList.toggle('focus:ring-2',true);el.classList.toggle('focus:ring-indigo-500',!fieldBad);});
+            [[y,'year'],[m,'month'],[d,'day']].forEach(([el,part])=>{if(!el)return;const fieldBad=bad&&badPart===part;
+                // 错误态与正常 focus 使用完全相同的 ring-2 几何尺寸，只替换颜色；不再额外改 border，避免红框视觉上比蓝框更粗。
+                el.classList.remove('border-rose-500','focus:border-rose-500');
+                el.classList.toggle('ring-2',fieldBad);
+                el.classList.toggle('ring-rose-500',fieldBad);
+                el.classList.toggle('focus:ring-2',true);
+                el.classList.toggle('focus:ring-rose-500',fieldBad);
+                el.classList.toggle('focus:ring-indigo-500',!fieldBad);
+            });
             if(hint){hint.textContent=msg;hint.classList.toggle('hidden',!bad);}
             target.value=bad?'':val;
             target.dataset.dateInvalid=bad?'1':'0';
@@ -12942,6 +12950,20 @@ viewer.style.visibility='';
             const wrap=target.closest?.('[data-inline-date]')||document.querySelector(`[data-inline-date="${CSS.escape(targetId)}"]`);
             return wrap?window.syncInlineDateFields(targetId,wrap,''):!!window.normalizePartialDate(target.value);
         };
+
+        // 日期实时校验兜底：不依赖模板里的 inline oninput。输入任意年/月/日字段时立即刷新错误状态。
+        if(!window._inlineDateRealtimeValidationBound){
+            window._inlineDateRealtimeValidationBound=true;
+            document.addEventListener('input',function(e){
+                const part=e.target?.closest?.('[data-date-part]');
+                if(!part)return;
+                const wrap=part.closest('[data-inline-date]');
+                if(!wrap)return;
+                const targetId=String(wrap.dataset.inlineDate||'');
+                if(!targetId)return;
+                window.syncInlineDateFields(targetId,wrap,'');
+            },true);
+        }
 
         window.openFlexibleDatePicker = function(targetId) {
             const target=document.getElementById(targetId); if(!target)return;
