@@ -11006,8 +11006,8 @@ viewer.style.visibility='';
                             <div><label class="block text-xs font-bold text-slate-700 mb-1">事件名称 *</label><input type="text" id="editTitle" value="${event.title}" required placeholder="输入事件标题" oninput="updateEventTitleDuplicateHint(this,'editTitleDuplicateHint',window.editingEventId)" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"><p id="editTitleDuplicateHint" class="hidden mt-1 text-[11px] text-rose-600">该名称已存在</p></div>
                             <div class="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
                                 <div class="flex items-center justify-between"><label class="block text-xs font-bold text-slate-700">时间与日期范围 *</label><label class="cursor-pointer text-xs text-indigo-600 flex items-center gap-1 font-medium select-none"><input type="checkbox" id="isRangeToggle" ${isRangeDate ? 'checked' : ''} onchange="toggleDateRangeMode(this)"><span>启用日期范围</span></label></div>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="singleDateContainer" style="display: ${isRangeDate ? 'none' : 'grid'};"><div><span class="block text-[10px] text-slate-500 mb-0.5">具体日期</span><div class="flex gap-1.5"><input type="text" id="editDate" value="${startDateVal}" inputmode="text" maxlength="10" placeholder="YY / YYYY / YY-M / YY-M-D" class="min-w-0 flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"><button type="button" onclick="openFlexibleDatePicker('editDate')" class="shrink-0 w-9 border border-slate-300 rounded-lg bg-white text-indigo-600 hover:bg-indigo-50" title="选择年月日"><i class="fa-regular fa-calendar"></i></button></div></div></div>
-                                <div class="grid grid-cols-2 gap-2" id="rangeDateContainer" style="display: ${isRangeDate ? 'grid' : 'none'};"><div><span class="block text-[10px] text-slate-500 mb-0.5">开始日期</span><div class="flex gap-1.5"><input type="text" id="editStartDate" value="${startDateVal}" inputmode="text" maxlength="10" placeholder="YY / YYYY / YY-M / YY-M-D" class="min-w-0 flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"><button type="button" onclick="openFlexibleDatePicker('editStartDate')" class="shrink-0 w-9 border border-slate-300 rounded-lg bg-white text-indigo-600 hover:bg-indigo-50" title="选择年月日"><i class="fa-regular fa-calendar"></i></button></div></div><div><span class="block text-[10px] text-slate-500 mb-0.5">结束日期</span><div class="flex gap-1.5"><input type="text" id="editEndDate" value="${endDateVal}" inputmode="text" maxlength="10" placeholder="YY / YYYY / YY-M / YY-M-D" class="min-w-0 flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"><button type="button" onclick="openFlexibleDatePicker('editEndDate')" class="shrink-0 w-9 border border-slate-300 rounded-lg bg-white text-indigo-600 hover:bg-indigo-50" title="选择年月日"><i class="fa-regular fa-calendar"></i></button></div></div></div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="singleDateContainer" style="display: ${isRangeDate ? 'none' : 'grid'};"><div><span class="block text-[10px] text-slate-500 mb-0.5">具体日期</span>${window.inlineDateFieldsHtml('editDate',startDateVal,'')}</div></div>
+                                <div class="grid grid-cols-2 gap-2" id="rangeDateContainer" style="display: ${isRangeDate ? 'grid' : 'none'};"><div><span class="block text-[10px] text-slate-500 mb-0.5">开始日期</span>${window.inlineDateFieldsHtml('editStartDate',startDateVal,'')}</div><div><span class="block text-[10px] text-slate-500 mb-0.5">结束日期</span>${window.inlineDateFieldsHtml('editEndDate',endDateVal,'')}</div></div>
                             </div>
                             <div><label class="block text-xs font-bold text-slate-700 mb-1">节点类型</label><select id="editType" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"><option value="minor" ${event.type === 'minor' ? 'selected' : ''}>普通事件</option><option value="major" ${event.type === 'major' ? 'selected' : ''}>重大里程碑</option></select></div>
                             <div><label class="block text-xs font-bold text-slate-700 mb-1">选择 tag (多选)</label><div class="flex flex-wrap gap-1.5 p-2 border border-slate-200 rounded-lg bg-slate-50 max-h-28 overflow-y-auto" id="editTagsList">${window.availableTags.length === 0 ? '<p class="text-xs text-slate-400 italic">暂无可用 tag</p>' : window.availableTags.map(t => { const checked = event.tags && event.tags.includes(t); return `<label class="cursor-pointer text-xs flex items-center gap-1.5 px-2 py-1 rounded border transition-colors ${checked ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-semibold' : 'bg-white border-slate-200 text-slate-600'}"><input type="checkbox" value="${t}" ${checked ? 'checked' : ''} class="hidden" onchange="toggleTagSelection(this)"><span># ${t}</span></label>`; }).join('')}</div></div>
@@ -12861,9 +12861,61 @@ viewer.style.visibility='';
             const hint=document.getElementById(hintId); if(!hint)return false;
             const duplicated=window.eventTitleExists(input?.value,excludeId);
             hint.classList.toggle('hidden',!duplicated);
-            input?.classList.toggle('border-rose-400',duplicated);
+            if(input){
+                input.classList.toggle('border-rose-500',duplicated);
+                input.classList.toggle('focus:ring-0',duplicated);
+                input.classList.toggle('focus:border-rose-500',duplicated);
+                input.classList.toggle('focus:ring-2',!duplicated);
+                input.classList.toggle('focus:ring-indigo-500',!duplicated);
+            }
             return duplicated;
         };
+        window.inlineDateFieldsHtml = function(targetId, value, onChangeCode) {
+            const normalized=window.normalizePartialDate(String(value||''))||'';
+            const parts=normalized.split('-');
+            const y=parts[0]||'', m=parts[1]||'', d=parts[2]||'';
+            const safeId=String(targetId).replace(/[^A-Za-z0-9_-]/g,'');
+            const change=String(onChangeCode||'');
+            return `<div data-inline-date="${safeId}" class="space-y-1">
+                <input type="hidden" id="${safeId}" value="${window.escapeHtml(normalized||String(value||''))}">
+                <div class="grid grid-cols-[1.25fr_.85fr_.85fr] gap-1.5">
+                    <input data-date-part="year" inputmode="numeric" maxlength="4" placeholder="年" value="${window.escapeHtml(y)}" oninput="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                    <input data-date-part="month" inputmode="numeric" maxlength="2" placeholder="月" value="${window.escapeHtml(m)}" oninput="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                    <input data-date-part="day" inputmode="numeric" maxlength="2" placeholder="日" value="${window.escapeHtml(d)}" oninput="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                </div>
+                <p data-date-hint class="hidden text-[11px] text-rose-600"></p>
+            </div>`;
+        };
+        window.syncInlineDateFields = function(targetId, wrap, onChangeCode) {
+            const target=document.getElementById(targetId); if(!target||!wrap)return false;
+            const y=wrap.querySelector('[data-date-part="year"]'),m=wrap.querySelector('[data-date-part="month"]'),d=wrap.querySelector('[data-date-part="day"]'),hint=wrap.querySelector('[data-date-hint]');
+            [y,m,d].forEach(el=>{if(el)el.value=String(el.value||'').replace(/\D/g,'');});
+            const yy=String(y?.value||'').trim(), mm=String(m?.value||'').trim(), dd=String(d?.value||'').trim();
+            let msg='', badPart='';
+            if((mm||dd)&&!yy){ msg='请先输入年份'; badPart='year'; }
+            else if(dd&&!mm){ msg='请先输入月份'; badPart='month'; }
+            else if(yy && !/^\d{2}$|^\d{4}$/.test(yy)){ msg='年份请输入2位或4位数字'; badPart='year'; }
+            else if(mm && (!/^\d{1,2}$/.test(mm)||Number(mm)<1||Number(mm)>12)){ msg='月份无效'; badPart='month'; }
+            else if(dd){
+                if(!/^\d{1,2}$/.test(dd)||Number(dd)<1){ msg='日期无效'; badPart='day'; }
+                else if(yy&&mm){ const fy=yy.length===2?Number('20'+yy):Number(yy), max=new Date(fy,Number(mm),0).getDate(); if(Number(dd)>max){msg='日期无效';badPart='day';} }
+            }
+            let val='';
+            if(!msg && yy){ let raw=yy; if(mm)raw+='-'+mm; if(dd)raw+='-'+dd; val=window.normalizePartialDate(raw); if(!val){msg='日期无效';badPart=dd?'day':(mm?'month':'year');} }
+            const bad=!!msg;
+            [[y,'year'],[m,'month'],[d,'day']].forEach(([el,part])=>{if(!el)return;const fieldBad=bad&&badPart===part;el.classList.toggle('border-rose-500',fieldBad);el.classList.toggle('focus:ring-0',fieldBad);el.classList.toggle('focus:border-rose-500',fieldBad);el.classList.toggle('focus:ring-2',!fieldBad);el.classList.toggle('focus:ring-indigo-500',!fieldBad);});
+            if(hint){hint.textContent=msg;hint.classList.toggle('hidden',!bad);}
+            target.value=bad?'':val;
+            target.dataset.dateInvalid=bad?'1':'0';
+            if(!bad && typeof onChangeCode==='string' && onChangeCode){ try{(new Function(onChangeCode))();}catch(e){console.warn('日期同步回调失败',e);} }
+            return !bad;
+        };
+        window.validateInlineDateTarget=function(targetId){
+            const target=document.getElementById(targetId); if(!target)return false;
+            const wrap=target.closest?.('[data-inline-date]')||document.querySelector(`[data-inline-date="${CSS.escape(targetId)}"]`);
+            return wrap?window.syncInlineDateFields(targetId,wrap,''):!!window.normalizePartialDate(target.value);
+        };
+
         window.openFlexibleDatePicker = function(targetId) {
             const target=document.getElementById(targetId); if(!target)return;
             document.getElementById('flexibleDatePickerPopover')?.remove();
@@ -12926,8 +12978,9 @@ viewer.style.visibility='';
             
             let date = '';
             if (isRange) {
-                const sDate = window.normalizePartialDate(document.getElementById('editStartDate')?.value);
-                const eDate = window.normalizePartialDate(document.getElementById('editEndDate')?.value);
+                const sOk=window.validateInlineDateTarget('editStartDate'), eOk=window.validateInlineDateTarget('editEndDate');
+                const sDate = sOk?window.normalizePartialDate(document.getElementById('editStartDate')?.value):'';
+                const eDate = eOk?window.normalizePartialDate(document.getElementById('editEndDate')?.value):'';
                 if (!sDate || !eDate) {
                     window.showToast("日期格式无效，可填写 YY、YYYY、YY-M、YY-M-D，也支持 / 或空格分隔；年月日之间需要使用分隔符", "error");
                     return;
@@ -12938,7 +12991,8 @@ viewer.style.visibility='';
                 }
                 date = `${sDate}至${eDate}`;
             } else {
-                date = window.normalizePartialDate(document.getElementById('editDate')?.value);
+                const dateOk=window.validateInlineDateTarget('editDate');
+                date = dateOk?window.normalizePartialDate(document.getElementById('editDate')?.value):'';
                 if (!date) {
                     window.showToast("日期格式无效，可填写 YY、YYYY、YY-M、YY-M-D，也支持 / 或空格分隔；年月日之间需要使用分隔符", "error");
                     return;
@@ -14382,7 +14436,7 @@ viewer.style.visibility='';
             return `<div class="space-y-3.5">
                 <div class="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
                     <div class="flex items-center justify-between"><label class="block text-xs font-bold text-slate-700">时间设置 *</label>${window.multiTimeDraft.length>1?`<button type="button" onclick="multiRemoveSegment(${segIndex})" class="text-[10px] text-rose-500 hover:text-rose-600"><i class="fa-solid fa-trash-can mr-1"></i>删除这个时间</button>`:''}</div>
-                    <div class="flex gap-1.5"><input id="multiDateInput_${segIndex}" value="${window.multiEsc(s.date||'')}" oninput="multiSet(${segIndex},'date',this.value)" inputmode="text" maxlength="10" placeholder="YY / YYYY / YY-M / YY-M-D" class="min-w-0 flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"><button type="button" onclick="openFlexibleDatePicker('multiDateInput_${segIndex}')" class="shrink-0 w-9 border border-slate-300 rounded-lg bg-white text-indigo-600 hover:bg-indigo-50" title="选择年月日"><i class="fa-regular fa-calendar"></i></button></div>
+                    ${window.inlineDateFieldsHtml(`multiDateInput_${segIndex}`,s.date||'',`multiSet(${segIndex},'date',document.getElementById('multiDateInput_${segIndex}').value)`) }
                     <input value="${window.multiEsc(s.subtitle||'')}" oninput="multiSet(${segIndex},'subtitle',this.value)" maxlength="120" placeholder="小标题" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
                 </div>
                 <div class="space-y-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
@@ -14521,7 +14575,7 @@ viewer.style.visibility='';
             window.multiTimeDeepEnabledDraft=!!enabled;
             window.multiRenderCurrentPage?.();
         };
-        window.saveMultiTimeEvent=function(){window.multiPersistCurrentPage();const title=String(window.multiTimeGeneralDraft?.title||'').trim();if(window.eventTitleExists(title,window.multiTimeEditingId)){window.multiTimePage=0;window.multiRenderCurrentPage();window.updateEventTitleDuplicateHint(document.getElementById('multiEventTitle'),'multiTitleDuplicateHint',window.multiTimeEditingId);window.showToast('该名称已存在','error');return;}if(!title){window.showToast('请填写事件名称','error');window.multiTimePage=0;window.multiRenderCurrentPage();return;}const segs=window.multiNormalizeDraft(JSON.parse(JSON.stringify(window.multiTimeDraft||[])));for(const seg of segs){const d=window.normalizePartialDate(String(seg.date||''));if(!d){window.showToast('请为每个时间填写有效日期','error');return;}seg.date=d;seg.subtitle=String(seg.subtitle||'').trim();seg.description=String(seg.description||'');}segs.sort((a,b)=>String(a.date).localeCompare(String(b.date)));const date=window.getMultiEventDisplayDate(segs);const existing=window.findEventById(window.multiTimeEditingId);window.pendingSaveData={id:window.multiTimeEditingId,title,date,type:window.multiTimeGeneralDraft.type||'minor',tags:window.multiTimeGeneralDraft.tags||[],timeMode:'multi',timeSegments:segs,deepDescriptionEnabled:!!window.multiTimeDeepEnabledDraft,images:[],videos:[],links:[],description:'',connections:window.multiTimeConnections||[],_isEdit:!!window.multiTimeIsEdit};if(existing&&Number.isFinite(Number(existing.stackOrder)))window.pendingSaveData.stackOrder=existing.stackOrder;document.getElementById('confirmSaveModal')?.classList.remove('hidden');};
+        window.saveMultiTimeEvent=function(){window.multiPersistCurrentPage();const title=String(window.multiTimeGeneralDraft?.title||'').trim();if(window.eventTitleExists(title,window.multiTimeEditingId)){window.multiTimePage=0;window.multiRenderCurrentPage();window.updateEventTitleDuplicateHint(document.getElementById('multiEventTitle'),'multiTitleDuplicateHint',window.multiTimeEditingId);window.showToast('该名称已存在','error');return;}if(!title){window.showToast('请填写事件名称','error');window.multiTimePage=0;window.multiRenderCurrentPage();return;}const segs=window.multiNormalizeDraft(JSON.parse(JSON.stringify(window.multiTimeDraft||[])));for(let si=0;si<segs.length;si++){const seg=segs[si];const inputId=`multiDateInput_${si}`;if(document.getElementById(inputId)&&!window.validateInlineDateTarget(inputId)){window.showToast('请为每个时间填写有效日期','error');return;}const d=window.normalizePartialDate(String(seg.date||''));if(!d){window.showToast('请为每个时间填写有效日期','error');return;}seg.date=d;seg.subtitle=String(seg.subtitle||'').trim();seg.description=String(seg.description||'');}segs.sort((a,b)=>String(a.date).localeCompare(String(b.date)));const date=window.getMultiEventDisplayDate(segs);const existing=window.findEventById(window.multiTimeEditingId);window.pendingSaveData={id:window.multiTimeEditingId,title,date,type:window.multiTimeGeneralDraft.type||'minor',tags:window.multiTimeGeneralDraft.tags||[],timeMode:'multi',timeSegments:segs,deepDescriptionEnabled:!!window.multiTimeDeepEnabledDraft,images:[],videos:[],links:[],description:'',connections:window.multiTimeConnections||[],_isEdit:!!window.multiTimeIsEdit};if(existing&&Number.isFinite(Number(existing.stackOrder)))window.pendingSaveData.stackOrder=existing.stackOrder;document.getElementById('confirmSaveModal')?.classList.remove('hidden');};
 
         window.multiRenderSegments=function(){ window.multiRenderCurrentPage?.(); };
 
