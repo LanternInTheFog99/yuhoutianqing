@@ -4404,43 +4404,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             finally{if(input)input.value='';}
         };
 
-        window.addBgmByUrl = async function() {
-            if (window.isLocked) return;
-            const urlInput = document.getElementById('bgmUrlInput');
-            const nameInput = document.getElementById('bgmNameInput');
-            const url = window.extractFirstHttpUrl?.(urlInput ? urlInput.value : '') || '';
-            const customName = nameInput ? nameInput.value.trim() : '';
-            if (!url) { window.showToast('请输入音频链接', 'error'); return; }
-            try {
-                const parsed = new URL(url);
-                if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('invalid protocol');
-            } catch (e) {
-                window.showToast('请输入有效的 http/https 音频链接', 'error'); return;
-            }
-            const filePart = url.split('/').pop().split('?')[0];
-            let fallbackName = '云端音乐';
-            try { fallbackName = decodeURIComponent(filePart) || fallbackName; } catch (e) {}
-            const newSong = {
-                id: 'song_' + Date.now() + Math.random().toString(36).substr(2, 5),
-                name: customName || fallbackName,
-                url: url
-            };
-            window.bgmPlaylist.push(newSong);
-            window.renderBgmPlaylist();
-            try {
-                await window.timelineApiWrite('upsertBgm', { bgm: newSong });
-                await window.writeActivityLog?.('bgm_add', { resourceType:'bgm', resourceName:newSong.name });
-            } catch (err) {
-                window.bgmPlaylist = window.bgmPlaylist.filter(s => s.id !== newSong.id);
-                    window.renderBgmPlaylist();
-                window.showToast('音乐信息云端同步失败', 'error');
-                return;
-            }
-            if (urlInput) urlInput.value = '';
-            if (nameInput) nameInput.value = '';
-            window.showToast(`已添加歌曲: ${newSong.name}`, 'success');
-        };
-
         window.deleteBgmSong = async function(songId) {
             if (window.isLocked) return;
             const targetSong = window.bgmPlaylist.find(s => s.id === songId);
@@ -4963,7 +4926,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             }
             tx.tempUploads=[];
         };
-        window.commitEditMediaTxn=function(){if(window._editMediaTxn)window._editMediaTxn.committed=true;window._editMediaTxn=null;};
 
         window.handleNewEventClick = function() {
             if (window.isLocked) {
@@ -10834,35 +10796,6 @@ viewer.style.visibility='';
             }
         };
 
-        window.addImageByUrl = function() {
-            const input = document.getElementById('imageUrlInput');
-            const url = window.extractFirstHttpUrl?.(input ? input.value : '') || '';
-            if (!url) {
-                window.showToast('请输入图片链接', 'error');
-                return;
-            }
-            if (!/^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|bmp|svg|avif|heic|heif)/i.test(url)) {
-                try {
-                    new URL(url);
-                } catch (e) {
-                    window.showToast('请输入有效的图片链接', 'error');
-                    return;
-                }
-            }
-            window.editingImageFiles.push({
-                mediaId: 'img_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9),
-                original: url,
-                originalFull: url,
-                outer: url,
-                inner: url,
-                collection: url,
-                isAnimated: /\.(gif|webp)(?:$|[?#])/i.test(url)
-            });
-            if (input) input.value = '';
-            window.renderMicroPreviews();
-            window.showToast('图片链接已添加', 'success');
-        };
-
 
         window._activeEditLockEventId = window._activeEditLockEventId || '';
         window._editLockHeartbeatTimer = window._editLockHeartbeatTimer || null;
@@ -11347,18 +11280,6 @@ viewer.style.visibility='';
                 }
             }
             input.value = '';
-        };
-
-        window.addVideoLink = function() {
-            const input = document.getElementById('videoLinkInput');
-            const titleInput = document.getElementById('videoTitleInput');
-            const val = window.extractFirstHttpUrl?.(input ? input.value : '') || '';
-            const title = titleInput ? titleInput.value.trim() : '';
-            if (!val) { window.showToast("请输入有效的视频链接", "error"); return; }
-            window.editingVideos.push({ mediaId: 'vid_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9), url: val, cover: '', title: title, previewDuration: 4, deepDescription: null });
-            input.value = '';
-            if (titleInput) titleInput.value = '';
-            window.renderVideoPreviews();
         };
 
         window.confirmEditAttachmentDelete=function(kind,onConfirm){
@@ -12491,9 +12412,6 @@ viewer.style.visibility='';
             const item=window.editingImageFiles?.[index];if(!item)return;const src=item.originalFull||item.original||item.outer||'';
             window.openGifCoverPicker(src,item.cloudPath||'',item.gifCoverCloudPath||'',(url,media)=>{window.trackUnsavedMediaUpload?.(media?.cloudPath||'');item.gifCover=url;item.gifCoverCloudPath=media?.cloudPath||'';item.gifCoverManual=true;if(item.crop){item.gifCrop={...(item.gifCrop||item.crop)};item.gifCoverCrop={...(item.gifCoverCrop||item.crop)};}item.gifDurationMs=Math.max(50,Number(media?.gifDurationMs)||0)||item.gifDurationMs||0;item.gifDurationSource=media?.gifDurationSource||'';window.renderMicroPreviews?.();},()=>window.openCropModal(index),item.fileID||'');
         };
-        window.deepEditGifCover=function(item){
-            if(!item)return;window.openGifCoverPicker(item.src,item.cloudPath||'',item.gifCoverCloudPath||'',(url,media)=>{deepPushUndo?.();item.gifCover=url;item.gifCoverCloudPath=media?.cloudPath||'';item.gifDurationMs=Math.max(50,Number(media?.gifDurationMs)||0)||item.gifDurationMs||0;item.gifDurationSource=media?.gifDurationSource||'';window.renderDeepCanvas?.();},null,item.fileID||'',item.crop||null);
-        };
 
         window.renderMicroPreviews = function() {
             const container=document.getElementById('imageMicroPreviews');
@@ -12986,6 +12904,30 @@ viewer.style.visibility='';
                 const targetId=String(wrap.dataset.inlineDate||'');
                 if(!targetId)return;
                 window.syncInlineDateFields(targetId,wrap,'');
+            },true);
+        }
+
+        // 输入时不强行补零；离开日期输入框后再把合法值规范化为最终展示形式。
+        // 两位年份沿用 20xx 便捷规则；月/日统一显示两位（1 -> 01）。
+        if(!window._inlineDateCanonicalBlurBound){
+            window._inlineDateCanonicalBlurBound=true;
+            document.addEventListener('focusout',function(e){
+                const part=e.target?.closest?.('[data-date-part]');
+                if(!part)return;
+                const wrap=part.closest('[data-inline-date]');
+                if(!wrap)return;
+                const targetId=String(wrap.dataset.inlineDate||'');
+                if(!targetId||!window.syncInlineDateFields(targetId,wrap,''))return;
+                const target=document.getElementById(targetId);
+                const normalized=window.normalizePartialDate(target?.value||'');
+                if(!normalized)return;
+                const [yy='',mm='',dd='']=normalized.split('-');
+                const y=wrap.querySelector('[data-date-part="year"]');
+                const m=wrap.querySelector('[data-date-part="month"]');
+                const d=wrap.querySelector('[data-date-part="day"]');
+                if(y)y.value=yy;
+                if(m)m.value=mm;
+                if(d)d.value=dd;
             },true);
         }
 
