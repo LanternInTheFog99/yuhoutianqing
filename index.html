@@ -11167,13 +11167,31 @@ viewer.style.visibility='';
             prev.classList.toggle('hidden',first); next.classList.toggle('hidden',!first); save.classList.toggle('hidden',first);
         };
 
+        window.setInlineDateValue = function(targetId, value) {
+            const target=document.getElementById(targetId); if(!target)return;
+            const wrap=target.closest?.('[data-inline-date]')||document.querySelector(`[data-inline-date="${CSS.escape(targetId)}"]`); if(!wrap)return;
+            const normalized=window.normalizePartialDate(value)||'';
+            const parts=normalized.split('-');
+            const y=wrap.querySelector('[data-date-part="year"]'),m=wrap.querySelector('[data-date-part="month"]'),d=wrap.querySelector('[data-date-part="day"]');
+            if(y)y.value=parts[0]||''; if(m)m.value=parts[1]?String(Number(parts[1])):''; if(d)d.value=parts[2]?String(Number(parts[2])):'';
+            window.syncInlineDateFields(targetId,wrap,'');
+        };
+
         window.toggleDateRangeMode = function(checkbox) {
             const singleC = document.getElementById('singleDateContainer');
             const rangeC = document.getElementById('rangeDateContainer');
             if (checkbox.checked) {
+                // 切换范围前先把用户刚输入、尚未保存的单日期同步到开始/结束日期。
+                window.validateInlineDateTarget('editDate');
+                const current=document.getElementById('editDate')?.value||'';
+                if(current){window.setInlineDateValue('editStartDate',current);window.setInlineDateValue('editEndDate',current);}
                 singleC.style.display = 'none';
                 rangeC.style.display = 'grid';
             } else {
+                // 从范围切回单日期时，以当前开始日期作为单日期，避免丢失刚刚的输入。
+                window.validateInlineDateTarget('editStartDate');
+                const current=document.getElementById('editStartDate')?.value||'';
+                if(current)window.setInlineDateValue('editDate',current);
                 singleC.style.display = 'grid';
                 rangeC.style.display = 'none';
             }
@@ -12843,11 +12861,11 @@ viewer.style.visibility='';
             if (!v) return '';
             const formatOne = (part) => {
                 const x = String(part || '').trim();
-                let m = x.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+                let m = x.match(/^(\d+)-(\d{1,2})-(\d{1,2})$/);
                 if (m) return `${m[1]}-${String(m[2]).padStart(2, '0')}-${String(m[3]).padStart(2, '0')}`;
-                m = x.match(/^(\d{4})-(\d{1,2})$/);
+                m = x.match(/^(\d+)-(\d{1,2})$/);
                 if (m) return `${m[1]}年${Number(m[2])}月`;
-                m = x.match(/^(\d{4})$/);
+                m = x.match(/^(\d+)$/);
                 if (m) return `${m[1]}年`;
                 return x;
             };
@@ -12859,23 +12877,29 @@ viewer.style.visibility='';
             if (!raw) return '';
             raw = raw.replace(/[\/._]+/g, '-').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
             const parts = raw.split('-').filter(Boolean);
-            if (parts.length === 1) {
-                if (/^\d{4}$/.test(parts[0])) return parts[0];
-                if (/^\d{2}$/.test(parts[0])) return '20' + parts[0];
-                return '';
-            }
-            if (parts.length !== 2 && parts.length !== 3) return '';
-            const rawYear = parts[0]; let year = '';
-            if (/^\d{4}$/.test(rawYear)) year = rawYear;
-            else if (/^\d{2}$/.test(rawYear)) year = '20' + rawYear;
-            else return '';
+            if (parts.length < 1 || parts.length > 3) return '';
+            const rawYear = parts[0];
+            if (!/^\d+$/.test(rawYear)) return '';
+            // 分栏输入后年份不再限制位数；保留“24 -> 2024”的两位年份便捷规则。
+            const year = rawYear.length === 2 ? '20' + rawYear : String(Number(rawYear));
+            if (!year || Number(year) < 1) return '';
+            if (parts.length === 1) return year;
             const month = Number(parts[1]);
             if (!Number.isInteger(month) || month < 1 || month > 12) return '';
             if (parts.length === 2) return `${year}-${String(month).padStart(2, '0')}`;
             const day = Number(parts[2]);
-            const maxDay = new Date(Number(year), month, 0).getDate();
-            if (!Number.isInteger(day) || day < 1 || day > maxDay) return '';
+            const yNum = Number(year);
+            const leap = yNum % 4 === 0 && (yNum % 100 !== 0 || yNum % 400 === 0);
+            const monthDays = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+            if (!Number.isInteger(day) || day < 1 || day > monthDays[month - 1]) return '';
             return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        };
+
+        window.comparePartialDates = function(a, b) {
+            const parse=v=>{const n=window.normalizePartialDate(v);if(!n)return null;const p=n.split('-').map(Number);return [p[0]||0,p[1]||0,p[2]||0];};
+            const aa=parse(a),bb=parse(b);if(!aa||!bb)return 0;
+            for(let i=0;i<3;i++){if(aa[i]!==bb[i])return aa[i]-bb[i];}
+            return 0;
         };
 
         window.eventTitleExists = function(title, excludeId) {
@@ -12906,9 +12930,9 @@ viewer.style.visibility='';
             return `<div data-inline-date="${safeId}" class="space-y-1">
                 <input type="hidden" id="${safeId}" value="${window.escapeHtml(normalized||String(value||''))}">
                 <div class="grid grid-cols-[1.25fr_.85fr_.85fr] gap-1.5">
-                    <label class="flex items-center gap-1 min-w-0"><input data-date-part="year" inputmode="numeric" maxlength="4" placeholder="数字" value="${window.escapeHtml(y)}" oninput="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" onblur="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"><span class="shrink-0 text-xs text-slate-400">年</span></label>
-                    <label class="flex items-center gap-1 min-w-0"><input data-date-part="month" inputmode="numeric" maxlength="2" placeholder="数字" value="${window.escapeHtml(m)}" oninput="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" onblur="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"><span class="shrink-0 text-xs text-slate-400">月</span></label>
-                    <label class="flex items-center gap-1 min-w-0"><input data-date-part="day" inputmode="numeric" maxlength="2" placeholder="数字" value="${window.escapeHtml(d)}" oninput="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" onblur="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"><span class="shrink-0 text-xs text-slate-400">日</span></label>
+                    <label class="flex items-center gap-1 min-w-0"><input data-date-part="year" inputmode="numeric" placeholder="" value="${window.escapeHtml(y)}" oninput="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" onblur="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"><span class="shrink-0 text-xs text-slate-400">年</span></label>
+                    <label class="flex items-center gap-1 min-w-0"><input data-date-part="month" inputmode="numeric" maxlength="2" placeholder="" value="${window.escapeHtml(m)}" oninput="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" onblur="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"><span class="shrink-0 text-xs text-slate-400">月</span></label>
+                    <label class="flex items-center gap-1 min-w-0"><input data-date-part="day" inputmode="numeric" maxlength="2" placeholder="" value="${window.escapeHtml(d)}" oninput="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" onblur="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"><span class="shrink-0 text-xs text-slate-400">日</span></label>
                 </div>
                 <p data-date-hint class="hidden text-[11px] text-rose-600"></p>
             </div>`;
@@ -12921,11 +12945,11 @@ viewer.style.visibility='';
             let msg='', badPart='';
             if((mm||dd)&&!yy){ msg='请先输入年份'; badPart='year'; }
             else if(dd&&!mm){ msg='请先输入月份'; badPart='month'; }
-            else if(yy && !/^\d{2}$|^\d{4}$/.test(yy)){ msg='年份请输入2位或4位数字'; badPart='year'; }
+            else if(yy && (!/^\d+$/.test(yy)||Number(yy)<1)){ msg='年份无效'; badPart='year'; }
             else if(mm && (!/^\d{1,2}$/.test(mm)||Number(mm)<1||Number(mm)>12)){ msg='月份无效'; badPart='month'; }
             else if(dd){
                 if(!/^\d{1,2}$/.test(dd)||Number(dd)<1){ msg='日期无效'; badPart='day'; }
-                else if(yy&&mm){ const fy=yy.length===2?Number('20'+yy):Number(yy), max=new Date(fy,Number(mm),0).getDate(); if(Number(dd)>max){msg='日期无效';badPart='day';} }
+                else if(yy&&mm){ const fy=yy.length===2?Number('20'+yy):Number(yy), leap=fy%4===0&&(fy%100!==0||fy%400===0), md=[31,leap?29:28,31,30,31,30,31,31,30,31,30,31], max=md[Number(mm)-1]; if(Number(dd)>max){msg='日期无效';badPart='day';} }
             }
             let val='';
             if(!msg && yy){ let raw=yy; if(mm)raw+='-'+mm; if(dd)raw+='-'+dd; val=window.normalizePartialDate(raw); if(!val){msg='日期无效';badPart=dd?'day':(mm?'month':'year');} }
@@ -12965,35 +12989,7 @@ viewer.style.visibility='';
             },true);
         }
 
-        window.openFlexibleDatePicker = function(targetId) {
-            const target=document.getElementById(targetId); if(!target)return;
-            document.getElementById('flexibleDatePickerPopover')?.remove();
-            const normalized=window.normalizePartialDate(target.value)||'';
-            const parts=normalized.split('-'), now=new Date();
-            let selectedYear=parts[0]||String(now.getFullYear()), selectedMonth=parts[1]||'', selectedDay=parts[2]||'';
-            const pop=document.createElement('div');
-            pop.id='flexibleDatePickerPopover';
-            pop.className='fixed z-[430] w-[286px] rounded-xl border border-slate-200 bg-white shadow-2xl p-3';
-            pop.innerHTML=`<div class="grid grid-cols-[1.25fr_.9fr_.9fr] gap-2 items-end">
-                <label class="block"><span class="block text-[10px] text-slate-500 mb-1">年</span><input data-date-year inputmode="numeric" maxlength="4" class="w-full h-8 px-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500" value="${window.escapeHtml(selectedYear)}"></label>
-                <label class="block"><span class="block text-[10px] text-slate-500 mb-1">月</span><input data-date-month inputmode="numeric" maxlength="2" placeholder="不选择" class="w-full h-8 px-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500" value="${window.escapeHtml(selectedMonth)}"></label>
-                <label class="block"><span class="block text-[10px] text-slate-500 mb-1">日</span><input data-date-day inputmode="numeric" maxlength="2" placeholder="不选择" class="w-full h-8 px-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500" value="${window.escapeHtml(selectedDay)}"></label>
-            </div>
-            <div data-date-error class="hidden mt-2 text-[10px] text-rose-600"></div>
-            <div class="mt-3 flex items-center justify-between gap-2"><button type="button" data-date-clear class="px-2.5 py-1.5 text-[11px] text-slate-500 hover:bg-slate-100 rounded-lg">仅年份</button><div class="flex gap-2"><button type="button" data-date-close class="px-2.5 py-1.5 border border-slate-200 rounded-lg text-[11px]">取消</button><button type="button" data-date-apply class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-[11px] font-semibold">应用</button></div></div>`;
-            document.body.appendChild(pop);
-            const place=()=>{const r=target.getBoundingClientRect();const gap=10;let left=Math.min(Math.max(8,r.left),window.innerWidth-pop.offsetWidth-8);let top=r.bottom+gap;if(top+pop.offsetHeight>window.innerHeight-8)top=Math.max(8,window.innerHeight-pop.offsetHeight-8);pop.style.left=left+'px';pop.style.top=top+'px';};
-            place(); requestAnimationFrame(place);
-            const y=pop.querySelector('[data-date-year]'),m=pop.querySelector('[data-date-month]'),d=pop.querySelector('[data-date-day]'),err=pop.querySelector('[data-date-error]');
-            const digits=el=>{el.value=el.value.replace(/\D/g,'');}; [y,m,d].forEach(el=>el.addEventListener('input',()=>digits(el)));
-            const apply=()=>{const yy=y.value.trim(),mm=m.value.trim(),dd=d.value.trim();err.classList.add('hidden');if(!/^\d{4}$/.test(yy)){err.textContent='年份请输入4位数字';err.classList.remove('hidden');return;}if(dd&&!mm){err.textContent='选择日期前需要先填写月份';err.classList.remove('hidden');return;}let raw=yy;if(mm)raw+='-'+mm;if(dd)raw+='-'+dd;const val=window.normalizePartialDate(raw);if(!val){err.textContent='日期无效';err.classList.remove('hidden');return;}target.value=val;target.dispatchEvent(new Event('input',{bubbles:true}));target.dispatchEvent(new Event('change',{bubbles:true}));pop.remove();};
-            pop.querySelector('[data-date-apply]').onclick=apply;
-            pop.querySelector('[data-date-close]').onclick=()=>pop.remove();
-            pop.querySelector('[data-date-clear]').onclick=()=>{m.value='';d.value='';apply();};
-            [y,m,d].forEach(el=>el.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();apply();}if(e.key==='Escape')pop.remove();}));
-            setTimeout(()=>{const outside=e=>{if(!pop.isConnected){document.removeEventListener('pointerdown',outside,true);return;}if(pop.contains(e.target)||e.target===target||e.target.closest?.(`[onclick*="openFlexibleDatePicker('${targetId}')"]`))return;pop.remove();document.removeEventListener('pointerdown',outside,true);};document.addEventListener('pointerdown',outside,true);},0);
-            y.focus();y.select();
-        };
+
         window.vCloneDeepDescription = function(value) {
             if (!value) return null;
             try { return JSON.parse(JSON.stringify(value)); } catch (_) { return null; }
@@ -13034,7 +13030,7 @@ viewer.style.visibility='';
                     window.showToast("日期格式无效，可填写 YY、YYYY、YY-M、YY-M-D，也支持 / 或空格分隔；年月日之间需要使用分隔符", "error");
                     return;
                 }
-                if (sDate > eDate) {
+                if (window.comparePartialDates(sDate,eDate) > 0) {
                     window.showToast("结束日期不能早于开始日期", "error");
                     return;
                 }
