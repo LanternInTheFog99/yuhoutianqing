@@ -6016,11 +6016,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const cards = Array.from(wrapper.querySelectorAll('.stack-card'));
             if (!cards.length) return;
             const inactiveScale = 0.85;
-            // 五层叠放按“最终可见宽度”反算中心位移。卡片宽 220px，后排 scale(0.85)，
-            // 因此第二张会先被缩放造成的 16.5px 内缩吃掉；后续各层的可见宽度则等于相邻中心位移差。
-            // 目标约为：第二张 52px、第三张 31px、第四张 16px、第五张 7px。
-            // 这样四个事件和五个事件时都使用同一套明确递减的视觉层级。
-            const centers = [0, 68.5, 99.5, 115.5, 122.5];
+            // 只展示当前卡片后的三层，并按最终可见宽度反算中心位移。
+            // 目标约为：第二张 30px、第三张 16px、第四张 7px；第五张及以后压在第四张后方不展示。
+            const centers = [0, 46.5, 62.5, 69.5];
             cards.forEach((card, idx) => {
                 const offset = idx - activeIndex;
                 const distance = Math.abs(offset);
@@ -6029,9 +6027,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 card.style.zIndex = idx === activeIndex ? 30 : Math.max(1, 25 - distance);
                 card.style.transformOrigin = 'center center';
                 card.style.transform = `translateX(${translateX}px) scale(${idx===activeIndex?1:inactiveScale})`;
-                card.style.opacity = distance <= 4 ? '1' : '0';
-                card.style.visibility = distance <= 4 ? 'visible' : 'hidden';
-                card.style.pointerEvents = distance <= 4 ? 'auto' : 'none';
+                card.style.opacity = distance <= 3 ? '1' : '0';
+                card.style.visibility = distance <= 3 ? 'visible' : 'hidden';
+                card.style.pointerEvents = distance <= 3 ? 'auto' : 'none';
             });
             cards.forEach((card, idx) => {
                 if (typeof window.startPreviewSlideshow !== 'function') return;
@@ -12874,11 +12872,11 @@ viewer.style.visibility='';
             const normalized=window.normalizePartialDate(target.value)||'';
             const parts=normalized.split('-'), now=new Date();
             const y=Number(parts[0])||now.getFullYear(), mo=parts[1]?Number(parts[1]):0, d=parts[2]?Number(parts[2]):0;
-            const years=[]; for(let yy=2100;yy>=1900;yy--)years.push(`<option value="${yy}" ${yy===y?'selected':''}>${yy}</option>`);
-            const months=['<option value="">空</option>']; for(let mm=1;mm<=12;mm++)months.push(`<option value="${mm}" ${mm===mo?'selected':''}>${mm}月</option>`);
-            modal.innerHTML=`<div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"><div class="flex items-center justify-between px-5 py-4 border-b border-slate-200"><h3 class="font-bold text-slate-800">选择日期</h3><button type="button" data-date-close class="w-8 h-8 rounded-full text-slate-400 hover:bg-slate-100"><i class="fa-solid fa-xmark"></i></button></div><div class="p-5"><p class="text-xs text-slate-500 mb-3">月和日可以留空；未选择月份时不能选择日期。</p><div class="grid grid-cols-3 gap-2"><div><span class="block text-[10px] text-slate-500 mb-1">年</span><select id="flexDateYear" class="w-full px-2 py-2 border rounded-lg text-sm bg-white">${years.join('')}</select></div><div><span class="block text-[10px] text-slate-500 mb-1">月</span><select id="flexDateMonth" class="w-full px-2 py-2 border rounded-lg text-sm bg-white">${months.join('')}</select></div><div><span class="block text-[10px] text-slate-500 mb-1">日</span><select id="flexDateDay" class="w-full px-2 py-2 border rounded-lg text-sm bg-white"></select></div></div></div><div class="flex justify-end gap-2 px-5 py-4 border-t border-slate-200"><button type="button" data-date-close class="px-4 py-2 border rounded-lg text-xs">取消</button><button type="button" id="flexDateApply" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-semibold">确定</button></div></div>`;
+            const years=[]; for(let yy=1900;yy<=2100;yy++)years.push(`<option value="${yy}" ${yy===y?'selected':''}>${yy}</option>`);
+            const months=['<option value="">不选择</option>']; for(let mm=1;mm<=12;mm++)months.push(`<option value="${mm}" ${mm===mo?'selected':''}>${mm}月</option>`);
+            modal.innerHTML=`<div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"><div class="flex items-center justify-between px-5 py-4 border-b border-slate-200"><h3 class="font-bold text-slate-800">选择日期</h3><button type="button" data-date-close class="w-8 h-8 rounded-full text-slate-400 hover:bg-slate-100"><i class="fa-solid fa-xmark"></i></button></div><div class="p-5"><div class="grid grid-cols-3 gap-2"><div><span class="block text-[10px] text-slate-500 mb-1">年</span><select id="flexDateYear" class="w-full px-2 py-2 border rounded-lg text-sm bg-white">${years.join('')}</select></div><div><span class="block text-[10px] text-slate-500 mb-1">月</span><select id="flexDateMonth" class="w-full px-2 py-2 border rounded-lg text-sm bg-white">${months.join('')}</select></div><div><span class="block text-[10px] text-slate-500 mb-1">日</span><select id="flexDateDay" class="w-full px-2 py-2 border rounded-lg text-sm bg-white"></select></div></div></div><div class="flex justify-end gap-2 px-5 py-4 border-t border-slate-200"><button type="button" data-date-close class="px-4 py-2 border rounded-lg text-xs">取消</button><button type="button" id="flexDateApply" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-semibold">确定</button></div></div>`;
             const ys=modal.querySelector('#flexDateYear'), ms=modal.querySelector('#flexDateMonth'), ds=modal.querySelector('#flexDateDay');
-            const renderDays=()=>{const yy=Number(ys.value),mm=Number(ms.value);const old=Number(ds.value)||d;if(!mm){ds.innerHTML='<option value="">空</option>';ds.disabled=true;return;}ds.disabled=false;const max=new Date(yy,mm,0).getDate();let h='<option value="">空</option>';for(let dd=1;dd<=max;dd++)h+=`<option value="${dd}" ${dd===old?'selected':''}>${dd}日</option>`;ds.innerHTML=h;if(old>max)ds.value='';};
+            const renderDays=()=>{const yy=Number(ys.value),mm=Number(ms.value);const old=Number(ds.value)||d;if(!mm){ds.innerHTML='<option value="">不选择</option>';ds.disabled=true;return;}ds.disabled=false;const max=new Date(yy,mm,0).getDate();let h='<option value="">不选择</option>';for(let dd=1;dd<=max;dd++)h+=`<option value="${dd}" ${dd===old?'selected':''}>${dd}日</option>`;ds.innerHTML=h;if(old>max)ds.value='';};
             ms.addEventListener('change',renderDays);ys.addEventListener('change',renderDays);renderDays();
             modal.querySelectorAll('[data-date-close]').forEach(b=>b.onclick=()=>modal.classList.add('hidden'));
             modal.querySelector('#flexDateApply').onclick=()=>{const yy=ys.value,mm=ms.value,dd=ds.value;let val=yy;if(mm)val+=`-${String(mm).padStart(2,'0')}`;if(mm&&dd)val+=`-${String(dd).padStart(2,'0')}`;target.value=val;target.dispatchEvent(new Event('input',{bubbles:true}));target.dispatchEvent(new Event('change',{bubbles:true}));modal.classList.add('hidden');};
