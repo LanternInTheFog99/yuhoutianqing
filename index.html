@@ -2353,8 +2353,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const defaultVideoHold = calm ? 5000 : 4000;
             const ANIMATED_FALLBACK_SEC = 3;
             const PRELOAD_WAIT_MS = 60;
-            const BLACK_FADE_MS = 260;
-            const BLACK_HOLD_MS = 0;
+            const BLACK_FADE_MS = 150;
+            const BLACK_HOLD_MS = 80;
             const MEDIA_COVER_MIN_HOLD_MS = calm ? 600 : 500;
             const MEDIA_COVER_MAX_HOLD_MS = calm ? 3200 : 2600;
             const MEDIA_COVER_FADE_MS = 260;
@@ -2536,9 +2536,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     // 图片→图片保持原来的短转场；只要任一侧是 GIF/视频，就统一使用较长转场。
                     const isPlainImageToPlainImage =
                         isPlainPreviewImageItem(currentItem) && isPlainPreviewImageItem(nextItem);
-                    const fadeInMs = isPlainImageToPlainImage ? 360 : 420;
-                    const fadeOutMs = isPlainImageToPlainImage ? 360 : 420;
-                    const readyGraceMs = isPlainImageToPlainImage ? 120 : 220;
+                    const fadeInMs = isPlainImageToPlainImage ? 220 : 340;
+                    const fadeOutMs = isPlainImageToPlainImage ? 260 : 380;
+                    const readyGraceMs = isPlainImageToPlainImage ? 0 : 140;
                     pendingBlackHandoff = null;
 
                     const nextCover = nextItem.type === 'video'
@@ -2565,33 +2565,34 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     dim.dataset.previewTransitionOverlay = '1';
                     Object.assign(dim.style, {
                         zIndex:'9', background:'#000', opacity:'0',
-                        transition:`opacity ${fadeInMs}ms cubic-bezier(.45,.05,.55,.95)`
+                        transition:`opacity ${fadeInMs}ms cubic-bezier(.4,0,.6,1)`
                     });
-                    // 任何为下一媒体预留的等待都放在转场开始前完成。
-                    // 最暗点本身绝不再等待，否则即使 opacity 是连续插值，肉眼仍会把它感知成“黑屏停顿”。
-                    if (!mediaReady && readyGraceMs > 0) {
-                        await Promise.race([readyPromise, delayMs(readyGraceMs)]);
-                    }
-                    if (!isStillRunning() || gen !== generation) return false;
-
                     stage.appendChild(dim);
                     await delayMs(16);
                     if (!isStillRunning() || gen !== generation) { dim.remove(); return false; }
-                    // 保留较深暗场，但它只是连续曲线的一个瞬时峰值，不设置任何黑场 hold。
-                    dim.style.opacity='0.88';
+                    dim.style.opacity='1';
                     await delayMs(fadeInMs);
                     if (!isStillRunning() || gen !== generation) { dim.remove(); return false; }
 
                     try { video.pause(); } catch (_) {}
 
-                    // opacity 由浏览器逐帧连续插值；到达最暗点后同一任务立即交接媒体并开始回亮，
-                    // 不在峰值插入加载等待、定时停顿或额外黑屏阶段。
+                    // 100% 全黑时先彻底隐藏旧的共享图片层，再推进媒体。
+                    // 下一媒体的 presentItem 会自行恢复它；这样旧图片/GIF 不可能在退黑时冒出 1 帧。
+                    disableSoftFade(img);
+                    img.style.transition='none';
+                    img.style.opacity='0';
+                    img.style.visibility='hidden';
+                    img.classList.add('hidden');
+
                     if (typeof switchAtBlack === 'function') {
-                        const handoff = switchAtBlack();
+                        switchAtBlack();
                         switchAtBlack = null;
-                        // 等下一媒体真正提交到舞台后再退遮罩，避免退黑结束的单帧仍显示上一媒体。
-                        if (handoff && typeof handoff.then === 'function') await handoff;
-                        if (!isStillRunning() || gen !== generation) { dim.remove(); return false; }
+                    }
+
+                    // GIF/视频之间允许最多 140ms 的“快要好了”宽限。
+                    // 如果这点时间内 ready，就直接露真实媒体，不插封面；否则才用封面兜底。
+                    if (!mediaReady && readyGraceMs > 0) {
+                        await Promise.race([readyPromise, delayMs(readyGraceMs)]);
                     }
 
                     if (mediaReady) {
@@ -2607,7 +2608,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     }
 
                     await delayMs(16);
-                    dim.style.transition=`opacity ${fadeOutMs}ms cubic-bezier(.45,.05,.55,.95)`;
+                    dim.style.transition=`opacity ${fadeOutMs}ms cubic-bezier(.4,0,.2,1)`;
                     dim.style.opacity='0';
                     await delayMs(fadeOutMs);
                     try { dim.remove(); } catch (_) {}
@@ -2921,7 +2922,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         return;
                     }
                     idx = (idx + 1) % media.length;
-                    return presentItem(media[idx], next, false);
+                    presentItem(media[idx], next, false);
                 };
 
                 if (media.length > 1) {
@@ -6000,21 +6001,17 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const cards = Array.from(wrapper.querySelectorAll('.stack-card'));
             if (!cards.length) return;
             const inactiveScale = 0.85;
-            // 只展示当前卡片及其后/前最多三层：第二张明显多露、第三张次之、第四张只露窄边。
-            // 第五张起与第四张完全叠放且隐藏，不再占用视觉空间。
-            const reveals = [46, 29, 17, 9];
-            const offsetFor = distance => {
-                let x=0;
-                for(let i=0;i<Math.min(distance,reveals.length);i++) x+=reveals[i];
-                return x;
-            };
+            // 五层紧凑叠放。这里直接规定每一层“中心位移”，不再累加经过缩放后的宽度。
+            // 这样第二/三/四/五张的露出量只由相邻位移差决定，不会再被 transform-origin/缩放二次改变。
+            // 视觉露出约为：第二 31px、第三 23px、第四 15px、第五 8px。
+            const centers = [0, 48, 71, 86, 94];
             cards.forEach((card, idx) => {
                 const offset = idx - activeIndex;
                 const distance = Math.abs(offset);
                 const dir = offset >= 0 ? 1 : -1;
-                const translateX = dir * offsetFor(distance);
+                const translateX = dir * centers[Math.min(distance, centers.length - 1)];
                 card.style.zIndex = idx === activeIndex ? 30 : Math.max(1, 25 - distance);
-                card.style.transformOrigin = idx === activeIndex ? 'center center' : (dir > 0 ? 'left center' : 'right center');
+                card.style.transformOrigin = 'center center';
                 card.style.transform = `translateX(${translateX}px) scale(${idx===activeIndex?1:inactiveScale})`;
                 card.style.opacity = distance <= 4 ? '1' : '0';
                 card.style.visibility = distance <= 4 ? 'visible' : 'hidden';
@@ -7066,7 +7063,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const btn=document.getElementById('deepEnableToggleBtn');
             if(status){
                 status.textContent=enabled?'已启用':'未启用';
-                status.className='whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] leading-4 font-semibold bg-white shadow-sm '+(enabled?'text-emerald-600 border-emerald-200':'text-slate-400 border-slate-200');
+                status.className='hidden sm:inline px-2 py-1 rounded-full text-[10px] font-semibold '+(enabled?'bg-emerald-50 text-emerald-700':'bg-slate-100 text-slate-500');
             }
             if(btn){
                 const label=btn.querySelector('[data-deep-enable-toggle-label]');
