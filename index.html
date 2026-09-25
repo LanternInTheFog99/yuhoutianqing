@@ -1290,7 +1290,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 <button id="developerModeBtn" onclick="requestDeveloperMode()" title="" aria-label="开发者模式" class="hidden fixed right-[4.5rem] bottom-2 z-[80] w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-slate-400/20 hover:text-slate-500/80 hover:bg-slate-200/60 transition-all opacity-25 hover:opacity-100">
                     <i class="fa-solid fa-code"></i>
                 </button>
-                <button id="developerLockManagerBtn" onclick="openGlobalDeveloperLockManagerFromButton()" title="请先进入开发者模式" aria-label="批量设置开发者锁" class="hidden fixed right-10 bottom-2 z-[80] w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-slate-400/20 hover:text-slate-500/80 hover:bg-slate-200/60 transition-all opacity-25 hover:opacity-100">
+                <button type="button" id="developerLockManagerBtn" onclick="openGlobalDeveloperLockManagerFromButton(event)" title="请先进入开发者模式" aria-label="批量设置开发者锁" class="hidden fixed right-10 bottom-2 z-[80] w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-slate-400/20 hover:text-slate-500/80 hover:bg-slate-200/60 transition-all opacity-25 hover:opacity-100">
                     <i class="fa-solid fa-lock"></i>
                 </button>
                 <button id="manualBackupBtn" onclick="requestTimelineBackup()" title="" aria-label="导出 JSON 备份" class="hidden fixed right-2 bottom-2 z-[80] w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-slate-400/20 hover:text-slate-500/80 hover:bg-slate-200/60 transition-all opacity-25 hover:opacity-100">
@@ -3605,6 +3605,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 const enabled=show&&window.isDeveloperMode?.();
                 manager.classList.toggle('text-indigo-500',enabled);
                 manager.classList.toggle('cursor-not-allowed',show&&!enabled);
+                manager.classList.toggle('opacity-100',enabled);
+                manager.style.pointerEvents=show?'auto':'none';
                 manager.title=enabled?'批量设置开发者锁':'请先进入开发者模式';
             }
         };
@@ -3626,12 +3628,12 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window._permissionIdentityCache=null;
         window.loadPermissionIdentities=async function(force=false){
             if(window._permissionIdentityCache&&!force)return window._permissionIdentityCache;
-            try{const r=await timelineApiFetch('/timeline?type=identities',12000);window._permissionIdentityCache=Array.isArray(r?.items)?r.items:[];}catch(_){window._permissionIdentityCache=[];}
+            try{const r=await timelineApiFetch(`/timeline?type=identities&ownerToken=${encodeURIComponent(window.getEditorOwnerToken?.()||'')}`,12000);window._permissionIdentityCache=Array.isArray(r?.items)?r.items:[];}catch(_){window._permissionIdentityCache=[];}
             return window._permissionIdentityCache;
         };
         window.permissionModeOf=function(ev){return ['all','creator','specified'].includes(String(ev?.editPermissionMode))?String(ev.editPermissionMode):(ev?.creatorOnlyEdit===true?'creator':'all');};
         window.permissionUserPickerHtml=function(kind,selected=[]){const ids=[...new Set((selected||[]).map(String))];return `<div class="mt-2" data-permission-picker="${kind}"><div class="flex gap-2"><input type="text" oninput="filterPermissionUsers('${kind}',this.value)" placeholder="搜索用户 ID" class="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500"><button type="button" onclick="refreshPermissionUsers('${kind}')" class="px-3 py-2 border border-slate-300 rounded-lg text-xs text-slate-600 hover:bg-slate-50">刷新</button></div><div data-user-list class="mt-2 max-h-40 overflow-y-auto border border-slate-200 rounded-lg bg-white"><div class="p-3 text-xs text-slate-400">正在读取用户…</div></div><input type="hidden" data-selected value="${ids.join(',')}"></div>`;};
-        window.renderPermissionUsers=async function(kind,q=''){const root=document.querySelector(`[data-permission-picker="${kind}"]`);if(!root)return;const list=root.querySelector('[data-user-list]'),hidden=root.querySelector('[data-selected]');const selected=new Set(String(hidden?.value||'').split(',').filter(Boolean));const users=await window.loadPermissionIdentities();const query=String(q||'').trim().toLowerCase();const shown=users.filter(u=>!query||String(u.displayName||'').toLowerCase().includes(query)||String(u.profileId||'').toLowerCase().includes(query));list.innerHTML=shown.length?shown.map(u=>`<label class="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-0"><input type="checkbox" ${selected.has(String(u.profileId))?'checked':''} onchange="togglePermissionUser('${kind}','${u.profileId}',this.checked)" class="w-4 h-4 accent-indigo-600"><span class="text-xs text-slate-700 min-w-0 truncate">${window.escapeHtml?.(u.displayName)||u.displayName}</span></label>`).join(''):'<div class="p-3 text-xs text-slate-400">没有匹配用户</div>';};
+        window.renderPermissionUsers=async function(kind,q=''){const root=document.querySelector(`[data-permission-picker="${kind}"]`);if(!root)return;const list=root.querySelector('[data-user-list]'),hidden=root.querySelector('[data-selected]');const selected=new Set(String(hidden?.value||'').split(',').filter(Boolean));const users=await window.loadPermissionIdentities();const query=String(q||'').trim().toLowerCase();const shown=users.filter(u=>kind!=='normal'||u?.isCurrent!==true).filter(u=>!query||String(u.displayName||'').toLowerCase().includes(query)||String(u.profileId||'').toLowerCase().includes(query));list.innerHTML=shown.length?shown.map(u=>`<label class="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-0"><input type="checkbox" ${selected.has(String(u.profileId))?'checked':''} onchange="togglePermissionUser('${kind}','${u.profileId}',this.checked)" class="w-4 h-4 accent-indigo-600"><span class="text-xs text-slate-700 min-w-0 truncate">${window.escapeHtml?.(u.displayName)||u.displayName}</span></label>`).join(''):'<div class="p-3 text-xs text-slate-400">没有匹配用户</div>';};
         window.togglePermissionUser=function(kind,id,on){const h=document.querySelector(`[data-permission-picker="${kind}"] [data-selected]`);if(!h)return;const a=new Set(String(h.value||'').split(',').filter(Boolean));on?a.add(id):a.delete(id);h.value=[...a].join(',');};
         window.filterPermissionUsers=function(kind,q){window.renderPermissionUsers(kind,q);};
         window.refreshPermissionUsers=async function(kind){await window.loadPermissionIdentities(true);window.renderPermissionUsers(kind,'');};
@@ -15445,13 +15447,21 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
 <div id="globalDeveloperLockModal" class="hidden fixed inset-0 z-[240] bg-slate-900/60 backdrop-blur-sm items-center justify-center p-3"><div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[88vh] flex flex-col"><div class="flex items-center justify-between p-4 border-b"><div><h3 class="font-bold text-slate-800">批量设置开发者锁</h3><p class="text-[10px] text-slate-400 mt-0.5">临时管理工具：可一次修改多个事件并统一保存</p></div><button onclick="closeGlobalDeveloperLockManager()" class="w-8 h-8 rounded-full text-slate-400 hover:bg-slate-100"><i class="fa-solid fa-xmark"></i></button></div><div class="p-4 border-b"><input id="globalDevLockSearch" oninput="renderGlobalDeveloperLockList(this.value)" placeholder="搜索事件名称" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"></div><div id="globalDeveloperLockList" class="p-4 overflow-y-auto flex-1"></div><div class="p-4 border-t flex justify-end gap-2"><button onclick="closeGlobalDeveloperLockManager()" class="px-4 py-2 border border-slate-300 rounded-lg text-xs">取消</button><button id="saveGlobalDevLocksBtn" onclick="saveGlobalDeveloperLocks()" class="px-5 py-2 bg-indigo-600 text-white rounded-lg text-xs font-semibold">统一保存</button></div></div></div>
 <script>
 window._globalDevLockDraft=new Map();
-window.openGlobalDeveloperLockManagerFromButton=function(){
+window.openGlobalDeveloperLockManagerFromButton=function(ev){
+    ev?.preventDefault?.(); ev?.stopPropagation?.();
     if(!window.canEditNow?.()){window.showToast?.('请先进入编辑模式','error');return;}
     if(!window.isDeveloperMode?.()){window.showToast?.('请先进入开发者模式','error');return;}
-    window.openGlobalDeveloperLockManager?.();
+    window.openGlobalDeveloperLockManager();
 };
-window.openGlobalDeveloperLockManager=function(){if(!window.isDeveloperMode?.())return;window._globalDevLockDraft=new Map((window.events||[]).map(e=>[String(e.id),e.developerLocked===true]));const m=document.getElementById('globalDeveloperLockModal');m?.classList.remove('hidden');m?.classList.add('flex');window.renderGlobalDeveloperLockList('');};
-window.closeGlobalDeveloperLockManager=function(){const m=document.getElementById('globalDeveloperLockModal');m?.classList.add('hidden');m?.classList.remove('flex');};
+window.openGlobalDeveloperLockManager=function(){
+    if(!window.isDeveloperMode?.()){window.showToast?.('请先进入开发者模式','error');return;}
+    window._globalDevLockDraft=new Map((window.events||[]).map(e=>[String(e.id),e.developerLocked===true]));
+    const m=document.getElementById('globalDeveloperLockModal');
+    if(!m){window.showToast?.('开发者锁管理窗口加载失败','error');return;}
+    m.classList.remove('hidden'); m.classList.add('flex'); m.style.display='flex';
+    window.renderGlobalDeveloperLockList('');
+};
+window.closeGlobalDeveloperLockManager=function(){const m=document.getElementById('globalDeveloperLockModal');if(!m)return;m.classList.add('hidden');m.classList.remove('flex');m.style.display='none';};
 window.renderGlobalDeveloperLockList=function(q=''){const h=document.getElementById('globalDeveloperLockList');if(!h)return;const query=String(q||'').trim().toLowerCase();const rows=(window.events||[]).filter(e=>!query||String(e.title||'').toLowerCase().includes(query));h.innerHTML=rows.length?`<div class="space-y-1">${rows.map(e=>`<label class="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg border border-slate-200 hover:bg-slate-50"><span class="text-xs text-slate-700 truncate">${window.escapeHtml?.(e.title||'未命名事件')||e.title}</span><input type="checkbox" ${window._globalDevLockDraft.get(String(e.id))?'checked':''} onchange="window._globalDevLockDraft.set('${String(e.id).replace(/'/g,"\'")}',this.checked)" class="w-4 h-4 accent-rose-600"></label>`).join('')}</div>`:'<div class="text-center text-xs text-slate-400 py-8">没有匹配事件</div>';};
 window.saveGlobalDeveloperLocks=async function(){const btn=document.getElementById('saveGlobalDevLocksBtn');if(btn){btn.disabled=true;btn.textContent='正在保存…';}try{const changes=(window.events||[]).filter(e=>window._globalDevLockDraft.has(String(e.id))&&window._globalDevLockDraft.get(String(e.id))!==(e.developerLocked===true)).map(e=>({eventId:e.id,developerLocked:window._globalDevLockDraft.get(String(e.id))}));if(changes.length)await timelineApiPost('bulkDeveloperLocks',{changes,ownerToken:window.getEditorOwnerToken?.()||''},{timeoutMs:30000});for(const e of window.events||[])if(window._globalDevLockDraft.has(String(e.id)))e.developerLocked=window._globalDevLockDraft.get(String(e.id));window.showToast?.(changes.length?`已保存 ${changes.length} 个事件的开发者锁`:'没有需要保存的更改','success');window.closeGlobalDeveloperLockManager();}catch(e){window.showToast?.(e?.message||'批量保存失败','error');}finally{if(btn){btn.disabled=false;btn.textContent='统一保存';}}};
 </script>
