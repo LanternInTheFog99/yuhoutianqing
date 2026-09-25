@@ -6015,10 +6015,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if (!wrapper) return;
             const cards = Array.from(wrapper.querySelectorAll('.stack-card'));
             if (!cards.length) return;
-            const inactiveScale = 0.85;
-            // 只展示当前卡片后的三层，并按最终可见宽度反算中心位移。
-            // 目标约为：第二张 30px、第三张 16px、第四张 7px；第五张及以后压在第四张后方不展示。
-            const centers = [0, 46.5, 62.5, 69.5];
+            // 当前页与后排卡片保持完全相同的高度和尺寸；只通过横向位移控制露出宽度。
+            // 目标约为：第二张 30px、第三张再露 16px、第四张再露 7px；第五张及以后压在第四张后方。
+            const centers = [0, 30, 46, 53];
             cards.forEach((card, idx) => {
                 const offset = idx - activeIndex;
                 const distance = Math.abs(offset);
@@ -6026,7 +6025,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 const translateX = dir * centers[Math.min(distance, centers.length - 1)];
                 card.style.zIndex = idx === activeIndex ? 30 : Math.max(1, 25 - distance);
                 card.style.transformOrigin = 'center center';
-                card.style.transform = `translateX(${translateX}px) scale(${idx===activeIndex?1:inactiveScale})`;
+                card.style.transform = `translateX(${translateX}px)`;
                 card.style.opacity = distance <= 3 ? '1' : '0';
                 card.style.visibility = distance <= 3 ? 'visible' : 'hidden';
                 card.style.pointerEvents = distance <= 3 ? 'auto' : 'none';
@@ -12868,21 +12867,41 @@ viewer.style.visibility='';
         window.openFlexibleDatePicker = function(targetId) {
             const target=document.getElementById(targetId); if(!target)return;
             let modal=document.getElementById('flexibleDatePickerModal');
-            if(!modal){modal=document.createElement('div');modal.id='flexibleDatePickerModal';modal.className='fixed inset-0 z-[430] hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4';document.body.appendChild(modal);}
+            if(!modal){modal=document.createElement('div');modal.id='flexibleDatePickerModal';modal.className='fixed inset-0 z-[430] hidden bg-slate-900/60 backdrop-blur-sm flex items-start justify-center pt-[12vh] px-4';document.body.appendChild(modal);}
             const normalized=window.normalizePartialDate(target.value)||'';
             const parts=normalized.split('-'), now=new Date();
-            const y=Number(parts[0])||now.getFullYear(), mo=parts[1]?Number(parts[1]):0, d=parts[2]?Number(parts[2]):0;
-            const years=[]; for(let yy=1900;yy<=2100;yy++)years.push(`<option value="${yy}" ${yy===y?'selected':''}>${yy}</option>`);
-            const months=['<option value="">不选择</option>']; for(let mm=1;mm<=12;mm++)months.push(`<option value="${mm}" ${mm===mo?'selected':''}>${mm}月</option>`);
-            modal.innerHTML=`<div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"><div class="flex items-center justify-between px-5 py-4 border-b border-slate-200"><h3 class="font-bold text-slate-800">选择日期</h3><button type="button" data-date-close class="w-8 h-8 rounded-full text-slate-400 hover:bg-slate-100"><i class="fa-solid fa-xmark"></i></button></div><div class="p-5"><div class="grid grid-cols-3 gap-2"><div><span class="block text-[10px] text-slate-500 mb-1">年</span><select id="flexDateYear" class="w-full px-2 py-2 border rounded-lg text-sm bg-white">${years.join('')}</select></div><div><span class="block text-[10px] text-slate-500 mb-1">月</span><select id="flexDateMonth" class="w-full px-2 py-2 border rounded-lg text-sm bg-white">${months.join('')}</select></div><div><span class="block text-[10px] text-slate-500 mb-1">日</span><select id="flexDateDay" class="w-full px-2 py-2 border rounded-lg text-sm bg-white"></select></div></div></div><div class="flex justify-end gap-2 px-5 py-4 border-t border-slate-200"><button type="button" data-date-close class="px-4 py-2 border rounded-lg text-xs">取消</button><button type="button" id="flexDateApply" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-semibold">确定</button></div></div>`;
-            const ys=modal.querySelector('#flexDateYear'), ms=modal.querySelector('#flexDateMonth'), ds=modal.querySelector('#flexDateDay');
-            const renderDays=()=>{const yy=Number(ys.value),mm=Number(ms.value);const old=Number(ds.value)||d;if(!mm){ds.innerHTML='<option value="">不选择</option>';ds.disabled=true;return;}ds.disabled=false;const max=new Date(yy,mm,0).getDate();let h='<option value="">不选择</option>';for(let dd=1;dd<=max;dd++)h+=`<option value="${dd}" ${dd===old?'selected':''}>${dd}日</option>`;ds.innerHTML=h;if(old>max)ds.value='';};
-            ms.addEventListener('change',renderDays);ys.addEventListener('change',renderDays);renderDays();
-            modal.querySelectorAll('[data-date-close]').forEach(b=>b.onclick=()=>modal.classList.add('hidden'));
-            modal.querySelector('#flexDateApply').onclick=()=>{const yy=ys.value,mm=ms.value,dd=ds.value;let val=yy;if(mm)val+=`-${String(mm).padStart(2,'0')}`;if(mm&&dd)val+=`-${String(dd).padStart(2,'0')}`;target.value=val;target.dispatchEvent(new Event('input',{bubbles:true}));target.dispatchEvent(new Event('change',{bubbles:true}));modal.classList.add('hidden');};
+            let selectedYear=Number(parts[0])||now.getFullYear(), selectedMonth=parts[1]?Number(parts[1]):0, selectedDay=parts[2]?Number(parts[2]):0;
+            modal.innerHTML=`<div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-visible"><div class="flex items-center justify-between px-4 py-3 border-b border-slate-200"><h3 class="font-bold text-slate-800 text-sm">选择日期</h3><button type="button" data-date-close class="w-7 h-7 rounded-full text-slate-400 hover:bg-slate-100"><i class="fa-solid fa-xmark"></i></button></div><div class="px-4 py-3"><div class="grid grid-cols-3 gap-2"><div><span class="block text-[10px] text-slate-500 mb-1">年</span><div id="flexDateYear"></div></div><div><span class="block text-[10px] text-slate-500 mb-1">月</span><div id="flexDateMonth"></div></div><div><span class="block text-[10px] text-slate-500 mb-1">日</span><div id="flexDateDay"></div></div></div></div><div class="flex justify-end gap-2 px-4 py-3 border-t border-slate-200"><button type="button" data-date-close class="px-3.5 py-1.5 border rounded-lg text-xs">取消</button><button type="button" id="flexDateApply" class="px-3.5 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold">确定</button></div></div>`;
+            const yearHost=modal.querySelector('#flexDateYear'), monthHost=modal.querySelector('#flexDateMonth'), dayHost=modal.querySelector('#flexDateDay');
+            const closeMenus=(except)=>modal.querySelectorAll('[data-flex-menu]').forEach(m=>{if(m!==except)m.classList.add('hidden');});
+            const buildDropdown=(host, items, getValue, setValue, disabled=false)=>{
+                host.innerHTML='';
+                const wrap=document.createElement('div');wrap.className='relative';
+                const btn=document.createElement('button');btn.type='button';btn.className='w-full h-8 px-2 border rounded-lg text-xs bg-white flex items-center justify-between gap-1 disabled:bg-slate-100 disabled:text-slate-400';btn.disabled=disabled;
+                const label=document.createElement('span');label.className='truncate';
+                const icon=document.createElement('i');icon.className='fa-solid fa-chevron-down text-[9px] text-slate-400';btn.append(label,icon);
+                const menu=document.createElement('div');menu.dataset.flexMenu='1';menu.className='hidden absolute z-[450] left-0 right-0 top-full mt-1 max-h-40 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-xl py-1';wrap.append(btn,menu);host.append(wrap);
+                const refresh=()=>{const cur=String(getValue()??'');const hit=items.find(x=>String(x.value)===cur);label.textContent=hit?hit.label:'不选择';menu.innerHTML='';items.forEach(item=>{const b=document.createElement('button');b.type='button';b.dataset.value=String(item.value);b.className='block w-full px-2 py-1.5 text-left text-xs hover:bg-indigo-50 '+(String(item.value)===cur?'bg-indigo-50 text-indigo-700 font-semibold':'text-slate-700');b.textContent=item.label;b.onclick=()=>{setValue(item.value);menu.classList.add('hidden');refreshAll();};menu.appendChild(b);});};
+                btn.onclick=()=>{const opening=menu.classList.contains('hidden');closeMenus(menu);menu.classList.toggle('hidden',!opening);if(opening)requestAnimationFrame(()=>menu.querySelector('.bg-indigo-50')?.scrollIntoView({block:'nearest'}));};
+                return {refresh,menu,btn};
+            };
+            let yearDD,monthDD,dayDD;
+            const refreshAll=()=>{
+                const years=[];for(let yy=1900;yy<=2100;yy++)years.push({value:yy,label:String(yy)});
+                const months=[{value:0,label:'不选择'}];for(let mm=1;mm<=12;mm++)months.push({value:mm,label:`${mm}月`});
+                const max=selectedMonth?new Date(selectedYear,selectedMonth,0).getDate():0;if(selectedDay>max)selectedDay=0;
+                const days=[{value:0,label:'不选择'}];if(selectedMonth)for(let dd=1;dd<=max;dd++)days.push({value:dd,label:`${dd}日`});
+                if(!yearDD)yearDD=buildDropdown(yearHost,years,()=>selectedYear,v=>selectedYear=Number(v)); else { yearDD=buildDropdown(yearHost,years,()=>selectedYear,v=>selectedYear=Number(v)); }
+                monthDD=buildDropdown(monthHost,months,()=>selectedMonth,v=>{selectedMonth=Number(v);if(!selectedMonth)selectedDay=0;});
+                dayDD=buildDropdown(dayHost,days,()=>selectedDay,v=>selectedDay=Number(v),!selectedMonth);
+                yearDD.refresh();monthDD.refresh();dayDD.refresh();
+            };
+            refreshAll();
+            modal.querySelectorAll('[data-date-close]').forEach(b=>b.onclick=()=>{closeMenus();modal.classList.add('hidden');});
+            modal.querySelector('#flexDateApply').onclick=()=>{let val=String(selectedYear);if(selectedMonth)val+=`-${String(selectedMonth).padStart(2,'0')}`;if(selectedMonth&&selectedDay)val+=`-${String(selectedDay).padStart(2,'0')}`;target.value=val;target.dispatchEvent(new Event('input',{bubbles:true}));target.dispatchEvent(new Event('change',{bubbles:true}));closeMenus();modal.classList.add('hidden');};
+            modal.onclick=e=>{if(e.target===modal)closeMenus();};
             modal.classList.remove('hidden');
         };
-
         window.vCloneDeepDescription = function(value) {
             if (!value) return null;
             try { return JSON.parse(JSON.stringify(value)); } catch (_) { return null; }
