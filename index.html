@@ -6016,10 +6016,11 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const cards = Array.from(wrapper.querySelectorAll('.stack-card'));
             if (!cards.length) return;
             const inactiveScale = 0.85;
-            // 五层紧凑叠放。这里直接规定每一层“中心位移”，不再累加经过缩放后的宽度。
-            // 这样第二/三/四/五张的露出量只由相邻位移差决定，不会再被 transform-origin/缩放二次改变。
-            // 视觉层级拉开：第二层适当增加露出量，第三、第四、第五逐级明显收窄，同时保持整体紧凑。
-            const centers = [0, 46, 75, 92, 101];
+            // 五层叠放按“最终可见宽度”反算中心位移。卡片宽 220px，后排 scale(0.85)，
+            // 因此第二张会先被缩放造成的 16.5px 内缩吃掉；后续各层的可见宽度则等于相邻中心位移差。
+            // 目标约为：第二张 42.5px、第三张 28px、第四张 17px、第五张 9px。
+            // 这样四个事件和五个事件时都使用同一套明确递减的视觉层级。
+            const centers = [0, 59, 87, 104, 113];
             cards.forEach((card, idx) => {
                 const offset = idx - activeIndex;
                 const distance = Math.abs(offset);
