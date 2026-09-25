@@ -2536,9 +2536,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     // 图片→图片保持原来的短转场；只要任一侧是 GIF/视频，就统一使用较长转场。
                     const isPlainImageToPlainImage =
                         isPlainPreviewImageItem(currentItem) && isPlainPreviewImageItem(nextItem);
-                    const fadeInMs = isPlainImageToPlainImage ? 300 : 440;
-                    const fadeOutMs = isPlainImageToPlainImage ? 620 : 760;
-                    const readyGraceMs = isPlainImageToPlainImage ? 0 : 140;
+                    const fadeInMs = isPlainImageToPlainImage ? 240 : 320;
+                    const fadeOutMs = isPlainImageToPlainImage ? 460 : 560;
+                    const readyGraceMs = isPlainImageToPlainImage ? 0 : 80;
                     pendingBlackHandoff = null;
 
                     const nextCover = nextItem.type === 'video'
@@ -2570,7 +2570,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     stage.appendChild(dim);
                     await delayMs(16);
                     if (!isStillRunning() || gen !== generation) { dim.remove(); return false; }
-                    dim.style.opacity='1';
+                    dim.style.opacity='0.58';
                     await delayMs(fadeInMs);
                     if (!isStillRunning() || gen !== generation) { dim.remove(); return false; }
 
@@ -6003,7 +6003,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const inactiveScale = 0.85;
             // 只展示当前卡片及其后/前最多三层：第二张明显多露、第三张次之、第四张只露窄边。
             // 第五张起与第四张完全叠放且隐藏，不再占用视觉空间。
-            const reveals = [52, 30, 14];
+            const reveals = [76, 42, 18];
             const offsetFor = distance => {
                 let x=0;
                 for(let i=0;i<Math.min(distance,reveals.length);i++) x+=reveals[i];
@@ -6955,10 +6955,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             m.className='fixed inset-0 z-[300] hidden bg-slate-950/80 backdrop-blur-sm p-0 text-slate-800';
             m.innerHTML=`<div class="w-full h-full bg-white flex flex-col">
                 <div class="h-14 shrink-0 border-b border-slate-200 flex items-center gap-2 px-3 sm:px-5 bg-white">
-                    <div class="font-bold text-sm sm:text-base flex items-center gap-2 mr-auto"><i class="fa-solid fa-feather-pointed text-violet-600"></i><span id="deepEditorTitle">深入描述</span></div>
-                    <button type="button" onclick="deepOpenHelp()" class="px-2.5 py-1.5 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-semibold" title="深入描述使用说明"><i class="fa-solid fa-circle-question mr-1"></i>使用说明</button>
-                    <span class="w-1.5 sm:w-3"></span>
-                    <div class="relative flex flex-col items-center"><button type="button" id="deepEnableToggleBtn" onclick="deepToggleDescriptionEnabled()" class="px-3 py-1.5 border rounded-lg text-xs"><i data-deep-enable-toggle-icon class="fa-solid fa-eye-slash mr-1"></i><span data-deep-enable-toggle-label>停用</span></button><span id="deepEnabledStatus" class="absolute top-full mt-[1px] whitespace-nowrap rounded-full border px-1.5 py-px text-[8px] leading-[12px] font-semibold bg-white shadow-sm"></span></div>
+                    <div class="font-bold text-sm sm:text-base flex items-center gap-2 mr-auto min-w-0"><i class="fa-solid fa-feather-pointed text-violet-600"></i><span id="deepEditorTitle">深入描述</span><button type="button" onclick="deepOpenHelp()" class="ml-1 px-2 py-1 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-[10px] font-semibold whitespace-nowrap" title="深入描述使用说明"><i class="fa-solid fa-circle-question mr-1"></i>使用说明</button></div>
+                    <span id="deepEnabledStatus" class="whitespace-nowrap rounded-full border px-1.5 py-px text-[8px] leading-[11px] font-semibold bg-white shadow-sm"></span>
+                    <button type="button" id="deepEnableToggleBtn" onclick="deepToggleDescriptionEnabled()" class="px-3 py-1.5 border rounded-lg text-xs"><i data-deep-enable-toggle-icon class="fa-solid fa-eye-slash mr-1"></i><span data-deep-enable-toggle-label>停用</span></button>
                     <span class="w-1.5 sm:w-3"></span>
                     <button type="button" onclick="deepUndo()" class="px-2.5 py-1.5 border rounded-lg text-xs" title="撤回"><i class="fa-solid fa-rotate-left"></i></button>
                     <button type="button" onclick="deepRedo()" class="px-2.5 py-1.5 border rounded-lg text-xs" title="重做"><i class="fa-solid fa-rotate-right"></i></button>
@@ -7067,7 +7066,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const btn=document.getElementById('deepEnableToggleBtn');
             if(status){
                 status.textContent=enabled?'已启用':'未启用';
-                status.className='absolute top-full mt-[1px] whitespace-nowrap rounded-full border px-1.5 py-px text-[8px] leading-[12px] font-semibold bg-white shadow-sm '+(enabled?'text-emerald-600 border-emerald-200':'text-slate-400 border-slate-200');
+                status.className='whitespace-nowrap rounded-full border px-1.5 py-px text-[8px] leading-[11px] font-semibold bg-white shadow-sm '+(enabled?'text-emerald-600 border-emerald-200':'text-slate-400 border-slate-200');
             }
             if(btn){
                 const label=btn.querySelector('[data-deep-enable-toggle-label]');
@@ -12798,7 +12797,7 @@ viewer.style.visibility='';
                 const hasCanvas=[...(window.editingImageFiles||[]),...(window.editingVideos||[])].some(x=>window.deepCanvasHasContent?.(x?.deepDescription));
                 if(hasCanvas){
                     const cb=document.getElementById('deepDescriptionToggle'); if(cb)cb.checked=true;
-                    const ok=await window.deepAppConfirm({title:'确认关闭深入描述？',desc:'当前事件已有深入描述画布。关闭后画布数据将被删除，画布引用的云端媒体会在事件保存后解除引用并进入未引用状态。',confirmText:'确认关闭并删除画布',danger:true});
+                    const ok=await window.deepAppConfirm({title:'确认关闭深入描述？',desc:'关闭后画布数据将被删除，请谨慎点击。',confirmText:'确认关闭',danger:true});
                     if(!ok)return; if(cb)cb.checked=false;
                     [...(window.editingImageFiles||[]),...(window.editingVideos||[])].forEach(x=>{if(x&&typeof x==='object')x.deepDescription=null;});
                 }
@@ -14402,7 +14401,7 @@ viewer.style.visibility='';
                 const hasCanvas=all.some(x=>window.deepCanvasHasContent?.(x?.deepDescription));
                 if(hasCanvas){
                     if(cb)cb.checked=true;
-                    const ok=await window.deepAppConfirm({title:'确认关闭深入描述？',desc:'当前事件已有深入描述画布。关闭后画布数据将被删除，画布引用的云端媒体会在事件保存后解除引用并进入未引用状态。',confirmText:'确认关闭并删除画布',danger:true});
+                    const ok=await window.deepAppConfirm({title:'确认关闭深入描述？',desc:'关闭后画布数据将被删除，请谨慎点击。',confirmText:'确认关闭',danger:true});
                     if(!ok)return;
                     all.forEach(x=>{if(x&&typeof x==='object')x.deepDescription=null;});
                     if(cb)cb.checked=false;
