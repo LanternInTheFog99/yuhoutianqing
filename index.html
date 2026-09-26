@@ -14920,7 +14920,7 @@ viewer.style.visibility='';
         };
 
         window.commentCanDelete = function(message){
-            return window.commentGetOwnIds().has(String(message?.id||''));
+            return window.commentGetOwnIds().has(String(message?.id||'')) || !!window.isDeveloperMode?.();
         };
 
         window.commentCreateMessageNode = function(board, message, isReply=false){
@@ -15197,11 +15197,21 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
             try{await timelineApiPost('markAllNotificationsRead',{ownerToken},{auth:false,timeoutMs:12000});}catch(_){}
             await window.loadNotifications?.();await window.refreshNotificationBadge?.();
         };
+        window.notificationDeletedMessage=function(reason){
+            if(reason==='parent')return '该评论所属评论已被删除';
+            if(reason==='event')return '该评论所属事件已被删除';
+            if(reason==='moderator')return '该评论已被管理者删除';
+            return '该评论已被删除';
+        };
         window.openNotificationTarget=async function(n){
             const ownerToken=window.getEditorOwnerToken?.()||'';
             if(n?._id && ownerToken){try{await timelineApiPost('markNotificationRead',{ownerToken,id:n._id},{auth:false,timeoutMs:12000});}catch(_){}}
             const eventId=String(n?.eventId||'');const commentId=String(n?.commentId||'');
             if(!eventId||!commentId)return;
+            if(n?.deletedReason){
+                window.showToast?.(window.notificationDeletedMessage?.(String(n.deletedReason))||'该评论已被删除','info');
+                return;
+            }
             // 先确认目标评论仍存在。被删除的评论只提示，不进入详情页，避免残留“返回互动通知”的页面状态。
             try{
                 const data=await timelineApiFetch('/timeline?type=comments&eventId='+encodeURIComponent(eventId)+'&ownerToken='+encodeURIComponent(ownerToken),12000);
