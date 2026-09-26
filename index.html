@@ -1460,7 +1460,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 <button onclick="addNewTagFromModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-xs font-medium shrink-0">新建tag</button>
             </div>
 
-            <div class="mb-2 flex items-center gap-2">
+            <div id="tagFilterControls"><div class="mb-2 flex items-center gap-2">
                 <span class="text-[11px] font-semibold text-slate-500 shrink-0">筛选模式</span>
                 <div class="flex flex-1 rounded-lg border border-slate-200 overflow-hidden text-[11px] font-semibold">
                     <button type="button" id="tagModeIncludeBtn" onclick="setTagFilterDraftMode('include')" class="flex-1 px-2 py-1.5 bg-indigo-50 text-indigo-700">包含</button>
@@ -1474,11 +1474,11 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     <button type="button" id="tagMatchAllBtn" onclick="setTagFilterDraftMatch('all')" class="flex-1 px-2 py-1.5 bg-white text-slate-500">全部</button>
                 </div>
             </div>
-            <p class="text-[10px] text-slate-400 mb-2 leading-relaxed" id="tagFilterHint">点击tag选中，可多选。包含+任一：有其中任意tag即显示；包含+全部：必须同时拥有所选全部tag。排除同理。</p>
+            <p class="text-[10px] text-slate-400 mb-2 leading-relaxed" id="tagFilterHint">点击tag选中，可多选。包含+任一：有其中任意tag即显示；包含+全部：必须同时拥有所选全部tag。排除同理。</p></div>
 
-            <div id="tagModalList" class="flex flex-wrap gap-2 max-h-52 overflow-y-auto p-1 mb-3"></div>
+            <div id="tagManageControls" class="hidden mb-3"><div class="relative inline-block"><button type="button" onclick="toggleTagManageCategoryMenu(event)" class="px-3 py-1.5 rounded-lg text-xs border border-slate-200 bg-slate-50 text-slate-600"><i class="fa-solid fa-filter text-[10px] text-indigo-500 mr-1"></i>分类 <span id="tagManageCategoryLabel" class="text-indigo-600">全部</span></button><div id="tagManageCategoryMenu" class="hidden absolute left-0 top-full mt-1.5 z-20 w-32 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl"><button onclick="setTagManageCategory('all')" class="w-full text-left px-2.5 py-2 rounded-lg text-xs hover:bg-indigo-50">全部</button><button onclick="setTagManageCategory('mine')" class="w-full text-left px-2.5 py-2 rounded-lg text-xs hover:bg-indigo-50">我的</button><button onclick="setTagManageCategory('other')" class="w-full text-left px-2.5 py-2 rounded-lg text-xs hover:bg-indigo-50">其他</button></div></div></div><div id="tagModalList" class="flex flex-wrap gap-2 max-h-52 overflow-y-auto p-1 mb-3"></div>
 
-            <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+            <div id="tagFilterFooter" class="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
                 <button type="button" onclick="clearTagFilter()" class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 text-slate-600 hover:bg-slate-50">清除筛选</button>
                 <div class="flex gap-2">
                     <button type="button" onclick="closeTagModal()" class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 text-slate-600 hover:bg-slate-50">取消</button>
@@ -2133,6 +2133,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.events = [];
         window.connections = [];
         window.availableTags = [];
+        window.tagRecords = [];
+        window.tagManageCategory = 'all';
         window.bgmPlaylist = [];
         window.currentBgmIndex = -1;
         window.isBgmPlaying = false;
@@ -3349,7 +3351,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 coverKind:String(options?.coverKind||''),
                 folder:useTemp?'temp':'',
                 temporary:useTemp,
-                replaceCloudPath:useTemp?'':String(options?.replaceCloudPath||'')
+                replaceCloudPath:useTemp?'':String(options?.replaceCloudPath||''),
+                ownerToken:window.getEditorOwnerToken?.()||''
             },{auth:'edit',timeoutMs:25000});
             const up=meta?.upload||{};
             if(!up.url||!up.authorization||!up.token||!up.cosFileID||!meta.cloudPath) throw new Error('上传凭证不完整');
@@ -3412,7 +3415,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
 
         // v106: reusable CloudBase media library. Existing cloud files can be inserted without re-uploading.
-        window._sessionCloudCopies=window._sessionCloudCopies||new Set();
         window.cloudMediaCopyProgress=function(modal,text,pct){
             let box=modal.querySelector('[data-copy-progress]');
             if(!box){
@@ -3426,6 +3428,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if(pct>=100)setTimeout(()=>box?.remove(),900);
         };
         window.cloudMediaDisplayName=function(a){
+            if(String(a?.displayName||'').trim())return String(a.displayName).trim();
             const path=String(a?.cloudPath||'');
             const raw=String(a?.originalName||path||'');
             let name=(path.split('/').pop()||raw).replace(/\.[^.]+$/,'');
@@ -3442,79 +3445,23 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if(!window.hasTimelineEditToken?.()){window.showToast?.('请先解锁编辑模式','error');return null;}
             let modal=document.getElementById('cloudMediaLibraryModal');
             if(!modal){modal=document.createElement('div');modal.id='cloudMediaLibraryModal';modal.className='fixed inset-0 z-[470] hidden bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5';document.body.appendChild(modal);}
-            modal.innerHTML=`<div class="w-full max-w-3xl max-h-[86vh] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden" onclick="event.stopPropagation()"><div class="px-4 py-3 border-b flex items-center gap-2"><div class="font-bold text-slate-800"><i class="fa-solid fa-cloud text-indigo-600 mr-2"></i>云端数据库</div><div class="ml-auto flex items-center gap-2"><button data-media-close type="button" class="w-8 h-8 rounded-lg hover:bg-slate-100"><i class="fa-solid fa-xmark"></i></button></div></div><div class="px-4 py-3 border-b flex flex-wrap items-center gap-2"><div class="flex items-center gap-2 mr-2 sm:mr-3"><div class="relative" data-media-status-wrap><button type="button" data-media-status-btn class="px-3 py-1.5 rounded-lg text-xs border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 flex items-center gap-1.5"><i class="fa-solid fa-filter text-[10px] text-indigo-500"></i><span data-media-status-label>分类</span><i class="fa-solid fa-chevron-down text-[9px] text-slate-400"></i></button><div data-media-status-menu class="hidden absolute left-0 top-full mt-1.5 z-30 w-28 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl"><button type="button" data-status-choice="inuse" class="w-full text-left px-2.5 py-2 rounded-lg text-xs text-slate-600 hover:bg-indigo-50 hover:text-indigo-700"><i class="fa-solid fa-link mr-1.5 text-emerald-500"></i>使用中</button><button type="button" data-status-choice="unref" class="w-full text-left px-2.5 py-2 rounded-lg text-xs text-slate-600 hover:bg-indigo-50 hover:text-indigo-700"><i class="fa-solid fa-link-slash mr-1.5 text-amber-500"></i>未引用</button></div></div><div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-600"><button type="button" data-media-sort-direction class="border-0 bg-transparent p-0 flex items-center justify-center text-indigo-500 hover:text-indigo-700" title="切换升序或降序"><i data-media-sort-direction-icon class="fa-solid fa-arrow-down-wide-short text-[10px]"></i></button><button type="button" data-media-sort-toggle class="border-0 bg-transparent p-0 flex items-center text-xs text-slate-600 hover:text-indigo-700" title="切换排序依据"><span data-media-sort-label>按时间</span></button></div></div><div class="flex items-center gap-2"><button data-folder="all" class="media-folder-btn px-3 py-1.5 rounded-lg text-xs border">全部</button><button data-folder="picture" class="media-folder-btn px-3 py-1.5 rounded-lg text-xs border">图片</button><button data-folder="gif" class="media-folder-btn px-3 py-1.5 rounded-lg text-xs border">动图</button><button data-folder="video" class="media-folder-btn px-3 py-1.5 rounded-lg text-xs border">视频</button></div><input data-media-search class="ml-auto min-w-[150px] flex-1 max-w-xs px-3 py-1.5 rounded-lg border text-xs" placeholder="搜索文件名"></div><div data-media-list class="p-4 overflow-y-auto min-h-[240px]"><div class="text-sm text-slate-400 text-center py-12"><i class="fa-solid fa-spinner fa-spin mr-2"></i>正在读取云端媒体…</div></div></div>`;
-            const close=()=>modal.classList.add('hidden'); modal.onclick=e=>{if(e.target===modal)close();}; modal.querySelector('[data-media-close]').onclick=close;
+            modal.innerHTML=`<div class="w-full max-w-3xl max-h-[86vh] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden" onclick="event.stopPropagation()"><div class="px-4 py-3 border-b flex items-center gap-2"><div class="font-bold text-slate-800"><i class="fa-solid fa-cloud text-indigo-600 mr-2"></i>云端数据库</div><button data-media-close type="button" class="ml-auto w-8 h-8 rounded-lg hover:bg-slate-100"><i class="fa-solid fa-xmark"></i></button></div><div class="px-4 py-3 border-b flex flex-wrap items-center gap-2"><div class="relative"><button data-media-category-btn type="button" class="px-3 py-1.5 rounded-lg text-xs border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 flex items-center gap-1.5"><i class="fa-solid fa-filter text-[10px] text-indigo-500"></i>分类<i class="fa-solid fa-chevron-down text-[9px] text-slate-400"></i></button><div data-media-category-menu class="hidden absolute left-0 top-full mt-1.5 z-30 w-64 rounded-xl border border-slate-200 bg-white p-3 shadow-xl"><div class="text-[10px] font-semibold text-slate-400 mb-1.5">使用状态</div><div class="flex gap-1" data-status-group>${[['all','全部'],['inuse','使用中'],['unref','未引用']].map(([v,t])=>`<button type="button" data-status-choice="${v}" class="flex-1 px-2 py-1.5 rounded-lg text-xs border">${t}</button>`).join('')}</div><div class="text-[10px] font-semibold text-slate-400 mt-3 mb-1.5">文件归属</div><div class="flex gap-1" data-owner-group>${[['all','全部'],['mine','我的'],['other','其他']].map(([v,t])=>`<button type="button" data-owner-choice="${v}" class="flex-1 px-2 py-1.5 rounded-lg text-xs border">${t}</button>`).join('')}</div></div></div><div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-600"><button type="button" data-media-sort-direction class="text-indigo-500"><i data-media-sort-direction-icon class="fa-solid fa-arrow-down-wide-short text-[10px]"></i></button><button type="button" data-media-sort-toggle><span data-media-sort-label>按时间</span></button></div><div class="flex items-center gap-2"><button data-folder="all" class="media-folder-btn px-3 py-1.5 rounded-lg text-xs border">全部</button><button data-folder="picture" class="media-folder-btn px-3 py-1.5 rounded-lg text-xs border">图片</button><button data-folder="gif" class="media-folder-btn px-3 py-1.5 rounded-lg text-xs border">动图</button><button data-folder="video" class="media-folder-btn px-3 py-1.5 rounded-lg text-xs border">视频</button></div><input data-media-search class="ml-auto min-w-[150px] flex-1 max-w-xs px-3 py-1.5 rounded-lg border text-xs" placeholder="搜索文件名"></div><div data-media-list class="p-4 overflow-y-auto min-h-[240px]"></div><div class="px-4 py-2.5 border-t bg-slate-50/70 text-[10px] text-slate-400">未引用文件会由系统定时清理。</div></div>`;
+            const close=()=>modal.classList.add('hidden');modal.onclick=e=>{if(e.target===modal)close();};modal.querySelector('[data-media-close]').onclick=close;
             const allowed=Array.isArray(allowedFolders)&&allowedFolders.length?new Set(allowedFolders.map(String).filter(x=>x!=='music')):null;
-            if(allowed) allowed.delete('music');
-            let current=(folder==='music'?'all':folder),items=[];
-            if(allowed && current!=='all' && !allowed.has(current)) current=[...allowed][0]||'all';
-            const render=()=>{const q=String(modal.querySelector('[data-media-search]')?.value||'').trim().toLowerCase();const status=String(modal._mediaStatus||'all');const list=modal.querySelector('[data-media-list]');const sortMode=String(modal._mediaSort||'time');const shown=items.filter(a=>(!allowed||allowed.has(String(a.folder||'')))&&(current==='all'||a.folder===current)&&(status==='all'||(status==='inuse'?a.unreferencedSince==null:a.unreferencedSince!=null))&&(!q||String(a.originalName||a.cloudPath).toLowerCase().includes(q))).slice().sort((a,b)=>{const dir=modal._mediaSortDir==='asc'?1:-1;return sortMode==='name'?dir*window.cloudMediaDisplayName(a).localeCompare(window.cloudMediaDisplayName(b),'zh-CN',{numeric:true,sensitivity:'base'}):dir*(Number(a.uploadedAt||a.createdAt||0)-Number(b.uploadedAt||b.createdAt||0));});modal.querySelectorAll('.media-folder-btn').forEach(b=>{const permitted=!allowed||b.dataset.folder==='all'||allowed.has(b.dataset.folder);const on=b.dataset.folder===current;b.className='media-folder-btn px-3 py-1.5 rounded-lg text-xs border '+(!permitted?'hidden ':(on?'bg-indigo-600 border-indigo-600 text-white':'bg-white text-slate-600 hover:bg-slate-50'));});if(!shown.length){list.innerHTML='<div class="text-sm text-slate-400 text-center py-12">这里还没有可用媒体</div>';return;}list.innerHTML='<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">'+shown.map((a,i)=>{const url=window.cloudMediaPublicUrl(a.cloudPath),icon=a.folder==='video'?'fa-video':a.folder==='music'?'fa-music':a.folder==='gif'?'fa-photo-film':'fa-image';const pending=a.unreferencedSince!=null?'<span class="text-amber-600">当前未被事件引用</span>':'<span class="text-emerald-600">使用中</span>';return `<div data-media-index="${items.indexOf(a)}" class="relative text-left border rounded-xl p-3 hover:border-indigo-300 hover:bg-indigo-50/40 flex gap-3 items-center cursor-pointer group" title="${window.escapeHtml(String(a.cloudPath||''))}"><button type="button" data-media-preview="${items.indexOf(a)}" class="w-11 h-11 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 text-indigo-500 overflow-hidden" title="预览">${a.folder==='picture'||a.folder==='gif'?`<img src="${window.escapeHtml(url)}" class="w-full h-full object-cover" loading="lazy">`:`<i class="fa-solid ${icon}"></i>`}</button><div class="min-w-0 flex-1 pr-1"><div class="text-xs font-semibold text-slate-700 truncate">${window.escapeHtml?window.escapeHtml(window.cloudMediaDisplayName(a)):window.cloudMediaDisplayName(a)}</div><div class="text-[10px] mt-1 flex flex-wrap gap-x-2 gap-y-0.5"><span class="text-slate-400">${window.cloudMediaFormatSize(a.size)}</span><span class="text-slate-400">${window.cloudMediaFormatUploadedAt(a)}</span>${pending}</div></div><div class="absolute right-2 top-2 flex items-center gap-1 opacity-75 group-hover:opacity-100 transition-opacity"><button type="button" data-media-use="${items.indexOf(a)}" class="w-7 h-7 rounded-lg border border-slate-200 bg-white/95 shadow-sm hover:bg-indigo-50 text-indigo-500 flex items-center justify-center" title="使用这个媒体"><i class="fa-solid fa-plus text-[11px]"></i></button><button type="button" data-media-copy="${items.indexOf(a)}" class="w-7 h-7 rounded-lg border border-slate-200 bg-white/95 shadow-sm hover:bg-indigo-50 text-indigo-500 flex items-center justify-center" title="复制云端媒体"><i class="fa-solid fa-copy text-[11px]"></i></button>${window._sessionCloudCopies?.has(String(a.cloudPath||''))?`<button type="button" data-media-delete-copy="${items.indexOf(a)}" class="w-7 h-7 rounded-lg border border-rose-200 bg-white/95 shadow-sm hover:bg-rose-50 text-rose-500 flex items-center justify-center" title="删除本页创建的复制媒体"><i class="fa-solid fa-trash text-[11px]"></i></button>`:''}</div></div>`;}).join('')+'</div>';const useAsset=(idx)=>{const a=items[Number(idx)];if(!a)return;const picked={...a,url:window.cloudMediaPublicUrl(a.cloudPath),isCloud:true};close();if(typeof onSelect==='function')onSelect(picked);};list.querySelectorAll('[data-media-index]').forEach(card=>card.onclick=null);list.querySelectorAll('[data-media-preview]').forEach(btn=>btn.onclick=(ev)=>{ev.preventDefault();ev.stopPropagation();const a=items[Number(btn.dataset.mediaPreview)];if(!a)return;let pv=document.getElementById('cloudMediaPreviewModal');if(!pv){pv=document.createElement('div');pv.id='cloudMediaPreviewModal';pv.className='fixed inset-0 z-[495] hidden bg-slate-950/85 flex items-center justify-center p-4';document.body.appendChild(pv);}const u=window.cloudMediaPublicUrl(a.cloudPath);pv.innerHTML=`<div class="relative max-w-[92vw] max-h-[88vh]"><button type="button" data-pv-close class="absolute -top-10 right-0 text-white w-8 h-8">×</button>${a.folder==='video'?`<video src="${window.escapeHtml(u)}" controls autoplay class="max-w-[92vw] max-h-[82vh] rounded-xl bg-black"></video>`:`<img src="${window.escapeHtml(u)}" class="max-w-[92vw] max-h-[82vh] object-contain rounded-xl bg-black">`}</div>`;pv.classList.remove('hidden');const closePv=()=>{pv.querySelector('video')?.pause?.();pv.classList.add('hidden');};pv.onclick=e=>{if(e.target===pv)closePv();};pv.querySelector('[data-pv-close]').onclick=closePv;});list.querySelectorAll('[data-media-use]').forEach(btn=>btn.onclick=(ev)=>{ev.preventDefault();ev.stopPropagation();useAsset(btn.dataset.mediaUse);});list.querySelectorAll('[data-media-copy]').forEach(btn=>btn.onclick=async(ev)=>{
-                ev.preventDefault();ev.stopPropagation();
-                const a=items[Number(btn.dataset.mediaCopy)];if(!a)return;
-                try{
-                    btn.disabled=true;
-                    window.cloudMediaCopyProgress(modal,'正在复制云端媒体…',18);
-                    const r=await timelineApiPost('copyMediaAsset',{cloudPath:a.cloudPath},{auth:'edit',timeoutMs:60000});
-                    window.cloudMediaCopyProgress(modal,'复制成功，正在刷新媒体库…',72);
-                    if(r?.cloudPath)window._sessionCloudCopies.add(String(r.cloudPath));
-                    await load();
-                    window.cloudMediaCopyProgress(modal,'已出现在云端数据库',100);
-                }catch(err){
-                    modal.querySelector('[data-copy-progress]')?.remove();
-                    window.showToast?.(err?.message||'复制失败','error');
-                }finally{btn.disabled=false;}
-            });
-            list.querySelectorAll('[data-media-delete-copy]').forEach(btn=>btn.onclick=async(ev)=>{
-                ev.preventDefault();ev.stopPropagation();
-                const a=items[Number(btn.dataset.mediaDeleteCopy)];
-                if(!a||!window._sessionCloudCopies.has(String(a.cloudPath||'')))return;
-                const shell=modal.querySelector(':scope > div');
-                const confirmLayer=document.createElement('div');
-                confirmLayer.className='absolute inset-0 z-20 bg-slate-950/35 backdrop-blur-[1px] flex items-center justify-center p-4';
-                confirmLayer.innerHTML=`<div class="w-full max-w-sm rounded-2xl bg-white border shadow-2xl p-4" onclick="event.stopPropagation()"><div class="font-bold text-slate-800">删除复制媒体</div><div data-delete-progress class="hidden mt-4"><div class="flex justify-between text-[11px] text-slate-500"><span data-delete-text>正在删除…</span><span data-delete-pct>20%</span></div><div class="mt-1.5 h-1.5 rounded-full bg-slate-100 overflow-hidden"><div data-delete-bar class="h-full bg-rose-500 transition-all duration-300" style="width:20%"></div></div></div><div data-delete-actions class="mt-4 flex justify-end gap-2"><button type="button" data-delete-cancel class="px-3 py-1.5 rounded-lg border text-xs">取消</button><button type="button" data-delete-confirm class="px-3 py-1.5 rounded-lg bg-rose-600 text-white text-xs">删除</button></div></div>`;
-                shell.classList.add('relative');shell.appendChild(confirmLayer);
-                confirmLayer.querySelector('[data-delete-cancel]').onclick=()=>confirmLayer.remove();
-                confirmLayer.querySelector('[data-delete-confirm]').onclick=async()=>{
-                    const progress=confirmLayer.querySelector('[data-delete-progress]'),actions=confirmLayer.querySelector('[data-delete-actions]');
-                    progress.classList.remove('hidden');actions.classList.add('hidden');
-                    const setProgress=(text,pct)=>{confirmLayer.querySelector('[data-delete-text]').textContent=text;confirmLayer.querySelector('[data-delete-pct]').textContent=pct+'%';confirmLayer.querySelector('[data-delete-bar]').style.width=pct+'%';};
-                    try{
-                        setProgress('正在删除云端副本…',25);
-                        await timelineApiPost('deleteMediaAsset',{cloudPath:a.cloudPath,allowSessionCopy:true},{auth:'edit',timeoutMs:30000});
-                        setProgress('删除成功，正在刷新数据库…',72);
-                        window._sessionCloudCopies.delete(String(a.cloudPath||''));
-                        await load();
-                        setProgress('删除完成',100);
-                        setTimeout(()=>confirmLayer.remove(),650);
-                    }catch(err){
-                        progress.classList.add('hidden');actions.classList.remove('hidden');
-                        window.showToast?.(err?.message||'删除失败','error');
-                    }
-                };
-            });
+            let current=folder==='music'?'all':folder,items=[];if(allowed&&current!=='all'&&!allowed.has(current))current=[...allowed][0]||'all';
+            modal._mediaStatus='all';modal._mediaOwner='all';modal._mediaSort='time';modal._mediaSortDir='desc';
+            const canManage=a=>!!window.isDeveloperMode?.()||a?.editable===true;
+            const syncCategoryUi=()=>{modal.querySelectorAll('[data-status-choice]').forEach(b=>{const on=b.dataset.statusChoice===modal._mediaStatus;b.className='flex-1 px-2 py-1.5 rounded-lg text-xs border '+(on?'bg-indigo-50 border-indigo-300 text-indigo-700 font-semibold':'bg-white border-slate-200 text-slate-500');});modal.querySelectorAll('[data-owner-choice]').forEach(b=>{const on=b.dataset.ownerChoice===modal._mediaOwner;b.className='flex-1 px-2 py-1.5 rounded-lg text-xs border '+(on?'bg-indigo-50 border-indigo-300 text-indigo-700 font-semibold':'bg-white border-slate-200 text-slate-500');});};
+            const render=()=>{const q=String(modal.querySelector('[data-media-search]')?.value||'').trim().toLowerCase(),status=modal._mediaStatus,owner=modal._mediaOwner,sort=modal._mediaSort;const shown=items.filter(a=>(!allowed||allowed.has(String(a.folder||'')))&&(current==='all'||a.folder===current)&&(status==='all'||(status==='inuse'?a.unreferencedSince==null:a.unreferencedSince!=null))&&(owner==='all'||(owner==='mine'?a.owned===true:a.owned!==true))&&(!q||window.cloudMediaDisplayName(a).toLowerCase().includes(q))).slice().sort((a,b)=>{const d=modal._mediaSortDir==='asc'?1:-1;return sort==='name'?d*window.cloudMediaDisplayName(a).localeCompare(window.cloudMediaDisplayName(b),'zh-CN',{numeric:true,sensitivity:'base'}):d*(Number(a.uploadedAt||a.createdAt||0)-Number(b.uploadedAt||b.createdAt||0));});modal.querySelectorAll('.media-folder-btn').forEach(b=>{const permitted=!allowed||b.dataset.folder==='all'||allowed.has(b.dataset.folder),on=b.dataset.folder===current;b.className='media-folder-btn px-3 py-1.5 rounded-lg text-xs border '+(!permitted?'hidden ':(on?'bg-indigo-600 border-indigo-600 text-white':'bg-white text-slate-600 hover:bg-slate-50'));});const list=modal.querySelector('[data-media-list]');if(!shown.length){list.innerHTML='<div class="text-sm text-slate-400 text-center py-12">这里还没有可用媒体</div>';return;}list.innerHTML='<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">'+shown.map(a=>{const i=items.indexOf(a),url=window.cloudMediaPublicUrl(a.cloudPath),pending=a.unreferencedSince!=null?'<span class="text-amber-600">未引用</span>':'<span class="text-emerald-600">使用中</span>',manage=canManage(a)?`<button data-media-rename="${i}" class="w-7 h-7 rounded-lg border bg-white text-slate-500" title="重命名"><i class="fa-solid fa-pen text-[10px]"></i></button><button data-media-delete="${i}" class="w-7 h-7 rounded-lg border border-rose-200 bg-white text-rose-500" title="删除"><i class="fa-solid fa-trash text-[10px]"></i></button>`:'';return `<div class="relative border rounded-xl p-3 flex gap-3 items-center group"><button data-media-preview="${i}" class="w-11 h-11 rounded-lg bg-slate-100 overflow-hidden shrink-0">${a.folder==='picture'||a.folder==='gif'?`<img src="${window.escapeHtml(url)}" class="w-full h-full object-cover">`:`<i class="fa-solid fa-video text-indigo-500"></i>`}</button><div class="min-w-0 flex-1 pr-16"><div class="text-xs font-semibold text-slate-700 truncate">${window.escapeHtml(window.cloudMediaDisplayName(a))}</div><div class="text-[10px] mt-1 flex gap-2"><span class="text-slate-400">${window.cloudMediaFormatSize(a.size)}</span>${pending}</div></div><div class="absolute right-2 top-2 flex gap-1"><button data-media-use="${i}" class="w-7 h-7 rounded-lg border bg-white text-indigo-500" title="使用"><i class="fa-solid fa-plus text-[10px]"></i></button><button data-media-copy="${i}" class="w-7 h-7 rounded-lg border bg-white text-indigo-500" title="复制"><i class="fa-solid fa-copy text-[10px]"></i></button>${manage}</div></div>`;}).join('')+'</div>';
+                list.querySelectorAll('[data-media-use]').forEach(b=>b.onclick=()=>{const a=items[+b.dataset.mediaUse];close();onSelect?.({...a,url:window.cloudMediaPublicUrl(a.cloudPath),isCloud:true});});
+                list.querySelectorAll('[data-media-preview]').forEach(b=>b.onclick=()=>{const a=items[+b.dataset.mediaPreview];window.open(window.cloudMediaPublicUrl(a.cloudPath),'_blank');});
+                list.querySelectorAll('[data-media-copy]').forEach(b=>b.onclick=async()=>{const a=items[+b.dataset.mediaCopy];b.disabled=true;try{await timelineApiPost('copyMediaAsset',{cloudPath:a.cloudPath,ownerToken:window.getEditorOwnerToken?.()||''},{auth:'edit',timeoutMs:60000});await load();window.showToast?.('复制成功','success');}catch(e){window.showToast?.(e?.message||'复制失败','error');}finally{b.disabled=false;}});
+                list.querySelectorAll('[data-media-rename]').forEach(b=>b.onclick=async()=>{const a=items[+b.dataset.mediaRename],name=prompt('输入新的显示名称',window.cloudMediaDisplayName(a));if(!name?.trim())return;try{await timelineApiPost('renameMediaAsset',{cloudPath:a.cloudPath,displayName:name.trim(),ownerToken:window.getEditorOwnerToken?.()||''},{auth:'edit'});await load();window.showToast?.('已重命名','success');}catch(e){window.showToast?.(e?.message||'重命名失败','error');}});
+                list.querySelectorAll('[data-media-delete]').forEach(b=>b.onclick=async()=>{const a=items[+b.dataset.mediaDelete];if(!confirm(`确定删除“${window.cloudMediaDisplayName(a)}”吗？`))return;try{await timelineApiPost('deleteMediaAsset',{cloudPath:a.cloudPath,ownerToken:window.getEditorOwnerToken?.()||''},{auth:'edit',timeoutMs:30000});await load();window.showToast?.('已删除','success');}catch(e){window.showToast?.(e?.message||'删除失败','error');}});
             };
-            const sortToggle=modal.querySelector('[data-media-sort-toggle]'),sortLabel=modal.querySelector('[data-media-sort-label]'),sortDirection=modal.querySelector('[data-media-sort-direction]'),sortDirectionIcon=modal.querySelector('[data-media-sort-direction-icon]');modal._mediaSort=modal._mediaSort||'time';modal._mediaSortDir=modal._mediaSortDir||'desc';const syncSortUi=()=>{if(sortLabel)sortLabel.textContent=modal._mediaSort==='name'?'按名称':'按时间';if(sortDirectionIcon){sortDirectionIcon.className='fa-solid '+(modal._mediaSortDir==='asc'?'fa-arrow-up-short-wide':'fa-arrow-down-wide-short')+' text-[10px]';}if(sortDirection)sortDirection.title=modal._mediaSortDir==='asc'?'当前升序，点击切换为降序':'当前降序，点击切换为升序';};syncSortUi();if(sortToggle)sortToggle.onclick=()=>{modal._mediaSort=modal._mediaSort==='time'?'name':'time';syncSortUi();render();};if(sortDirection)sortDirection.onclick=()=>{modal._mediaSortDir=modal._mediaSortDir==='asc'?'desc':'asc';syncSortUi();render();};const statusBtn=modal.querySelector('[data-media-status-btn]'),statusMenu=modal.querySelector('[data-media-status-menu]'),statusLabel=modal.querySelector('[data-media-status-label]');
-            modal._mediaStatus='all';
-            if(statusBtn)statusBtn.onclick=(e)=>{e.stopPropagation();statusMenu?.classList.toggle('hidden');};
-            modal.querySelectorAll('[data-status-choice]').forEach(btn=>btn.onclick=(e)=>{e.stopPropagation();const choice=String(btn.dataset.statusChoice||'all');modal._mediaStatus=(modal._mediaStatus===choice?'all':choice);if(statusLabel)statusLabel.textContent=modal._mediaStatus==='inuse'?'使用中':modal._mediaStatus==='unref'?'未引用':'分类';statusMenu?.classList.add('hidden');render();});
-            const load=async()=>{try{
-                const listEl=modal.querySelector('[data-media-list]');
-                listEl.innerHTML='<div class="text-sm text-slate-400 text-center py-12"><i class="fa-solid fa-spinner fa-spin mr-2"></i>正在读取云端数据库…</div>';
-                const data=await timelineApiPost('listMediaAssets',{folder:'all'},{auth:'edit',timeoutMs:25000});
-                // listMediaAssets 已经负责过滤 temp / cover。这里直接渲染，避免每次打开媒体库
-                // 对几十个云存储对象逐个 HEAD；实体文件审计交给 manager/cleanup。
-                items=(Array.isArray(data?.items)?data.items:[]).filter(a=>{
-                    const p=String(a?.cloudPath||'').replace(/^\/+/, '');
-                    const logicalFolder=String(a?.folder||'').toLowerCase();
-                    return !/(?:^|\/)(?:temp|cover)\//i.test(p) && logicalFolder!=='temp' && logicalFolder!=='cover' && logicalFolder!=='music';
-                });
-                render();
-            }catch(err){modal.querySelector('[data-media-list]').innerHTML=`<div class="text-sm text-rose-600 text-center py-12">${err?.message||'云端数据库读取失败'}</div>`;}};
-            modal.querySelectorAll('[data-folder]').forEach(b=>b.onclick=()=>{current=b.dataset.folder;render();}); modal.querySelector('[data-media-search]').oninput=render;
-            // 先同步应用 allowedFolders，再显示弹窗，避免所有分类按钮先闪现一帧。
-            render();
-            modal.classList.remove('hidden');
-            await load(); return modal;
+            const load=async()=>{modal.querySelector('[data-media-list]').innerHTML='<div class="text-sm text-slate-400 text-center py-12"><i class="fa-solid fa-spinner fa-spin mr-2"></i>正在读取云端数据库…</div>';try{const data=await timelineApiPost('listMediaAssets',{folder:'all',ownerToken:window.getEditorOwnerToken?.()||''},{auth:'edit',timeoutMs:25000});items=Array.isArray(data?.items)?data.items:[];render();}catch(e){modal.querySelector('[data-media-list]').innerHTML=`<div class="text-sm text-rose-600 text-center py-12">${e?.message||'读取失败'}</div>`;}};
+            const menu=modal.querySelector('[data-media-category-menu]');modal.querySelector('[data-media-category-btn]').onclick=e=>{e.stopPropagation();menu.classList.toggle('hidden');};modal.querySelectorAll('[data-status-choice]').forEach(b=>b.onclick=e=>{e.stopPropagation();modal._mediaStatus=b.dataset.statusChoice;syncCategoryUi();render();});modal.querySelectorAll('[data-owner-choice]').forEach(b=>b.onclick=e=>{e.stopPropagation();modal._mediaOwner=b.dataset.ownerChoice;syncCategoryUi();render();});
+            const sortLabel=modal.querySelector('[data-media-sort-label]'),sortIcon=modal.querySelector('[data-media-sort-direction-icon]');modal.querySelector('[data-media-sort-toggle]').onclick=()=>{modal._mediaSort=modal._mediaSort==='time'?'name':'time';sortLabel.textContent=modal._mediaSort==='time'?'按时间':'按名称';render();};modal.querySelector('[data-media-sort-direction]').onclick=()=>{modal._mediaSortDir=modal._mediaSortDir==='asc'?'desc':'asc';sortIcon.className='fa-solid '+(modal._mediaSortDir==='asc'?'fa-arrow-up-short-wide':'fa-arrow-down-wide-short')+' text-[10px]';render();};modal.querySelectorAll('[data-folder]').forEach(b=>b.onclick=()=>{current=b.dataset.folder;render();});modal.querySelector('[data-media-search]').oninput=render;syncCategoryUi();render();modal.classList.remove('hidden');await load();return modal;
         };
         // 直接引用已有云端媒体时，继承该媒体在已保存事件中的展示信息。
         // 这里不复制 cover 文件本身，而是继续引用同一个 cover/crop；因此无需重新截封面或调显示区域。
@@ -3742,7 +3689,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const sideNames = ['逻辑关系','标签','BGM','活动日志','小晴儿台词'];
             const sidePaths = [
                 '/timeline?type=connections',
-                '/timeline?type=tags',
+                `/timeline?type=tags&ownerToken=${encodeURIComponent(window.getEditorOwnerToken?.()||'')}`,
                 '/timeline?type=bgm',
                 '/timeline?type=activityLogs',
                 '/timeline?type=xiaoqinger'
@@ -3805,7 +3752,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
             window.events = cloudEvents;
             window.connections = Array.isArray(connectionsData?.items) ? connectionsData.items : [];
-            window.availableTags = Array.isArray(tagsData?.items) ? tagsData.items : [];
+            window.tagRecords = Array.isArray(tagsData?.items) ? tagsData.items : [];
+            window.availableTags = window.tagRecords.map(x=>typeof x==='string'?x:String(x?.name||'')).filter(Boolean);
             window.bgmPlaylist = Array.isArray(bgmData?.items)
                 ? bgmData.items.filter(song => /^https?:\/\//i.test(song?.url || ''))
                 : [];
@@ -4110,7 +4058,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
             if (!window.hasTimelineEditToken?.()) return false;
             try {
-                await window.timelineApiWrite('upsertTag', { tag: String(tagName || '').trim() });
+                await window.timelineApiWrite('upsertTag', { tag: String(tagName || '').trim(), ownerToken:window.getEditorOwnerToken?.()||'' });
                 return true;
             } catch (e) {
                 window.showToast('Tag云端保存失败', 'error');
@@ -4125,7 +4073,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
             if (!window.hasTimelineEditToken?.()) return false;
             try {
-                await window.timelineApiWrite('deleteTag', { tag: String(tagName || '').trim() });
+                await window.timelineApiWrite('deleteTag', { tag: String(tagName || '').trim(), ownerToken:window.getEditorOwnerToken?.()||'' });
                 return true;
             } catch (e) {
                 window.availableTags = oldTags;
@@ -4446,7 +4394,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     </div>
                     <div class="flex items-center gap-1.5 shrink-0">
                         <button onclick="playSpecificBgm(${idx})" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded text-[10px] font-medium">播放</button>
-                        ${!window.isLocked ? `
+                        ${!window.isLocked && (window.isDeveloperMode?.() || String(song.creatorOwnerToken||'')===String(window.getEditorOwnerToken?.()||'')) ? `
+                            <button onclick="renameBgmSong('${song.id}')" class="text-slate-400 hover:text-indigo-500 p-1" title="编辑名称"><i class="fa-solid fa-pen text-[10px]"></i></button>
                             <button onclick="deleteBgmSong('${song.id}')" class="text-slate-400 hover:text-rose-500 p-1" title="删除">
                                 <i class="fa-solid fa-xmark text-xs"></i>
                             </button>
@@ -4465,13 +4414,23 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const customName=nameInput?.value.trim()||'';
             try{
                 const media=await window.uploadLargeMediaToCloudBase(file);
-                const newSong={id:'song_'+Date.now()+Math.random().toString(36).substr(2,5),name:customName||(file.name||'背景音乐').replace(/\.mp3$/i,''),url:media.url,cloudPath:media.cloudPath||''};
+                const newSong={id:'song_'+Date.now()+Math.random().toString(36).substr(2,5),name:customName||(file.name||'背景音乐').replace(/\.mp3$/i,''),url:media.url,cloudPath:media.cloudPath||'',creatorOwnerToken:window.getEditorOwnerToken?.()||''};
                 window.bgmPlaylist.push(newSong); window.renderBgmPlaylist();
-                try{await window.timelineApiWrite('upsertBgm',{bgm:newSong});await window.writeActivityLog?.('bgm_add',{resourceType:'bgm',resourceName:newSong.name});}
+                try{await window.timelineApiWrite('upsertBgm',{bgm:newSong,ownerToken:window.getEditorOwnerToken?.()||''});await window.writeActivityLog?.('bgm_add',{resourceType:'bgm',resourceName:newSong.name});}
                 catch(err){window.bgmPlaylist=window.bgmPlaylist.filter(s=>s.id!==newSong.id);window.renderBgmPlaylist();throw err;}
                 if(nameInput)nameInput.value=''; window.showToast('MP3 已上传并加入歌单','success');
             }catch(err){window._cloudUploadNotice?.('',false);window.showToast(err?.message||'MP3 上传失败','error');}
             finally{if(input)input.value='';}
+        };
+
+        window.renameBgmSong = async function(songId) {
+            if (window.isLocked) return;
+            const song=window.bgmPlaylist.find(s=>s.id===songId);if(!song)return;
+            const can=window.isDeveloperMode?.()||String(song.creatorOwnerToken||'')===String(window.getEditorOwnerToken?.()||'');if(!can)return;
+            const name=prompt('修改背景音乐名称',song.name||'');if(!name?.trim()||name.trim()===song.name)return;
+            const old=song.name;song.name=name.trim();window.renderBgmPlaylist();
+            try{await window.timelineApiWrite('upsertBgm',{bgm:song,ownerToken:window.getEditorOwnerToken?.()||''});window.showToast('背景音乐名称已修改','success');}
+            catch(e){song.name=old;window.renderBgmPlaylist();window.showToast(e?.message||'背景音乐修改失败','error');}
         };
 
         window.deleteBgmSong = async function(songId) {
@@ -4489,7 +4448,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             window.renderBgmPlaylist();
 
             try {
-                await window.timelineApiWrite('deleteBgm', { bgmId: songId });
+                await window.timelineApiWrite('deleteBgm', { bgmId: songId, ownerToken:window.getEditorOwnerToken?.()||'' });
                 await window.writeActivityLog?.('bgm_delete', { resourceType:'bgm', resourceName: targetSong?.name || '未命名音乐' });
             } catch (err) {
                 if (targetSong) window.bgmPlaylist.push(targetSong);
@@ -5072,6 +5031,10 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             window.tagFilterDraftSelected = Array.isArray(window.tagFilterSelected) ? window.tagFilterSelected.slice() : [];
             window.setTagFilterDraftMode(window.tagFilterDraftMode);
             window.setTagFilterDraftMatch(window.tagFilterDraftMatch);
+            const managing=!window.isLocked;
+            document.getElementById('tagFilterControls')?.classList.toggle('hidden',managing);
+            document.getElementById('tagFilterFooter')?.classList.toggle('hidden',managing);
+            document.getElementById('tagManageControls')?.classList.toggle('hidden',!managing);
             window.renderTagModalList();
             document.getElementById('tagModal')?.classList.remove('hidden');
         };
@@ -5179,42 +5142,20 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 : 'ml-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-indigo-600 text-white leading-none';
         };
 
+        window.toggleTagManageCategoryMenu=function(e){e?.stopPropagation?.();document.getElementById('tagManageCategoryMenu')?.classList.toggle('hidden');};
+        window.setTagManageCategory=function(v){window.tagManageCategory=['mine','other'].includes(v)?v:'all';const l=document.getElementById('tagManageCategoryLabel');if(l)l.textContent=window.tagManageCategory==='mine'?'我的':window.tagManageCategory==='other'?'其他':'全部';document.getElementById('tagManageCategoryMenu')?.classList.add('hidden');window.renderTagModalList();};
+        window.tagRecordFor=function(name){return (window.tagRecords||[]).find(x=>String(x?.name||x)===String(name));};
+        window.tagOwned=function(name){return window.tagRecordFor(name)?.owned===true;};
+        window.canManageTag=function(name){return !!window.isDeveloperMode?.()||window.tagOwned(name);};
+        window.renameTag=async function(tagName){if(!window.canManageTag(tagName))return;const next=prompt('修改tag名称',tagName);if(!next?.trim()||next.trim()===tagName)return;if(window.availableTags.includes(next.trim())){window.showToast('该tag已存在','error');return;}try{await window.timelineApiWrite('renameTag',{tag:tagName,newTag:next.trim(),ownerToken:window.getEditorOwnerToken?.()||''});window.availableTags=window.availableTags.map(x=>x===tagName?next.trim():x);window.tagRecords=(window.tagRecords||[]).map(x=>String(x?.name||x)===tagName?{...x,name:next.trim(),id:next.trim()}:x);window.events.forEach(ev=>{if(Array.isArray(ev.tags))ev.tags=ev.tags.map(x=>x===tagName?next.trim():x);});window.renderTagModalList();window.renderEvents?.();window.showToast('tag已重命名','success');}catch(e){window.showToast(e?.message||'tag重命名失败','error');}};
+
         window.renderTagModalList = function() {
-            const container = document.getElementById('tagModalList');
-            if (!container) return;
-
-            if (window.availableTags.length === 0) {
-                container.innerHTML = `<p class="text-xs text-slate-400 italic py-2">暂无tag</p>`;
-                return;
-            }
-
-            const draft = window.tagFilterDraftSelected || [];
-            const isExclude = window.tagFilterDraftMode === 'exclude';
-
-            container.innerHTML = window.availableTags.map(t => {
-                const selected = draft.includes(t);
-                const safe = String(t).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-                let chipCls;
-                if (selected && isExclude) {
-                    chipCls = 'bg-rose-100 border-rose-300 text-rose-800';
-                } else if (selected) {
-                    chipCls = 'bg-indigo-100 border-indigo-300 text-indigo-800';
-                } else {
-                    chipCls = 'bg-slate-100 border-slate-200 text-slate-700';
-                }
-                return `
-                <div class="flex items-center gap-1.5 ${chipCls} border px-2.5 py-1 rounded-lg text-xs font-medium">
-                    <button type="button" onclick="toggleTagDraft('${safe}')" class="hover:underline flex items-center gap-1">
-                        ${selected ? '<i class="fa-solid fa-check text-[10px]"></i>' : ''}
-                        <span># ${t}</span>
-                    </button>
-                    ${!window.isLocked ? `
-                        <button type="button" onclick="event.stopPropagation(); deleteTag('${safe}')" class="text-slate-400 hover:text-rose-500 ml-1">
-                            <i class="fa-solid fa-xmark text-xs"></i>
-                        </button>
-                    ` : ''}
-                </div>`;
-            }).join('');
+            const container=document.getElementById('tagModalList');if(!container)return;
+            let tags=(window.availableTags||[]).slice();
+            if(!window.isLocked){const cat=window.tagManageCategory||'all';if(cat==='mine')tags=tags.filter(window.tagOwned);else if(cat==='other')tags=tags.filter(t=>!window.tagOwned(t));}
+            if(!tags.length){container.innerHTML='<p class="text-xs text-slate-400 italic py-2">暂无tag</p>';return;}
+            const draft=window.tagFilterDraftSelected||[],isExclude=window.tagFilterDraftMode==='exclude';
+            container.innerHTML=tags.map(t=>{const selected=draft.includes(t),safe=String(t).replace(/\\/g,'\\\\').replace(/'/g,"\\'");if(!window.isLocked){const editable=window.canManageTag(t);return `<div class="flex items-center gap-1.5 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-700">${editable?`<button type="button" onclick="renameTag('${safe}')" class="hover:underline"><span># ${window.escapeHtml(t)}</span></button><button type="button" onclick="event.stopPropagation();deleteTag('${safe}')" class="text-slate-400 hover:text-rose-500 ml-1"><i class="fa-solid fa-xmark text-xs"></i></button>`:`<span># ${window.escapeHtml(t)}</span>`}</div>`;}const chip=selected?(isExclude?'bg-rose-100 border-rose-300 text-rose-800':'bg-indigo-100 border-indigo-300 text-indigo-800'):'bg-slate-100 border-slate-200 text-slate-700';return `<div class="flex items-center gap-1.5 ${chip} border px-2.5 py-1 rounded-lg text-xs font-medium"><button type="button" onclick="toggleTagDraft('${safe}')" class="hover:underline flex items-center gap-1">${selected?'<i class="fa-solid fa-check text-[10px]"></i>':''}<span># ${window.escapeHtml(t)}</span></button></div>`;}).join('');
         };
 
         window.addNewTagFromModal = async function() {
@@ -5231,6 +5172,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 return;
             }
             window.availableTags.push(newTag);
+            window.tagRecords.push({name:newTag,id:newTag,owned:true,createdAt:Date.now()});
             if (input) input.value = '';
             const cloudSaved = await window.saveTagToCloud(newTag);
             if (cloudSaved) {
@@ -5241,8 +5183,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
         window.deleteTag = async function(tagName) {
             if (!window.canEditNow()) return;
-            if (window.isLocked) return;
+            if (window.isLocked || !window.canManageTag(tagName)) return;
             window.availableTags = window.availableTags.filter(t => t !== tagName);
+            window.tagRecords = (window.tagRecords||[]).filter(x=>String(x?.name||x)!==tagName);
             const cloudDeleted = await window.deleteTagFromCloud(tagName);
             if (cloudDeleted) {
                 await window.writeActivityLog?.('tag_delete', { resourceType:'tag', resourceName:tagName });
