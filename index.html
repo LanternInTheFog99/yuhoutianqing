@@ -3468,7 +3468,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const load=async()=>{modal.querySelector('[data-media-list]').innerHTML='<div class="text-sm text-slate-400 text-center py-12"><i class="fa-solid fa-spinner fa-spin mr-2"></i>正在读取云端数据库…</div>';try{const data=await timelineApiPost('listMediaAssets',{folder:'all',ownerToken:window.getEditorOwnerToken?.()||''},{auth:'edit',timeoutMs:25000});items=Array.isArray(data?.items)?data.items:[];render();}catch(e){modal.querySelector('[data-media-list]').innerHTML=`<div class="text-sm text-rose-600 text-center py-12">${e?.message||'读取失败'}</div>`;}};
             const closeFilterMenus=except=>modal.querySelectorAll('[data-media-filter-menu]').forEach(m=>{if(m.dataset.mediaFilterMenu!==except)m.classList.add('hidden');});
             modal.querySelectorAll('[data-media-filter-btn]').forEach(btn=>btn.onclick=e=>{e.stopPropagation();const key=btn.dataset.mediaFilterBtn,menu=modal.querySelector(`[data-media-filter-menu="${key}"]`),wasHidden=menu.classList.contains('hidden');closeFilterMenus();if(wasHidden)menu.classList.remove('hidden');});
-            modal.addEventListener('click',e=>{const choice=e.target.closest('[data-media-filter-choice]');if(choice){e.stopPropagation();const [key,value]=choice.dataset.mediaFilterChoice.split(':');if(key==='type'){modal._mediaType=value;current=value;}else if(key==='status')modal._mediaStatus=value;else modal._mediaOwner=value;syncCategoryUi();render();closeFilterMenus();return;}if(!e.target.closest('[data-media-filter-menu]')&&!e.target.closest('[data-media-filter-btn]'))closeFilterMenus();});
+            const mediaShell=modal.firstElementChild;mediaShell?.addEventListener('click',e=>{const choice=e.target.closest('[data-media-filter-choice]');if(choice){e.stopPropagation();const [key,value]=choice.dataset.mediaFilterChoice.split(':');if(key==='type'){modal._mediaType=value;current=value;}else if(key==='status')modal._mediaStatus=value;else modal._mediaOwner=value;syncCategoryUi();render();const list=modal.querySelector('[data-media-list]');if(list)list.scrollTop=0;closeFilterMenus();return;}if(!e.target.closest('[data-media-filter-menu]')&&!e.target.closest('[data-media-filter-btn]'))closeFilterMenus();});
             const sortLabel=modal.querySelector('[data-media-sort-label]'),sortIcon=modal.querySelector('[data-media-sort-direction-icon]');modal.querySelector('[data-media-sort-toggle]').onclick=()=>{modal._mediaSort=modal._mediaSort==='time'?'name':'time';sortLabel.textContent=modal._mediaSort==='time'?'按时间':'按名称';render();};modal.querySelector('[data-media-sort-direction]').onclick=()=>{modal._mediaSortDir=modal._mediaSortDir==='asc'?'desc':'asc';sortIcon.className='fa-solid '+(modal._mediaSortDir==='asc'?'fa-arrow-up-short-wide':'fa-arrow-down-wide-short')+' text-[10px]';render();};modal.querySelector('[data-media-search]').oninput=render;syncCategoryUi();render();modal.classList.remove('hidden');await load();return modal;
         };
         // 直接引用已有云端媒体时，继承该媒体在已保存事件中的展示信息。
@@ -4385,7 +4385,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.bgmManageCategory=window.bgmManageCategory||'all';
         window.toggleBgmCategoryMenu=function(e){e?.stopPropagation?.();document.getElementById('bgmCategoryMenu')?.classList.toggle('hidden');};
         window.syncBgmCategoryUi=function(){document.querySelectorAll('[data-bgm-category]').forEach(b=>{const on=b.dataset.bgmCategory===(window.bgmManageCategory||'all');b.className='w-full text-left px-2 py-1.5 rounded-lg text-xs '+(on?'bg-indigo-50 text-indigo-700 font-semibold':'text-slate-600 hover:bg-slate-50');});};
-        window.setBgmCategory=function(v){window.bgmManageCategory=['mine','other'].includes(v)?v:'all';window.syncBgmCategoryUi();document.getElementById('bgmCategoryMenu')?.classList.add('hidden');window.renderBgmPlaylist();};
+        window.setBgmCategory=function(v){window.bgmManageCategory=['mine','other'].includes(v)?v:'all';window.syncBgmCategoryUi();document.getElementById('bgmCategoryMenu')?.classList.add('hidden');window.renderBgmPlaylist();const list=document.getElementById('bgmPlaylistContainer');if(list)list.scrollTop=0;};
 
         window.renderBgmPlaylist = function() {
             const container = document.getElementById('bgmPlaylistContainer');
@@ -5075,8 +5075,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
         window.setTagFilterDraftMode = function(mode) {
             window.tagFilterDraftMode = mode === 'exclude' ? 'exclude' : 'include';
-            const active='bg-white text-indigo-700 shadow-sm';
-            const idle='text-slate-500 hover:text-slate-700';
+            const active='bg-indigo-600 text-white shadow-sm';
+            const idle='text-slate-500 hover:text-slate-700 hover:bg-white';
             const inc=document.getElementById('tagModeIncludeBtn');
             const exc=document.getElementById('tagModeExcludeBtn');
             if(inc) inc.className=`px-3 py-1 rounded-md text-[11px] font-medium ${window.tagFilterDraftMode==='include'?active:idle}`;
@@ -5087,8 +5087,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
         window.setTagFilterDraftMatch = function(match) {
             window.tagFilterDraftMatch = match === 'all' ? 'all' : 'any';
-            const active='bg-white text-indigo-700 shadow-sm';
-            const idle='text-slate-500 hover:text-slate-700';
+            const active='bg-indigo-600 text-white shadow-sm';
+            const idle='text-slate-500 hover:text-slate-700 hover:bg-white';
             const anyBtn=document.getElementById('tagMatchAnyBtn');
             const allBtn=document.getElementById('tagMatchAllBtn');
             if(anyBtn) anyBtn.className=`px-3 py-1 rounded-md text-[11px] font-medium ${window.tagFilterDraftMatch==='any'?active:idle}`;
@@ -5169,7 +5169,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         };
 
         window.toggleTagManageCategoryMenu=function(e){e?.stopPropagation?.();document.getElementById('tagManageCategoryMenu')?.classList.toggle('hidden');};
-        window.syncTagManageCategoryUi=function(){document.querySelectorAll('[data-tag-manage-category]').forEach(b=>{const on=b.dataset.tagManageCategory===(window.tagManageCategory||'all');b.className='w-full text-left px-2 py-1.5 rounded-lg text-xs '+(on?'bg-indigo-50 text-indigo-700 font-semibold':'text-slate-600 hover:bg-slate-50');});};window.setTagManageCategory=function(v){window.tagManageCategory=['mine','other'].includes(v)?v:'all';window.syncTagManageCategoryUi();document.getElementById('tagManageCategoryMenu')?.classList.add('hidden');window.renderTagModalList();};
+        window.syncTagManageCategoryUi=function(){document.querySelectorAll('[data-tag-manage-category]').forEach(b=>{const on=b.dataset.tagManageCategory===(window.tagManageCategory||'all');b.className='w-full text-left px-2 py-1.5 rounded-lg text-xs '+(on?'bg-indigo-50 text-indigo-700 font-semibold':'text-slate-600 hover:bg-slate-50');});};window.setTagManageCategory=function(v){window.tagManageCategory=['mine','other'].includes(v)?v:'all';window.syncTagManageCategoryUi();document.getElementById('tagManageCategoryMenu')?.classList.add('hidden');window.renderTagModalList();const list=document.getElementById('tagModalList');if(list)list.scrollTop=0;};
         window.tagRecordFor=function(name){return (window.tagRecords||[]).find(x=>String(x?.name||x)===String(name));};
         window.tagIdForName=function(name){return String(window.tagRecordFor(name)?.id||'');};
         window.tagIdsForNames=function(names){return [...new Set((Array.isArray(names)?names:[]).map(window.tagIdForName).filter(Boolean))];};
