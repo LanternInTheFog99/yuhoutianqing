@@ -14941,10 +14941,6 @@ viewer.style.visibility='';
             }
             const time=document.createElement('span'); time.className='event-comment-time'; time.textContent=window.commentFormatTime(message.createdAt);
             meta.append(author,time);
-            if (message?.author?.anonymous) {
-                const anon=document.createElement('span'); anon.className='event-comment-anon'; anon.textContent='匿名';
-                meta.appendChild(anon);
-            }
 
             const content=document.createElement('div'); content.className='event-comment-content'; content.textContent=String(message.content||'');
             const actions=document.createElement('div'); actions.className='event-comment-actions';
@@ -15093,6 +15089,7 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
                     commentId:String(message?.id||''),
                     ownerToken:window.getEditorOwnerToken?.() || '',
                     identityName:currentId,
+                    anonymous:window.commentIsAnonymous(),
                     liked:!message?.likedByMe
                 },{auth:false,timeoutMs:12000});
                 message.likedByMe=!!data?.liked;
@@ -15152,7 +15149,7 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
                 const messages=Array.isArray(data?.messages)?data.messages:[];
                 if(!messages.some(x=>String(x?.id||'')===commentId)){window.showToast?.('该评论已被删除','info');window.loadMyComments?.();return;}
             }catch(_){window.showToast?.('评论读取失败，请稍后再试','error');return;}
-            window.closeHelpModal?.();window._notificationReturnToHelp=true;document.body.classList.add('notification-comment-open');
+            window._notificationReturnSubView='mine';window.closeHelpModal?.();window._notificationReturnToHelp=true;document.body.classList.add('notification-comment-open');
             window._pendingCommentTargetId=commentId;window.openReadOnlyFullscreen?.(eventId);setTimeout(()=>window.openEventCommentWindow?.(eventId),60);
         };
 
@@ -15219,6 +15216,7 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
                 window.showToast?.('评论读取失败，请稍后再试','error');
                 return;
             }
+            window._notificationReturnSubView='notifications';
             window.closeHelpModal?.();
             window._notificationReturnToHelp=true;
             document.body.classList.add('notification-comment-open');
@@ -15411,8 +15409,11 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
             if(returnToInteraction){
                 // 先在仍被事件详情覆盖时恢复互动通知面板，再关闭详情页，
                 // 避免中间短暂露出时间线或“使用说明”造成闪烁。
+                const returnSubView=window._notificationReturnSubView==='mine'?'mine':'notifications';
+                window._notificationReturnSubView='';
                 window.openHelpModal?.();
                 window.switchHelpTab?.('activity');
+                window.switchInteractionSubView?.(returnSubView);
                 document.body.classList.remove('notification-comment-open');
                 window.closeReadOnlyFullscreen?.();
             }
