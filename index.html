@@ -3607,7 +3607,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         };
 
         window.updateManagementButtons = function(){
-            if(window.isLocked){try{sessionStorage.removeItem(developerTokenKey());}catch(_){}}
             const show=!window.isLocked && !!window.hasTimelineEditToken?.() && !window.forceMobileBrowseMode?.();
             ['xiaoqingerDialogueEditorBtn','developerModeBtn','manualBackupBtn'].forEach(id=>document.getElementById(id)?.classList.toggle('hidden',!show));
             const dev=document.getElementById('developerModeBtn');
@@ -13337,6 +13336,16 @@ viewer.style.visibility='';
                 input?.focus();
                 return;
             }
+            if (oldValue && value === oldValue) {
+                if (err) {
+                    err.textContent = 'ID未发生变化';
+                    err.classList.remove('hidden');
+                }
+                input?.classList.add('border-rose-500','focus:ring-rose-500');
+                input?.classList.remove('border-slate-300','focus:ring-indigo-500');
+                input?.focus();
+                return;
+            }
             input?.classList.remove('border-rose-500','focus:ring-rose-500');
             input?.classList.add('border-slate-300','focus:ring-indigo-500');
 
@@ -15133,14 +15142,14 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
                 items.forEach(item=>{
                     const btn=document.createElement('button');btn.type='button';btn.className='notification-item';
                     const title=document.createElement('div');title.className='notification-title';
-                    title.textContent=item.deleted===true?'已删除的评论':String(item.content||'').trim()||'评论';
+                    title.textContent=item.deleted===true?(window.notificationDeletedMessage?.(String(item.deletedReason||''))||'该评论已被删除'):(String(item.content||'').trim()||'评论');
                     const time=document.createElement('div');time.className='notification-time';time.textContent=window.commentFormatTime(item.createdAt);
                     btn.append(title,time);btn.onclick=()=>window.openOwnCommentTarget(item);list.appendChild(btn);
                 });
             }catch(_){list.innerHTML='<div class="text-center text-rose-500 py-8">评论记录读取失败</div>';}
         };
         window.openOwnCommentTarget=async function(item){
-            if(item?.deleted===true){window.showToast?.('该评论已被删除','info');return;}
+            if(item?.deleted===true){window.showToast?.(window.notificationDeletedMessage?.(String(item.deletedReason||''))||'该评论已被删除','info');return;}
             const eventId=String(item?.eventId||''),commentId=String(item?.commentId||'');
             if(!eventId||!commentId){window.showToast?.('该评论已被删除','info');return;}
             const ownerToken=window.getEditorOwnerToken?.()||'';
