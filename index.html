@@ -3422,7 +3422,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 };
                 xhr.send(file);
             });
-            try{ await timelineApiPost('finalizeMediaUpload',{cloudPath:meta.cloudPath},{auth:'edit',timeoutMs:15000}); }catch(err){ console.warn('媒体登记失败',err); }
+            const finalized=await timelineApiPost('finalizeMediaUpload',{cloudPath:meta.cloudPath},{auth:'edit',timeoutMs:15000});
+            if(!finalized?.ok)throw new Error(finalized?.message||`媒体登记失败：${meta.cloudPath}`);
             const url=window.cloudMediaPublicUrl(meta.cloudPath);
             uploadNotice('正在加载文件，请稍候…');
             if(!options?.deferNoticeHide)uploadNotice('',false);
@@ -5057,6 +5058,34 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 console.error('MEDIA_PROMOTION_INCOMPLETE',context,refs);
                 throw new Error(`${context}失败：仍有 ${refs.length} 个媒体没有从 temp 正式化，请重试`);
             }
+        };
+        window.refreshCanonicalMediaDisplayUrls=function(root){
+            if(!root||typeof root!=='object')return root;
+            const seen=new WeakSet();
+            const walk=o=>{
+                if(!o||typeof o!=='object'||seen.has(o))return;
+                seen.add(o);
+                if(Array.isArray(o)){for(const v of o)walk(v);return;}
+                if(o.cloudPath){
+                    const u=window.cloudMediaPublicUrl(o.cloudPath);
+                    if(u)o.url=u;
+                }
+                if(o.pictureCoverCloudPath){
+                    const u=window.cloudMediaPublicUrl(o.pictureCoverCloudPath);
+                    if(u){o.pictureCover=u;o.outer=u;o.inner=u;o.collection=u;o.cover=u;}
+                }
+                if(o.gifCoverCloudPath){
+                    const u=window.cloudMediaPublicUrl(o.gifCoverCloudPath);
+                    if(u){o.gifCover=u;o.cover=u;}
+                }
+                if(o.coverCloudPath){
+                    const u=window.cloudMediaPublicUrl(o.coverCloudPath);
+                    if(u)o.cover=u;
+                }
+                for(const v of Object.values(o))if(v&&typeof v==='object')walk(v);
+            };
+            walk(root);
+            return root;
         };
         window.buildTempMediaSaveManifest=function(records){
             return (records||[]).map(rec=>({cloudPath:String(rec?.tempPath||''),coverSourcePath:String(rec?.coverSourcePath||'')})).filter(x=>x.cloudPath);
