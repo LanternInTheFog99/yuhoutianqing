@@ -2385,8 +2385,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const defaultVideoHold = calm ? 5000 : 4000;
             const ANIMATED_FALLBACK_SEC = 3;
             const PRELOAD_WAIT_MS = 60;
-            const BLACK_FADE_MS = 150;
-            const BLACK_HOLD_MS = 80;
             const MEDIA_COVER_MIN_HOLD_MS = calm ? 600 : 500;
             const MEDIA_COVER_MAX_HOLD_MS = calm ? 3200 : 2600;
             const MEDIA_COVER_FADE_MS = 260;
@@ -2686,43 +2684,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
                 const enableSoftFade = (el) => { if (el) el.classList.add('preview-soft-fade'); };
                 const disableSoftFade = (el) => { if (el) el.classList.remove('preview-soft-fade'); };
-
-                const softBlackCover = async () => {
-                    enableSoftFade(img);
-                    enableSoftFade(video);
-                    img.style.opacity = '0';
-                    video.style.opacity = '0';
-                    await delayMs(BLACK_FADE_MS);
-                    if (!isStillRunning()) return;
-                    clearVideo();
-                    img.classList.add('hidden');
-                    stage.classList.add('preview-stage-black');
-                    await delayMs(BLACK_HOLD_MS);
-                };
-
-                const softBlackRevealImage = async () => {
-                    stage.classList.remove('preview-stage-black');
-                    img.classList.remove('hidden');
-                    img.style.opacity = '0';
-                    enableSoftFade(img);
-                    await delayMs(16);
-                    if (!isStillRunning()) return;
-                    img.style.opacity = '1';
-                    await delayMs(BLACK_FADE_MS);
-                    disableSoftFade(img);
-                };
-
-                const softBlackRevealVideo = async () => {
-                    stage.classList.remove('preview-stage-black');
-                    video.classList.remove('hidden');
-                    video.style.opacity = '0';
-                    enableSoftFade(video);
-                    await delayMs(16);
-                    if (!isStillRunning()) return;
-                    video.style.opacity = '1';
-                    await delayMs(BLACK_FADE_MS);
-                    disableSoftFade(video);
-                };
 
                 const applyImageItem = async (item, { hardHide = false } = {}) => {
                     const src = item.src || item.cover || '';
