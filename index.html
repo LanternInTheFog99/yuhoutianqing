@@ -2141,6 +2141,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.tagManageCategory = 'all';
         window.bgmPlaylist = [];
         window.currentBgmIndex = -1;
+        window.bgmPlayHistory = [];
+        window.bgmPlayHistoryPos = -1;
         window.isBgmPlaying = false;
         window.lastVideoPlayingState = false;
         window.bgmVolume = 0.7;
@@ -3447,7 +3449,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 list.querySelectorAll('[data-media-preview]').forEach(b=>b.onclick=()=>{const a=items[+b.dataset.mediaPreview];window.open(window.cloudMediaPublicUrl(a.cloudPath),'_blank');});
                 list.querySelectorAll('[data-media-copy]').forEach(b=>b.onclick=async()=>{const a=items[+b.dataset.mediaCopy];await window.deepAppConfirm({title:'确认复制文件？',desc:`将复制“${window.cloudMediaDisplayName(a)}”并生成独立副本。`,confirmText:'确认复制',busyText:'正在复制...',onConfirm:async()=>{const copied=await window.timelineApiCloudWritePost('copyMediaAsset',{cloudPath:a.cloudPath,ownerToken:window.getEditorOwnerToken?.()||''},{auth:'edit',timeoutMs:60000});await load(String(copied?.cloudPath||copied?.item?.cloudPath||''));window.showToast?.('复制成功','success');return true;}});});
                 list.querySelectorAll('[data-media-rename]').forEach(b=>b.onclick=async()=>{const a=items[+b.dataset.mediaRename];await window.timelineAppInput({title:'重命名文件',value:window.cloudMediaDisplayName(a),placeholder:'输入新的文件名称',confirmText:'保存',busyText:'正在保存...',duplicateCheck:v=>{const n=String(v||'').trim();return !!n&&items.some(x=>x!==a&&window.cloudMediaDisplayName(x)===n);},onConfirm:async v=>{const name=String(v||'').trim();if(!name)throw new Error('请输入新的文件名称');await window.timelineApiCloudWritePost('renameMediaAsset',{cloudPath:a.cloudPath,displayName:name,ownerToken:window.getEditorOwnerToken?.()||''},{auth:'edit'});await load();window.showToast?.('已重命名','success');return name;}});});
-                list.querySelectorAll('[data-media-delete]').forEach(b=>b.onclick=async()=>{const a=items[+b.dataset.mediaDelete];await window.deepAppConfirm({title:'确认删除文件？',desc:`“${window.cloudMediaDisplayName(a)}”将从云端删除，此操作不可撤销。`,confirmText:'确认删除',danger:true,busyText:'正在删除...',onConfirm:async()=>{await window.timelineApiCloudWritePost('deleteMediaAsset',{cloudPath:a.cloudPath,ownerToken:window.getEditorOwnerToken?.()||''},{auth:'edit',timeoutMs:30000});await load();window.showToast?.('已删除','success');return true;}});});
+                list.querySelectorAll('[data-media-delete]').forEach(b=>b.onclick=async()=>{const a=items[+b.dataset.mediaDelete];await window.deepAppConfirm({title:'确认删除文件？',desc:`“${window.cloudMediaDisplayName(a)}”将从云端删除，此操作不可撤销。`,confirmText:'确认删除',danger:true,busyText:'正在删除...',onConfirm:async()=>{await window.timelineApiCloudWritePost('deleteMediaAsset',{cloudPath:a.cloudPath,ownerToken:window.getEditorOwnerToken?.()||''},{auth:'edit',timeoutMs:30000});await Promise.all([load(),loadTimelineFromCloudBase()]);window.showToast?.('已删除，并已同步移除引用内容','success');return true;}});});
             };
             const revealPath=path=>{if(!path)return;const list=modal.querySelector('[data-media-list]');const esc=window.CSS?.escape?CSS.escape(String(path)):String(path).replace(/[\"']/g,'\\$&');const el=list?.querySelector(`[data-media-path="${esc}"]`);if(!el)return;const lr=list.getBoundingClientRect(),er=el.getBoundingClientRect();if(er.top<lr.top||er.bottom>lr.bottom)el.scrollIntoView({block:'nearest',behavior:'smooth'});};
             const setMediaBusy=busy=>{modal.setAttribute('aria-busy',busy?'true':'false');};
@@ -4466,7 +4468,11 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 return true;
             }});
             if(!deleted)return;
-            window.bgmPlaylist = window.bgmPlaylist.filter(s => s.id !== songId);
+            window.bgmPlaylist = window.bgmPlaylist.filter(s => s.id !== songId); 
+            if(Array.isArray(window.bgmPlayHistory)){
+                window.bgmPlayHistory=window.bgmPlayHistory.filter(id=>String(id)!==String(songId));
+                window.bgmPlayHistoryPos=Math.min(window.bgmPlayHistoryPos,window.bgmPlayHistory.length-1);
+            }
             if (window.currentBgmIndex >= window.bgmPlaylist.length) window.currentBgmIndex = window.bgmPlaylist.length - 1;
             if (window.bgmPlaylist.length === 0) pauseBgm(true);
             window.renderBgmPlaylist();
@@ -4491,11 +4497,20 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
         window.playPreviousBgm = function() {
             if (!window.bgmPlaylist.length) return;
-            if (window.currentBgmIndex <= 0) {
-                window.showToast('已经是第一首了', 'info');
-                return;
+            const history=Array.isArray(window.bgmPlayHistory)?window.bgmPlayHistory:[];
+            let pos=Number.isInteger(window.bgmPlayHistoryPos)?window.bgmPlayHistoryPos:history.length-1;
+            // 历史记录按实际播放顺序保存，而不是按歌单位置倒退。
+            while(pos>0){
+                pos--;
+                const songId=String(history[pos]||'');
+                const idx=window.bgmPlaylist.findIndex(song=>String(song?.id||'')===songId);
+                if(idx>=0){
+                    window.bgmPlayHistoryPos=pos;
+                    playSpecificBgm(idx,{recordHistory:false});
+                    return;
+                }
             }
-            playSpecificBgm(window.currentBgmIndex - 1);
+            window.showToast('已经是第一首了', 'info');
         };
 
         window.playRandomBgm = function() {
@@ -4508,13 +4523,25 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     nextIndex = Math.floor(Math.random() * window.bgmPlaylist.length);
                 } while (nextIndex === window.currentBgmIndex);
             }
-            playSpecificBgm(nextIndex);
+            // “下一首”始终重新随机；如果此前按过上一首，不沿用旧的前进历史。
+            playSpecificBgm(nextIndex,{recordHistory:true});
         };
 
-        window.playSpecificBgm = function(index) {
+        window.playSpecificBgm = function(index, options={}) {
             if (index < 0 || index >= window.bgmPlaylist.length) return;
             window.currentBgmIndex = index;
             const song = window.bgmPlaylist[index];
+            const shouldRecord=options?.recordHistory!==false;
+            if(shouldRecord){
+                const history=Array.isArray(window.bgmPlayHistory)?window.bgmPlayHistory:[];
+                let pos=Number.isInteger(window.bgmPlayHistoryPos)?window.bgmPlayHistoryPos:history.length-1;
+                if(pos<history.length-1)history.splice(pos+1);
+                history.push(String(song?.id||''));
+                // 防止长时间随机播放导致历史无限增长。
+                if(history.length>200)history.splice(0,history.length-200);
+                window.bgmPlayHistory=history;
+                window.bgmPlayHistoryPos=history.length-1;
+            }
             const audio = document.getElementById('globalBgmAudio');
             if (!audio) return;
 
@@ -7359,7 +7386,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     <button id="deepHelpTabUsage" type="button" onclick="deepSwitchHelpTab('usage')" class="flex-1 max-w-[160px] px-4 py-2.5 rounded-t-lg text-xs font-semibold bg-white text-indigo-700 border border-b-0 border-slate-200">使用说明</button>
                     <button id="deepHelpTabChangelog" type="button" onclick="deepSwitchHelpTab('changelog')" class="flex-1 max-w-[160px] px-4 py-2.5 rounded-t-lg text-xs font-semibold text-slate-500 hover:text-slate-700">更新日志</button>
                 </div>
-                <div id="deepHelpUsagePanel" class="overflow-y-auto p-5 text-xs text-slate-600 leading-7"><div class="border border-slate-200 rounded-xl p-5 bg-gradient-to-r from-pink-50 via-purple-50 to-sky-50">
+                <div id="deepHelpUsagePanel" class="overflow-y-auto p-5 text-xs text-slate-600 leading-7"><div class="border border-slate-200 rounded-xl p-5 bg-gradient-to-r from-blue-50 via-cyan-50 to-yellow-50">
                     <p class="text-slate-800 mb-5 text-sm leading-7 font-bold">这里是”深入描述“空间，用户可以在这里自由插入图片/动图/视频、输入文字等，并可以自由摆放其位置，调整其大小，以便创造出最可以让观众轻松理解的龟糖分析，以下为使用说明：</p>
                     <div class="space-y-5">
                         <div><h4 class="font-bold text-slate-800 mb-1">1. 移动画布与浏览</h4><p>通过滚动画布区域，可以查看和编辑不同位置的内容；画布空间不够时，可以点击顶部“画布大小”随时扩大宽度或高度。</p></div>
@@ -12960,9 +12987,9 @@ viewer.style.visibility='';
             return `<div data-inline-date="${safeId}" class="space-y-1">
                 <input type="hidden" id="${safeId}" value="${window.escapeHtml(normalized||String(value||''))}">
                 <div class="grid grid-cols-[1.25fr_.85fr_.85fr] gap-1.5">
-                    <label class="flex items-center gap-1 min-w-0"><input data-date-part="year" inputmode="numeric" pattern="[0-9]*" placeholder="" value="${window.escapeHtml(y)}" oninput="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" onblur="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"><span class="shrink-0 text-xs text-slate-400">年</span></label>
-                    <label class="flex items-center gap-1 min-w-0"><input data-date-part="month" inputmode="numeric" pattern="[0-9]*" maxlength="2" placeholder="" value="${window.escapeHtml(m)}" oninput="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" onblur="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"><span class="shrink-0 text-xs text-slate-400">月</span></label>
-                    <label class="flex items-center gap-1 min-w-0"><input data-date-part="day" inputmode="numeric" pattern="[0-9]*" maxlength="2" placeholder="" value="${window.escapeHtml(d)}" oninput="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" onblur="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"><span class="shrink-0 text-xs text-slate-400">日</span></label>
+                    <label class="flex items-center gap-1 min-w-0"><input data-date-part="year" inputmode="numeric" pattern="[0-9]*" placeholder="" value="${window.escapeHtml(y)}" oninput="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" onblur="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-sm text-center outline-none focus:ring-2 focus:ring-indigo-500 bg-white"><span class="shrink-0 text-xs text-slate-400">年</span></label>
+                    <label class="flex items-center gap-1 min-w-0"><input data-date-part="month" inputmode="numeric" pattern="[0-9]*" maxlength="2" placeholder="" value="${window.escapeHtml(m)}" oninput="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" onblur="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-sm text-center outline-none focus:ring-2 focus:ring-indigo-500 bg-white"><span class="shrink-0 text-xs text-slate-400">月</span></label>
+                    <label class="flex items-center gap-1 min-w-0"><input data-date-part="day" inputmode="numeric" pattern="[0-9]*" maxlength="2" placeholder="" value="${window.escapeHtml(d)}" oninput="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" onblur="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-sm text-center outline-none focus:ring-2 focus:ring-indigo-500 bg-white"><span class="shrink-0 text-xs text-slate-400">日</span></label>
                 </div>
                 <p data-date-hint class="hidden text-[11px] text-rose-600"></p>
             </div>`;
