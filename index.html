@@ -3318,21 +3318,41 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             return {url:gifUrl,options:{cache:'no-store',headers:{'Cache-Control':'no-cache'}},cloudPath:resolved};
         };
 
+        // 云端写操作统一使用全局交互锁；纯读取/普通加载提示不锁页面。
+        window._cloudWriteLockDepth=0;
+        window.beginCloudWriteLock=function(){
+            window._cloudWriteLockDepth=Math.max(0,Number(window._cloudWriteLockDepth)||0)+1;
+            let lock=document.getElementById('timelineCloudWriteLock');
+            if(!lock){
+                lock=document.createElement('div');lock.id='timelineCloudWriteLock';
+                lock.className='fixed inset-0 z-[10000] hidden cursor-wait';lock.setAttribute('aria-hidden','true');
+                const swallow=e=>{e.preventDefault();e.stopPropagation();e.stopImmediatePropagation?.();};
+                ['click','dblclick','mousedown','mouseup','mousemove','pointerdown','pointerup','pointermove','touchstart','touchmove','touchend','contextmenu','wheel','dragstart','drag','drop'].forEach(type=>lock.addEventListener(type,swallow,{passive:false,capture:true}));
+                document.body.appendChild(lock);
+                document.addEventListener('keydown',e=>{if((Number(window._cloudWriteLockDepth)||0)>0)swallow(e);},true);
+            }
+            lock.classList.remove('hidden');
+        };
+        window.endCloudWriteLock=function(){
+            window._cloudWriteLockDepth=Math.max(0,(Number(window._cloudWriteLockDepth)||0)-1);
+            if(window._cloudWriteLockDepth===0)document.getElementById('timelineCloudWriteLock')?.classList.add('hidden');
+        };
+        window.withCloudWriteLock=async function(fn){window.beginCloudWriteLock();try{return await fn();}finally{window.endCloudWriteLock();}};
+        window.timelineApiCloudWritePost=async function(action,payload={},options={}){return await window.withCloudWriteLock(()=>timelineApiPost(action,payload,options));};
+
         window._cloudUploadNoticeTimer=null;
         window._cloudUploadNotice = function(text='正在加载文件，请稍候…', show=true){
             let box=document.getElementById('cloudMediaUploadNotice');
             if(!box){
                 box=document.createElement('div');
                 box.id='cloudMediaUploadNotice';
-                box.className='fixed left-1/2 top-20 -translate-x-1/2 z-[465] hidden rounded-xl border border-indigo-200 bg-white/95 px-4 py-2.5 shadow-xl backdrop-blur text-xs font-semibold text-indigo-700 flex items-center gap-2';
+                box.className='fixed left-1/2 top-20 -translate-x-1/2 z-[999] hidden rounded-xl border border-indigo-200 bg-white/95 px-4 py-2.5 shadow-xl backdrop-blur text-xs font-semibold text-indigo-700 flex items-center gap-2';
                 box.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i><span data-cloud-media-loading-text>正在加载文件，请稍候…</span>';
                 document.body.appendChild(box);
             }
             const label=box.querySelector('[data-cloud-media-loading-text]');
             if(label)label.textContent=String(text||'正在加载文件，请稍候…');
             if(!show){if(window._cloudUploadNoticeTimer){clearTimeout(window._cloudUploadNoticeTimer);window._cloudUploadNoticeTimer=null;}box.classList.add('hidden');return;}
-            if(!box.classList.contains('hidden'))return;
-            if(window._cloudUploadNoticeTimer){clearTimeout(window._cloudUploadNoticeTimer);window._cloudUploadNoticeTimer=null;}
             box.classList.remove('hidden');
         };
         window.uploadLargeMediaToCloudBase = async function(file, options={}){
@@ -3341,6 +3361,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const uploadNotice=(text,show=true)=>{if(!silentUploadNotice)window._cloudUploadNotice?.(options?.purpose==='cover'?'正在保存封面…':(text||'正在加载文件，请稍候…'),show);};
             if(!window.hasTimelineEditToken?.()) throw Object.assign(new Error('请先解锁编辑模式再上传大文件'),{code:'EDIT_AUTH_REQUIRED'});
             uploadNotice('正在加载文件，请稍候…');
+            window.beginCloudWriteLock?.();
+            try {
             const useTemp=!options?.bypassTemp;
             if(useTemp)window.beginEditMediaTxn?.();
             const finalPurpose=String(options?.purpose||'');
@@ -3390,11 +3412,12 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             try{ await timelineApiPost('finalizeMediaUpload',{cloudPath:meta.cloudPath},{auth:'edit',timeoutMs:15000}); }catch(err){ console.warn('媒体登记失败',err); }
             const url=window.cloudMediaPublicUrl(meta.cloudPath);
             uploadNotice('正在加载文件，请稍候…');
-            setTimeout(()=>uploadNotice('',false),250);
+            if(!options?.deferNoticeHide)uploadNotice('',false);
             const result={url,cloudPath:meta.cloudPath,mediaFolder:folder,fileID:meta.fileID||'',mime:file.type||'',name:file.name||''};
             if(useTemp)window.trackUnsavedMediaUpload?.(meta.cloudPath,{url,finalPurpose,name:file.name||'',mime:file.type||'',coverSourcePath:String(options?.coverSourcePath||''),coverKind:String(options?.coverKind||'')});
             window.dispatchEvent(new CustomEvent('timeline:media-uploaded',{detail:{cloudPath:meta.cloudPath}}));
             return result;
+            } finally { window.endCloudWriteLock?.(); }
         };
         window.uploadCoverBlobToCloudBase = async function(blob, prefix='cover', replaceCloudPath='', coverSourcePath='', coverKind='', silentNotice=false){
             if(!blob) throw new Error('COVER_BLOB_EMPTY');
@@ -3449,7 +3472,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if(!window.hasTimelineEditToken?.()){window.showToast?.('请先解锁编辑模式','error');return null;}
             let modal=document.getElementById('cloudMediaLibraryModal');
             if(!modal){modal=document.createElement('div');modal.id='cloudMediaLibraryModal';modal.className='fixed inset-0 z-[470] hidden bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5';document.body.appendChild(modal);}
-            modal.innerHTML=`<div class="w-full max-w-3xl max-h-[86vh] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden" onclick="event.stopPropagation()"><div class="px-4 py-3 border-b flex items-center gap-2"><div class="font-bold text-slate-800"><i class="fa-solid fa-cloud text-indigo-600 mr-2"></i>云端数据库</div><button data-media-close type="button" class="ml-auto w-8 h-8 rounded-lg hover:bg-slate-100"><i class="fa-solid fa-xmark"></i></button></div><div class="px-4 py-3 border-b flex flex-wrap items-center gap-2"><div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-600"><button type="button" data-media-sort-direction class="text-indigo-500"><i data-media-sort-direction-icon class="fa-solid fa-arrow-down-wide-short text-[10px]"></i></button><button type="button" data-media-sort-toggle><span data-media-sort-label>按时间</span></button></div>${[['type','类型'],['status','状态'],['owner','归属']].map(([key,label])=>`<div class="relative"><button type="button" data-media-filter-btn="${key}" class="px-2.5 py-1.5 rounded-lg text-xs border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 flex items-center gap-1.5"><i class="fa-solid fa-filter text-[10px] text-indigo-500"></i>${label}<i class="fa-solid fa-chevron-down text-[8px] text-slate-400"></i></button><div data-media-filter-menu="${key}" class="hidden absolute left-0 top-full mt-1 z-30 w-[86px] rounded-lg border border-slate-200 bg-white p-1 shadow-xl"></div></div>`).join('')}<input data-media-search class="ml-auto min-w-[150px] flex-1 max-w-xs px-3 py-1.5 rounded-lg border text-xs" placeholder="搜索文件名"></div><div data-media-list class="p-4 overflow-y-auto min-h-[240px]"></div><div class="px-4 py-2.5 border-t bg-slate-50/70 text-[10px] text-slate-400">未引用文件会由系统定时清理。</div></div>`
+            modal.innerHTML=`<div class="relative w-full max-w-3xl max-h-[86vh] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden" onclick="event.stopPropagation()"><div class="px-4 py-3 border-b flex items-center gap-2"><div class="font-bold text-slate-800"><i class="fa-solid fa-cloud text-indigo-600 mr-2"></i>云端数据库</div><button data-media-close type="button" class="ml-auto w-8 h-8 rounded-lg hover:bg-slate-100"><i class="fa-solid fa-xmark"></i></button></div><div class="px-4 py-3 border-b flex flex-wrap items-center gap-2"><div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-600"><button type="button" data-media-sort-direction class="text-indigo-500"><i data-media-sort-direction-icon class="fa-solid fa-arrow-down-wide-short text-[10px]"></i></button><button type="button" data-media-sort-toggle><span data-media-sort-label>按时间</span></button></div>${[['type','类型'],['status','状态'],['owner','归属']].map(([key,label])=>`<div class="relative"><button type="button" data-media-filter-btn="${key}" class="px-2.5 py-1.5 rounded-lg text-xs border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 flex items-center gap-1.5"><i class="fa-solid fa-filter text-[10px] text-indigo-500"></i>${label}<i class="fa-solid fa-chevron-down text-[8px] text-slate-400"></i></button><div data-media-filter-menu="${key}" class="hidden absolute left-0 top-full mt-1 z-30 w-[86px] rounded-lg border border-slate-200 bg-white p-1 shadow-xl"></div></div>`).join('')}<input data-media-search class="ml-auto min-w-[150px] flex-1 max-w-xs px-3 py-1.5 rounded-lg border text-xs" placeholder="搜索文件名"></div><div data-media-list class="p-4 overflow-y-auto min-h-[240px]"></div><div class="px-4 py-2.5 border-t bg-slate-50/70 text-[10px] text-slate-400">未引用文件会由系统定时清理。</div></div>`
             const close=()=>modal.classList.add('hidden');modal.onclick=e=>{if(e.target===modal)close();};modal.querySelector('[data-media-close]').onclick=close;
             const allowed=Array.isArray(allowedFolders)&&allowedFolders.length?new Set(allowedFolders.map(String).filter(x=>x!=='music')):null;
             let current=folder==='music'?'all':folder,items=[];if(allowed&&current!=='all'&&!allowed.has(current))current=[...allowed][0]||'all';
@@ -3460,12 +3483,13 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const render=()=>{const q=String(modal.querySelector('[data-media-search]')?.value||'').trim().toLowerCase(),status=modal._mediaStatus,owner=modal._mediaOwner,sort=modal._mediaSort;const shown=items.filter(a=>(!allowed||allowed.has(String(a.folder||'')))&&(modal._mediaType==='all'||a.folder===modal._mediaType)&&(status==='all'||(status==='inuse'?a.unreferencedSince==null:a.unreferencedSince!=null))&&(owner==='all'||(owner==='mine'?a.owned===true:a.owned!==true))&&(!q||window.cloudMediaDisplayName(a).toLowerCase().includes(q))).slice().sort((a,b)=>{const d=modal._mediaSortDir==='asc'?1:-1;return sort==='name'?d*window.cloudMediaDisplayName(a).localeCompare(window.cloudMediaDisplayName(b),'zh-CN',{numeric:true,sensitivity:'base'}):d*(Number(a.uploadedAt||a.createdAt||0)-Number(b.uploadedAt||b.createdAt||0));});const list=modal.querySelector('[data-media-list]');if(!shown.length){list.innerHTML='<div class="text-sm text-slate-400 text-center py-12">这里还没有可用媒体</div>';return;}list.innerHTML='<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">'+shown.map(a=>{const i=items.indexOf(a),url=window.cloudMediaPublicUrl(a.cloudPath),pending=a.unreferencedSince!=null?'<span class="text-amber-600">未引用</span>':'<span class="text-emerald-600">使用中</span>',manage=canManage(a);return `<div data-media-path="${window.escapeHtml(String(a.cloudPath||''))}" class="relative border rounded-xl p-3 flex gap-3 items-center group"><button data-media-preview="${i}" class="w-11 h-11 rounded-lg bg-slate-100 overflow-hidden shrink-0">${(()=>{if(a.folder==='picture')return `<img src="${window.escapeHtml(url)}" class="w-full h-full object-cover">`;if(a.folder==='gif'){const c=window.cloudAssetInheritedImage(a).gifCover;return c?`<img src="${window.escapeHtml(c)}" class="w-full h-full object-cover">`:`<i class="fa-solid fa-image text-slate-300"></i>`;}if(a.folder==='video'){const c=window.cloudAssetInheritedVideo(a).cover;return c?`<img src="${window.escapeHtml(c)}" class="w-full h-full object-cover">`:`<i class="fa-solid fa-video text-slate-300"></i>`;}return ''})()}</button><div class="min-w-0 flex-1 pr-[126px]"><div class="text-xs font-semibold text-slate-700 truncate"${window.isDeveloperMode?.()?` title="${window.escapeHtml(String(a.cloudPath||''))}"`:''}>${window.escapeHtml(window.cloudMediaDisplayName(a))}</div><div class="text-[10px] mt-1 flex gap-2"><span class="text-slate-400">${window.cloudMediaFormatSize(a.size)}</span>${pending}</div></div><div class="absolute right-3 top-1/2 -translate-y-1/2 flex gap-1 items-center">${manage?`<button data-media-rename="${i}" class="w-7 h-7 p-0 rounded-lg border bg-white text-slate-500 inline-flex items-center justify-center leading-none" title="重命名"><i class="fa-solid fa-pen text-[10px] leading-none block"></i></button>`:''}<button data-media-use="${i}" class="w-7 h-7 p-0 rounded-lg border bg-white text-indigo-500 inline-flex items-center justify-center leading-none" title="引用"><i class="fa-solid fa-plus text-[10px] leading-none block"></i></button><button data-media-copy="${i}" class="w-7 h-7 p-0 rounded-lg border bg-white text-indigo-500 inline-flex items-center justify-center leading-none" title="复制"><i class="fa-solid fa-copy text-[10px] leading-none block"></i></button>${manage?`<button data-media-delete="${i}" class="w-7 h-7 p-0 rounded-lg border border-rose-200 bg-white text-rose-500 inline-flex items-center justify-center leading-none" title="删除"><i class="fa-solid fa-trash text-[10px] leading-none block"></i></button>`:''}</div></div>`;}).join('')+'</div>';
                 list.querySelectorAll('[data-media-use]').forEach(b=>b.onclick=()=>{const a=items[+b.dataset.mediaUse];close();onSelect?.({...a,url:window.cloudMediaPublicUrl(a.cloudPath),isCloud:true});});
                 list.querySelectorAll('[data-media-preview]').forEach(b=>b.onclick=()=>{const a=items[+b.dataset.mediaPreview];window.open(window.cloudMediaPublicUrl(a.cloudPath),'_blank');});
-                list.querySelectorAll('[data-media-copy]').forEach(b=>b.onclick=async()=>{const a=items[+b.dataset.mediaCopy];await window.deepAppConfirm({title:'确认复制文件？',desc:`将复制“${window.cloudMediaDisplayName(a)}”并生成独立副本。`,confirmText:'确认复制',busyText:'正在复制...',onConfirm:async()=>{const copied=await timelineApiPost('copyMediaAsset',{cloudPath:a.cloudPath,ownerToken:window.getEditorOwnerToken?.()||''},{auth:'edit',timeoutMs:60000});await load(String(copied?.cloudPath||copied?.item?.cloudPath||''));window.showToast?.('复制成功','success');return true;}});});
-                list.querySelectorAll('[data-media-rename]').forEach(b=>b.onclick=async()=>{const a=items[+b.dataset.mediaRename];await window.timelineAppInput({title:'重命名文件',value:window.cloudMediaDisplayName(a),placeholder:'输入新的文件名称',confirmText:'保存',busyText:'正在保存...',duplicateCheck:v=>{const n=String(v||'').trim();return !!n&&items.some(x=>x!==a&&window.cloudMediaDisplayName(x)===n);},onConfirm:async v=>{const name=String(v||'').trim();if(!name)throw new Error('请输入新的文件名称');await timelineApiPost('renameMediaAsset',{cloudPath:a.cloudPath,displayName:name,ownerToken:window.getEditorOwnerToken?.()||''},{auth:'edit'});await load();window.showToast?.('已重命名','success');return name;}});});
-                list.querySelectorAll('[data-media-delete]').forEach(b=>b.onclick=async()=>{const a=items[+b.dataset.mediaDelete];await window.deepAppConfirm({title:'确认删除文件？',desc:`“${window.cloudMediaDisplayName(a)}”将从云端删除，此操作不可撤销。`,confirmText:'确认删除',danger:true,busyText:'正在删除...',onConfirm:async()=>{await timelineApiPost('deleteMediaAsset',{cloudPath:a.cloudPath,ownerToken:window.getEditorOwnerToken?.()||''},{auth:'edit',timeoutMs:30000});await load();window.showToast?.('已删除','success');return true;}});});
+                list.querySelectorAll('[data-media-copy]').forEach(b=>b.onclick=async()=>{const a=items[+b.dataset.mediaCopy];await window.deepAppConfirm({title:'确认复制文件？',desc:`将复制“${window.cloudMediaDisplayName(a)}”并生成独立副本。`,confirmText:'确认复制',busyText:'正在复制...',onConfirm:async()=>{const copied=await window.timelineApiCloudWritePost('copyMediaAsset',{cloudPath:a.cloudPath,ownerToken:window.getEditorOwnerToken?.()||''},{auth:'edit',timeoutMs:60000});await load(String(copied?.cloudPath||copied?.item?.cloudPath||''));window.showToast?.('复制成功','success');return true;}});});
+                list.querySelectorAll('[data-media-rename]').forEach(b=>b.onclick=async()=>{const a=items[+b.dataset.mediaRename];await window.timelineAppInput({title:'重命名文件',value:window.cloudMediaDisplayName(a),placeholder:'输入新的文件名称',confirmText:'保存',busyText:'正在保存...',duplicateCheck:v=>{const n=String(v||'').trim();return !!n&&items.some(x=>x!==a&&window.cloudMediaDisplayName(x)===n);},onConfirm:async v=>{const name=String(v||'').trim();if(!name)throw new Error('请输入新的文件名称');await window.timelineApiCloudWritePost('renameMediaAsset',{cloudPath:a.cloudPath,displayName:name,ownerToken:window.getEditorOwnerToken?.()||''},{auth:'edit'});await load();window.showToast?.('已重命名','success');return name;}});});
+                list.querySelectorAll('[data-media-delete]').forEach(b=>b.onclick=async()=>{const a=items[+b.dataset.mediaDelete];await window.deepAppConfirm({title:'确认删除文件？',desc:`“${window.cloudMediaDisplayName(a)}”将从云端删除，此操作不可撤销。`,confirmText:'确认删除',danger:true,busyText:'正在删除...',onConfirm:async()=>{await window.timelineApiCloudWritePost('deleteMediaAsset',{cloudPath:a.cloudPath,ownerToken:window.getEditorOwnerToken?.()||''},{auth:'edit',timeoutMs:30000});await load();window.showToast?.('已删除','success');return true;}});});
             };
             const revealPath=path=>{if(!path)return;const list=modal.querySelector('[data-media-list]');const esc=window.CSS?.escape?CSS.escape(String(path)):String(path).replace(/[\"']/g,'\\$&');const el=list?.querySelector(`[data-media-path="${esc}"]`);if(!el)return;const lr=list.getBoundingClientRect(),er=el.getBoundingClientRect();if(er.top<lr.top||er.bottom>lr.bottom)el.scrollIntoView({block:'nearest',behavior:'smooth'});};
-            const load=async(reveal='')=>{modal.querySelector('[data-media-list]').innerHTML='<div class="text-sm text-slate-400 text-center py-12"><i class="fa-solid fa-spinner fa-spin mr-2"></i>正在读取云端数据库…</div>';try{const data=await timelineApiPost('listMediaAssets',{folder:'all',ownerToken:window.getEditorOwnerToken?.()||''},{auth:'edit',timeoutMs:25000});items=Array.isArray(data?.items)?data.items:[];render();if(reveal)requestAnimationFrame(()=>revealPath(reveal));}catch(e){modal.querySelector('[data-media-list]').innerHTML=`<div class="text-sm text-rose-600 text-center py-12">${e?.message||'读取失败'}</div>`;}};
+            const setMediaBusy=busy=>{modal.setAttribute('aria-busy',busy?'true':'false');};
+            const load=async(reveal='')=>{setMediaBusy(true);modal.querySelector('[data-media-list]').innerHTML='<div class="text-sm text-slate-400 text-center py-12"><i class="fa-solid fa-spinner fa-spin mr-2"></i>正在读取云端数据库…</div>';try{const data=await timelineApiPost('listMediaAssets',{folder:'all',ownerToken:window.getEditorOwnerToken?.()||''},{auth:'edit',timeoutMs:25000});items=Array.isArray(data?.items)?data.items:[];render();if(reveal){await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));revealPath(reveal);}}catch(e){modal.querySelector('[data-media-list]').innerHTML=`<div class="text-sm text-rose-600 text-center py-12">${e?.message||'读取失败'}</div>`;}finally{setMediaBusy(false);}};
             modal._mediaReload=load;
             if(!modal._mediaUploadRevealBound){modal._mediaUploadRevealBound=true;window.addEventListener('timeline:media-uploaded',e=>{if(!modal.classList.contains('hidden'))modal._mediaReload?.(String(e.detail?.cloudPath||''));});}
             const closeFilterMenus=except=>modal.querySelectorAll('[data-media-filter-menu]').forEach(m=>{if(m.dataset.mediaFilterMenu!==except)m.classList.add('hidden');});
@@ -3574,7 +3598,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             updateSyncStatus('saving', '保存中...');
             let failed = false;
             try {
-                return await timelineApiPost(action, payload, { auth:true });
+                return await window.withCloudWriteLock(()=>timelineApiPost(action, payload, { auth:true }));
             } catch (err) {
                 failed = true;
                 if (err?.code === 'EDIT_AUTH_REQUIRED' || err?.code === 'unauthorized' || err?.code === 'token_expired') {
@@ -3655,7 +3679,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.timelineApiXiaoqingerWrite = async function(action, payload = {}) {
             updateSyncStatus('saving', '保存中...');
             try {
-                const result = await timelineApiPost(action, payload, { auth:'xiaoqinger' });
+                const result = await window.withCloudWriteLock(()=>timelineApiPost(action, payload, { auth:'xiaoqinger' }));
                 updateSyncStatus('synced', '已同步云端');
                 return result;
             } catch (err) {
@@ -4412,7 +4436,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const ownerToken=String(window.getEditorOwnerToken?.()||'');const visibleSongs=window.isLocked?window.bgmPlaylist:window.bgmPlaylist.filter(song=>window.bgmManageCategory==='mine'?song.owned===true:window.bgmManageCategory==='other'?song.owned!==true:true);
             if(!visibleSongs.length){container.innerHTML='<p class="text-xs text-slate-400 italic py-2">当前分类暂无背景音乐</p>';return;}
             container.innerHTML = visibleSongs.map((song) => {const idx=window.bgmPlaylist.indexOf(song);return `
-                <div class="flex items-center justify-between bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs text-slate-700">
+                <div data-bgm-id="${window.escapeHtml(String(song.id||''))}" class="flex items-center justify-between bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs text-slate-700">
                     <div class="flex items-center gap-2 truncate max-w-[220px]">
                         <i class="fa-solid fa-music text-indigo-500"></i>
                         <span class="truncate font-medium">《${window.escapeHtml(song.name||'未命名音乐')}》</span>
@@ -4443,14 +4467,19 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const finalName=customName||(file.name||'背景音乐').replace(/\.mp3$/i,'');
             if(window.bgmNameExists(finalName)){window.updateBgmNameDuplicateHint?.();window.showToast('该名称已存在','error');if(input)input.value='';return;}
             try{
-                const media=await window.uploadLargeMediaToCloudBase(file);
+                window._cloudUploadNotice?.('正在加载文件，请稍候…',true);
+                const media=await window.uploadLargeMediaToCloudBase(file,{deferNoticeHide:true});
                 const newSong={id:'song_'+Date.now()+Math.random().toString(36).substr(2,5),name:finalName,url:media.url,cloudPath:media.cloudPath||'',owned:true};
-                window.bgmPlaylist.push(newSong); window.renderBgmPlaylist();
-                try{await window.timelineApiWrite('upsertBgm',{bgm:newSong,ownerToken:window.getEditorOwnerToken?.()||''});await window.writeActivityLog?.('bgm_add',{resourceType:'bgm',resourceName:newSong.name});}
-                catch(err){window.bgmPlaylist=window.bgmPlaylist.filter(s=>s.id!==newSong.id);window.renderBgmPlaylist();throw err;}
-                if(nameInput)nameInput.value=''; window.showToast('MP3 已上传并加入歌单','success');
-            }catch(err){window._cloudUploadNotice?.('',false);window.showToast(err?.message||'MP3 上传失败','error');}
-            finally{if(input)input.value='';}
+                // 云端登记完成后再加入歌单，避免“正在加载”尚未结束时提前出现。
+                await window.timelineApiWrite('upsertBgm',{bgm:newSong,ownerToken:window.getEditorOwnerToken?.()||''});
+                await window.writeActivityLog?.('bgm_add',{resourceType:'bgm',resourceName:newSong.name});
+                window.bgmPlaylist.push(newSong);window.renderBgmPlaylist();
+                await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+                const list=document.getElementById('bgmPlaylistContainer'),el=list?.querySelector(`[data-bgm-id="${window.CSS?.escape?CSS.escape(newSong.id):newSong.id}"]`);
+                if(list&&el){const lr=list.getBoundingClientRect(),er=el.getBoundingClientRect();if(er.top<lr.top||er.bottom>lr.bottom)el.scrollIntoView({block:'nearest',behavior:'smooth'});}
+                if(nameInput)nameInput.value='';window.showToast('MP3 已上传并加入歌单','success');
+            }catch(err){window.showToast(err?.message||'MP3 上传失败','error');}
+            finally{window._cloudUploadNotice?.('',false);if(input)input.value='';}
         };
 
         window.renameBgmSong = async function(songId) {
@@ -4779,7 +4808,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const targetRoom=(roomInput?.value||'').trim() || window.MAIN_EDIT_ROOM_ID;
             if(urlInput) urlInput.value='正在生成安全分享链接…';
             try{
-                const data=await timelineApiPost('createShareAccess',{targetRoom},{auth:true,timeoutMs:12000});
+                const data=await window.timelineApiCloudWritePost('createShareAccess',{targetRoom},{auth:true,timeoutMs:12000});
                 const token=String(data?.accessToken||'');
                 const safeRoom=String(data?.targetRoom||targetRoom);
                 if(!token) throw new Error('未收到访问凭证');
@@ -4936,7 +4965,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         };
         window.deleteTempCloudPath=async function(path){
             path=String(path||'').trim();if(!path)return false;
-            try{await timelineApiPost('deleteMediaAsset',{cloudPath:path,temporary:true},{auth:'edit',timeoutMs:20000});return true;}
+            try{await window.timelineApiCloudWritePost('deleteMediaAsset',{cloudPath:path,temporary:true},{auth:'edit',timeoutMs:20000});return true;}
             catch(err){console.warn('temp 文件删除接口失败',path,err);return false;}
         };
         window.discardTempUploadsSince=async function(mark=0){
@@ -13279,7 +13308,7 @@ viewer.style.visibility='';
 
             try {
                 const action = prev && prev !== next ? 'renameIdentity' : 'claimIdentity';
-                const result = await timelineApiPost(action, {
+                const result = await window.timelineApiCloudWritePost(action, {
                     name: next,
                     oldName: prev,
                     ownerToken
@@ -13401,8 +13430,11 @@ viewer.style.visibility='';
             input?.classList.remove('border-rose-500','focus:ring-rose-500');
             input?.classList.add('border-slate-300','focus:ring-indigo-500');
 
+            const saveBtn=document.querySelector('#editorIdentityModal button[onclick="saveEditorIdentity()"]');
+            const oldSaveText=saveBtn?.textContent||'确定';if(saveBtn)saveBtn.textContent='正在保存...';
             const claim = await window.claimEditorIdentity(value, oldValue);
             if (!claim.ok) {
+                if(saveBtn)saveBtn.textContent=oldSaveText;
                 if (err) {
                     err.textContent = claim.reason === 'taken'
                         ? (claim.message || '该ID已被其他用户占用')
@@ -13426,6 +13458,7 @@ viewer.style.visibility='';
             document.querySelectorAll('[data-comment-board]').forEach(board => window.commentRenderIdentity?.(board, board._commentIdentity));
 
             window.showToast?.('ID已保存', 'success');
+            if(saveBtn)saveBtn.textContent=oldSaveText;
         };
 
         window.openDeleteEditorIdentityConfirm = function(){
@@ -13441,7 +13474,7 @@ viewer.style.visibility='';
             const btn=document.getElementById('editorIdentityDeleteConfirmBtn');
             if(btn) btn.disabled=true;
             try{
-                await timelineApiPost('deleteIdentity',{name,ownerToken:window.getEditorOwnerToken?.()||''},{auth:false,timeoutMs:12000});
+                await window.timelineApiCloudWritePost('deleteIdentity',{name,ownerToken:window.getEditorOwnerToken?.()||''},{auth:false,timeoutMs:12000});
                 try{localStorage.removeItem(window.EDITOR_ID_STORAGE_KEY);}catch(_){}
                 window.currentEditorIdentity='';
                 window._identityReservationValid=true;
@@ -13458,7 +13491,7 @@ viewer.style.visibility='';
                 window.showToast?.('ID已删除，当前已进入游客状态','success');
             }catch(e){
                 window.showToast?.(String(e?.message||'ID删除失败，请稍后重试'),'error');
-            }finally{if(btn)btn.disabled=false;}
+            }finally{if(btn)btn.textContent=oldBtnText;}
         };
 
         window.IDENTITY_FIRST_PROMPT_KEY='yuhoutianqing_identity_first_prompt_seen';
@@ -13707,7 +13740,7 @@ viewer.style.visibility='';
                 document.querySelectorAll('#notificationList .notification-item.unread').forEach(el=>el.classList.remove('unread'));
                 const ownerToken=window.getEditorOwnerToken?.()||'';
                 if(ownerToken){
-                    timelineApiPost('markAllNotificationsRead',{ownerToken},{auth:false,timeoutMs:12000}).catch(()=>{});
+                    window.timelineApiCloudWritePost('markAllNotificationsRead',{ownerToken},{auth:false,timeoutMs:12000}).catch(()=>{});
                 }
             }
             
@@ -14240,6 +14273,8 @@ viewer.style.visibility='';
                 rapid,
                 lines
             };
+            const saveBtn=document.querySelector('#xiaoqingerDialogueEditorModal button[onclick="saveXiaoqingerDialogues()"]');
+            const oldSaveText=saveBtn?.textContent||'保存';if(saveBtn)saveBtn.textContent='正在保存...';
             try {
                 await window.timelineApiXiaoqingerWrite('updateXiaoqinger', { config: cfg });
                 window.xiaoqingerDialogueConfig = cfg;
@@ -14249,7 +14284,7 @@ viewer.style.visibility='';
             } catch (e) {
                 console.warn('小晴儿台词云端保存失败:', e);
                 window.showToast?.('小晴儿台词保存失败', 'error');
-            }
+            } finally { if(saveBtn)saveBtn.textContent=oldSaveText; }
         };
 
         window.resetXiaoqingerDialogues = function() {
@@ -15148,7 +15183,7 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
             }
             if(button)button.disabled=true;
             try{
-                const data=await timelineApiPost('commentLike',{
+                const data=await window.timelineApiCloudWritePost('commentLike',{
                     eventId:String(board.dataset.eventId||''),
                     commentId:String(message?.id||''),
                     ownerToken:window.getEditorOwnerToken?.() || '',
@@ -15258,7 +15293,7 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
         };
         window.markAllNotificationsRead=async function(){
             const ownerToken=window.getEditorOwnerToken?.()||'';if(!ownerToken)return;
-            try{await timelineApiPost('markAllNotificationsRead',{ownerToken},{auth:false,timeoutMs:12000});}catch(_){}
+            try{await window.timelineApiCloudWritePost('markAllNotificationsRead',{ownerToken},{auth:false,timeoutMs:12000});}catch(_){}
             await window.loadNotifications?.();await window.refreshNotificationBadge?.();
         };
         window.notificationDeletedMessage=function(reason){
@@ -15269,7 +15304,7 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
         };
         window.openNotificationTarget=async function(n){
             const ownerToken=window.getEditorOwnerToken?.()||'';
-            if(n?._id && ownerToken){try{await timelineApiPost('markNotificationRead',{ownerToken,id:n._id},{auth:false,timeoutMs:12000});}catch(_){}}
+            if(n?._id && ownerToken){try{await window.timelineApiCloudWritePost('markNotificationRead',{ownerToken,id:n._id},{auth:false,timeoutMs:12000});}catch(_){}}
             const eventId=String(n?.eventId||'');const commentId=String(n?.commentId||'');
             if(!eventId||!commentId)return;
             if(n?.deletedReason){
@@ -15336,9 +15371,9 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
             }
 
             window.commentBoardError(board,'');
-            if(btn)btn.disabled=true;
+            const oldBtnText=btn?.textContent||'';if(btn)btn.textContent='正在发送...';
             try{
-                const data=await timelineApiPost('commentAdd',{
+                const data=await window.timelineApiCloudWritePost('commentAdd',{
                     eventId:String(board.dataset.eventId||''),
                     content,
                     parentId:board._commentReplyId||null,
@@ -15373,10 +15408,10 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
             const ok=document.createElement('button');ok.type='button';ok.className='event-comment-btn danger';ok.textContent='删除';
             cancel.onclick=()=>layer.remove();
             ok.onclick=async()=>{
-                ok.disabled=true;cancel.disabled=true;
                 window.commentBoardError(board,'');
+                card.innerHTML='<div class="comment-confirm-title"><i class="fa-solid fa-spinner fa-spin mr-2"></i>正在删除...</div>';
                 try{
-                    await timelineApiPost('commentDelete',{
+                    await window.timelineApiCloudWritePost('commentDelete',{
                         id:String(id),
                         eventId:String(board.dataset.eventId||''),
                         ownerToken:window.getEditorOwnerToken?.() || ''
