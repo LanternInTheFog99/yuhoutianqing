@@ -4966,15 +4966,16 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if(!tx)return;
             if(!tx.tempUploads.some(x=>x.tempPath===path))tx.tempUploads.push({tempPath:path,tempUrl:meta.url||window.cloudMediaPublicUrl?.(path)||'',finalPurpose:meta.finalPurpose||'',name:meta.name||'',mime:meta.mime||'',coverSourcePath:meta.coverSourcePath||'',coverKind:meta.coverKind||''});
         };
-        window.deleteTempCloudPath=async function(path){
+        window.deleteTempCloudPath=async function(path,pendingOwner=''){
             path=String(path||'').trim();if(!path)return false;
-            try{await window.timelineApiCloudWritePost('deleteMediaAsset',{cloudPath:path,temporary:true,pendingOwner:String(window._editMediaTxn?.sessionId||''),ownerToken:window.getEditorOwnerToken?.()||''},{auth:'edit',timeoutMs:20000});return true;}
-            catch(err){console.warn('temp 文件删除接口失败',path,err);return false;}
+            const owner=String(pendingOwner||window._editMediaTxn?.sessionId||'');
+            try{await window.timelineApiCloudWritePost('deleteMediaAsset',{cloudPath:path,temporary:true,pendingOwner:owner,ownerToken:window.getEditorOwnerToken?.()||''},{auth:'edit',timeoutMs:20000});return true;}
+            catch(err){console.warn('pending 文件删除接口失败',path,err);return false;}
         };
         window.discardTempUploadsSince=async function(mark=0){
             const tx=window._editMediaTxn;if(!tx)return;
-            const cut=Math.max(0,Number(mark)||0), doomed=tx.tempUploads.splice(cut);
-            await Promise.allSettled(doomed.map(x=>window.deleteTempCloudPath(x.tempPath)));
+            const cut=Math.max(0,Number(mark)||0), doomed=tx.tempUploads.splice(cut),sessionId=String(tx.sessionId||'');
+            await Promise.allSettled(doomed.map(x=>window.deleteTempCloudPath(x.tempPath,sessionId)));
         };
         window.rollbackEditMediaTxn=async function(){
             const tx=window._editMediaTxn;if(!tx)return;
@@ -4984,9 +4985,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 const p=key.split(':'),obj=p[0]==='single'?window.deepMediaObject?.(p[1],Number(p[2])):window.multiDeepMediaObject?.(Number(p[1]),p[2],Number(p[3]));
                 if(obj)obj.deepDescription=window.deepClone(draft);
             }
-            const doomed=[...(tx.tempUploads||[])];
+            const doomed=[...(tx.tempUploads||[])],sessionId=String(tx.sessionId||'');
             window._editMediaTxn=null;
-            await Promise.allSettled(doomed.map(x=>window.deleteTempCloudPath(x.tempPath)));
+            await Promise.allSettled(doomed.map(x=>window.deleteTempCloudPath(x.tempPath,sessionId)));
         };
         // Flat lifecycle: paths are stable. Existing function names stay in place so the
         // original save-button control flow is not rewritten.
@@ -12556,7 +12557,7 @@ viewer.style.visibility='';
                     sw=Math.max(1,Math.min(w-sx,(Number(crop.sw)||baseW)*rx));
                     sh=Math.max(1,Math.min(h-sy,(Number(crop.sh)||baseH)*ry));
                 }
-                const max=1280,scale=Math.min(1,max/sw,max/sh),c=document.createElement('canvas');c.width=Math.max(1,Math.round(sw*scale));c.height=Math.max(1,Math.round(sh*scale));c.getContext('2d').drawImage(source,sx,sy,sw,sh,0,0,c.width,c.height);const blob=await new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(new Error('封面生成失败')),'image/jpeg',.86));const file=new File([blob],`gif_cover_${Date.now()}.jpg`,{type:'image/jpeg'});const media=await window.uploadLargeMediaToCloudBase(file,{purpose:'cover',replaceCloudPath:coverCloudPath||'',coverSourcePath:String(current?.cloudPath||''),coverKind:'gif'});media.gifDurationMs=Math.max(50,Number(modal._parsedGifDurationMs)||Math.round(totalUs/1000)||0);media.gifDurationSource='gce';window.trackUnsavedMediaUpload?.(media.cloudPath||'');await onSaved?.(media.url,media,current);close();window.showToast?.('动图封面已保存','success');}catch(err){window.showToast?.('动图封面截取失败：'+(err?.message||err),'error');btn.disabled=false;btn.textContent='设为封面';}};
+                const max=1280,scale=Math.min(1,max/sw,max/sh),c=document.createElement('canvas');c.width=Math.max(1,Math.round(sw*scale));c.height=Math.max(1,Math.round(sh*scale));c.getContext('2d').drawImage(source,sx,sy,sw,sh,0,0,c.width,c.height);const blob=await new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(new Error('封面生成失败')),'image/jpeg',.86));const file=new File([blob],`gif_cover_${Date.now()}.jpg`,{type:'image/jpeg'});const media=await window.uploadLargeMediaToCloudBase(file,{purpose:'cover',replaceCloudPath:coverCloudPath||'',coverSourcePath:String(cloudPath||''),coverKind:'gif'});media.gifDurationMs=Math.max(50,Number(modal._parsedGifDurationMs)||Math.round(totalUs/1000)||0);media.gifDurationSource='gce';window.trackUnsavedMediaUpload?.(media.cloudPath||'');await onSaved?.(media.url,media,current);close();window.showToast?.('动图封面已保存','success');}catch(err){window.showToast?.('动图封面截取失败：'+(err?.message||err),'error');btn.disabled=false;btn.textContent='设为封面';}};
         };
         window.editGifCover=function(index){
             window.beginEditMediaTxn?.();
