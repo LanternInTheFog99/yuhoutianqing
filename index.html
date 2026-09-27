@@ -3301,11 +3301,10 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const qs=new URLSearchParams({room:window.currentRoomId||'default',cloudPath:String(cloudPath||''),ticket:String(data.ticket),mode:'stream'});
             return TIMELINE_API_BASE+'/media?'+qs.toString();
         };
-        // 当前媒体优先使用保存时记录的 cloudPath，不再从普通外链 URL 猜测云端位置。
-        // 兼容迁移后的生命周期目录 inuse/temp/unref，以及迁移前的旧 gif/ 目录。
+        // cloudPath 只接受当前 canonical 物理目录；生命周期由 mediaAssets 字段表达。
         window.resolveGifCloudPath = function(src,cloudPath){
             const explicit=String(cloudPath||'').replace(/^\/+/, '');
-            return /^(?:(?:inuse|temp|unref)\/gif|gif)\/[^?#]+$/i.test(explicit)?explicit:'';
+            return /^gif\/[^?#]+$/i.test(explicit)?explicit:'';
         };
         window.getGifDecodeFetchRequest = async function(src,cloudPath,fileID){
             const resolved=window.resolveGifCloudPath(src,cloudPath);
@@ -3504,7 +3503,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.getSavedCloudMediaPresentation=function(cloudPath){
             const target=String(cloudPath||'').replace(/^\/+/, '');
             if(!target)return null;
-            const identity=p=>String(p||'').replace(/^\/+/, '').replace(/^(?:temp|inuse|unref)\//i,'');
+            const identity=p=>String(p||'').replace(/^\/+/, '');
             const targetIdentity=identity(target), targetBase=targetIdentity.split('/').pop()||'';
             const urlMatchesTarget=value=>{
                 const raw=String(value||'').trim();
@@ -5441,7 +5440,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     if (progressBar) setTimeout(() => progressBar.style.width = '60%', 400);
                     
                     // 快速路径：没有本次新上传的 temp 时，不再扫描/提升媒体，也不重复检查旧视频/GIF封面。
-                    // 新上传媒体仍保持原流程：主媒体先进入 inuse，再仅为缺封面的新媒体生成首帧封面。
+                    // 新上传媒体仍保持原流程：主媒体保持 canonical 路径并以 pending 状态登记，再仅为缺封面的新媒体生成首帧封面。
                     const hadPendingTemp=window._hasPendingTempUploads?.()===true;
                     if(hadPendingTemp){
                         await window.promoteTempUploads?.(eventData);
