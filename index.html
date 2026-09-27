@@ -5058,71 +5058,27 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 throw new Error(`${context}失败：仍有 ${refs.length} 个媒体没有从 temp 正式化，请重试`);
             }
         };
-        window.promoteOneTempUpload=async function(rec,promoted){
-            const sourcePath=promoted.get(rec.coverSourcePath)||rec.coverSourcePath||'';
-            const result=await timelineApiPost('promoteTempMedia',{
-                cloudPath:rec.tempPath,
-                coverSourcePath:sourcePath
-            },{auth:'edit',timeoutMs:30000});
-            if(!result?.cloudPath)throw new Error(result?.message||'媒体正式化失败');
-            promoted.set(rec.tempPath,result.cloudPath);
-            return {fromPath:rec.tempPath,toPath:result.cloudPath};
-        };
-        window.refreshCanonicalMediaDisplayUrls=function(root){
-            if(!root||typeof root!=='object')return;
-            const seen=new WeakSet();
-            const walk=o=>{
-                if(!o||typeof o!=='object'||seen.has(o))return;
-                seen.add(o);
-                if(Array.isArray(o)){for(const v of o)walk(v);return;}
-                if(o.cloudPath){
-                    const u=window.cloudMediaPublicUrl(o.cloudPath);
-                    if(u)o.url=u;
-                }
-                if(o.pictureCoverCloudPath){
-                    const u=window.cloudMediaPublicUrl(o.pictureCoverCloudPath);
-                    if(u){o.pictureCover=u;o.outer=u;o.inner=u;o.collection=u;o.cover=u;}
-                }
-                if(o.gifCoverCloudPath){
-                    const u=window.cloudMediaPublicUrl(o.gifCoverCloudPath);
-                    if(u){o.gifCover=u;o.cover=u;}
-                }
-                if(o.coverCloudPath){
-                    const u=window.cloudMediaPublicUrl(o.coverCloudPath);
-                    if(u)o.cover=u;
-                }
-                for(const v of Object.values(o))if(v&&typeof v==='object')walk(v);
-            };
-            walk(root);
+        window.buildTempMediaSaveManifest=function(records){
+            return (records||[]).map(rec=>({cloudPath:String(rec?.tempPath||''),coverSourcePath:String(rec?.coverSourcePath||'')})).filter(x=>x.cloudPath);
         };
         window.promoteTempUploadsSince=async function(mark,root){
             const tx=window._editMediaTxn;if(!tx)return new Map();
-            const cut=Math.max(0,Number(mark)||0);
-            const selected=tx.tempUploads.slice(cut).sort((a,b)=>Number((a.finalPurpose||'')==='cover')-Number((b.finalPurpose||'')==='cover'));
-            const promoted=new Map();
-            for(const rec of selected)await window.promoteOneTempUpload(rec,promoted);
-            window.applyMediaPromotionMap(root,promoted);
-            window.refreshCanonicalMediaDisplayUrls(root);
-            window.assertNoTempMediaRefs(root,'深入描述保存');
-            const promotedPaths=new Set(promoted.keys());
-            tx.tempUploads=tx.tempUploads.filter((rec,i)=>i<cut||!promotedPaths.has(rec.tempPath));
-            return promoted;
+            const cut=Math.max(0,Number(mark)||0),selected=tx.tempUploads.slice(cut);
+            if(!selected.length){window.assertNoTempMediaRefs(root,'深入描述保存');return new Map();}
+            const data=await timelineApiPost('prepareMediaForSave',{tempMedia:window.buildTempMediaSaveManifest(selected)},{auth:'edit',timeoutMs:60000});
+            if(!data?.ok)throw new Error(data?.message||'媒体正式化失败');
+            const promoted=new Map(Object.entries(data.mapping||{}));
+            window.applyMediaPromotionMap(root,promoted);window.refreshCanonicalMediaDisplayUrls(root);window.assertNoTempMediaRefs(root,'深入描述保存');
+            const done=new Set(promoted.keys());tx.tempUploads=tx.tempUploads.filter((rec,i)=>i<cut||!done.has(rec.tempPath));return promoted;
         };
         window.promoteTempUploads=async function(eventData){
-            const tx=window._editMediaTxn;
-            const promoted=new Map();
-            if(tx?.tempUploads?.length){
-                const selected=[...tx.tempUploads].sort((a,b)=>Number((a.finalPurpose||'')==='cover')-Number((b.finalPurpose||'')==='cover'));
-                for(const rec of selected)await window.promoteOneTempUpload(rec,promoted);
-                window.applyMediaPromotionMap(eventData,promoted);
-                window.refreshCanonicalMediaDisplayUrls(eventData);
-                window.assertNoTempMediaRefs(eventData,'大保存');
-                // Only consume transaction records after the payload is proven clean.
-                tx.tempUploads=tx.tempUploads.filter(rec=>!promoted.has(rec.tempPath));
-            }else{
-                window.assertNoTempMediaRefs(eventData,'大保存');
-            }
-            return promoted;
+            const tx=window._editMediaTxn,selected=tx?.tempUploads?[...tx.tempUploads]:[];
+            if(!selected.length){window.assertNoTempMediaRefs(eventData,'大保存');return new Map();}
+            const data=await timelineApiPost('prepareMediaForSave',{tempMedia:window.buildTempMediaSaveManifest(selected)},{auth:'edit',timeoutMs:60000});
+            if(!data?.ok)throw new Error(data?.message||'媒体正式化失败');
+            const promoted=new Map(Object.entries(data.mapping||{}));
+            window.applyMediaPromotionMap(eventData,promoted);window.refreshCanonicalMediaDisplayUrls(eventData);window.assertNoTempMediaRefs(eventData,'大保存');
+            const done=new Set(promoted.keys());tx.tempUploads=tx.tempUploads.filter(rec=>!done.has(rec.tempPath));return promoted;
         };
 
         window.handleNewEventClick = function() {
