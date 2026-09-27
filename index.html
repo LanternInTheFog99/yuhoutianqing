@@ -3301,18 +3301,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const qs=new URLSearchParams({room:window.currentRoomId||'default',cloudPath:String(cloudPath||''),ticket:String(data.ticket),mode:'stream'});
             return TIMELINE_API_BASE+'/media?'+qs.toString();
         };
-        // Canonical resolver for cloud-backed media. cloudPath is identity, never a URL.
-        window.resolveCloudMediaUrl=async function(cloudPath){
-            const path=String(cloudPath||'').trim();
-            if(!path)return '';
-            return await window.getCloudMediaCaptureStreamUrl(path);
-        };
-        window.fetchCloudMediaBlob=async function(cloudPath){
-            const readUrl=await window.resolveCloudMediaUrl(cloudPath);
-            const resp=await fetch(readUrl,{cache:'no-store'});
-            if(!resp.ok)throw new Error('云端媒体读取失败 HTTP '+resp.status);
-            return await resp.blob();
-        };
         // 当前媒体优先使用保存时记录的 cloudPath，不再从普通外链 URL 猜测云端位置。
         // 兼容迁移后的生命周期目录 inuse/temp/unref，以及迁移前的旧 gif/ 目录。
         window.resolveGifCloudPath = function(src,cloudPath){
@@ -3974,7 +3962,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     return {
                         mediaId: v.mediaId ? String(v.mediaId) : '',
                         url: v.url || '',
-                        cloudPath: v.cloudPath || '',
                         cover: v.cover || '',
                         coverCloudPath: v.coverCloudPath || '',
                         mime: v.mime || '',
@@ -4018,7 +4005,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         return {
                             mediaId: v?.mediaId ? String(v.mediaId) : '',
                             url: v?.url || '',
-                            cloudPath: v?.cloudPath || '',
                             cover: v?.cover || '',
                             coverCloudPath: v?.coverCloudPath || '',
                             mime: v?.mime || '',
@@ -5001,59 +4987,52 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             window._editMediaTxn=null;
             await Promise.allSettled(doomed.map(x=>window.deleteTempCloudPath(x.tempPath)));
         };
-        window.replaceTempMediaRefs=function(root,change){
-            if(!root||!change)return;
-            const fromPath=String(change.fromPath||''),fromUrl=String(change.fromUrl||'');
-            const toPath=String(change.toPath||''),toUrl=String(change.toUrl||'');
+        window.replaceTempMediaRefs=function(root,fromPath,toPath,toUrl){
+            if(!root||typeof root!=='object')return;
+            const fromUrl=window.cloudMediaPublicUrl?.(fromPath)||'';
             const seen=new WeakSet();
             const walk=o=>{
-                if(!o||typeof o!=='object'||seen.has(o))return;
-                seen.add(o);
-                if(Array.isArray(o)){for(const v of o)walk(v);return;}
+                if(!o||typeof o!=='object'||seen.has(o))return;seen.add(o);
+                if(Array.isArray(o)){o.forEach(walk);return;}
                 for(const k of Object.keys(o)){
                     const v=o[k];
                     if(typeof v==='string'){
-                        if(fromPath&&v===fromPath)o[k]=toPath;
-                        else if(fromUrl&&v===fromUrl)o[k]=toUrl;
+                        if(v===fromPath)o[k]=toPath;
+                        else if(v===fromUrl||v===window.cloudMediaPublicUrl?.(fromPath))o[k]=toUrl;
                     }else walk(v);
                 }
-            };
-            walk(root);
-        };
-        window.promoteOneTempUpload=async function(rec,promoted){
-            const sourcePath=promoted.get(rec.coverSourcePath)||rec.coverSourcePath||'';
-            const result=await timelineApiPost('promoteTempMedia',{
-                cloudPath:rec.tempPath,
-                coverSourcePath:sourcePath
-            },{auth:'edit',timeoutMs:30000});
-            if(!result?.cloudPath)throw new Error(result?.message||'媒体正式化失败');
-            const finalUrl=await window.resolveCloudMediaUrl(result.cloudPath);
-            promoted.set(rec.tempPath,result.cloudPath);
-            return {
-                fromPath:rec.tempPath,
-                fromUrl:rec.tempUrl||'',
-                toPath:result.cloudPath,
-                toUrl:finalUrl
-            };
+            };walk(root);
         };
         window.promoteTempUploadsSince=async function(mark,root){
             const tx=window._editMediaTxn;if(!tx)return;
-            const cut=Math.max(0,Number(mark)||0);
-            const selected=tx.tempUploads.slice(cut).sort((a,b)=>Number((a.finalPurpose||'')==='cover')-Number((b.finalPurpose||'')==='cover'));
+            const cut=Math.max(0,Number(mark)||0),selected=tx.tempUploads.slice(cut).sort((a,b)=>Number((a.finalPurpose||'')==='cover')-Number((b.finalPurpose||'')==='cover'));
             const promoted=new Map();
             for(const rec of selected){
-                const change=await window.promoteOneTempUpload(rec,promoted);
-                window.replaceTempMediaRefs(root,change);
+                const resp=await fetch(rec.tempUrl||window.cloudMediaPublicUrl(rec.tempPath),{cache:'no-store'});if(!resp.ok)throw new Error('临时媒体读取失败 HTTP '+resp.status);
+                const blob=await resp.blob(),file=new File([blob],rec.name||('media_'+Date.now()),{type:rec.mime||blob.type||'application/octet-stream'});
+                const sourcePath=promoted.get(rec.coverSourcePath)||rec.coverSourcePath||'';
+                const final=await window.uploadLargeMediaToCloudBase(file,{purpose:rec.finalPurpose||'',bypassTemp:true,coverSourcePath:sourcePath,coverKind:rec.coverKind||''});
+                promoted.set(rec.tempPath,final.cloudPath);
+                window.replaceTempMediaRefs(root,rec.tempPath,final.cloudPath,final.url);await window.deleteTempCloudPath(rec.tempPath);
             }
             tx.tempUploads.splice(cut,selected.length);
         };
         window.promoteTempUploads=async function(eventData){
             const tx=window._editMediaTxn;if(!tx?.tempUploads?.length)return;
+            // 源媒体必须先于 cover 提升；coverSourcePath 随源媒体 temp -> inuse 一起改写。
             const selected=[...tx.tempUploads].sort((a,b)=>Number((a.finalPurpose||'')==='cover')-Number((b.finalPurpose||'')==='cover'));
             const promoted=new Map();
             for(const rec of selected){
-                const change=await window.promoteOneTempUpload(rec,promoted);
-                window.replaceTempMediaRefs(eventData,change);
+                const readUrl=rec.tempUrl||window.cloudMediaPublicUrl(rec.tempPath);
+                const resp=await fetch(readUrl,{cache:'no-store'});
+                if(!resp.ok)throw new Error('临时媒体读取失败 HTTP '+resp.status);
+                const blob=await resp.blob();
+                const file=new File([blob],rec.name||('media_'+Date.now()),{type:rec.mime||blob.type||'application/octet-stream'});
+                const sourcePath=promoted.get(rec.coverSourcePath)||rec.coverSourcePath||'';
+                const final=await window.uploadLargeMediaToCloudBase(file,{purpose:rec.finalPurpose||'',bypassTemp:true,coverSourcePath:sourcePath,coverKind:rec.coverKind||''});
+                promoted.set(rec.tempPath,final.cloudPath);
+                window.replaceTempMediaRefs(eventData,rec.tempPath,final.cloudPath,final.url);
+                await window.deleteTempCloudPath(rec.tempPath);
             }
             tx.tempUploads=[];
         };
@@ -5443,8 +5422,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         };
         window.ensureAutomaticFirstFrameCovers=async function(eventData){
             const jobs=[];
-            const addGif=obj=>{if(!obj||obj.gifCover)return;const src=obj.originalFull||obj.original||obj.outer||obj.src||'';if(!src||!window.isAnimatedImageSource?.(src,obj))return;jobs.push((async()=>{const readable=obj.cloudPath?await window.resolveCloudMediaUrl(obj.cloudPath):src;const up=await window.makeAutoFirstFrameCover(readable,'gif',obj.gifCoverCloudPath||'',obj.cloudPath||'');if(up){window.trackUnsavedMediaUpload?.(up.cloudPath||'');obj.gifCover=up.url;obj.gifCoverCloudPath=up.cloudPath||'';obj.gifCoverAuto=true;}})());};
-            const addVideo=obj=>{if(!obj||obj.cover)return;const src=obj.url||obj.src||obj.outer||obj.original||'';if(!src)return;jobs.push((async()=>{const readable=obj.cloudPath?await window.resolveCloudMediaUrl(obj.cloudPath):src;const up=await window.makeAutoFirstFrameCover(readable,'video',obj.coverCloudPath||'',obj.cloudPath||'');if(up){window.trackUnsavedMediaUpload?.(up.cloudPath||'');obj.cover=up.url;obj.coverCloudPath=up.cloudPath||'';obj.coverAuto=true;}})());};
+            const addGif=obj=>{if(!obj||obj.gifCover)return;const src=obj.originalFull||obj.original||obj.outer||obj.src||'';if(!src||!window.isAnimatedImageSource?.(src,obj))return;jobs.push((async()=>{const up=await window.makeAutoFirstFrameCover(src,'gif',obj.gifCoverCloudPath||'',obj.cloudPath||'');if(up){window.trackUnsavedMediaUpload?.(up.cloudPath||'');obj.gifCover=up.url;obj.gifCoverCloudPath=up.cloudPath||'';obj.gifCoverAuto=true;}})());};
+            const addVideo=obj=>{if(!obj||obj.cover)return;const src=obj.url||obj.src||obj.outer||obj.original||'';if(!src)return;jobs.push((async()=>{const up=await window.makeAutoFirstFrameCover(src,'video',obj.coverCloudPath||'',obj.cloudPath||'');if(up){window.trackUnsavedMediaUpload?.(up.cloudPath||'');obj.cover=up.url;obj.coverCloudPath=up.cloudPath||'';obj.coverAuto=true;}})());};
             (eventData.images||[]).forEach(addGif);(eventData.videos||[]).forEach(addVideo);
             const seen=new WeakSet(),walk=o=>{if(!o||typeof o!=='object'||seen.has(o))return;seen.add(o);if(Array.isArray(o)){o.forEach(walk);return;}if(o.type==='media'){if(o.mediaKind==='video')addVideo(o);else addGif(o);}Object.values(o).forEach(walk);};
             (eventData.images||[]).forEach(x=>walk(x?.deepDescription));(eventData.videos||[]).forEach(x=>walk(x?.deepDescription));walk(eventData.deepDescription);
@@ -7165,7 +7144,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.deepCreateSeedCopy=async function(type,obj){
             const src=window.deepGetSrc(type,obj); const cp=String(obj?.cloudPath||'');
             if(!src||!cp)return {src,cloudPath:cp};
-            try{const blob=cp?await window.fetchCloudMediaBlob(cp):await (async()=>{const r=await fetch(src,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);return await r.blob();})();let base=(cp.split('/').pop()||'media').replace(/\.[^.]+$/,'');const ext=(cp.split('/').pop()||'').match(/(\.[^.]+)$/)?.[1]||'';base=base.replace(/_[a-z0-9]+_[a-f0-9]{8}$/i,'').replace(/_[a-f0-9]{8}$/i,'');const name=base+'_desc'+ext;const file=new File([blob],name,{type:blob.type||obj?.mime||'application/octet-stream'});const up=await window.uploadLargeMediaToCloudBase(file,{purpose:type==='video'?'video':(obj?.isAnimated?'gif':'picture')});return {src:up.url,cloudPath:up.cloudPath};}catch(e){console.warn('深入描述默认媒体副本创建失败，回退原媒体',e);return {src,cloudPath:cp};}
+            try{const r=await fetch(src,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);const blob=await r.blob();let base=(cp.split('/').pop()||'media').replace(/\.[^.]+$/,'');const ext=(cp.split('/').pop()||'').match(/(\.[^.]+)$/)?.[1]||'';base=base.replace(/_[a-z0-9]+_[a-f0-9]{8}$/i,'').replace(/_[a-f0-9]{8}$/i,'');const name=base+'_desc'+ext;const file=new File([blob],name,{type:blob.type||obj?.mime||'application/octet-stream'});const up=await window.uploadLargeMediaToCloudBase(file,{purpose:type==='video'?'video':(obj?.isAnimated?'gif':'picture')});return {src:up.url,cloudPath:up.cloudPath};}catch(e){console.warn('深入描述默认媒体副本创建失败，回退原媒体',e);return {src,cloudPath:cp};}
         };
         window.openDeepDescriptionEditor = async function(type,index){
             const obj=window.deepMediaObject(type,index); if(!obj)return;
