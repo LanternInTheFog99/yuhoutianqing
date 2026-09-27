@@ -3370,13 +3370,13 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const finalPurpose=String(options?.purpose||'');
             const meta=await timelineApiPost('getMediaUploadMetadata',{
                 fileName:file.name||'file',mime:file.type||'application/octet-stream',size:file.size,
-                purpose:finalPurpose,
-                finalPurpose:'',coverEventLabel:String(options.coverEventLabel||''),
+                purpose:useTemp?'temp':finalPurpose,
+                finalPurpose:useTemp?finalPurpose:'',coverEventLabel:String(options.coverEventLabel||''),
                 coverSourcePath:String(options?.coverSourcePath||''),
                 coverKind:String(options?.coverKind||''),
+                folder:useTemp?'temp':'',
                 temporary:useTemp,
-                pendingOwner:String(window._editMediaTxn?.sessionId||''),
-                replaceCloudPath:String(options?.replaceCloudPath||''),
+                replaceCloudPath:useTemp?'':String(options?.replaceCloudPath||''),
                 ownerToken:window.getEditorOwnerToken?.()||''
             },{auth:'edit',timeoutMs:25000});
             const up=meta?.upload||{};
@@ -4953,7 +4953,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 images:clone(window.editingImageFiles||[]),
                 videos:clone(window.editingVideos||window.editingVideoFiles||[]),
                 deep:clone(window.deepCanvasState||null),
-                sessionId:(crypto?.randomUUID?.()||('edit_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2))),
                 tempUploads:[],
                 committed:false
             };
@@ -4968,7 +4967,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         };
         window.deleteTempCloudPath=async function(path){
             path=String(path||'').trim();if(!path)return false;
-            try{await window.timelineApiCloudWritePost('deleteMediaAsset',{cloudPath:path,temporary:true,pendingOwner:String(window._editMediaTxn?.sessionId||''),ownerToken:window.getEditorOwnerToken?.()||''},{auth:'edit',timeoutMs:20000});return true;}
+            try{await window.timelineApiCloudWritePost('deleteMediaAsset',{cloudPath:path,temporary:true},{auth:'edit',timeoutMs:20000});return true;}
             catch(err){console.warn('temp 文件删除接口失败',path,err);return false;}
         };
         window.discardTempUploadsSince=async function(mark=0){
@@ -4988,23 +4987,54 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             window._editMediaTxn=null;
             await Promise.allSettled(doomed.map(x=>window.deleteTempCloudPath(x.tempPath)));
         };
-        // Flat lifecycle: paths are stable. Existing function names stay in place so the
-        // original save-button control flow is not rewritten.
-        window.replaceTempMediaRefs=function(){};
+        window.replaceTempMediaRefs=function(root,fromPath,toPath,toUrl){
+            if(!root||typeof root!=='object')return;
+            const fromUrl=window.cloudMediaPublicUrl?.(fromPath)||'';
+            const seen=new WeakSet();
+            const walk=o=>{
+                if(!o||typeof o!=='object'||seen.has(o))return;seen.add(o);
+                if(Array.isArray(o)){o.forEach(walk);return;}
+                for(const k of Object.keys(o)){
+                    const v=o[k];
+                    if(typeof v==='string'){
+                        if(v===fromPath)o[k]=toPath;
+                        else if(v===fromUrl||v===window.cloudMediaPublicUrl?.(fromPath))o[k]=toUrl;
+                    }else walk(v);
+                }
+            };walk(root);
+        };
         window.promoteTempUploadsSince=async function(mark,root){
             const tx=window._editMediaTxn;if(!tx)return;
-            const cut=Math.max(0,Number(mark)||0),selected=tx.tempUploads.slice(cut);
-            if(!selected.length)return;
-            await window.timelineApiCloudWritePost('activatePendingMedia',{
-                cloudPaths:selected.map(x=>String(x.tempPath||'')).filter(Boolean),
-                pendingOwner:String(tx.sessionId||'')
-            },{auth:'edit',timeoutMs:30000});
+            const cut=Math.max(0,Number(mark)||0),selected=tx.tempUploads.slice(cut).sort((a,b)=>Number((a.finalPurpose||'')==='cover')-Number((b.finalPurpose||'')==='cover'));
+            const promoted=new Map();
+            for(const rec of selected){
+                const resp=await fetch(rec.tempUrl||window.cloudMediaPublicUrl(rec.tempPath),{cache:'no-store'});if(!resp.ok)throw new Error('临时媒体读取失败 HTTP '+resp.status);
+                const blob=await resp.blob(),file=new File([blob],rec.name||('media_'+Date.now()),{type:rec.mime||blob.type||'application/octet-stream'});
+                const sourcePath=promoted.get(rec.coverSourcePath)||rec.coverSourcePath||'';
+                const final=await window.uploadLargeMediaToCloudBase(file,{purpose:rec.finalPurpose||'',bypassTemp:true,coverSourcePath:sourcePath,coverKind:rec.coverKind||''});
+                promoted.set(rec.tempPath,final.cloudPath);
+                window.replaceTempMediaRefs(root,rec.tempPath,final.cloudPath,final.url);await window.deleteTempCloudPath(rec.tempPath);
+            }
             tx.tempUploads.splice(cut,selected.length);
         };
         window.promoteTempUploads=async function(eventData){
-            // Big-save activation is intentionally performed by saveEventToCloud's existing
-            // reference-delta transaction, after the event DB write succeeds.
-            return true;
+            const tx=window._editMediaTxn;if(!tx?.tempUploads?.length)return;
+            // 源媒体必须先于 cover 提升；coverSourcePath 随源媒体 temp -> inuse 一起改写。
+            const selected=[...tx.tempUploads].sort((a,b)=>Number((a.finalPurpose||'')==='cover')-Number((b.finalPurpose||'')==='cover'));
+            const promoted=new Map();
+            for(const rec of selected){
+                const readUrl=rec.tempUrl||window.cloudMediaPublicUrl(rec.tempPath);
+                const resp=await fetch(readUrl,{cache:'no-store'});
+                if(!resp.ok)throw new Error('临时媒体读取失败 HTTP '+resp.status);
+                const blob=await resp.blob();
+                const file=new File([blob],rec.name||('media_'+Date.now()),{type:rec.mime||blob.type||'application/octet-stream'});
+                const sourcePath=promoted.get(rec.coverSourcePath)||rec.coverSourcePath||'';
+                const final=await window.uploadLargeMediaToCloudBase(file,{purpose:rec.finalPurpose||'',bypassTemp:true,coverSourcePath:sourcePath,coverKind:rec.coverKind||''});
+                promoted.set(rec.tempPath,final.cloudPath);
+                window.replaceTempMediaRefs(eventData,rec.tempPath,final.cloudPath,final.url);
+                await window.deleteTempCloudPath(rec.tempPath);
+            }
+            tx.tempUploads=[];
         };
 
         window.handleNewEventClick = function() {
@@ -5452,7 +5482,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     delete eventData.connections;
                     const cloudSaved = await window.saveEventToCloud(eventData,!isEdit);
                     if (!cloudSaved) throw new Error('cloud save failed');
-                    if(window._editMediaTxn)window._editMediaTxn.tempUploads=[];
                     
                     if (progressBar) progressBar.style.width = '80%';
                     // 关系没有变化时不再发 delete/upsertConnection 请求。
