@@ -5017,6 +5017,45 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     }else walk(v);
                 }
             };
+        window.applyMediaPromotionMap=function(root,promotionMap){
+            if(!root||!promotionMap)return root;
+            const entries=promotionMap instanceof Map?[...promotionMap.entries()]:Object.entries(promotionMap);
+            const pathMap=new Map(entries.map(([a,b])=>[String(a||''),String(b||'')]));
+            const seen=new WeakSet();
+            const walk=o=>{
+                if(!o||typeof o!=='object'||seen.has(o))return;
+                seen.add(o);
+                if(Array.isArray(o)){for(const v of o)walk(v);return;}
+                for(const k of Object.keys(o)){
+                    const v=o[k];
+                    if(typeof v==='string'&&pathMap.has(v))o[k]=pathMap.get(v);
+                    else if(v&&typeof v==='object')walk(v);
+                }
+            };
+            walk(root);return root;
+        };
+        window.collectTempMediaRefs=function(root){
+            const found=[];
+            const seen=new WeakSet();
+            const walk=(o,path)=>{
+                if(!o||typeof o!=='object'||seen.has(o))return;
+                seen.add(o);
+                if(Array.isArray(o)){o.forEach((v,i)=>walk(v,`${path}[${i}]`));return;}
+                for(const [k,v] of Object.entries(o)){
+                    const p=path?`${path}.${k}`:k;
+                    if(typeof v==='string'&&/^temp\/(?:picture|gif|video|cover\/(?:picture|gif|video))\//i.test(v))found.push({path:p,value:v});
+                    else if(v&&typeof v==='object')walk(v,p);
+                }
+            };
+            walk(root,'');return found;
+        };
+        window.assertNoTempMediaRefs=function(root,context='保存'){
+            const refs=window.collectTempMediaRefs(root);
+            if(refs.length){
+                console.error('MEDIA_PROMOTION_INCOMPLETE',context,refs);
+                throw new Error(`${context}失败：仍有 ${refs.length} 个媒体没有从 temp 正式化，请重试`);
+            }
+        };
             walk(root);
         };
         window.promoteOneTempUpload=async function(rec,promoted){
@@ -5026,35 +5065,60 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 coverSourcePath:sourcePath
             },{auth:'edit',timeoutMs:30000});
             if(!result?.cloudPath)throw new Error(result?.message||'媒体正式化失败');
-            const finalUrl=await window.resolveCloudMediaUrl(result.cloudPath);
             promoted.set(rec.tempPath,result.cloudPath);
-            return {
-                fromPath:rec.tempPath,
-                fromUrl:rec.tempUrl||'',
-                toPath:result.cloudPath,
-                toUrl:finalUrl
+            return {fromPath:rec.tempPath,toPath:result.cloudPath};
+        };
+        window.refreshCanonicalMediaDisplayUrls=function(root){
+            if(!root||typeof root!=='object')return;
+            const seen=new WeakSet();
+            const walk=o=>{
+                if(!o||typeof o!=='object'||seen.has(o))return;
+                seen.add(o);
+                if(Array.isArray(o)){for(const v of o)walk(v);return;}
+                if(o.cloudPath){
+                    const u=window.cloudMediaPublicUrl(o.cloudPath);
+                    if(u)o.url=u;
+                }
+                if(o.pictureCoverCloudPath){
+                    const u=window.cloudMediaPublicUrl(o.pictureCoverCloudPath);
+                    if(u){o.pictureCover=u;o.outer=u;o.inner=u;o.collection=u;o.cover=u;}
+                }
+                if(o.gifCoverCloudPath){
+                    const u=window.cloudMediaPublicUrl(o.gifCoverCloudPath);
+                    if(u){o.gifCover=u;o.cover=u;}
+                }
+                if(o.coverCloudPath){
+                    const u=window.cloudMediaPublicUrl(o.coverCloudPath);
+                    if(u)o.cover=u;
+                }
+                for(const v of Object.values(o))if(v&&typeof v==='object')walk(v);
             };
+            walk(root);
         };
         window.promoteTempUploadsSince=async function(mark,root){
-            const tx=window._editMediaTxn;if(!tx)return;
+            const tx=window._editMediaTxn;if(!tx)return new Map();
             const cut=Math.max(0,Number(mark)||0);
             const selected=tx.tempUploads.slice(cut).sort((a,b)=>Number((a.finalPurpose||'')==='cover')-Number((b.finalPurpose||'')==='cover'));
             const promoted=new Map();
-            for(const rec of selected){
-                const change=await window.promoteOneTempUpload(rec,promoted);
-                window.replaceTempMediaRefs(root,change);
-            }
+            for(const rec of selected)await window.promoteOneTempUpload(rec,promoted);
+            window.applyMediaPromotionMap(root,promoted);
+            window.refreshCanonicalMediaDisplayUrls(root);
+            window.assertNoTempMediaRefs(root,'深入描述保存');
             tx.tempUploads.splice(cut,selected.length);
+            return promoted;
         };
         window.promoteTempUploads=async function(eventData){
-            const tx=window._editMediaTxn;if(!tx?.tempUploads?.length)return;
-            const selected=[...tx.tempUploads].sort((a,b)=>Number((a.finalPurpose||'')==='cover')-Number((b.finalPurpose||'')==='cover'));
+            const tx=window._editMediaTxn;
             const promoted=new Map();
-            for(const rec of selected){
-                const change=await window.promoteOneTempUpload(rec,promoted);
-                window.replaceTempMediaRefs(eventData,change);
+            if(tx?.tempUploads?.length){
+                const selected=[...tx.tempUploads].sort((a,b)=>Number((a.finalPurpose||'')==='cover')-Number((b.finalPurpose||'')==='cover'));
+                for(const rec of selected)await window.promoteOneTempUpload(rec,promoted);
+                window.applyMediaPromotionMap(eventData,promoted);
+                window.refreshCanonicalMediaDisplayUrls(eventData);
+                tx.tempUploads=[];
             }
-            tx.tempUploads=[];
+            window.assertNoTempMediaRefs(eventData,'大保存');
+            return promoted;
         };
 
         window.handleNewEventClick = function() {
