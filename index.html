@@ -3305,7 +3305,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         // 兼容迁移后的生命周期目录 inuse/temp/unref，以及迁移前的旧 gif/ 目录。
         window.resolveGifCloudPath = function(src,cloudPath){
             const explicit=String(cloudPath||'').replace(/^\/+/, '');
-            return /^(?:gif|(?:inuse|temp|unref)\/gif)\/[^?#]+$/i.test(explicit)?explicit:'';
+            return /^(?:(?:inuse|temp|unref)\/gif|gif)\/[^?#]+$/i.test(explicit)?explicit:'';
         };
         window.getGifDecodeFetchRequest = async function(src,cloudPath,fileID){
             const resolved=window.resolveGifCloudPath(src,cloudPath);
@@ -3365,15 +3365,16 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             uploadNotice('正在加载文件，请稍候…');
             window.beginCloudWriteLock?.();
             try {
-            const isPending=!options?.bypassTemp;
-            if(isPending)window.beginEditMediaTxn?.();
+            const useTemp=!options?.bypassTemp;
+            if(useTemp)window.beginEditMediaTxn?.();
             const finalPurpose=String(options?.purpose||'');
             const meta=await timelineApiPost('getMediaUploadMetadata',{
                 fileName:file.name||'file',mime:file.type||'application/octet-stream',size:file.size,
-                purpose:finalPurpose,finalPurpose:'',coverEventLabel:String(options.coverEventLabel||''),
+                purpose:finalPurpose,
+                finalPurpose:'',coverEventLabel:String(options.coverEventLabel||''),
                 coverSourcePath:String(options?.coverSourcePath||''),
                 coverKind:String(options?.coverKind||''),
-                temporary:isPending,
+                temporary:useTemp,
                 pendingOwner:String(window._editMediaTxn?.sessionId||''),
                 replaceCloudPath:String(options?.replaceCloudPath||''),
                 ownerToken:window.getEditorOwnerToken?.()||''
@@ -3415,7 +3416,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             uploadNotice('正在加载文件，请稍候…');
             if(!options?.deferNoticeHide)uploadNotice('',false);
             const result={url,cloudPath:meta.cloudPath,mediaFolder:folder,fileID:meta.fileID||'',mime:file.type||'',name:file.name||''};
-            if(isPending)window.trackUnsavedMediaUpload?.(meta.cloudPath,{url,finalPurpose,name:file.name||'',mime:file.type||'',coverSourcePath:String(options?.coverSourcePath||''),coverKind:String(options?.coverKind||'')});
+            if(useTemp)window.trackUnsavedMediaUpload?.(meta.cloudPath,{url,finalPurpose,name:file.name||'',mime:file.type||'',coverSourcePath:String(options?.coverSourcePath||''),coverKind:String(options?.coverKind||'')});
             window.dispatchEvent(new CustomEvent('timeline:media-uploaded',{detail:{cloudPath:meta.cloudPath}}));
             return result;
             } finally { window.endCloudWriteLock?.(); }
@@ -4049,7 +4050,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 }
                 const requireEditLock=!isNew && String(window._activeEditLockEventId||'')===String(eventData.id);
                 const saveResult = await window.timelineApiWrite('upsertEvent', { event: cloudEvent, isNew:isNew===true, ownerToken:window.getEditorOwnerToken?.()||'', ...(!isNew?{baseRevision,requireEditLock}: {}) });
-                if(window._editMediaTxn)window._editMediaTxn.tempUploads=[];
                 if(isNew) eventData.creatorOwned=true;
                 if(saveResult?.documentId){
                     eventData.__cloudDocId=String(saveResult.documentId);
@@ -4988,18 +4988,23 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             window._editMediaTxn=null;
             await Promise.allSettled(doomed.map(x=>window.deleteTempCloudPath(x.tempPath)));
         };
-        // Flat media lifecycle: cloudPath never changes after upload.
-        // tempUploads is retained as an internal transaction list name for compatibility with existing editor code;
-        // every entry already lives at picture/, gif/, video/ or cover/... and is lifecycleState=pending in mediaAssets.
+        // Flat lifecycle: paths are stable. Existing function names stay in place so the
+        // original save-button control flow is not rewritten.
         window.replaceTempMediaRefs=function(){};
-        window.promoteTempUploads=async function(){ return true; };
         window.promoteTempUploadsSince=async function(mark,root){
             const tx=window._editMediaTxn;if(!tx)return;
             const cut=Math.max(0,Number(mark)||0),selected=tx.tempUploads.slice(cut);
             if(!selected.length)return;
-            const paths=selected.map(x=>String(x.tempPath||'')).filter(Boolean);
-            await window.timelineApiCloudWritePost('activatePendingMedia',{cloudPaths:paths,pendingOwner:String(tx.sessionId||'')},{auth:'edit',timeoutMs:30000});
+            await window.timelineApiCloudWritePost('activatePendingMedia',{
+                cloudPaths:selected.map(x=>String(x.tempPath||'')).filter(Boolean),
+                pendingOwner:String(tx.sessionId||'')
+            },{auth:'edit',timeoutMs:30000});
             tx.tempUploads.splice(cut,selected.length);
+        };
+        window.promoteTempUploads=async function(eventData){
+            // Big-save activation is intentionally performed by saveEventToCloud's existing
+            // reference-delta transaction, after the event DB write succeeds.
+            return true;
         };
 
         window.handleNewEventClick = function() {
@@ -5438,13 +5443,16 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     // 新上传媒体仍保持原流程：主媒体先进入 inuse，再仅为缺封面的新媒体生成首帧封面。
                     const hadPendingTemp=window._hasPendingTempUploads?.()===true;
                     if(hadPendingTemp){
+                        await window.promoteTempUploads?.(eventData);
                         try{await window.ensureAutomaticFirstFrameCovers(eventData);}catch(err){console.warn('自动首帧封面生成失败',err);}
+                        if(window._hasPendingTempUploads?.()) await window.promoteTempUploads?.(eventData);
                     }
                     const desiredConnections = eventData.connections || [];
                     const connectionsChanged = !isEdit || window._connectionListFingerprint(previousConnections)!==window._connectionListFingerprint(desiredConnections);
                     delete eventData.connections;
                     const cloudSaved = await window.saveEventToCloud(eventData,!isEdit);
                     if (!cloudSaved) throw new Error('cloud save failed');
+                    if(window._editMediaTxn)window._editMediaTxn.tempUploads=[];
                     
                     if (progressBar) progressBar.style.width = '80%';
                     // 关系没有变化时不再发 delete/upsertConnection 请求。
