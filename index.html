@@ -3291,30 +3291,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         // v105: files larger than 1 MiB are uploaded directly to CloudBase Storage via COS PUT and classified into gif/video/picture/music.
         window.CLOUD_MEDIA_THRESHOLD = 1024 * 1024;
         window.cloudMediaPublicUrl = function(cloudPath){
-            const path=String(cloudPath||'').replace(/^\/+/, '');
-            if(!path)return '';
-            const qs=new URLSearchParams({room:window.currentRoomId||'default',cloudPath:path,access:window.roomAccessToken||''});
-            return TIMELINE_API_BASE.replace(/\/+$/,'') + '/asset?' + qs.toString();
-        };
-        // Refresh persisted/expired media URLs from their durable cloudPath fields.
-        // This also covers nested multi-time and deep-description media objects.
-        window.refreshCloudMediaUrls=function(root){
-            const seen=new WeakSet();
-            const walk=o=>{
-                if(!o||typeof o!=='object'||seen.has(o))return;seen.add(o);
-                if(Array.isArray(o)){o.forEach(walk);return;}
-                const cp=String(o.cloudPath||'').trim();
-                if(cp){
-                    const u=window.cloudMediaPublicUrl(cp);
-                    if('originalFull' in o)o.originalFull=u;if('original' in o)o.original=u;
-                    if('url' in o)o.url=u;if('src' in o)o.src=u;
-                }
-                const pc=String(o.pictureCoverCloudPath||'').trim();
-                if(pc){const u=window.cloudMediaPublicUrl(pc);o.outer=u;o.inner=u;o.collection=u;}
-                const gc=String(o.gifCoverCloudPath||'').trim();if(gc)o.gifCover=window.cloudMediaPublicUrl(gc);
-                const vc=String(o.coverCloudPath||'').trim();if(vc)o.cover=window.cloudMediaPublicUrl(vc);
-                Object.values(o).forEach(walk);
-            };walk(root);return root;
+            return TIMELINE_API_BASE.replace(/\/+$/,'') + '/' + String(cloudPath||'').replace(/^\/+/, '');
         };
         // Cloud video frame capture keeps the proven short-lived ticket + Range-capable /media route.
         // This keeps private storage credentials out of <video> requests and preserves canvas-safe playback.
@@ -3324,8 +3301,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const qs=new URLSearchParams({room:window.currentRoomId||'default',cloudPath:String(cloudPath||''),ticket:String(data.ticket),mode:'stream'});
             return TIMELINE_API_BASE+'/media?'+qs.toString();
         };
-        // 前端内部需要重新读取云端媒体二进制时，统一走短期读取票据；
-        // 不再把展示用的 cloudMediaPublicUrl 当成可 fetch 的源文件地址。
+        // Internal binary reads must use the authenticated media route.
+        // Display URLs are left untouched so existing/legacy covers keep their original compatible behavior.
         window.fetchCloudMediaBlob = async function(cloudPath){
             const path=String(cloudPath||'').trim();
             if(!path) throw new Error('MEDIA_CLOUD_PATH_EMPTY');
@@ -3832,7 +3809,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const activityData = value(3);
             const xiaoqingerData = value(4);
 
-            cloudEvents.forEach(ev=>window.refreshCloudMediaUrls?.(ev));
             window.events = cloudEvents;
             window.connections = Array.isArray(connectionsData?.items) ? connectionsData.items : [];
             window.tagRecords = Array.isArray(tagsData?.items) ? tagsData.items : [];
@@ -11081,8 +11057,8 @@ viewer.style.visibility='';
                         original: img, originalFull: img, outer: img, inner: img, collection: img, crop: null, deepDescription: null
                     };
                 }
-                const full = (img.cloudPath && window.cloudMediaPublicUrl ? window.cloudMediaPublicUrl(img.cloudPath) : '') || img.originalFull || img.original || img.outer || img.inner || img.collection || '';
-                const pictureCoverUrl = (img.pictureCoverCloudPath && window.cloudMediaPublicUrl ? window.cloudMediaPublicUrl(img.pictureCoverCloudPath) : '') || img.outer || img.inner || img.collection || '';
+                const full = img.originalFull || img.original || img.outer || img.inner || img.collection || '';
+                const pictureCoverUrl = img.outer || img.inner || img.collection || (img.pictureCoverCloudPath && window.cloudMediaPublicUrl ? window.cloudMediaPublicUrl(img.pictureCoverCloudPath) : '');
                 return {
                     mediaId: img.mediaId || ('img_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9)),
                     original: full,
@@ -11122,9 +11098,9 @@ viewer.style.visibility='';
                 if (typeof v === 'string') return { mediaId: 'vid_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9), url: v, cover: '', title: '', name: '', mime: '', previewDuration: 4, deepDescription: null };
                 return {
                     mediaId: v.mediaId || ('vid_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9)),
-                    url: (v.cloudPath && window.cloudMediaPublicUrl ? window.cloudMediaPublicUrl(v.cloudPath) : '') || v.url || '',
+                    url: v.url || '',
                     blobUrl: v.blobUrl || '',
-                    cover: (v.coverCloudPath && window.cloudMediaPublicUrl ? window.cloudMediaPublicUrl(v.coverCloudPath) : '') || v.cover || '',
+                    cover: v.cover || '',
                     title: v.title || '',
                     mime: v.mime || '',
                     name: v.name || '',
