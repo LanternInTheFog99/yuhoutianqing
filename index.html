@@ -3306,6 +3306,17 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         };
         // Canonical resolver for cloud-backed media. cloudPath is identity, never a URL.
         window.resolveCloudMediaUrl=async function(cloudPath){ return window.cloudMediaPublicUrl(cloudPath); };
+        window.canonicalMediaReadUrl=function(value,explicitCloudPath){
+            const directPath=String(explicitCloudPath||'').trim();
+            if(directPath)return window.cloudMediaPublicUrl(directPath);
+            const raw=String(value||'').trim();if(!raw)return '';
+            const m=raw.match(/(?:^|https?:\/\/[^/]+\/|cloudbase:\/\/)((?:(?:temp|inuse|unref)\/)?(?:gif|video|picture|cover)(?:\/(?:gif|video|picture))?)\/([^?#\s"'<>]+)/i);
+            if(m){
+                let tail=m[2];try{tail=decodeURIComponent(tail);}catch(_){}
+                return window.cloudMediaPublicUrl(`${m[1].toLowerCase()}/${tail}`);
+            }
+            return raw;
+        };
         window.fetchCloudMediaBlob=async function(cloudPath){
             const readUrl=await window.resolveCloudMediaUrl(cloudPath);
             const resp=await fetch(readUrl,{cache:'no-store'});
@@ -3424,6 +3435,18 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             });
             const finalized=await timelineApiPost('finalizeMediaUpload',{cloudPath:meta.cloudPath},{auth:'edit',timeoutMs:15000});
             if(!finalized?.ok)throw new Error(finalized?.message||`媒体登记失败：${meta.cloudPath}`);
+            if(finalPurpose==='cover'){
+                const previousCoverPath=String(options?.replaceCloudPath||'').trim();
+                if(/^temp\/cover\/(?:picture|gif|video)\//i.test(previousCoverPath) && previousCoverPath!==meta.cloudPath){
+                    try{
+                        await timelineApiPost('deleteMediaAsset',{cloudPath:previousCoverPath,temporary:true},{auth:'edit',timeoutMs:20000});
+                        const tx=window._editMediaTxn;
+                        if(tx?.tempUploads)tx.tempUploads=tx.tempUploads.filter(x=>x.tempPath!==previousCoverPath);
+                    }catch(err){
+                        console.warn('旧临时封面清理失败，交给24小时清理兜底',previousCoverPath,err);
+                    }
+                }
+            }
             const url=window.cloudMediaPublicUrl(meta.cloudPath);
             uploadNotice('正在加载文件，请稍候…');
             if(!options?.deferNoticeHide)uploadNotice('',false);
@@ -3554,13 +3577,13 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const assetCoverPath=String(a?.coverCloudPath||'');
             const assetCover=assetCoverPath?window.cloudMediaPublicUrl(assetCoverPath):'';
             return {
-                pictureCover:saved.outer||assetCover||'',
-                pictureCoverCloudPath:saved.pictureCoverCloudPath||assetCoverPath||'',
+                pictureCover:assetCover||window.canonicalMediaReadUrl(saved.outer,saved.pictureCoverCloudPath)||'',
+                pictureCoverCloudPath:assetCoverPath||saved.pictureCoverCloudPath||'',
                 crop:saved.crop?JSON.parse(JSON.stringify(saved.crop)):null,
                 gifCrop:(saved.gifCrop||saved.crop)?JSON.parse(JSON.stringify(saved.gifCrop||saved.crop)):null,
                 gifCoverCrop:(saved.gifCoverCrop||saved.crop)?JSON.parse(JSON.stringify(saved.gifCoverCrop||saved.crop)):null,
-                gifCover:saved.gifCover||assetCover||'',
-                gifCoverCloudPath:saved.gifCoverCloudPath||assetCoverPath||'',
+                gifCover:assetCover||window.canonicalMediaReadUrl(saved.gifCover,saved.gifCoverCloudPath)||'',
+                gifCoverCloudPath:assetCoverPath||saved.gifCoverCloudPath||'',
                 gifDurationMs:Math.max(0,Number(saved.gifDurationMs)||0),
                 gifDurationSource:saved.gifDurationSource||''
             };
@@ -3570,8 +3593,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const assetCoverPath=String(a?.coverCloudPath||'');
             const assetCover=assetCoverPath?window.cloudMediaPublicUrl(assetCoverPath):'';
             return {
-                cover:saved.cover||assetCover||'',
-                coverCloudPath:saved.coverCloudPath||assetCoverPath||'',
+                cover:assetCover||window.canonicalMediaReadUrl(saved.cover,saved.coverCloudPath)||'',
+                coverCloudPath:assetCoverPath||saved.coverCloudPath||'',
                 previewDuration:window.normalizeVideoPreviewDuration?window.normalizeVideoPreviewDuration(saved.previewDuration,4):(Number(saved.previewDuration)||4)
             };
         };
@@ -11125,7 +11148,7 @@ viewer.style.visibility='';
                     };
                 }
                 const full = img.originalFull || img.original || img.outer || img.inner || img.collection || '';
-                const pictureCoverUrl = img.outer || img.inner || img.collection || (img.pictureCoverCloudPath && window.cloudMediaPublicUrl ? window.cloudMediaPublicUrl(img.pictureCoverCloudPath) : '');
+                const pictureCoverUrl = img.pictureCoverCloudPath ? window.cloudMediaPublicUrl(img.pictureCoverCloudPath) : window.canonicalMediaReadUrl(img.outer||img.inner||img.collection||'');
                 return {
                     mediaId: img.mediaId || ('img_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9)),
                     original: full,
