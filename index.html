@@ -3291,10 +3291,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         // v105: files larger than 1 MiB are uploaded directly to CloudBase Storage via COS PUT and classified into gif/video/picture/music.
         window.CLOUD_MEDIA_THRESHOLD = 1024 * 1024;
         window.cloudMediaPublicUrl = function(cloudPath){
-            const path=String(cloudPath||'').replace(/^\/+/, '');
-            if(!path)return '';
-            const qs=new URLSearchParams({room:window.currentRoomId||'default',access:window.roomAccessToken||'',cloudPath:path});
-            return TIMELINE_API_BASE.replace(/\/+$/,'') + '/media-file?' + qs.toString();
+            return TIMELINE_API_BASE.replace(/\/+$/,'') + '/' + String(cloudPath||'').replace(/^\/+/, '');
         };
         // Cloud video frame capture keeps the proven short-lived ticket + Range-capable /media route.
         // This keeps private storage credentials out of <video> requests and preserves canvas-safe playback.
@@ -3308,7 +3305,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         // 兼容迁移后的生命周期目录 inuse/temp/unref，以及迁移前的旧 gif/ 目录。
         window.resolveGifCloudPath = function(src,cloudPath){
             const explicit=String(cloudPath||'').replace(/^\/+/, '');
-            return /^(?:(?:inuse|temp|unref)\/gif|gif)\/[^?#]+$/i.test(explicit)?explicit:'';
+            return /^(?:gif|(?:inuse|temp|unref)\/gif)\/[^?#]+$/i.test(explicit)?explicit:'';
         };
         window.getGifDecodeFetchRequest = async function(src,cloudPath,fileID){
             const resolved=window.resolveGifCloudPath(src,cloudPath);
@@ -3368,18 +3365,17 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             uploadNotice('正在加载文件，请稍候…');
             window.beginCloudWriteLock?.();
             try {
-            const useTemp=!options?.bypassTemp;
-            if(useTemp)window.beginEditMediaTxn?.();
+            const isPending=!options?.bypassTemp;
+            if(isPending)window.beginEditMediaTxn?.();
             const finalPurpose=String(options?.purpose||'');
             const meta=await timelineApiPost('getMediaUploadMetadata',{
                 fileName:file.name||'file',mime:file.type||'application/octet-stream',size:file.size,
-                purpose:useTemp?'temp':finalPurpose,
-                finalPurpose:useTemp?finalPurpose:'',coverEventLabel:String(options.coverEventLabel||''),
+                purpose:finalPurpose,finalPurpose:'',coverEventLabel:String(options.coverEventLabel||''),
                 coverSourcePath:String(options?.coverSourcePath||''),
                 coverKind:String(options?.coverKind||''),
-                folder:useTemp?'temp':'',
-                temporary:useTemp,
-                replaceCloudPath:useTemp?'':String(options?.replaceCloudPath||''),
+                temporary:isPending,
+                pendingOwner:String(window._editMediaTxn?.sessionId||''),
+                replaceCloudPath:String(options?.replaceCloudPath||''),
                 ownerToken:window.getEditorOwnerToken?.()||''
             },{auth:'edit',timeoutMs:25000});
             const up=meta?.upload||{};
@@ -3419,7 +3415,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             uploadNotice('正在加载文件，请稍候…');
             if(!options?.deferNoticeHide)uploadNotice('',false);
             const result={url,cloudPath:meta.cloudPath,mediaFolder:folder,fileID:meta.fileID||'',mime:file.type||'',name:file.name||''};
-            if(useTemp)window.trackUnsavedMediaUpload?.(meta.cloudPath,{url,finalPurpose,name:file.name||'',mime:file.type||'',coverSourcePath:String(options?.coverSourcePath||''),coverKind:String(options?.coverKind||'')});
+            if(isPending)window.trackUnsavedMediaUpload?.(meta.cloudPath,{url,finalPurpose,name:file.name||'',mime:file.type||'',coverSourcePath:String(options?.coverSourcePath||''),coverKind:String(options?.coverKind||'')});
             window.dispatchEvent(new CustomEvent('timeline:media-uploaded',{detail:{cloudPath:meta.cloudPath}}));
             return result;
             } finally { window.endCloudWriteLock?.(); }
@@ -4053,11 +4049,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 }
                 const requireEditLock=!isNew && String(window._activeEditLockEventId||'')===String(eventData.id);
                 const saveResult = await window.timelineApiWrite('upsertEvent', { event: cloudEvent, isNew:isNew===true, ownerToken:window.getEditorOwnerToken?.()||'', ...(!isNew?{baseRevision,requireEditLock}: {}) });
-                if(saveResult?.canonicalEvent){
-                    const canonical=saveResult.canonicalEvent;
-                    for(const k of Object.keys(eventData))delete eventData[k];
-                    Object.assign(eventData,canonical);
-                }else window.applyCanonicalMediaMapping?.(eventData,saveResult?.mediaMapping||[]);
                 if(window._editMediaTxn)window._editMediaTxn.tempUploads=[];
                 if(isNew) eventData.creatorOwned=true;
                 if(saveResult?.documentId){
@@ -4962,6 +4953,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 images:clone(window.editingImageFiles||[]),
                 videos:clone(window.editingVideos||window.editingVideoFiles||[]),
                 deep:clone(window.deepCanvasState||null),
+                sessionId:(crypto?.randomUUID?.()||('edit_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2))),
                 tempUploads:[],
                 committed:false
             };
@@ -4976,7 +4968,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         };
         window.deleteTempCloudPath=async function(path){
             path=String(path||'').trim();if(!path)return false;
-            try{await window.timelineApiCloudWritePost('deleteMediaAsset',{cloudPath:path,temporary:true},{auth:'edit',timeoutMs:20000});return true;}
+            try{await window.timelineApiCloudWritePost('deleteMediaAsset',{cloudPath:path,temporary:true,pendingOwner:String(window._editMediaTxn?.sessionId||''),ownerToken:window.getEditorOwnerToken?.()||''},{auth:'edit',timeoutMs:20000});return true;}
             catch(err){console.warn('temp 文件删除接口失败',path,err);return false;}
         };
         window.discardTempUploadsSince=async function(mark=0){
@@ -4996,43 +4988,19 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             window._editMediaTxn=null;
             await Promise.allSettled(doomed.map(x=>window.deleteTempCloudPath(x.tempPath)));
         };
-        window.replaceTempMediaRefs=function(root,fromPath,toPath){
-            if(!root||typeof root!=='object')return;
-            const seen=new WeakSet(),fromEncoded=encodeURIComponent(String(fromPath||'')),toEncoded=encodeURIComponent(String(toPath||''));
-            const walk=o=>{
-                if(!o||typeof o!=='object'||seen.has(o))return;seen.add(o);
-                if(Array.isArray(o)){o.forEach(walk);return;}
-                for(const k of Object.keys(o)){
-                    const v=o[k];
-                    if(typeof v==='string'){
-                        let n=v.split(String(fromPath||'')).join(String(toPath||''));
-                        if(fromEncoded)n=n.split(fromEncoded).join(toEncoded);
-                        o[k]=n;
-                    }else walk(v);
-                }
-            };walk(root);
-        };
-        window.applyCanonicalMediaMapping=function(root,mapping){
-            for(const rec of (mapping||[]))window.replaceTempMediaRefs(root,String(rec?.from||''),String(rec?.to||''));
-            return root;
-        };
-        // Deep-description own Save: backend performs the same canonical temp -> inuse transition.
+        // Flat media lifecycle: cloudPath never changes after upload.
+        // tempUploads is retained as an internal transaction list name for compatibility with existing editor code;
+        // every entry already lives at picture/, gif/, video/ or cover/... and is lifecycleState=pending in mediaAssets.
+        window.replaceTempMediaRefs=function(){};
+        window.promoteTempUploads=async function(){ return true; };
         window.promoteTempUploadsSince=async function(mark,root){
             const tx=window._editMediaTxn;if(!tx)return;
             const cut=Math.max(0,Number(mark)||0),selected=tx.tempUploads.slice(cut);
             if(!selected.length)return;
-            const result=await window.timelineApiCloudWritePost('commitTempMedia',{value:root},{auth:'edit',timeoutMs:60000});
-            if(result?.value&&root&&typeof root==='object'){
-                const canonical=result.value;
-                if(Array.isArray(root)&&Array.isArray(canonical))root.splice(0,root.length,...canonical);
-                else{for(const k of Object.keys(root))delete root[k];Object.assign(root,canonical);}
-            }else window.applyCanonicalMediaMapping(root,result?.mapping||[]);
-            const done=new Set((result?.mapping||[]).map(x=>String(x?.from||'')));
-            tx.tempUploads=tx.tempUploads.filter((x,i)=>i<cut||!done.has(String(x.tempPath||'')));
+            const paths=selected.map(x=>String(x.tempPath||'')).filter(Boolean);
+            await window.timelineApiCloudWritePost('activatePendingMedia',{cloudPaths:paths,pendingOwner:String(tx.sessionId||'')},{auth:'edit',timeoutMs:30000});
+            tx.tempUploads.splice(cut,selected.length);
         };
-        // Big event Save: intentionally does NOT move files here.
-        // upsertEvent is the single authority that moves temp -> inuse and stores canonical paths.
-        window.promoteTempUploads=async function(eventData){ return eventData; };
 
         window.handleNewEventClick = function() {
             if (window.isLocked) {
