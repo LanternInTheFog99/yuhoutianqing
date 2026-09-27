@@ -3453,11 +3453,11 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             };
             if(Array.isArray(window.editingImageFiles)){
                 window.editingImageFiles=window.editingImageFiles.filter(x=>!objectUses(x));
-                window.renderImagePreviews?.();
+                window.renderMicroPreviews?.();
             }
             if(Array.isArray(window.editingVideos)){
                 window.editingVideos=window.editingVideos.filter(x=>!objectUses(x));
-                window.renderVideoPreviews?.();
+                window.renderVideoMicroPreviews?.();
             }
             // Keep the in-memory event consistent too; closing the editor should
             // never resurrect a card that the server has already removed.
@@ -7422,7 +7422,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     <button id="deepHelpTabUsage" type="button" onclick="deepSwitchHelpTab('usage')" class="flex-1 max-w-[160px] px-4 py-2.5 rounded-t-lg text-xs font-semibold bg-white text-indigo-700 border border-b-0 border-slate-200">使用说明</button>
                     <button id="deepHelpTabChangelog" type="button" onclick="deepSwitchHelpTab('changelog')" class="flex-1 max-w-[160px] px-4 py-2.5 rounded-t-lg text-xs font-semibold text-slate-500 hover:text-slate-700">更新日志</button>
                 </div>
-                <div id="deepHelpUsagePanel" class="overflow-y-auto p-5 text-xs text-slate-600 leading-7"><div class="border border-slate-200 rounded-xl p-5 bg-gradient-to-r from-blue-50 via-lime-50 to-yellow-50">
+                <div id="deepHelpUsagePanel" class="overflow-y-auto p-5 text-xs text-slate-600 leading-7"><div class="border border-slate-200 rounded-xl p-5 bg-[linear-gradient(90deg,rgb(239_246_255)_0%,rgb(236_254_255)_33%,rgb(240_253_244)_67%,rgb(254_252_232)_100%)]">
                     <p class="text-slate-800 mb-5 text-sm leading-7 font-bold">这里是”深入描述“空间，用户可以在这里自由插入图片/动图/视频、输入文字等，并可以自由摆放其位置，调整其大小，以便创造出最可以让观众轻松理解的龟糖分析，以下为使用说明：</p>
                     <div class="space-y-5">
                         <div><h4 class="font-bold text-slate-800 mb-1">1. 移动画布与浏览</h4><p>通过滚动画布区域，可以查看和编辑不同位置的内容；画布空间不够时，可以点击顶部“画布大小”随时扩大宽度或高度。</p></div>
@@ -13023,7 +13023,7 @@ viewer.style.visibility='';
             return `<div data-inline-date="${safeId}" class="space-y-1">
                 <input type="hidden" id="${safeId}" value="${window.escapeHtml(normalized||String(value||''))}">
                 <div class="flex items-center gap-1.5 flex-nowrap">
-                    <label class="flex items-center gap-1 min-w-0"><input data-date-part="year" inputmode="numeric" pattern="[0-9]*" placeholder="" value="${window.escapeHtml(y)}" oninput="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" onblur="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" class="min-w-0 px-2 py-2 border border-slate-300 rounded-lg text-sm text-center outline-none focus:ring-2 focus:ring-indigo-500 bg-white" style="width:4.35rem;max-width:4.35rem;flex:0 0 4.35rem"><span class="shrink-0 text-xs text-slate-400">年</span></label>
+                    <label class="flex items-center gap-1 min-w-0"><input data-date-part="year" inputmode="numeric" pattern="[0-9]*" placeholder="" value="${window.escapeHtml(y)}" oninput="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" onblur="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" class="min-w-0 px-2 py-2 border border-slate-300 rounded-lg text-sm text-center outline-none focus:ring-2 focus:ring-indigo-500 bg-white" style="width:4rem;max-width:4rem;flex:0 0 4rem"><span class="shrink-0 text-xs text-slate-400">年</span></label>
                     <label class="flex items-center gap-1 min-w-0"><input data-date-part="month" inputmode="numeric" pattern="[0-9]*" maxlength="2" placeholder="" value="${window.escapeHtml(m)}" oninput="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" onblur="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" class="min-w-0 px-2 py-2 border border-slate-300 rounded-lg text-sm text-center outline-none focus:ring-2 focus:ring-indigo-500 bg-white" style="width:2.85rem;max-width:2.85rem;flex:0 0 2.85rem"><span class="shrink-0 text-xs text-slate-400">月</span></label>
                     <label class="flex items-center gap-1 min-w-0"><input data-date-part="day" inputmode="numeric" pattern="[0-9]*" maxlength="2" placeholder="" value="${window.escapeHtml(d)}" oninput="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" onblur="syncInlineDateFields('${safeId}', this.closest('[data-inline-date]'), ${JSON.stringify(change)})" class="min-w-0 px-2 py-2 border border-slate-300 rounded-lg text-sm text-center outline-none focus:ring-2 focus:ring-indigo-500 bg-white" style="width:2.85rem;max-width:2.85rem;flex:0 0 2.85rem"><span class="shrink-0 text-xs text-slate-400">日</span></label>
                 </div>
@@ -13080,6 +13080,26 @@ viewer.style.visibility='';
                 const part=e.target?.closest?.('[data-date-part]'); if(!part)return;
                 const text=String(e.clipboardData?.getData('text')||'');
                 if(/\D/.test(text))e.preventDefault();
+            },true);
+        }
+
+        // 非数字输入必须是“纯无效”：即使浏览器/输入法绕过 beforeinput，
+        // 也恢复输入前的数字值，而不是先插入再用 replace 清洗，避免原数字被挤掉。
+        if(!window._inlineDatePreserveDigitsBound){
+            window._inlineDatePreserveDigitsBound=true;
+            const remember=(el)=>{ if(el?.matches?.('[data-date-part]'))el.dataset.lastDigits=String(el.value||''); };
+            document.addEventListener('focusin',e=>remember(e.target),true);
+            document.addEventListener('keydown',e=>remember(e.target),true);
+            document.addEventListener('beforeinput',e=>remember(e.target),true);
+            document.addEventListener('input',function(e){
+                const el=e.target?.closest?.('[data-date-part]'); if(!el)return;
+                const now=String(el.value||'');
+                if(/\D/.test(now)){
+                    el.value=String(el.dataset.lastDigits??now.replace(/\D/g,''));
+                    e.stopImmediatePropagation();
+                    return;
+                }
+                el.dataset.lastDigits=now;
             },true);
         }
 
