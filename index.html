@@ -1612,7 +1612,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         </div>
     </div>
 <div id="deletingModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[115] hidden flex items-center justify-center p-4">
- <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center"><div class="w-14 h-14 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center text-2xl mx-auto mb-3"><i class="fa-solid fa-spinner fa-spin"></i></div><h3 class="font-bold text-slate-800 text-base mb-1">正在删除...</h3><p class="text-xs text-slate-500">请稍候，正在同步删除结果</p><div class="mt-4 w-full bg-slate-200 rounded-full h-1.5 overflow-hidden"><div id="deletingProgressBar" class="bg-rose-600 h-full rounded-full transition-all duration-300" style="width:0%"></div></div></div>
+ <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center"><div class="w-14 h-14 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center text-2xl mx-auto mb-3"><i class="fa-solid fa-spinner fa-spin"></i></div><h3 class="font-bold text-slate-800 text-base mb-1">正在删除...</h3><p class="text-xs text-slate-500">请稍候，正在同步删除结果到云端</p><div class="mt-4 w-full bg-slate-200 rounded-full h-1.5 overflow-hidden"><div id="deletingProgressBar" class="bg-rose-600 h-full rounded-full transition-all duration-300" style="width:0%"></div></div></div>
 </div>
 <div id="cropModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[120] hidden flex items-center justify-center p-2 sm:p-4">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl max-w-3xl w-full p-4 sm:p-6 text-white flex flex-col items-center">
@@ -3339,6 +3339,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         };
         window.withCloudWriteLock=async function(fn){window.beginCloudWriteLock();try{return await fn();}finally{window.endCloudWriteLock();}};
         window.timelineApiCloudWritePost=async function(action,payload={},options={}){return await window.withCloudWriteLock(()=>timelineApiPost(action,payload,options));};
+        // 用户可见的云端写操作必须覆盖完整业务流程（请求、刷新、渲染、定位），而不是只锁单次 API 请求。
+        window.withCloudWriteOperation=async function(fn){window.beginCloudWriteLock();try{return await fn();}finally{window.endCloudWriteLock();}};
 
         window._cloudUploadNoticeTimer=null;
         window._cloudUploadNotice = function(text='正在加载文件，请稍候…', show=true){
@@ -3465,7 +3467,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             name=name.replace(/_[a-f0-9]{8}$/i,'').replace(/_[a-f0-9]{8}(?=_copy\d+(?:_copy\d+)*$)/i,'');
             return name;
         };
-        window.timelineAppInput=function({title='编辑名称',value='',placeholder='',confirmText='保存',duplicateCheck=null,duplicateText='该名称已存在',onConfirm=null,busyText='正在保存...'}={}){return new Promise(resolve=>{let m=document.getElementById('timelineAppInputModal');if(!m){m=document.createElement('div');m.id='timelineAppInputModal';m.className='fixed inset-0 bg-slate-900/65 backdrop-blur-sm z-[530] hidden flex items-center justify-center p-4';document.body.appendChild(m);}m.innerHTML=`<div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5" onclick="event.stopPropagation()"><div class="flex items-center gap-2 mb-4"><div class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center"><i class="fa-solid fa-pen"></i></div><h3 class="font-bold text-slate-800">${window.escapeHtml(title)}</h3></div><input data-app-input class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="${window.escapeHtml(placeholder)}"><p data-app-duplicate class="hidden mt-1 text-[11px] text-rose-600">${window.escapeHtml(duplicateText)}</p><div class="mt-4 flex justify-end gap-2"><button type="button" data-app-cancel class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button><button type="button" data-app-ok class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium">${window.escapeHtml(confirmText)}</button></div></div>`;const input=m.querySelector('[data-app-input]'),hint=m.querySelector('[data-app-duplicate]'),ok=m.querySelector('[data-app-ok]');input.value=String(value||'');const check=()=>{const dup=typeof duplicateCheck==='function'&&duplicateCheck(input.value)===true;hint?.classList.toggle('hidden',!dup);input.classList.toggle('border-rose-500',dup);input.classList.toggle('ring-2',dup);input.classList.toggle('ring-rose-500',dup);input.classList.toggle('focus:border-rose-500',dup);input.classList.toggle('focus:ring-2',true);input.classList.toggle('focus:ring-rose-500',dup);input.classList.toggle('focus:ring-indigo-500',!dup);ok.disabled=dup;ok.classList.toggle('opacity-50',dup);ok.classList.toggle('cursor-not-allowed',dup);return dup;};const done=v=>{m.classList.add('hidden');resolve(v)};let busy=false;const submit=async()=>{if(busy||check())return;const v=input.value;if(typeof onConfirm!=='function'){done(v);return;}busy=true;input.disabled=true;ok.disabled=true;m.querySelector('[data-app-cancel]').disabled=true;ok.textContent=busyText;m.setAttribute('aria-busy','true');try{const result=await onConfirm(v);done(result===undefined?v:result);}catch(e){busy=false;input.disabled=false;m.querySelector('[data-app-cancel]').disabled=false;ok.textContent=confirmText;m.removeAttribute('aria-busy');check();window.showToast?.(e?.message||'保存失败','error');}};m.querySelector('[data-app-cancel]').onclick=()=>{if(!busy)done(null)};ok.onclick=submit;input.oninput=check;input.onkeydown=e=>{if(e.key==='Enter')submit();if(e.key==='Escape'&&!busy)done(null);};m.onclick=e=>{if(e.target===m&&!busy)done(null);};m.classList.remove('hidden');check();setTimeout(()=>{input.focus();input.select();},0);});};
+        window.timelineAppInput=function({title='编辑名称',value='',placeholder='',confirmText='保存',duplicateCheck=null,duplicateText='该名称已存在',onConfirm=null,busyText='正在保存...'}={}){return new Promise(resolve=>{let m=document.getElementById('timelineAppInputModal');if(!m){m=document.createElement('div');m.id='timelineAppInputModal';m.className='fixed inset-0 bg-slate-900/65 backdrop-blur-sm z-[530] hidden flex items-center justify-center p-4';document.body.appendChild(m);}m.innerHTML=`<div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5" onclick="event.stopPropagation()"><div class="flex items-center gap-2 mb-4"><div class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center"><i class="fa-solid fa-pen"></i></div><h3 class="font-bold text-slate-800">${window.escapeHtml(title)}</h3></div><input data-app-input class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="${window.escapeHtml(placeholder)}"><p data-app-duplicate class="hidden mt-1 text-[11px] text-rose-600">${window.escapeHtml(duplicateText)}</p><div class="mt-4 flex justify-end gap-2"><button type="button" data-app-cancel class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button><button type="button" data-app-ok class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium">${window.escapeHtml(confirmText)}</button></div></div>`;const input=m.querySelector('[data-app-input]'),hint=m.querySelector('[data-app-duplicate]'),ok=m.querySelector('[data-app-ok]');input.value=String(value||'');const check=()=>{const dup=typeof duplicateCheck==='function'&&duplicateCheck(input.value)===true;hint?.classList.toggle('hidden',!dup);input.classList.toggle('border-rose-500',dup);input.classList.toggle('ring-2',dup);input.classList.toggle('ring-rose-500',dup);input.classList.toggle('focus:border-rose-500',dup);input.classList.toggle('focus:ring-2',true);input.classList.toggle('focus:ring-rose-500',dup);input.classList.toggle('focus:ring-indigo-500',!dup);ok.disabled=dup;ok.classList.toggle('opacity-50',dup);ok.classList.toggle('cursor-not-allowed',dup);return dup;};const done=v=>{m.classList.add('hidden');resolve(v)};let busy=false;const submit=async()=>{if(busy||check())return;const v=input.value;if(typeof onConfirm!=='function'){done(v);return;}busy=true;input.disabled=true;ok.disabled=true;m.querySelector('[data-app-cancel]').disabled=true;ok.textContent=busyText;m.setAttribute('aria-busy','true');window.beginCloudWriteLock?.();try{const result=await onConfirm(v);done(result===undefined?v:result);}catch(e){busy=false;input.disabled=false;m.querySelector('[data-app-cancel]').disabled=false;ok.textContent=confirmText;m.removeAttribute('aria-busy');check();window.showToast?.(e?.message||'保存失败','error');}finally{window.endCloudWriteLock?.();}};m.querySelector('[data-app-cancel]').onclick=()=>{if(!busy)done(null)};ok.onclick=submit;input.oninput=check;input.onkeydown=e=>{if(e.key==='Enter')submit();if(e.key==='Escape'&&!busy)done(null);};m.onclick=e=>{if(e.target===m&&!busy)done(null);};m.classList.remove('hidden');check();setTimeout(()=>{input.focus();input.select();},0);});};
 
         window.cloudMediaFormatSize=function(n){n=Number(n)||0;if(n<1024)return n+' B';if(n<1048576)return (n/1024).toFixed(1)+' KB';return (n/1048576).toFixed(n<10485760?1:0)+' MB';}; window.cloudMediaFormatUploadedAt=function(a){const t=Number(a?.uploadedAt||a?.createdAt||0);if(!t)return '上传时间未知';const d=new Date(t);if(Number.isNaN(d.getTime()))return '上传时间未知';const pad=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;};
         window.openCloudMediaLibrary=async function({folder='all',allowedFolders=null,onSelect=null}={}){
@@ -5244,38 +5246,30 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if (window.isLocked) return;
             const input = document.getElementById('newTagInput');
             const newTag = input ? input.value.trim() : '';
-            if (!newTag) {
-                window.showToast("请输入tag名称", "error");
-                return;
-            }
-            if (window.tagNameExists(newTag)) {
-                window.showToast("该tag已存在", "error");
-                return;
-            }
-            const modal=document.getElementById('tagModal');
-            const panel=modal?.querySelector('.bg-white');
-            let busyShield=null;
-            if(panel){
-                const pos=getComputedStyle(panel).position;if(pos==='static')panel.style.position='relative';
-                busyShield=document.createElement('div');busyShield.className='absolute inset-0 z-[999] cursor-wait';busyShield.setAttribute('aria-hidden','true');
-                ['click','pointerdown','pointerup','touchstart','touchend'].forEach(type=>busyShield.addEventListener(type,e=>{e.preventDefault();e.stopPropagation();},{passive:false}));
-                panel.appendChild(busyShield);
-            }
+            if (!newTag) { window.showToast("请输入tag名称", "error"); return; }
+            if (window.tagNameExists(newTag)) { window.showToast("该tag已存在", "error"); return; }
             window._cloudUploadNotice?.('正在加载数据',true);
             try {
-            const cloudSaved = await window.saveTagToCloud(newTag);
-            if (cloudSaved?.tagId) {
-                if (input) input.value = '';
-                const rec={name:newTag,id:String(cloudSaved.tagId),owned:true,createdAt:Date.now()};
-                if(!window.availableTags.includes(newTag))window.availableTags.push(newTag);
-                window.tagRecords.push(rec);window.tagNameById?.set(rec.id,newTag);window.tagIdByName?.set(newTag,rec.id);
-                window.renderTagModalList();
-                await window.writeActivityLog?.('tag_add', { resourceType:'tag', resourceName:newTag });
-                window.showToast(`已添加tag：${newTag}`, "success");
-            }
+                await window.withCloudWriteOperation(async()=>{
+                    const cloudSaved = await window.saveTagToCloud(newTag);
+                    if (!cloudSaved) throw new Error('tag_create_not_confirmed');
+                    // upsertTag 的成功响应不保证携带 tagId；写入确认后重新读取标签集合，以云端真实记录为准。
+                    const tagsData=await timelineApiFetch(`/timeline?type=tags&ownerToken=${encodeURIComponent(window.getEditorOwnerToken?.()||'')}`,16000);
+                    window.tagRecords=Array.isArray(tagsData?.items)?tagsData.items:[];
+                    window.availableTags=window.tagRecords.map(x=>typeof x==='string'?x:String(x?.name||'')).filter(Boolean);
+                    window.tagNameById=new Map(window.tagRecords.map(x=>[String(x?.id||''),String(x?.name||'')]).filter(x=>x[0]&&x[1]));
+                    window.tagIdByName=new Map(window.tagRecords.map(x=>[String(x?.name||''),String(x?.id||'')]).filter(x=>x[0]&&x[1]));
+                    if(!window.availableTags.includes(newTag)) throw new Error('tag_create_refresh_missing');
+                    if (input) input.value = '';
+                    window.renderTagModalList();
+                    await window.writeActivityLog?.('tag_add', { resourceType:'tag', resourceName:newTag });
+                    window.showToast(`已添加tag：${newTag}`, "success");
+                });
+            } catch(e) {
+                console.warn('新建tag失败',e);
+                window.showToast('Tag云端保存失败','error');
             } finally {
                 window._cloudUploadNotice?.('',false);
-                busyShield?.remove();
             }
         };
 
@@ -5320,6 +5314,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     (timelineBeforeDelete.scrollWidth-timelineBeforeDelete.clientWidth-timelineBeforeDelete.scrollLeft)<80;
                 const dm=document.getElementById('deletingModal'),db=document.getElementById('deletingProgressBar');
                 dm?.classList.remove('hidden');if(db)db.style.width='25%';
+                window.beginCloudWriteLock?.();
                 try{
                     if(db)setTimeout(()=>db.style.width='55%',250);
                     const cloudDeleted=await window.deleteEventFromCloud(targetId,targetEvent);
@@ -5360,6 +5355,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     dm?.classList.add('hidden');
                     window.showToast("删除成功","info");
                 }catch(_){dm?.classList.add('hidden');window.showToast("删除失败，请重试","error");}
+                finally{window.endCloudWriteLock?.();}
             }
         };
 
@@ -5468,6 +5464,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 const progressBar = document.getElementById('savingProgressBar');
                 if (savingModal) savingModal.classList.remove('hidden');
                 if (progressBar) progressBar.style.width = '30%';
+                window.beginCloudWriteLock?.();
 
                 try {
                     if (progressBar) setTimeout(() => progressBar.style.width = '60%', 400);
@@ -5507,6 +5504,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 } catch (err) {
                     if (savingModal) savingModal.classList.add('hidden');
                     window.showToast("保存失败，请重试", "error");
+                } finally {
+                    window.endCloudWriteLock?.();
                 }
             }
         };
@@ -7202,11 +7201,36 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 btn.className='px-3 py-1.5 border rounded-lg text-xs '+(enabled?'border-amber-200 bg-amber-50 text-amber-700':'border-emerald-200 bg-emerald-50 text-emerald-700');
             }
         };
-        window.deepAppConfirm=function({title='确认操作？',desc='',confirmText='确认',danger=false,onConfirm=null,busyText='正在处理...'}={}){return new Promise(resolve=>{let m=document.getElementById('deepAppConfirmModal');if(!m){m=document.createElement('div');m.id='deepAppConfirmModal';m.className='fixed inset-0 bg-slate-900/75 backdrop-blur-md z-[520] hidden flex items-center justify-center p-4';document.body.appendChild(m);}let busy=false;const done=v=>{m.classList.add('hidden');m.removeAttribute('aria-busy');resolve(v)};const renderIdle=()=>{m.innerHTML=`<div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center"><div class="w-12 h-12 rounded-full ${danger?'bg-rose-100 text-rose-500':'bg-indigo-100 text-indigo-600'} flex items-center justify-center text-xl mx-auto mb-3"><i class="fa-solid ${danger?'fa-triangle-exclamation':'fa-circle-question'}"></i></div><h3 class="font-bold text-slate-800 text-base mb-1">${window.escapeHtml(title)}</h3><p class="text-xs text-slate-500 mb-5">${window.escapeHtml(desc)}</p><div class="flex justify-center gap-3"><button type="button" data-dc-cancel class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button><button type="button" data-dc-ok class="px-4 py-2 ${danger?'bg-rose-600 hover:bg-rose-700':'bg-indigo-600 hover:bg-indigo-700'} text-white rounded-lg text-xs font-medium shadow-sm">${window.escapeHtml(confirmText)}</button></div></div>`;const cancel=m.querySelector('[data-dc-cancel]'),ok=m.querySelector('[data-dc-ok]');cancel.onclick=e=>{e.stopPropagation();if(!busy)done(false)};ok.onclick=async e=>{e.stopPropagation();if(busy)return;if(typeof onConfirm!=='function'){done(true);return;}busy=true;m.setAttribute('aria-busy','true');m.innerHTML=`<div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center"><div class="w-14 h-14 rounded-full ${danger?'bg-rose-100 text-rose-600':'bg-indigo-100 text-indigo-600'} flex items-center justify-center text-2xl mx-auto mb-3"><i class="fa-solid fa-spinner fa-spin"></i></div><h3 class="font-bold text-slate-800 text-base mb-1">${window.escapeHtml(busyText)}</h3><p class="text-xs text-slate-500">请稍候，操作完成后将自动关闭</p></div>`;try{const result=await onConfirm();done(result===undefined?true:result);}catch(e){busy=false;m.removeAttribute('aria-busy');renderIdle();window.showToast?.(e?.message||'操作失败','error');}};};renderIdle();m.onclick=e=>{if(busy){e.preventDefault();e.stopPropagation();return;}if(e.target===m)done(false);};m.classList.remove('hidden');});};
-        window.deepToggleDescriptionEnabled = function(){
-            const next=!window.deepDescriptionEnabledDraft;
-            window.deepDescriptionEnabledDraft=next; window.deepSyncEnabledToggle();
-        };
+        window.deepAppConfirm=function({title='确认操作？',desc='',confirmText='确认',danger=false,onConfirm=null,busyText='正在处理...'}={}){return new Promise(resolve=>{
+            let m=document.getElementById('deepAppConfirmModal');
+            if(!m){m=document.createElement('div');m.id='deepAppConfirmModal';m.className='fixed inset-0 bg-slate-900/75 backdrop-blur-md z-[520] hidden flex items-center justify-center p-4';document.body.appendChild(m);}
+            let busy=false,progressTimer=null;
+            const stopProgress=()=>{if(progressTimer){clearTimeout(progressTimer);progressTimer=null;}};
+            const done=v=>{stopProgress();m.classList.add('hidden');m.removeAttribute('aria-busy');resolve(v)};
+            const renderBusy=()=>{
+                const isDelete=danger && /删除/.test(String(busyText||''));
+                const tone=isDelete?'rose':'indigo';
+                const subtitle=isDelete?'请稍候，正在同步删除结果到云端':'请稍候，正在同步数据到云端';
+                m.innerHTML=`<div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center"><div class="w-14 h-14 rounded-full bg-${tone}-100 text-${tone}-600 flex items-center justify-center text-2xl mx-auto mb-3"><i class="fa-solid fa-spinner fa-spin"></i></div><h3 class="font-bold text-slate-800 text-base mb-1">${window.escapeHtml(busyText)}</h3><p class="text-xs text-slate-500">${subtitle}</p><div class="mt-4 w-full bg-slate-200 rounded-full h-1.5 overflow-hidden"><div data-deep-confirm-progress class="bg-${tone}-600 h-full rounded-full transition-all duration-300" style="width:25%"></div></div></div>`;
+                const bar=m.querySelector('[data-deep-confirm-progress]');
+                progressTimer=setTimeout(()=>{if(bar)bar.style.width='55%';},250);
+            };
+            const renderIdle=()=>{
+                m.innerHTML=`<div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center"><div class="w-12 h-12 rounded-full ${danger?'bg-rose-100 text-rose-500':'bg-indigo-100 text-indigo-600'} flex items-center justify-center text-xl mx-auto mb-3"><i class="fa-solid ${danger?'fa-triangle-exclamation':'fa-circle-question'}"></i></div><h3 class="font-bold text-slate-800 text-base mb-1">${window.escapeHtml(title)}</h3><p class="text-xs text-slate-500 mb-5">${window.escapeHtml(desc)}</p><div class="flex justify-center gap-3"><button type="button" data-dc-cancel class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button><button type="button" data-dc-ok class="px-4 py-2 ${danger?'bg-rose-600 hover:bg-rose-700':'bg-indigo-600 hover:bg-indigo-700'} text-white rounded-lg text-xs font-medium shadow-sm">${window.escapeHtml(confirmText)}</button></div></div>`;
+                const cancel=m.querySelector('[data-dc-cancel]'),ok=m.querySelector('[data-dc-ok]');
+                cancel.onclick=e=>{e.stopPropagation();if(!busy)done(false)};
+                ok.onclick=async e=>{e.stopPropagation();if(busy)return;if(typeof onConfirm!=='function'){done(true);return;}
+                    busy=true;m.setAttribute('aria-busy','true');renderBusy();window.beginCloudWriteLock?.();
+                    try{const result=await onConfirm();const bar=m.querySelector('[data-deep-confirm-progress]');if(bar)bar.style.width='100%';await new Promise(r=>setTimeout(r,120));done(result===undefined?true:result);}
+                    catch(err){busy=false;stopProgress();m.removeAttribute('aria-busy');renderIdle();window.showToast?.(err?.message||'操作失败','error');}
+                    finally{window.endCloudWriteLock?.();}
+                };
+            };
+            renderIdle();
+            m.onclick=e=>{if(busy){e.preventDefault();e.stopPropagation();return;}if(e.target===m)done(false);};
+            m.classList.remove('hidden');
+        });};
+
         window.deepClearCanvas=async function(){
             if(!window.deepCanvasState)return;
             if(!await window.deepAppConfirm({title:'确认清空画布？',desc:'当前画布内容会被清空；保存前仍可通过撤回恢复。',confirmText:'确认清空',danger:true}))return;
