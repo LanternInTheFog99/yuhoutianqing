@@ -3304,25 +3304,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const qs=new URLSearchParams({room:window.currentRoomId||'default',cloudPath:String(cloudPath||''),ticket:String(data.ticket),mode:'stream'});
             return TIMELINE_API_BASE+'/media?'+qs.toString();
         };
-        // Canonical resolver for cloud-backed media. cloudPath is identity, never a URL.
-        window.resolveCloudMediaUrl=async function(cloudPath){ return window.cloudMediaPublicUrl(cloudPath); };
-        window.canonicalMediaReadUrl=function(value,explicitCloudPath){
-            const directPath=String(explicitCloudPath||'').trim();
-            if(directPath)return window.cloudMediaPublicUrl(directPath);
-            const raw=String(value||'').trim();if(!raw)return '';
-            const m=raw.match(/(?:^|https?:\/\/[^/]+\/|cloudbase:\/\/)((?:(?:temp|inuse|unref)\/)?(?:gif|video|picture|cover)(?:\/(?:gif|video|picture))?)\/([^?#\s"'<>]+)/i);
-            if(m){
-                let tail=m[2];try{tail=decodeURIComponent(tail);}catch(_){}
-                return window.cloudMediaPublicUrl(`${m[1].toLowerCase()}/${tail}`);
-            }
-            return raw;
-        };
-        window.fetchCloudMediaBlob=async function(cloudPath){
-            const readUrl=await window.resolveCloudMediaUrl(cloudPath);
-            const resp=await fetch(readUrl,{cache:'no-store'});
-            if(!resp.ok)throw new Error('云端媒体读取失败 HTTP '+resp.status);
-            return await resp.blob();
-        };
         // 当前媒体优先使用保存时记录的 cloudPath，不再从普通外链 URL 猜测云端位置。
         // 兼容迁移后的生命周期目录 inuse/temp/unref，以及迁移前的旧 gif/ 目录。
         window.resolveGifCloudPath = function(src,cloudPath){
@@ -3387,9 +3368,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             uploadNotice('正在加载文件，请稍候…');
             window.beginCloudWriteLock?.();
             try {
-            const finalPurpose=String(options?.purpose||'').toLowerCase();
-            const useTemp=!options?.bypassTemp && finalPurpose!=='music';
+            const useTemp=!options?.bypassTemp;
             if(useTemp)window.beginEditMediaTxn?.();
+            const finalPurpose=String(options?.purpose||'');
             const meta=await timelineApiPost('getMediaUploadMetadata',{
                 fileName:file.name||'file',mime:file.type||'application/octet-stream',size:file.size,
                 purpose:useTemp?'temp':finalPurpose,
@@ -3433,20 +3414,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 };
                 xhr.send(file);
             });
-            const finalized=await timelineApiPost('finalizeMediaUpload',{cloudPath:meta.cloudPath},{auth:'edit',timeoutMs:15000});
-            if(!finalized?.ok)throw new Error(finalized?.message||`媒体登记失败：${meta.cloudPath}`);
-            if(finalPurpose==='cover'){
-                const previousCoverPath=String(options?.replaceCloudPath||'').trim();
-                if(/^temp\/cover\/(?:picture|gif|video)\//i.test(previousCoverPath) && previousCoverPath!==meta.cloudPath){
-                    try{
-                        await timelineApiPost('deleteMediaAsset',{cloudPath:previousCoverPath,temporary:true},{auth:'edit',timeoutMs:20000});
-                        const tx=window._editMediaTxn;
-                        if(tx?.tempUploads)tx.tempUploads=tx.tempUploads.filter(x=>x.tempPath!==previousCoverPath);
-                    }catch(err){
-                        console.warn('旧临时封面清理失败，交给24小时清理兜底',previousCoverPath,err);
-                    }
-                }
-            }
+            try{ await timelineApiPost('finalizeMediaUpload',{cloudPath:meta.cloudPath},{auth:'edit',timeoutMs:15000}); }catch(err){ console.warn('媒体登记失败',err); }
             const url=window.cloudMediaPublicUrl(meta.cloudPath);
             uploadNotice('正在加载文件，请稍候…');
             if(!options?.deferNoticeHide)uploadNotice('',false);
@@ -3577,13 +3545,13 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const assetCoverPath=String(a?.coverCloudPath||'');
             const assetCover=assetCoverPath?window.cloudMediaPublicUrl(assetCoverPath):'';
             return {
-                pictureCover:assetCover||window.canonicalMediaReadUrl(saved.outer,saved.pictureCoverCloudPath)||'',
-                pictureCoverCloudPath:assetCoverPath||saved.pictureCoverCloudPath||'',
+                pictureCover:saved.outer||assetCover||'',
+                pictureCoverCloudPath:saved.pictureCoverCloudPath||assetCoverPath||'',
                 crop:saved.crop?JSON.parse(JSON.stringify(saved.crop)):null,
                 gifCrop:(saved.gifCrop||saved.crop)?JSON.parse(JSON.stringify(saved.gifCrop||saved.crop)):null,
                 gifCoverCrop:(saved.gifCoverCrop||saved.crop)?JSON.parse(JSON.stringify(saved.gifCoverCrop||saved.crop)):null,
-                gifCover:assetCover||window.canonicalMediaReadUrl(saved.gifCover,saved.gifCoverCloudPath)||'',
-                gifCoverCloudPath:assetCoverPath||saved.gifCoverCloudPath||'',
+                gifCover:saved.gifCover||assetCover||'',
+                gifCoverCloudPath:saved.gifCoverCloudPath||assetCoverPath||'',
                 gifDurationMs:Math.max(0,Number(saved.gifDurationMs)||0),
                 gifDurationSource:saved.gifDurationSource||''
             };
@@ -3593,8 +3561,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const assetCoverPath=String(a?.coverCloudPath||'');
             const assetCover=assetCoverPath?window.cloudMediaPublicUrl(assetCoverPath):'';
             return {
-                cover:assetCover||window.canonicalMediaReadUrl(saved.cover,saved.coverCloudPath)||'',
-                coverCloudPath:assetCoverPath||saved.coverCloudPath||'',
+                cover:saved.cover||assetCover||'',
+                coverCloudPath:saved.coverCloudPath||assetCoverPath||'',
                 previewDuration:window.normalizeVideoPreviewDuration?window.normalizeVideoPreviewDuration(saved.previewDuration,4):(Number(saved.previewDuration)||4)
             };
         };
@@ -3997,7 +3965,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     return {
                         mediaId: v.mediaId ? String(v.mediaId) : '',
                         url: v.url || '',
-                        cloudPath: v.cloudPath || '',
                         cover: v.cover || '',
                         coverCloudPath: v.coverCloudPath || '',
                         mime: v.mime || '',
@@ -4041,7 +4008,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         return {
                             mediaId: v?.mediaId ? String(v.mediaId) : '',
                             url: v?.url || '',
-                            cloudPath: v?.cloudPath || '',
                             cover: v?.cover || '',
                             coverCloudPath: v?.coverCloudPath || '',
                             mime: v?.mime || '',
@@ -4087,6 +4053,12 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 }
                 const requireEditLock=!isNew && String(window._activeEditLockEventId||'')===String(eventData.id);
                 const saveResult = await window.timelineApiWrite('upsertEvent', { event: cloudEvent, isNew:isNew===true, ownerToken:window.getEditorOwnerToken?.()||'', ...(!isNew?{baseRevision,requireEditLock}: {}) });
+                if(saveResult?.canonicalEvent){
+                    const canonical=saveResult.canonicalEvent;
+                    for(const k of Object.keys(eventData))delete eventData[k];
+                    Object.assign(eventData,canonical);
+                }else window.applyCanonicalMediaMapping?.(eventData,saveResult?.mediaMapping||[]);
+                if(window._editMediaTxn)window._editMediaTxn.tempUploads=[];
                 if(isNew) eventData.creatorOwned=true;
                 if(saveResult?.documentId){
                     eventData.__cloudDocId=String(saveResult.documentId);
@@ -5024,114 +4996,43 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             window._editMediaTxn=null;
             await Promise.allSettled(doomed.map(x=>window.deleteTempCloudPath(x.tempPath)));
         };
-        window.replaceTempMediaRefs=function(root,change){
-            if(!root||!change)return;
-            const fromPath=String(change.fromPath||''),fromUrl=String(change.fromUrl||'');
-            const toPath=String(change.toPath||''),toUrl=String(change.toUrl||'');
-            const seen=new WeakSet();
+        window.replaceTempMediaRefs=function(root,fromPath,toPath){
+            if(!root||typeof root!=='object')return;
+            const seen=new WeakSet(),fromEncoded=encodeURIComponent(String(fromPath||'')),toEncoded=encodeURIComponent(String(toPath||''));
             const walk=o=>{
-                if(!o||typeof o!=='object'||seen.has(o))return;
-                seen.add(o);
-                if(Array.isArray(o)){for(const v of o)walk(v);return;}
+                if(!o||typeof o!=='object'||seen.has(o))return;seen.add(o);
+                if(Array.isArray(o)){o.forEach(walk);return;}
                 for(const k of Object.keys(o)){
                     const v=o[k];
                     if(typeof v==='string'){
-                        if(fromPath&&v===fromPath)o[k]=toPath;
-                        else if(fromUrl&&v===fromUrl)o[k]=toUrl;
+                        let n=v.split(String(fromPath||'')).join(String(toPath||''));
+                        if(fromEncoded)n=n.split(fromEncoded).join(toEncoded);
+                        o[k]=n;
                     }else walk(v);
                 }
-            };
-            walk(root);
+            };walk(root);
         };
-        window.applyMediaPromotionMap=function(root,promotionMap){
-            if(!root||!promotionMap)return root;
-            const entries=promotionMap instanceof Map?[...promotionMap.entries()]:Object.entries(promotionMap);
-            const pathMap=new Map(entries.map(([a,b])=>[String(a||''),String(b||'')]));
-            const seen=new WeakSet();
-            const walk=o=>{
-                if(!o||typeof o!=='object'||seen.has(o))return;
-                seen.add(o);
-                if(Array.isArray(o)){for(const v of o)walk(v);return;}
-                for(const k of Object.keys(o)){
-                    const v=o[k];
-                    if(typeof v==='string'&&pathMap.has(v))o[k]=pathMap.get(v);
-                    else if(v&&typeof v==='object')walk(v);
-                }
-            };
-            walk(root);return root;
-        };
-        window.collectTempMediaRefs=function(root){
-            const found=[];
-            const seen=new WeakSet();
-            const walk=(o,path)=>{
-                if(!o||typeof o!=='object'||seen.has(o))return;
-                seen.add(o);
-                if(Array.isArray(o)){o.forEach((v,i)=>walk(v,`${path}[${i}]`));return;}
-                for(const [k,v] of Object.entries(o)){
-                    const p=path?`${path}.${k}`:k;
-                    if(typeof v==='string'&&/^temp\/(?:picture|gif|video|cover\/(?:picture|gif|video))\//i.test(v))found.push({path:p,value:v});
-                    else if(v&&typeof v==='object')walk(v,p);
-                }
-            };
-            walk(root,'');return found;
-        };
-        window.assertNoTempMediaRefs=function(root,context='保存'){
-            const refs=window.collectTempMediaRefs(root);
-            if(refs.length){
-                console.error('MEDIA_PROMOTION_INCOMPLETE',context,refs);
-                throw new Error(`${context}失败：仍有 ${refs.length} 个媒体没有从 temp 正式化，请重试`);
-            }
-        };
-        window.refreshCanonicalMediaDisplayUrls=function(root){
-            if(!root||typeof root!=='object')return root;
-            const seen=new WeakSet();
-            const walk=o=>{
-                if(!o||typeof o!=='object'||seen.has(o))return;
-                seen.add(o);
-                if(Array.isArray(o)){for(const v of o)walk(v);return;}
-                if(o.cloudPath){
-                    const u=window.cloudMediaPublicUrl(o.cloudPath);
-                    if(u)o.url=u;
-                }
-                if(o.pictureCoverCloudPath){
-                    const u=window.cloudMediaPublicUrl(o.pictureCoverCloudPath);
-                    if(u){o.pictureCover=u;o.outer=u;o.inner=u;o.collection=u;o.cover=u;}
-                }
-                if(o.gifCoverCloudPath){
-                    const u=window.cloudMediaPublicUrl(o.gifCoverCloudPath);
-                    if(u){o.gifCover=u;o.cover=u;}
-                }
-                if(o.coverCloudPath){
-                    const u=window.cloudMediaPublicUrl(o.coverCloudPath);
-                    if(u)o.cover=u;
-                }
-                for(const v of Object.values(o))if(v&&typeof v==='object')walk(v);
-            };
-            walk(root);
+        window.applyCanonicalMediaMapping=function(root,mapping){
+            for(const rec of (mapping||[]))window.replaceTempMediaRefs(root,String(rec?.from||''),String(rec?.to||''));
             return root;
         };
-        window.buildTempMediaSaveManifest=function(records){
-            return (records||[]).map(rec=>({cloudPath:String(rec?.tempPath||''),coverSourcePath:String(rec?.coverSourcePath||'')})).filter(x=>x.cloudPath);
-        };
+        // Deep-description own Save: backend performs the same canonical temp -> inuse transition.
         window.promoteTempUploadsSince=async function(mark,root){
-            const tx=window._editMediaTxn;if(!tx)return new Map();
+            const tx=window._editMediaTxn;if(!tx)return;
             const cut=Math.max(0,Number(mark)||0),selected=tx.tempUploads.slice(cut);
-            if(!selected.length){window.assertNoTempMediaRefs(root,'深入描述保存');return new Map();}
-            const data=await timelineApiPost('prepareMediaForSave',{tempMedia:window.buildTempMediaSaveManifest(selected)},{auth:'edit',timeoutMs:60000});
-            if(!data?.ok)throw new Error(data?.message||'媒体正式化失败');
-            const promoted=new Map(Object.entries(data.mapping||{}));
-            window.applyMediaPromotionMap(root,promoted);window.refreshCanonicalMediaDisplayUrls(root);window.assertNoTempMediaRefs(root,'深入描述保存');
-            const done=new Set(promoted.keys());tx.tempUploads=tx.tempUploads.filter((rec,i)=>i<cut||!done.has(rec.tempPath));return promoted;
+            if(!selected.length)return;
+            const result=await window.timelineApiCloudWritePost('commitTempMedia',{value:root},{auth:'edit',timeoutMs:60000});
+            if(result?.value&&root&&typeof root==='object'){
+                const canonical=result.value;
+                if(Array.isArray(root)&&Array.isArray(canonical))root.splice(0,root.length,...canonical);
+                else{for(const k of Object.keys(root))delete root[k];Object.assign(root,canonical);}
+            }else window.applyCanonicalMediaMapping(root,result?.mapping||[]);
+            const done=new Set((result?.mapping||[]).map(x=>String(x?.from||'')));
+            tx.tempUploads=tx.tempUploads.filter((x,i)=>i<cut||!done.has(String(x.tempPath||'')));
         };
-        window.promoteTempUploads=async function(eventData){
-            const tx=window._editMediaTxn,selected=tx?.tempUploads?[...tx.tempUploads]:[];
-            if(!selected.length){window.assertNoTempMediaRefs(eventData,'大保存');return new Map();}
-            const data=await timelineApiPost('prepareMediaForSave',{tempMedia:window.buildTempMediaSaveManifest(selected)},{auth:'edit',timeoutMs:60000});
-            if(!data?.ok)throw new Error(data?.message||'媒体正式化失败');
-            const promoted=new Map(Object.entries(data.mapping||{}));
-            window.applyMediaPromotionMap(eventData,promoted);window.refreshCanonicalMediaDisplayUrls(eventData);window.assertNoTempMediaRefs(eventData,'大保存');
-            const done=new Set(promoted.keys());tx.tempUploads=tx.tempUploads.filter(rec=>!done.has(rec.tempPath));return promoted;
-        };
+        // Big event Save: intentionally does NOT move files here.
+        // upsertEvent is the single authority that moves temp -> inuse and stores canonical paths.
+        window.promoteTempUploads=async function(eventData){ return eventData; };
 
         window.handleNewEventClick = function() {
             if (window.isLocked) {
@@ -5518,8 +5419,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         };
         window.ensureAutomaticFirstFrameCovers=async function(eventData){
             const jobs=[];
-            const addGif=obj=>{if(!obj||obj.gifCover)return;const src=obj.originalFull||obj.original||obj.outer||obj.src||'';if(!src||!window.isAnimatedImageSource?.(src,obj))return;jobs.push((async()=>{const readable=obj.cloudPath?await window.resolveCloudMediaUrl(obj.cloudPath):src;const up=await window.makeAutoFirstFrameCover(readable,'gif',obj.gifCoverCloudPath||'',obj.cloudPath||'');if(up){window.trackUnsavedMediaUpload?.(up.cloudPath||'');obj.gifCover=up.url;obj.gifCoverCloudPath=up.cloudPath||'';obj.gifCoverAuto=true;}})());};
-            const addVideo=obj=>{if(!obj||obj.cover)return;const src=obj.url||obj.src||obj.outer||obj.original||'';if(!src)return;jobs.push((async()=>{const readable=obj.cloudPath?await window.resolveCloudMediaUrl(obj.cloudPath):src;const up=await window.makeAutoFirstFrameCover(readable,'video',obj.coverCloudPath||'',obj.cloudPath||'');if(up){window.trackUnsavedMediaUpload?.(up.cloudPath||'');obj.cover=up.url;obj.coverCloudPath=up.cloudPath||'';obj.coverAuto=true;}})());};
+            const addGif=obj=>{if(!obj||obj.gifCover)return;const src=obj.originalFull||obj.original||obj.outer||obj.src||'';if(!src||!window.isAnimatedImageSource?.(src,obj))return;jobs.push((async()=>{const up=await window.makeAutoFirstFrameCover(src,'gif',obj.gifCoverCloudPath||'',obj.cloudPath||'');if(up){window.trackUnsavedMediaUpload?.(up.cloudPath||'');obj.gifCover=up.url;obj.gifCoverCloudPath=up.cloudPath||'';obj.gifCoverAuto=true;}})());};
+            const addVideo=obj=>{if(!obj||obj.cover)return;const src=obj.url||obj.src||obj.outer||obj.original||'';if(!src)return;jobs.push((async()=>{const up=await window.makeAutoFirstFrameCover(src,'video',obj.coverCloudPath||'',obj.cloudPath||'');if(up){window.trackUnsavedMediaUpload?.(up.cloudPath||'');obj.cover=up.url;obj.coverCloudPath=up.cloudPath||'';obj.coverAuto=true;}})());};
             (eventData.images||[]).forEach(addGif);(eventData.videos||[]).forEach(addVideo);
             const seen=new WeakSet(),walk=o=>{if(!o||typeof o!=='object'||seen.has(o))return;seen.add(o);if(Array.isArray(o)){o.forEach(walk);return;}if(o.type==='media'){if(o.mediaKind==='video')addVideo(o);else addGif(o);}Object.values(o).forEach(walk);};
             (eventData.images||[]).forEach(x=>walk(x?.deepDescription));(eventData.videos||[]).forEach(x=>walk(x?.deepDescription));walk(eventData.deepDescription);
@@ -5569,9 +5470,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     // 新上传媒体仍保持原流程：主媒体先进入 inuse，再仅为缺封面的新媒体生成首帧封面。
                     const hadPendingTemp=window._hasPendingTempUploads?.()===true;
                     if(hadPendingTemp){
-                        await window.promoteTempUploads?.(eventData);
                         try{await window.ensureAutomaticFirstFrameCovers(eventData);}catch(err){console.warn('自动首帧封面生成失败',err);}
-                        if(window._hasPendingTempUploads?.()) await window.promoteTempUploads?.(eventData);
                     }
                     const desiredConnections = eventData.connections || [];
                     const connectionsChanged = !isEdit || window._connectionListFingerprint(previousConnections)!==window._connectionListFingerprint(desiredConnections);
@@ -5599,9 +5498,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     }
                 } catch (err) {
                     if (savingModal) savingModal.classList.add('hidden');
-                    console.error('EVENT_SAVE_FAILED', err);
-                    const detail=String(err?.message||err?.code||'未知错误');
-                    window.showToast("保存失败："+detail, "error");
+                    window.showToast("保存失败，请重试", "error");
                 } finally {
                     window.endCloudWriteLock?.();
                 }
@@ -7242,7 +7139,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.deepCreateSeedCopy=async function(type,obj){
             const src=window.deepGetSrc(type,obj); const cp=String(obj?.cloudPath||'');
             if(!src||!cp)return {src,cloudPath:cp};
-            try{const blob=cp?await window.fetchCloudMediaBlob(cp):await (async()=>{const r=await fetch(src,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);return await r.blob();})();let base=(cp.split('/').pop()||'media').replace(/\.[^.]+$/,'');const ext=(cp.split('/').pop()||'').match(/(\.[^.]+)$/)?.[1]||'';base=base.replace(/_[a-z0-9]+_[a-f0-9]{8}$/i,'').replace(/_[a-f0-9]{8}$/i,'');const name=base+'_desc'+ext;const file=new File([blob],name,{type:blob.type||obj?.mime||'application/octet-stream'});const up=await window.uploadLargeMediaToCloudBase(file,{purpose:type==='video'?'video':(obj?.isAnimated?'gif':'picture')});return {src:up.url,cloudPath:up.cloudPath};}catch(e){console.warn('深入描述默认媒体副本创建失败，回退原媒体',e);return {src,cloudPath:cp};}
+            try{const r=await fetch(src,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);const blob=await r.blob();let base=(cp.split('/').pop()||'media').replace(/\.[^.]+$/,'');const ext=(cp.split('/').pop()||'').match(/(\.[^.]+)$/)?.[1]||'';base=base.replace(/_[a-z0-9]+_[a-f0-9]{8}$/i,'').replace(/_[a-f0-9]{8}$/i,'');const name=base+'_desc'+ext;const file=new File([blob],name,{type:blob.type||obj?.mime||'application/octet-stream'});const up=await window.uploadLargeMediaToCloudBase(file,{purpose:type==='video'?'video':(obj?.isAnimated?'gif':'picture')});return {src:up.url,cloudPath:up.cloudPath};}catch(e){console.warn('深入描述默认媒体副本创建失败，回退原媒体',e);return {src,cloudPath:cp};}
         };
         window.openDeepDescriptionEditor = async function(type,index){
             const obj=window.deepMediaObject(type,index); if(!obj)return;
@@ -11148,7 +11045,7 @@ viewer.style.visibility='';
                     };
                 }
                 const full = img.originalFull || img.original || img.outer || img.inner || img.collection || '';
-                const pictureCoverUrl = img.pictureCoverCloudPath ? window.cloudMediaPublicUrl(img.pictureCoverCloudPath) : window.canonicalMediaReadUrl(img.outer||img.inner||img.collection||'');
+                const pictureCoverUrl = img.outer || img.inner || img.collection || (img.pictureCoverCloudPath && window.cloudMediaPublicUrl ? window.cloudMediaPublicUrl(img.pictureCoverCloudPath) : '');
                 return {
                     mediaId: img.mediaId || ('img_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9)),
                     original: full,
