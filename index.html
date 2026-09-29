@@ -858,17 +858,16 @@
         /* 多时间详情页顶部操作与普通事件保持相近留白。 */
         #fullscreenViewer .multi-detail-shell .detail-window-comments-btn{top:8px;}
         #fullscreenViewer .multi-detail-shell > button[onclick^="closeReadOnlyFullscreen"]{top:8px;}
-        /* 详情中的外部连线提示：只表现“从页面外延伸进来”的视觉，不渲染真实时间线。 */
         /* 详情中的关系端点沿用时间线真实连线的视觉：#6366f1 / 2.5px / 6 4 虚线。
            多时间从卡片上方空白处向下接入；同期集合从卡片下方空白处向上接入。 */
         .detail-external-link-mark{position:absolute;width:760px;height:300px;overflow:visible;pointer-events:none;z-index:30;}
         .detail-external-link-mark svg{position:absolute;inset:0;width:760px;height:300px;overflow:visible;}
         /* 同期集合只给当前翻到的卡片显示局部关系线，后排卡片即使有连线也不展示。 */
         .stack-card:not(.stack-card-current) .detail-external-link-mark{display:none!important;}
-        .detail-external-link-mark path{fill:none;stroke:#6366f1;stroke-width:2.5;stroke-dasharray:6 4;stroke-linecap:butt;stroke-linejoin:round;}
+        .detail-external-link-mark path{fill:none;stroke-width:2.5;stroke-dasharray:6 4;stroke-linecap:butt;stroke-linejoin:round;}
+        .detail-external-link-mark path:not(.detail-external-extension){stroke:#6366f1;}
         .detail-external-link-mark polygon{fill:#4f46e5;}
         .detail-external-link-mark .detail-external-count{position:absolute;font-size:9px;line-height:14px;color:#6366f1;font-weight:800;text-shadow:0 1px 2px rgba(255,255,255,.85);}
-        /* 外端故意越出可视范围并渐隐，像真实逻辑连线仍在详情页之外继续，而不是在这里截断。 */
         .detail-external-link-mark.from-top{top:-298px;left:50%;transform:translateX(-50%);}
         .detail-external-link-mark.from-top .detail-external-count{right:7px;bottom:5px;}
         .detail-external-link-mark.from-bottom{bottom:-298px;left:50%;transform:translateX(-50%);}
@@ -10719,8 +10718,6 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
                 const e1={x:p3.x+side*62,y:p3.y+vertical*18};
                 const e2={x:p3.x+side*190,y:p3.y+vertical*27};
                 const e3={x:p3.x+side*330,y:p3.y+vertical*31};
-                const path=`M ${p0.x} ${p0.y} C ${p1.x} ${p1.y}, ${p2.x} ${p2.y}, ${p3.x} ${p3.y} C ${e1.x} ${e1.y}, ${e2.x} ${e2.y}, ${e3.x} ${e3.y}`;
-
                 let currentToOther=false,otherToCurrent=false;
                 if(conn.dir==='both'){currentToOther=true;otherToCurrent=true;}
                 else if(conn.dir==='backward'){currentToOther=!isSource;otherToCurrent=isSource;}
@@ -10738,7 +10735,11 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
                 }else if(otherToCurrent){
                     arrows+=`<polygon class="detail-external-arrow" points="-6,-4.5 6,0 -6,4.5" transform="translate(${pt.x},${pt.y}) rotate(${pt.a+180})"></polygon>`;
                 }
-                return `<path d="${path}"></path>${arrows}`;
+                const mainPath=`M ${p0.x} ${p0.y} C ${p1.x} ${p1.y}, ${p2.x} ${p2.y}, ${p3.x} ${p3.y}`;
+                const extensionPath=`M ${p3.x} ${p3.y} C ${e1.x} ${e1.y}, ${e2.x} ${e2.y}, ${e3.x} ${e3.y}`;
+                const gradientId=`detailExternalFade_${String(currentId).replace(/[^a-zA-Z0-9_-]/g,'_')}_${idx}_${fromTop?'t':'b'}`;
+                const gradient=`<linearGradient id="${gradientId}" gradientUnits="userSpaceOnUse" x1="${p3.x}" y1="${p3.y}" x2="${e3.x}" y2="${e3.y}"><stop offset="0%" stop-color="#6366f1" stop-opacity="1"/><stop offset="68%" stop-color="#6366f1" stop-opacity=".62"/><stop offset="100%" stop-color="#6366f1" stop-opacity="0"/></linearGradient>`;
+                return `${gradient}<path d="${mainPath}"></path><path class="detail-external-extension" d="${extensionPath}" stroke="url(#${gradientId})"></path>${arrows}`;
             }).join('');
 
             return `<div class="detail-external-link-mark from-${fromTop?'top':'bottom'}" title="${list.length} 条连线与这里相连"><svg viewBox="0 0 ${W} ${H}" aria-hidden="true">${pieces}</svg>${list.length>4?`<span class="detail-external-count">${list.length}</span>`:''}</div>`;
