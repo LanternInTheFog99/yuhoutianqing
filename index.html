@@ -10682,16 +10682,16 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
             const currentId=String(currentEvent.id||'');
             const fromTop=placement==='top';
 
-            // 详情页只画“真实连线进入/离开详情后的可见局部”。
-            // 几何模型与时间线真实连线保持一致：单条二次 Bézier + 曲线中点箭头。
-            // 外端直接放到 SVG 可视范围之外，不再拼 extension / mask / 渐隐假尾巴。
+            // 详情中的局部关系线按“实际可见主弧”设计：
+            // 主弧负责用户真正看到的弯曲和箭头；后续延伸段只负责把线继续带出详情可视区域。
+            // 两段分开计算，避免屏幕外的路径把箭头位置和可见弧度一起拖走。
             const W=760,H=300,innerX=W/2,innerY=fromTop?H-2:2;
-            const quadPoint=(t,p0x,p0y,p1x,p1y,p2x,p2y)=>{
-                const mt=1-t;
-                const x=mt*mt*p0x+2*mt*t*p1x+t*t*p2x;
-                const y=mt*mt*p0y+2*mt*t*p1y+t*t*p2y;
-                const dx=2*mt*(p1x-p0x)+2*t*(p2x-p1x);
-                const dy=2*mt*(p1y-p0y)+2*t*(p2y-p1y);
+            const cubicPoint=(t,p0,p1,p2,p3)=>{
+                const mt=1-t,mt2=mt*mt,t2=t*t;
+                const x=mt2*mt*p0.x+3*mt2*t*p1.x+3*mt*t2*p2.x+t2*t*p3.x;
+                const y=mt2*mt*p0.y+3*mt2*t*p1.y+3*mt*t2*p2.y+t2*t*p3.y;
+                const dx=3*mt2*(p1.x-p0.x)+6*mt*t*(p2.x-p1.x)+3*t2*(p3.x-p2.x);
+                const dy=3*mt2*(p1.y-p0.y)+6*mt*t*(p2.y-p1.y)+3*t2*(p3.y-p2.y);
                 return {x,y,a:Math.atan2(dy,dx)*180/Math.PI};
             };
 
@@ -10705,34 +10705,34 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
                     ? (otherKey<currentKey?-1:1)
                     : (String(otherId).localeCompare(currentId)<0?-1:1);
 
-                // 多条线只在连接事件处稍微错开，避免完全盖住；不改变每条线的总体方向。
                 const spread=(idx-(Math.min(list.length,4)-1)/2)*9;
-                const x0=innerX+spread, y0=innerY;
+                const p0={x:innerX+spread,y:innerY};
+                const vertical=fromTop?-1:1;
 
-                // 外端位于 SVG 左/右上（多时间）或左/右下（同期集合）之外。
-                // 控制点与外端处于同一高度：靠事件一端切线近似竖直，越往外越自然转成横向，
-                // 对应用户手绘的“大弧拐向另一边”，而不是 S 弯或后半段斜直线。
-                const x2=side>0?W+170:-170;
-                const y2=fromTop?-54:H+54;
-                const cx=x0;
-                const cy=y2;
-                const path=`M ${x0} ${y0} Q ${cx} ${cy} ${x2} ${y2}`;
+                // 主弧完全落在详情附近的可见区域：约 118px 的纵向变化对应约 132px 横向变化。
+                // 靠事件处先近似竖直，随后持续转向；到主弧末端时已经明显朝另一事件所在方向偏出。
+                const p1={x:p0.x+side*4,y:p0.y+vertical*38};
+                const p3={x:p0.x+side*132,y:p0.y+vertical*118};
+                const p2={x:p0.x+side*58,y:p0.y+vertical*105};
+
+                // 延伸段从主弧末端继续向外，越来越接近横向；它不参与箭头定位。
+                const e1={x:p3.x+side*62,y:p3.y+vertical*18};
+                const e2={x:p3.x+side*190,y:p3.y+vertical*27};
+                const e3={x:p3.x+side*330,y:p3.y+vertical*31};
+                const path=`M ${p0.x} ${p0.y} C ${p1.x} ${p1.y}, ${p2.x} ${p2.y}, ${p3.x} ${p3.y} C ${e1.x} ${e1.y}, ${e2.x} ${e2.y}, ${e3.x} ${e3.y}`;
 
                 let currentToOther=false,otherToCurrent=false;
                 if(conn.dir==='both'){currentToOther=true;otherToCurrent=true;}
                 else if(conn.dir==='backward'){currentToOther=!isSource;otherToCurrent=isSource;}
                 else {currentToOther=isSource;otherToCurrent=!isSource;}
 
-                // 与真实时间线一致：箭头按二次 Bézier t=.5 的曲线中点和切线方向计算。
-                const pt=quadPoint(.5,x0,y0,cx,cy,x2,y2);
+                // 箭头只按“可见主弧”计算，约在主弧视觉中段；屏幕外延伸段不会再改变它的位置。
+                const pt=cubicPoint(.48,p0,p1,p2,p3);
                 let arrows='';
                 if(conn.dir==='both'){
-                    const rad=pt.a*Math.PI/180;
-                    const ux=Math.cos(rad),uy=Math.sin(rad);
-                    const pF={x:pt.x+ux*7,y:pt.y+uy*7};
-                    const pB={x:pt.x-ux*7,y:pt.y-uy*7};
-                    arrows+=`<polygon class="detail-external-arrow" points="-6,-4.5 6,0 -6,4.5" transform="translate(${pF.x},${pF.y}) rotate(${pt.a})"></polygon>`;
-                    arrows+=`<polygon class="detail-external-arrow" points="-6,-4.5 6,0 -6,4.5" transform="translate(${pB.x},${pB.y}) rotate(${pt.a+180})"></polygon>`;
+                    const rad=pt.a*Math.PI/180,ux=Math.cos(rad),uy=Math.sin(rad);
+                    arrows+=`<polygon class="detail-external-arrow" points="-6,-4.5 6,0 -6,4.5" transform="translate(${pt.x+ux*7},${pt.y+uy*7}) rotate(${pt.a})"></polygon>`;
+                    arrows+=`<polygon class="detail-external-arrow" points="-6,-4.5 6,0 -6,4.5" transform="translate(${pt.x-ux*7},${pt.y-uy*7}) rotate(${pt.a+180})"></polygon>`;
                 }else if(currentToOther){
                     arrows+=`<polygon class="detail-external-arrow" points="-6,-4.5 6,0 -6,4.5" transform="translate(${pt.x},${pt.y}) rotate(${pt.a})"></polygon>`;
                 }else if(otherToCurrent){
