@@ -1224,6 +1224,15 @@
             }
         }
 
+
+        /* 输入错误态：以与正常蓝色焦点相同的 2px 外圈显示红色；错误期间不叠加蓝色焦点。 */
+        .timeline-field-error, .timeline-field-error:focus {
+            border-color:#cbd5e1 !important;
+            outline:none !important;
+            --tw-ring-offset-shadow:0 0 #0000 !important;
+            --tw-ring-shadow:0 0 0 2px rgb(244 63 94) !important;
+            box-shadow:var(--tw-ring-offset-shadow),var(--tw-ring-shadow),var(--tw-shadow,0 0 #0000) !important;
+        }
 </style>
 
 <style id="invalidRoomAccessStyle">
@@ -3427,7 +3436,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             name=name.replace(/_[a-f0-9]{8}$/i,'').replace(/_[a-f0-9]{8}(?=_copy\d+(?:_copy\d+)*$)/i,'');
             return name;
         };
-        window.timelineAppInput=function({title='编辑名称',value='',placeholder='',confirmText='保存',duplicateCheck=null,duplicateText='该名称已存在',requiredText='请输入内容',onConfirm=null,busyText='正在保存...'}={}){return new Promise(resolve=>{let m=document.getElementById('timelineAppInputModal');if(!m){m=document.createElement('div');m.id='timelineAppInputModal';m.className='fixed inset-0 bg-slate-900/65 backdrop-blur-sm z-[530] hidden flex items-center justify-center p-4';document.body.appendChild(m);}m.innerHTML=`<div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5" onclick="event.stopPropagation()"><div class="flex items-center gap-2 mb-4"><div class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center"><i class="fa-solid fa-pen"></i></div><h3 class="font-bold text-slate-800">${window.escapeHtml(title)}</h3></div><input data-app-input class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="${window.escapeHtml(placeholder)}"><p data-app-duplicate class="hidden mt-1 text-[11px] text-rose-600">${window.escapeHtml(duplicateText)}</p><p data-app-required class="hidden mt-1 text-[11px] text-rose-600">${window.escapeHtml(requiredText)}</p><div class="mt-4 flex justify-end gap-2"><button type="button" data-app-cancel class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button><button type="button" data-app-ok class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium">${window.escapeHtml(confirmText)}</button></div></div>`;const input=m.querySelector('[data-app-input]'),hint=m.querySelector('[data-app-duplicate]'),requiredHint=m.querySelector('[data-app-required]'),ok=m.querySelector('[data-app-ok]');input.value=String(value||'');const check=()=>{const dup=typeof duplicateCheck==='function'&&duplicateCheck(input.value)===true;hint?.classList.toggle('hidden',!dup);input.classList.toggle('border-rose-500',dup);input.classList.toggle('ring-2',dup);input.classList.toggle('ring-rose-500',dup);input.classList.toggle('focus:border-rose-500',dup);input.classList.toggle('focus:ring-2',true);input.classList.toggle('focus:ring-rose-500',dup);input.classList.toggle('focus:ring-indigo-500',!dup);ok.disabled=dup;ok.classList.toggle('opacity-50',dup);ok.classList.toggle('cursor-not-allowed',dup);return dup;};const done=v=>{m.classList.add('hidden');resolve(v)};let busy=false;const submit=async()=>{if(busy||check())return;const v=input.value;if(!String(v||'').trim()){requiredHint?.classList.remove('hidden');input.classList.add('border-rose-500','ring-2','ring-rose-500');input.focus();window.showToast?.(requiredText,'error');return;}requiredHint?.classList.add('hidden');if(typeof onConfirm!=='function'){done(v);return;}busy=true;input.disabled=true;ok.disabled=true;m.querySelector('[data-app-cancel]').disabled=true;ok.textContent=busyText;m.setAttribute('aria-busy','true');window.beginCloudWriteLock?.();try{const result=await onConfirm(v);done(result===undefined?v:result);}catch(e){busy=false;input.disabled=false;m.querySelector('[data-app-cancel]').disabled=false;ok.textContent=confirmText;m.removeAttribute('aria-busy');check();window.showToast?.(e?.message||'保存失败','error');}finally{window.endCloudWriteLock?.();}};m.querySelector('[data-app-cancel]').onclick=()=>{if(!busy)done(null)};ok.onclick=submit;input.oninput=()=>{requiredHint?.classList.add('hidden');check();};input.onkeydown=e=>{if(e.key==='Enter')submit();if(e.key==='Escape'&&!busy)done(null);};m.onclick=e=>{if(e.target===m&&!busy)done(null);};m.classList.remove('hidden');check();setTimeout(()=>{input.focus();input.select();},0);});};
+        window.timelineAppInput=function({title='编辑名称',value='',placeholder='',confirmText='保存',duplicateCheck=null,duplicateText='该名称已存在',requiredText='请输入内容',onConfirm=null,busyText='正在保存...'}={}){return new Promise(resolve=>{let m=document.getElementById('timelineAppInputModal');if(!m){m=document.createElement('div');m.id='timelineAppInputModal';m.className='fixed inset-0 bg-slate-900/65 backdrop-blur-sm z-[530] hidden flex items-center justify-center p-4';document.body.appendChild(m);}m.innerHTML=`<div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5" onclick="event.stopPropagation()"><div class="flex items-center gap-2 mb-4"><div class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center"><i class="fa-solid fa-pen"></i></div><h3 class="font-bold text-slate-800">${window.escapeHtml(title)}</h3></div><input data-app-input class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="${window.escapeHtml(placeholder)}"><p data-app-duplicate class="hidden mt-1 text-[11px] text-rose-600">${window.escapeHtml(duplicateText)}</p><p data-app-required class="hidden mt-1 text-[11px] text-rose-600">${window.escapeHtml(requiredText)}</p><div class="mt-4 flex justify-end gap-2"><button type="button" data-app-cancel class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button><button type="button" data-app-ok class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium">${window.escapeHtml(confirmText)}</button></div></div>`;const input=m.querySelector('[data-app-input]'),hint=m.querySelector('[data-app-duplicate]'),requiredHint=m.querySelector('[data-app-required]'),ok=m.querySelector('[data-app-ok]');input.value=String(value||'');const check=()=>{const dup=typeof duplicateCheck==='function'&&duplicateCheck(input.value)===true;hint?.classList.toggle('hidden',!dup);input.classList.toggle('timeline-field-error',dup);input.classList.toggle('border-rose-500',false);input.classList.toggle('ring-2',dup);input.classList.toggle('ring-rose-500',dup);input.classList.toggle('focus:border-rose-500',dup);input.classList.toggle('focus:ring-2',true);input.classList.toggle('focus:ring-rose-500',dup);input.classList.toggle('focus:ring-indigo-500',!dup);ok.disabled=dup;ok.classList.toggle('opacity-50',dup);ok.classList.toggle('cursor-not-allowed',dup);return dup;};const done=v=>{m.classList.add('hidden');resolve(v)};let busy=false;const submit=async()=>{if(busy||check())return;const v=input.value;if(!String(v||'').trim()){requiredHint?.classList.remove('hidden');input.classList.add('timeline-field-error','ring-2','ring-rose-500');input.classList.remove('border-rose-500','focus:ring-indigo-500');input.focus();window.showToast?.(requiredText,'error');return;}requiredHint?.classList.add('hidden');if(typeof onConfirm!=='function'){done(v);return;}busy=true;input.disabled=true;ok.disabled=true;m.querySelector('[data-app-cancel]').disabled=true;ok.textContent=busyText;m.setAttribute('aria-busy','true');window.beginCloudWriteLock?.();try{const result=await onConfirm(v);done(result===undefined?v:result);}catch(e){busy=false;input.disabled=false;m.querySelector('[data-app-cancel]').disabled=false;ok.textContent=confirmText;m.removeAttribute('aria-busy');check();window.showToast?.(e?.message||'保存失败','error');}finally{window.endCloudWriteLock?.();}};m.querySelector('[data-app-cancel]').onclick=()=>{if(!busy)done(null)};ok.onclick=submit;input.oninput=()=>{requiredHint?.classList.add('hidden');input.classList.remove('timeline-field-error');check();};input.onkeydown=e=>{if(e.key==='Enter')submit();if(e.key==='Escape'&&!busy)done(null);};m.onclick=e=>{if(e.target===m&&!busy)done(null);};m.classList.remove('hidden');check();setTimeout(()=>{input.focus();input.select();},0);});};
 
         window.cloudMediaFormatSize=function(n){n=Number(n)||0;if(n<1024)return n+' B';if(n<1048576)return (n/1024).toFixed(1)+' KB';return (n/1048576).toFixed(n<10485760?1:0)+' MB';}; window.cloudMediaFormatUploadedAt=function(a){const t=Number(a?.uploadedAt||a?.createdAt||0);if(!t)return '上传时间未知';const d=new Date(t);if(Number.isNaN(d.getTime()))return '上传时间未知';const pad=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;};
 
@@ -4444,7 +4453,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         };
 
         window.bgmNameExists=function(name,excludeId){const n=String(name||'').trim();if(!n)return false;return (window.bgmPlaylist||[]).some(s=>String(s?.id)!==String(excludeId??'')&&String(s?.name||'').trim()===n);};
-        window.updateBgmNameDuplicateHint=function(){const input=document.getElementById('bgmNameInput'),hint=document.getElementById('bgmNameDuplicateHint');if(!input||!hint)return false;const dup=window.bgmNameExists(input.value);hint.classList.toggle('hidden',!dup);input.classList.toggle('border-rose-500',dup);input.classList.toggle('ring-2',dup);input.classList.toggle('ring-rose-500',dup);input.classList.toggle('focus:border-rose-500',dup);input.classList.toggle('focus:ring-2',true);input.classList.toggle('focus:ring-rose-500',dup);input.classList.toggle('focus:ring-indigo-500',!dup);return dup;};
+        window.updateBgmNameDuplicateHint=function(){const input=document.getElementById('bgmNameInput'),hint=document.getElementById('bgmNameDuplicateHint');if(!input||!hint)return false;const dup=window.bgmNameExists(input.value);hint.classList.toggle('hidden',!dup);input.classList.toggle('timeline-field-error',dup);input.classList.toggle('border-rose-500',false);input.classList.toggle('ring-2',dup);input.classList.toggle('ring-rose-500',dup);input.classList.toggle('focus:border-rose-500',dup);input.classList.toggle('focus:ring-2',true);input.classList.toggle('focus:ring-rose-500',dup);input.classList.toggle('focus:ring-indigo-500',!dup);return dup;};
 
         window.addBgmByFile = async function(e) {
             if (window.isLocked) return;
@@ -5188,7 +5197,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.tagIdsForNames=function(names){return [...new Set((Array.isArray(names)?names:[]).map(window.tagIdForName).filter(Boolean))];};
         window.tagOwned=function(name){return window.tagRecordFor(name)?.owned===true;};
         window.canManageTag=function(name){return !!window.isDeveloperMode?.()||window.tagOwned(name);};
-        window.tagNameExists=function(name,excludeName){const n=String(name||'').trim();if(!n)return false;return (window.availableTags||[]).some(t=>String(t)!==String(excludeName??'')&&String(t).trim()===n);};window.updateTagNameDuplicateHint=function(){const input=document.getElementById('newTagInput'),hint=document.getElementById('tagNameDuplicateHint');if(!input||!hint)return false;const dup=window.tagNameExists(input.value);hint.classList.toggle('hidden',!dup);input.classList.toggle('border-rose-500',dup);input.classList.toggle('ring-2',dup);input.classList.toggle('ring-rose-500',dup);input.classList.toggle('focus:border-rose-500',dup);input.classList.toggle('focus:ring-2',true);input.classList.toggle('focus:ring-rose-500',dup);input.classList.toggle('focus:ring-indigo-500',!dup);return dup;};window.renameTag=async function(tagName){
+        window.tagNameExists=function(name,excludeName){const n=String(name||'').trim();if(!n)return false;return (window.availableTags||[]).some(t=>String(t)!==String(excludeName??'')&&String(t).trim()===n);};window.updateTagNameDuplicateHint=function(){const input=document.getElementById('newTagInput'),hint=document.getElementById('tagNameDuplicateHint');if(!input||!hint)return false;const dup=window.tagNameExists(input.value);hint.classList.toggle('hidden',!dup);input.classList.toggle('timeline-field-error',dup);input.classList.toggle('border-rose-500',false);input.classList.toggle('ring-2',dup);input.classList.toggle('ring-rose-500',dup);input.classList.toggle('focus:border-rose-500',dup);input.classList.toggle('focus:ring-2',true);input.classList.toggle('focus:ring-rose-500',dup);input.classList.toggle('focus:ring-indigo-500',!dup);return dup;};window.renameTag=async function(tagName){
             if(!window.canManageTag(tagName))return;
             const next=await window.timelineAppInput({
                 title:'修改tag名称',value:tagName,placeholder:'输入新的tag名称',confirmText:'保存',busyText:'正在保存...',
@@ -13001,7 +13010,8 @@ viewer.style.visibility='';
             const duplicated=window.eventTitleExists(input?.value,excludeId);
             hint.classList.toggle('hidden',!duplicated);
             if(input){
-                input.classList.toggle('border-rose-500',duplicated);
+                input.classList.toggle('timeline-field-error',duplicated);
+                input.classList.remove('border-rose-500');
                 input.classList.toggle('ring-2',duplicated);
                 input.classList.toggle('ring-rose-500',duplicated);
                 input.classList.toggle('focus:border-rose-500',duplicated);
@@ -13047,6 +13057,7 @@ viewer.style.visibility='';
             if(!msg && yy){ let raw=yy; if(mm)raw+='-'+mm; if(dd)raw+='-'+dd; val=window.normalizePartialDate(raw); if(!val){msg='日期无效';badPart=dd?'day':(mm?'month':'year');} }
             const bad=!!msg;
             [[y,'year'],[m,'month'],[d,'day']].forEach(([el,part])=>{if(!el)return;const fieldBad=bad&&badPart===part;
+                el.classList.toggle('timeline-field-error',fieldBad);
                 // 错误态与正常 focus 使用完全相同的 ring-2 几何尺寸，只替换颜色；不再额外改 border，避免红框视觉上比蓝框更粗。
                 el.classList.remove('border-rose-500','focus:border-rose-500');
                 el.classList.toggle('ring-2',fieldBad);
@@ -13172,11 +13183,13 @@ viewer.style.visibility='';
             const title = titleInput?.value.trim();
             if (!title) {
                 window.showToast('请填写事件名称','error');
-                titleInput?.classList.add('border-rose-500','ring-2','ring-rose-500');
+                titleInput?.classList.add('timeline-field-error','ring-2','ring-rose-500');
+                titleInput?.classList.remove('border-rose-500','focus:ring-indigo-500');
                 titleInput?.focus();
                 return;
             }
-            titleInput?.classList.remove('border-rose-500','ring-2','ring-rose-500');
+            titleInput?.classList.remove('timeline-field-error','border-rose-500','ring-2','ring-rose-500');
+            titleInput?.classList.add('focus:ring-indigo-500');
             if (window.eventTitleExists(title, id)) { window.updateEventTitleDuplicateHint(titleInput,'editTitleDuplicateHint',id); window.showToast('该名称已存在','error'); return; }
             const isRange = document.getElementById('isRangeToggle')?.checked;
             
@@ -13458,8 +13471,8 @@ viewer.style.visibility='';
                     err.textContent = '请输入有效ID';
                     err.classList.remove('hidden');
                 }
-                input?.classList.add('border-rose-500','focus:ring-rose-500');
-                input?.classList.remove('border-slate-300','focus:ring-indigo-500');
+                input?.classList.add('timeline-field-error','focus:ring-rose-500');
+                input?.classList.remove('border-rose-500','focus:ring-indigo-500');
                 input?.focus();
                 return;
             }
@@ -13468,12 +13481,12 @@ viewer.style.visibility='';
                     err.textContent = 'ID未发生变化';
                     err.classList.remove('hidden');
                 }
-                input?.classList.add('border-rose-500','focus:ring-rose-500');
-                input?.classList.remove('border-slate-300','focus:ring-indigo-500');
+                input?.classList.add('timeline-field-error','focus:ring-rose-500');
+                input?.classList.remove('border-rose-500','focus:ring-indigo-500');
                 input?.focus();
                 return;
             }
-            input?.classList.remove('border-rose-500','focus:ring-rose-500');
+            input?.classList.remove('timeline-field-error','border-rose-500','focus:ring-rose-500');
             input?.classList.add('border-slate-300','focus:ring-indigo-500');
 
             const saveBtn=document.querySelector('#editorIdentityModal button[onclick="saveEditorIdentity()"]');
