@@ -1971,7 +1971,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         </div>
     </div>
 <div id="xiaoqingerDialogueEditorModal" class="fixed inset-0 bg-slate-900/65 backdrop-blur-sm z-[145] hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-5 sm:p-6">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-5 sm:p-6 max-h-[88vh] overflow-y-auto custom-scrollbar">
             <div class="flex items-center justify-between gap-3 pb-3 border-b border-slate-200 mb-4">
                 <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
                     <i class="fa-solid fa-comment-dots text-indigo-600"></i>
@@ -1988,7 +1988,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     <button type="button" onclick="xiaoqingerRichCommand('italic')" title="斜体" class="w-8 h-8 rounded-lg border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 text-xs italic">I</button>
                     <button type="button" onclick="xiaoqingerRichCommand('underline')" title="下划线" class="w-8 h-8 rounded-lg border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 text-xs underline">U</button>
                     <button type="button" onclick="xiaoqingerRichCommand('strikeThrough')" title="删除线" class="w-8 h-8 rounded-lg border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 text-xs line-through">S</button>
-                    <select id="xiaoqingerRichSize" onchange="xiaoqingerRichSetSize(this.value)" class="h-8 px-2 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 outline-none">
+                    <select id="xiaoqingerRichSize" style="width:128px;min-width:128px" onchange="xiaoqingerRichSetSize(this.value)" class="h-8 px-2 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 outline-none">
                         <option value="">14px（默认）</option>
                         <option value="11">11px</option>
                         <option value="12">12px</option>
@@ -4906,8 +4906,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         };
         window.getMultiEventDisplayDate = function(segments) {
             const dates=(segments||[]).map(x=>String(x?.date||'').trim()).filter(Boolean).sort((a,b)=>String(window.getMultiSegmentSortDate(a)||a).localeCompare(String(window.getMultiSegmentSortDate(b)||b)));
-            if(dates.length<=2)return dates.join('、');
-            return dates.slice(0,2).join('、')+'...';
+            return dates.join('、');
         };
         window.getEventTimelineSortDate = function(event){
             if(event?.timeMode==='multi' && Array.isArray(event.timeSegments) && event.timeSegments.length){
@@ -4963,7 +4962,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.multiDeepMediaObject=function(segIndex,type,index){const seg=window.multiTimeDraft?.[segIndex];return type==='image'?seg?.images?.[index]:seg?.videos?.[index];};
         /* Multi-time data adapters: only map the current time segment to shared event data. */
         window.enhanceWebSelects=function(root=document){
-            root.querySelectorAll('select:not(.hidden)').forEach(sel=>{if(sel.dataset.webSelect==='1')return;sel.dataset.webSelect='1';sel.classList.add('sr-only');const wrap=document.createElement('div');wrap.className='relative web-select-wrap';sel.parentNode.insertBefore(wrap,sel);wrap.appendChild(sel);const btn=document.createElement('button');btn.type='button';btn.className='w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-indigo-500 flex items-center justify-between gap-2 text-left disabled:opacity-50';const label=document.createElement('span');label.className='truncate text-slate-700';const icon=document.createElement('i');icon.className='fa-solid fa-chevron-down text-[9px] text-slate-400 shrink-0';btn.append(label,icon);const menu=document.createElement('div');menu.className='hidden absolute left-0 right-0 top-full mt-1 z-[490] bg-white border border-slate-200 rounded-xl shadow-xl p-1.5 max-h-56 overflow-y-auto custom-scrollbar';wrap.append(btn,menu);const sync=()=>{const o=sel.options[sel.selectedIndex];label.textContent=o?.textContent||'请选择';btn.disabled=sel.disabled;};const build=()=>{menu.innerHTML='';Array.from(sel.options).forEach(o=>{const b=document.createElement('button');b.type='button';b.className='w-full text-left px-2.5 py-2 rounded-lg text-xs hover:bg-indigo-50 '+(o.selected?'bg-indigo-50 text-indigo-700 font-semibold':'text-slate-700');b.textContent=o.textContent;b.disabled=o.disabled;b.onclick=(e)=>{e.stopPropagation();sel.value=o.value;sel.dispatchEvent(new Event('change',{bubbles:true}));sync();menu.classList.add('hidden');};menu.appendChild(b);});};btn.onclick=(e)=>{e.stopPropagation();if(sel.disabled)return;document.querySelectorAll('.web-select-wrap > div:not(.hidden)').forEach(x=>{if(x!==menu)x.classList.add('hidden')});build();menu.classList.toggle('hidden');};sel.addEventListener('change',sync);new MutationObserver(sync).observe(sel,{attributes:true,childList:true,subtree:true});sync();
+            root.querySelectorAll('select:not(.hidden)').forEach(sel=>{if(sel.dataset.webSelect==='1')return;sel.dataset.webSelect='1';sel.classList.add('sr-only');const wrap=document.createElement('div');wrap.className='relative web-select-wrap';if(sel.id==='richFontSizePreset'||sel.id==='deepFontSize'){wrap.style.width='138px';wrap.style.minWidth='138px';wrap.style.flex='0 0 138px';}else if(sel.id==='xiaoqingerRichSize'){wrap.style.width='128px';wrap.style.minWidth='128px';wrap.style.flex='0 0 128px';}sel.parentNode.insertBefore(wrap,sel);wrap.appendChild(sel);const btn=document.createElement('button');btn.type='button';btn.className='w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-indigo-500 flex items-center justify-between gap-2 text-left disabled:opacity-50';const label=document.createElement('span');label.className='truncate text-slate-700';const icon=document.createElement('i');icon.className='fa-solid fa-chevron-down text-[9px] text-slate-400 shrink-0';btn.append(label,icon);const menu=document.createElement('div');menu.className='hidden absolute left-0 right-0 top-full mt-1 z-[490] bg-white border border-slate-200 rounded-xl shadow-xl p-1.5 max-h-56 overflow-y-auto custom-scrollbar';wrap.append(btn,menu);const sync=()=>{const o=sel.options[sel.selectedIndex];label.textContent=o?.textContent||'请选择';btn.disabled=sel.disabled;};const build=()=>{menu.innerHTML='';Array.from(sel.options).forEach(o=>{const b=document.createElement('button');b.type='button';b.className='w-full text-left px-2.5 py-2 rounded-lg text-xs hover:bg-indigo-50 '+(o.selected?'bg-indigo-50 text-indigo-700 font-semibold':'text-slate-700');b.textContent=o.textContent;b.disabled=o.disabled;b.onclick=(e)=>{e.stopPropagation();sel.value=o.value;sel.dispatchEvent(new Event('change',{bubbles:true}));sync();menu.classList.add('hidden');};menu.appendChild(b);});};btn.onclick=(e)=>{e.stopPropagation();if(sel.disabled)return;document.querySelectorAll('.web-select-wrap > div:not(.hidden)').forEach(x=>{if(x!==menu)x.classList.add('hidden')});build();menu.classList.toggle('hidden');};sel.addEventListener('change',sync);new MutationObserver(sync).observe(sel,{attributes:true,childList:true,subtree:true});sync();
             });
         };
         document.addEventListener('click',()=>document.querySelectorAll('.web-select-wrap > div:not(.hidden)').forEach(x=>x.classList.add('hidden')));
@@ -6349,7 +6348,10 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             document.querySelectorAll('[data-connection-event-picker]').forEach(el => el.classList.add('hidden'));
             if (willOpen) {
                 picker.classList.remove('hidden');
-                requestAnimationFrame(() => picker.querySelector('input[type="text"]')?.focus());
+                const search=picker.querySelector('input[type="text"]');
+                if(search){search.value='';window.filterConnectionEventPicker?.(pickerId,'');}
+                const list=picker.querySelector('[data-conn-options]');if(list)list.scrollTop=0;
+                requestAnimationFrame(() => { search?.focus(); if(list)list.scrollTop=0; });
             }
         };
 
@@ -6386,6 +6388,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if(!select||!row)return;
             const segs=event?.timeMode==='multi'&&Array.isArray(event.timeSegments)?event.timeSegments:[];
             row.classList.toggle('hidden',!segs.length);
+            const adaptive=document.getElementById(hiddenInputId==='editConnTarget'?'editConnAdaptiveRow':hiddenInputId==='multiConnTarget'?'multiConnAdaptiveRow':'');
+            if(adaptive){adaptive.classList.toggle('grid-cols-2',!!segs.length);adaptive.classList.toggle('grid-cols-1',!segs.length);}
             select.innerHTML='<option value="">连接到整个事件</option>'+segs.map((seg,i)=>`<option value="${escapeHtml(String(seg.id||''))}">时间 ${i+1} · ${escapeHtml(window.formatDisplayDate(seg.date||''))}${seg.subtitle?' · '+escapeHtml(seg.subtitle):''}</option>`).join('');
             select.value='';
         };
@@ -6564,7 +6568,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 function endpointCenter(dot, rect, ev, segmentId) {
                     let cx = (rect.left + rect.width / 2) - containerRect.left + container.scrollLeft;
                     let cy = (rect.top + rect.height / 2) - containerRect.top + container.scrollTop;
-                    if (segmentId && ev?.timeMode === 'multi' && Array.isArray(ev.timeSegments) && ev.timeSegments.length) {
+                    if (false && segmentId && ev?.timeMode === 'multi' && Array.isArray(ev.timeSegments) && ev.timeSegments.length) {
                         const ordered = ev.timeSegments.slice().sort((a,b)=>String(a?.date||'').localeCompare(String(b?.date||'')));
                         const idx = ordered.findIndex(seg => String(seg?.id||'') === String(segmentId));
                         if (idx >= 0) {
@@ -7172,7 +7176,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                             <button type="button" id="deepBorderToggleBtn" onclick="deepApplyTextStyle('borderToggle')" class="mt-3 w-full px-2 py-1.5 rounded-lg border text-[10px] transition-all">显示边框：关</button>
                         </div>
                     </div>
-                    <label class="text-[10px] text-slate-500 flex items-center gap-1">字号<select id="deepFontSize" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onchange="deepSetFontSizeControl(this.value)" class="deep-selection-text-control h-7 border rounded-md bg-white"><option value="">常用</option><option value="10">10</option><option value="12">12</option><option value="14">14</option><option value="16">16</option><option value="18" selected>18（默认大小）</option><option value="20">20</option><option value="24">24</option><option value="28">28</option><option value="32">32</option><option value="36">36</option><option value="40">40</option><option value="48">48</option><option value="56">56</option><option value="64">64</option><option value="72">72</option></select><input id="deepFontSizeCustom" disabled data-deep-text-control data-deep-selection-only type="number" min="6" max="240" step="0.1" value="18" class="deep-selection-text-control h-7 w-16 border rounded-md bg-white px-1.5 font-mono text-[10px]" title="实际字号，可输入任意数值" oninput="deepPreviewFontSizeControl(this.value)" onchange="deepCommitFontSizeControl(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"><span class="font-mono text-[10px] text-slate-400">px</span></label>
+                    <label class="text-[10px] text-slate-500 flex items-center gap-1">字号<select id="deepFontSize" style="width:138px;min-width:138px" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onchange="deepSetFontSizeControl(this.value)" class="deep-selection-text-control h-7 border rounded-md bg-white"><option value="">常用</option><option value="10">10</option><option value="12">12</option><option value="14">14</option><option value="16">16</option><option value="18" selected>18（默认大小）</option><option value="20">20</option><option value="24">24</option><option value="28">28</option><option value="32">32</option><option value="36">36</option><option value="40">40</option><option value="48">48</option><option value="56">56</option><option value="64">64</option><option value="72">72</option></select><input id="deepFontSizeCustom" disabled data-deep-text-control data-deep-selection-only type="number" min="6" max="240" step="0.1" value="18" class="deep-selection-text-control h-7 w-12 border rounded-md bg-white px-1.5 font-mono text-[10px]" title="实际字号，可输入任意数值" oninput="deepPreviewFontSizeControl(this.value)" onchange="deepCommitFontSizeControl(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"><span class="font-mono text-[10px] text-slate-400">px</span></label>
                     <button id="deepBoldBtn" type="button" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('bold')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs font-bold">B</button>
                     <button id="deepItalicBtn" type="button" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('italic')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs italic">I</button>
                     <button id="deepUnderlineBtn" type="button" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('underline')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs underline">U</button>
@@ -11083,7 +11087,7 @@ viewer.style.visibility='';
                 const targetTitle = String(conn.targetId) === String(selfId) ? '当前事件' : (target?.title || String(conn.targetId));
                 const dirText = conn.dir === 'both' ? '双向' : (conn.dir === 'backward' ? '被指向' : '指向');
                 const dirIcon = conn.dir === 'both' ? '↔' : (conn.dir === 'backward' ? '←' : '→');
-                return `<div onclick="openConnectionEditModal('${String(conn.id).replace(/'/g, "\\'")}')" class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-xs cursor-pointer hover:border-indigo-200 hover:bg-indigo-50/40 transition-colors">
+                return `<div class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-xs">
                     <span class="text-indigo-600 font-bold w-5 text-center">${dirIcon}</span>
                     <div class="min-w-0 flex-1"><div class="font-semibold text-slate-700 truncate">${escapeHtml(sourceTitle)} <span class="text-slate-400 font-normal">→</span> ${escapeHtml(targetTitle)}</div><div class="text-[10px] text-slate-400 mt-0.5">${dirText}${conn.label ? ` · ${escapeHtml(conn.label)}` : ''}</div></div>
                     <button type="button" onclick="event.stopPropagation();openConnectionEditModal('${String(conn.id).replace(/'/g, "\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 flex items-center justify-center shrink-0" title="编辑"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="event.stopPropagation();removeEditingConnection('${String(conn.id).replace(/'/g, "\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center shrink-0" title="删除"><i class="fa-solid fa-xmark"></i></button>
@@ -11370,11 +11374,11 @@ viewer.style.visibility='';
                                 <div class="grid grid-cols-2 gap-2" id="rangeDateContainer" style="display: ${isRangeDate ? 'grid' : 'none'};"><div><span class="block text-[10px] text-slate-500 mb-0.5">开始日期</span>${window.inlineDateFieldsHtml('editStartDate',startDateVal,'')}</div><div><span class="block text-[10px] text-slate-500 mb-0.5">结束日期</span>${window.inlineDateFieldsHtml('editEndDate',endDateVal,'')}</div></div>
                             </div>
                             <div><label class="block text-xs font-bold text-slate-700 mb-1">节点类型</label><select id="editType" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"><option value="minor" ${event.type === 'minor' ? 'selected' : ''}>普通事件</option><option value="major" ${event.type === 'major' ? 'selected' : ''}>重大里程碑</option></select></div>
-                            <div><label class="block text-xs font-bold text-slate-700 mb-1">选择tag（多选）</label><div class="flex flex-wrap gap-1.5 p-2 border border-slate-200 rounded-lg bg-slate-50 max-h-28 overflow-y-auto" id="editTagsList">${window.availableTags.length === 0 ? '<p class="text-xs text-slate-400 italic">暂无可用tag</p>' : window.availableTags.map(t => { const checked = event.tags && event.tags.includes(t); return `<label class="cursor-pointer text-xs flex items-center gap-1.5 px-2 py-1 rounded border transition-colors ${checked ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-semibold' : 'bg-white border-slate-200 text-slate-600'}"><input type="checkbox" value="${t}" ${checked ? 'checked' : ''} class="hidden" onchange="toggleTagSelection(this)"><span># ${t}</span></label>`; }).join('')}</div></div>
+                            <div><label class="block text-xs font-bold text-slate-700 mb-1">tag选择（可多选）</label><div class="flex flex-wrap gap-1.5 p-2 border border-slate-200 rounded-lg bg-slate-50 max-h-28 overflow-y-auto" id="editTagsList">${window.availableTags.length === 0 ? '<p class="text-xs text-slate-400 italic">暂无可用tag</p>' : window.availableTags.map(t => { const checked = event.tags && event.tags.includes(t); return `<label class="cursor-pointer text-xs flex items-center gap-1.5 px-2 py-1 rounded border transition-colors ${checked ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-semibold' : 'bg-white border-slate-200 text-slate-600'}"><input type="checkbox" value="${t}" ${checked ? 'checked' : ''} class="hidden" onchange="toggleTagSelection(this)"><span># ${t}</span></label>`; }).join('')}</div></div>
                             <div class="space-y-2 bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
                                 <div class="flex items-center justify-between"><div><label class="block text-xs font-bold text-slate-700"><i class="fa-solid fa-diagram-project text-indigo-600 mr-1"></i>逻辑连线</label><p class="text-[10px] text-slate-400 mt-0.5">可直接添加、修改和删除当前节点的连线</p></div></div>
                                 <select id="editConnSource" class="hidden"></select>
-                                <div class="grid grid-cols-2 gap-2">
+                                <div class="space-y-2">
                                     <div data-connection-picker-wrap class="relative min-w-0">
                                         <input type="hidden" id="editConnTarget">
                                         <button type="button" onclick="toggleConnectionEventPicker('editConnTargetPicker')" class="w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-indigo-500 flex items-center justify-between gap-2 text-left"><span id="editConnTargetLabel" class="truncate text-slate-400">选择连接的事件</span><i class="fa-solid fa-chevron-down text-[9px] text-slate-400 shrink-0"></i></button>
@@ -11384,11 +11388,10 @@ viewer.style.visibility='';
                                             <div data-conn-empty class="hidden px-3 py-4 text-center text-[11px] text-slate-400">没有匹配的事件</div>
                                         </div>
                                     </div>
-                                    <input id="editConnLabel" type="text" maxlength="40" placeholder="连线文字" class="w-full min-w-0 px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
+                                    <div id="editConnAdaptiveRow" class="grid grid-cols-1 gap-2"><div id="editConnTargetSegmentRow" class="hidden"><select id="editConnTargetSegment" class="w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-indigo-500"><option value="">连接到整个事件</option></select></div><input id="editConnLabel" type="text" maxlength="40" placeholder="连线文字" class="w-full min-w-0 px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500"></div>
                                 </div>
-                                <div id="editConnTargetSegmentRow" class="hidden"><select id="editConnTargetSegment" class="w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-indigo-500"><option value="">连接到整个事件</option></select></div>
                                 <div class="flex items-stretch gap-2"><div class="grid grid-cols-3 gap-1.5 flex-1 min-w-0"><label class="cursor-pointer"><input type="radio" name="editConnDirection" value="forward" checked class="sr-only peer"><span class="flex h-full items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">→ 指向</span></label><label class="cursor-pointer"><input type="radio" name="editConnDirection" value="backward" class="sr-only peer"><span class="flex h-full items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">← 被指向</span></label><label class="cursor-pointer"><input type="radio" name="editConnDirection" value="both" class="sr-only peer"><span class="flex h-full items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">↔ 双向</span></label></div><button type="button" onclick="addEditingConnection()" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm shrink-0"><i class="fa-solid fa-plus mr-1"></i>添加</button></div>
-                                <div id="editConnectionsList" class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-32 overflow-y-auto"></div>
+                                <div id="editConnectionsList" class="grid grid-cols-1 gap-1.5 max-h-32 overflow-y-auto"></div>
                             </div>
                         </div>
 
@@ -11442,7 +11445,7 @@ viewer.style.visibility='';
                                         <button id="richUnderlineBtn" type="button" disabled onmousedown="event.preventDefault(); richRememberSelection()" onclick="richExec('underline')" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 underline w-7 h-7" title="下划线">U</button>
                                         <button id="richStrikeBtn" type="button" disabled onmousedown="event.preventDefault(); richRememberSelection()" onclick="richExec('strikeThrough')" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 line-through w-7 h-7" title="删除线">S</button>
                                         <button id="richRevealBtn" type="button" disabled onmousedown="event.preventDefault(); richRememberSelection()" onclick="richToggleReveal()" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 px-1.5 h-7 text-[10px] font-semibold" title="悬停显现：选中文字后仅在鼠标悬停时显示">悬停</button>
-                                        <select id="richFontSizePreset" disabled onmousedown="richRememberSelection()" onchange="richSetFontSize(this.value)" class="h-7 rounded-md border border-slate-200 bg-white text-[11px] text-slate-700" title="字号">
+                                        <select id="richFontSizePreset" style="width:138px;min-width:138px" disabled onmousedown="richRememberSelection()" onchange="richSetFontSize(this.value)" class="h-7 rounded-md border border-slate-200 bg-white text-[11px] text-slate-700" title="字号">
                                             <option value="">字号</option>
                                             ${['8px','9px','10px','11px','12px','13px','14px','16px','18px','20px','24px','28px','32px'].map(v=>`<option value="${v}">${v}${v==='14px'?'（默认大小）':''}</option>`).join('')}
                                         </select>
@@ -12485,10 +12488,10 @@ viewer.style.visibility='';
                 <div class="link-row flex items-center justify-between gap-2 bg-white border border-slate-200 px-2.5 py-1.5 rounded-lg text-xs ${locked ? '' : 'cursor-grab active:cursor-grabbing'}"
                      draggable="${locked ? 'false' : 'true'}"
                      data-link-index="${idx}">
-                    <button type="button" onclick="openEditLinkModal(${idx})" class="flex items-center gap-1.5 min-w-0 flex-1 text-left hover:text-indigo-700">
+                    <div class="flex items-center gap-1.5 min-w-0 flex-1 text-left">
                         <i class="fa-solid fa-globe text-indigo-500 shrink-0"></i>
                         <span class="truncate text-slate-700">${String(l.title || l.url || '').replace(/</g, '&lt;')}</span>
-                    </button>
+                    </div>
                     ${locked ? '' : `<button type="button" onclick="event.stopPropagation();openEditLinkModal(${idx})" class="text-slate-400 hover:text-indigo-600 shrink-0 p-1" title="编辑"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="event.stopPropagation();removeWebLink(${idx})" class="text-rose-500 hover:text-rose-700 shrink-0 p-1" title="删除"><i class="fa-solid fa-xmark"></i></button>`}
                 </div>
             `).join('');
@@ -12500,39 +12503,12 @@ viewer.style.visibility='';
         window.initLinkDragDrop = function(container) {
             if (!container || container.dataset.dndBound === '1') return;
             container.dataset.dndBound = '1';
-
-            container.addEventListener('dragstart', (e) => {
-                const row = e.target.closest('.link-row');
-                if (!row || window.isLocked) return;
-                window._linkDragFrom = parseInt(row.getAttribute('data-link-index'), 10);
-                row.classList.add('opacity-50');
-                try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(window._linkDragFrom)); } catch (_) {}
-            });
-            container.addEventListener('dragend', (e) => {
-                const row = e.target.closest('.link-row');
-                if (row) row.classList.remove('opacity-50');
-                window._linkDragFrom = null;
-                container.querySelectorAll('.link-row').forEach(r => r.classList.remove('ring-2', 'ring-indigo-300'));
-            });
-            container.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                const row = e.target.closest('.link-row');
-                container.querySelectorAll('.link-row').forEach(r => r.classList.remove('ring-2', 'ring-indigo-300'));
-                if (row) row.classList.add('ring-2', 'ring-indigo-300');
-            });
-            container.addEventListener('drop', (e) => {
-                e.preventDefault();
-                const row = e.target.closest('.link-row');
-                if (!row || window._linkDragFrom == null) return;
-                const to = parseInt(row.getAttribute('data-link-index'), 10);
-                const from = window._linkDragFrom;
-                if (isNaN(to) || isNaN(from) || from === to) return;
-                const arr = window.editingLinks;
-                const [item] = arr.splice(from, 1);
-                arr.splice(to, 0, item);
-                window._linkDragFrom = null;
-                window.renderLinkPreviews();
-            });
+            let marked=null,after=false;
+            const mark=row=>{if(marked===row)return;if(marked)marked.classList.remove('ring-2','ring-indigo-300');marked=row;if(marked)marked.classList.add('ring-2','ring-indigo-300');};
+            container.addEventListener('dragstart',e=>{const row=e.target.closest('.link-row');if(!row||window.isLocked)return;window._linkDragFrom=Number(row.dataset.linkIndex);row.classList.add('opacity-50');try{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',String(window._linkDragFrom));}catch(_){}});
+            container.addEventListener('dragover',e=>{if(window._linkDragFrom==null)return;const row=e.target.closest('.link-row');if(!row)return;e.preventDefault();mark(row);const r=row.getBoundingClientRect();after=(e.clientY-r.top)>r.height/2;try{e.dataTransfer.dropEffect='move';}catch(_){}});
+            container.addEventListener('drop',e=>{if(window._linkDragFrom==null)return;const row=e.target.closest('.link-row');if(!row)return;e.preventDefault();const from=window._linkDragFrom,over=Number(row.dataset.linkIndex),arr=window.editingLinks;let to=over+(after?1:0);const [item]=arr.splice(from,1);if(from<to)to--;to=Math.max(0,Math.min(arr.length,to));arr.splice(to,0,item);window._linkDragFrom=null;mark(null);window.renderLinkPreviews();});
+            container.addEventListener('dragend',e=>{e.target.closest('.link-row')?.classList.remove('opacity-50');window._linkDragFrom=null;mark(null);});
         };
 
         window.openEditLinkModal = function(index) {
@@ -14913,11 +14889,11 @@ viewer.style.visibility='';
             window.multiRenderEditorShell();
         };
         window.multiMoveMedia=function(seg,key,from,to){const a=window.multiTimeDraft?.[seg]?.[key];if(!a||from<0||from>=a.length)return;to=Math.max(0,Math.min(a.length,to));if(from<to)to--;if(from===to)return;const [x]=a.splice(from,1);a.splice(to,0,x);window.multiRenderCurrentPage();};
-        window.multiBindDrag=function(){const root=document.getElementById('multiPageBody');if(!root||root.dataset.dragBound)return;root.dataset.dragBound='1';let drag=null;const clear=()=>root.querySelectorAll('[data-multi-drag]').forEach(x=>{x.classList.remove('opacity-50');x.style.outline='';x.style.outlineOffset='';});root.addEventListener('dragstart',e=>{const x=e.target.closest('[data-multi-drag]');if(!x)return;drag={seg:Number(x.dataset.seg),key:x.dataset.key,from:Number(x.dataset.index),over:Number(x.dataset.index),after:false};x.classList.add('opacity-50');try{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',String(drag.from));}catch(_){}});root.addEventListener('dragend',()=>{clear();drag=null;});root.addEventListener('dragover',e=>{if(!drag)return;e.preventDefault();const x=e.target.closest('[data-multi-drag]');if(!x||Number(x.dataset.seg)!==drag.seg||x.dataset.key!==drag.key)return;drag.over=Number(x.dataset.index);const r=x.getBoundingClientRect();drag.after=drag.key==='images'?(e.clientX-r.left)>r.width/2:(e.clientY-r.top)>r.height/2;root.querySelectorAll(`[data-multi-drag][data-seg="${drag.seg}"][data-key="${drag.key}"]`).forEach(n=>{n.style.outline='';n.style.outlineOffset='';});x.style.outline='2px solid #6366f1';x.style.outlineOffset='2px';try{e.dataTransfer.dropEffect='move';}catch(_){}});root.addEventListener('drop',e=>{if(!drag)return;e.preventDefault();const x=e.target.closest('[data-multi-drag]');if(x&&Number(x.dataset.seg)===drag.seg&&x.dataset.key===drag.key){drag.over=Number(x.dataset.index);const r=x.getBoundingClientRect();drag.after=drag.key==='images'?(e.clientX-r.left)>r.width/2:(e.clientY-r.top)>r.height/2;}const d=drag;clear();drag=null;if(Number.isInteger(d.over))window.multiMoveMedia(d.seg,d.key,d.from,d.over+(d.after?1:0));});};
+        window.multiBindDrag=function(){const root=document.getElementById('multiPageBody');if(!root||root.dataset.dragBound)return;root.dataset.dragBound='1';let drag=null,marked=null;const mark=x=>{if(marked===x)return;if(marked){marked.style.outline='';marked.style.outlineOffset='';}marked=x;if(marked){marked.style.outline='2px solid #6366f1';marked.style.outlineOffset='2px';}};const clear=()=>{root.querySelector('.opacity-50[data-multi-drag]')?.classList.remove('opacity-50');mark(null);};root.addEventListener('dragstart',e=>{const x=e.target.closest('[data-multi-drag]');if(!x)return;drag={seg:Number(x.dataset.seg),key:x.dataset.key,from:Number(x.dataset.index),over:Number(x.dataset.index),after:false};x.classList.add('opacity-50');try{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',String(drag.from));}catch(_){}});root.addEventListener('dragend',()=>{clear();drag=null;});root.addEventListener('dragover',e=>{if(!drag)return;const x=e.target.closest('[data-multi-drag]');if(!x||Number(x.dataset.seg)!==drag.seg||x.dataset.key!==drag.key)return;e.preventDefault();drag.over=Number(x.dataset.index);const r=x.getBoundingClientRect();const horizontal=drag.key==='images';drag.after=horizontal?(e.clientX-r.left)>r.width/2:(e.clientY-r.top)>r.height/2;mark(x);try{e.dataTransfer.dropEffect='move';}catch(_){}});root.addEventListener('drop',e=>{if(!drag)return;e.preventDefault();const x=e.target.closest('[data-multi-drag]');if(x&&Number(x.dataset.seg)===drag.seg&&x.dataset.key===drag.key){drag.over=Number(x.dataset.index);const r=x.getBoundingClientRect();drag.after=drag.key==='images'?(e.clientX-r.left)>r.width/2:(e.clientY-r.top)>r.height/2;}const d=drag;clear();drag=null;if(Number.isInteger(d.over))window.multiMoveMedia(d.seg,d.key,d.from,d.over+(d.after?1:0));});};
 
         window.multiRenderConnectionPicker=function(){const list=document.getElementById('multiConnPickerList');if(!list)return;const q=(document.getElementById('multiConnSearch')?.value||'').trim().toLowerCase();const others=(window.events||[]).filter(e=>String(e.id)!==String(window.multiTimeEditingId)&&(!q||String(e.title||'').toLowerCase().includes(q))).sort((a,b)=>String(a.date).localeCompare(String(b.date)));list.innerHTML=others.length?others.map(e=>`<button type="button" onclick="multiPickConnectionEvent('${String(e.id).replace(/'/g,"\\'")}')" class="w-full text-left px-2 py-1.5 hover:bg-indigo-50 rounded text-xs"><b>${window.multiEsc(e.title||'未命名事件')}</b><span class="text-slate-400 ml-2">${window.multiEsc(window.formatDisplayDate(e.date))}</span></button>`).join(''):'<div class="text-[11px] text-slate-400 p-2">没有匹配事件</div>';};
-        window.multiToggleConnPicker=function(){const p=document.getElementById('multiConnPicker');p?.classList.toggle('hidden');setTimeout(()=>document.getElementById('multiConnSearch')?.focus(),0);window.multiRenderConnectionPicker();};
-        window.multiPickConnectionEvent=function(id){const e=window.findEventById(id);const h=document.getElementById('multiConnTarget');if(h)h.value=id;const l=document.getElementById('multiConnTargetLabel');if(l)l.textContent=e?.title||'已选择事件';document.getElementById('multiConnPicker')?.classList.add('hidden');window.refreshConnectionSegmentPicker?.('multiConnTarget',e);};
+        window.multiToggleConnPicker=function(){const p=document.getElementById('multiConnPicker');if(!p)return;const opening=p.classList.contains('hidden');p.classList.toggle('hidden');if(opening){const q=document.getElementById('multiConnSearch');if(q)q.value='';window.multiRenderConnectionPicker();const list=document.getElementById('multiConnPickerList');if(list)list.scrollTop=0;setTimeout(()=>{q?.focus();if(list)list.scrollTop=0;},0);}};
+        window.multiPickConnectionEvent=function(id){const e=window.findEventById(id);const h=document.getElementById('multiConnTarget');if(h)h.value=id;const l=document.getElementById('multiConnTargetLabel');if(l){l.textContent=e?.title||'已选择事件';l.classList.remove('text-slate-400');l.classList.add('text-slate-700');}document.getElementById('multiConnPicker')?.classList.add('hidden');window.refreshConnectionSegmentPicker?.('multiConnTarget',e);};
         window.multiRenderConnections=function(){
             const h=document.getElementById('multiConnectionsList');if(!h)return;
             const self=window.multiTimeEditingId;
@@ -14928,7 +14904,7 @@ viewer.style.visibility='';
                 const targetTitle=String(c.targetId)===String(self)?'当前事件':(target?.title||String(c.targetId));
                 const dirText=c.dir==='both'?'双向':(String(c.sourceId)===String(self)?'指向':'被指向');
                 const dirIcon=c.dir==='both'?'↔':(String(c.sourceId)===String(self)?'→':'←');
-                return `<div onclick="multiOpenConnectionEdit('${String(c.id).replace(/'/g,"\\'")}')" class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-xs cursor-pointer hover:border-indigo-200 hover:bg-indigo-50/40 transition-colors"><span class="text-indigo-600 font-bold w-5 text-center">${dirIcon}</span><div class="min-w-0 flex-1"><div class="font-semibold text-slate-700 truncate">${window.multiEsc(sourceTitle)} <span class="text-slate-400 font-normal">→</span> ${window.multiEsc(targetTitle)}</div><div class="text-[10px] text-slate-400 mt-0.5">${dirText}${c.label?' · '+window.multiEsc(c.label):''}</div></div><button type="button" onclick="event.stopPropagation();multiOpenConnectionEdit('${String(c.id).replace(/'/g,"\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 flex items-center justify-center shrink-0" title="编辑"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="event.stopPropagation();multiRemoveConnection('${String(c.id).replace(/'/g,"\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center shrink-0" title="删除"><i class="fa-solid fa-xmark"></i></button></div>`;
+                return `<div class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-xs"><span class="text-indigo-600 font-bold w-5 text-center">${dirIcon}</span><div class="min-w-0 flex-1"><div class="font-semibold text-slate-700 truncate">${window.multiEsc(sourceTitle)} <span class="text-slate-400 font-normal">→</span> ${window.multiEsc(targetTitle)}</div><div class="text-[10px] text-slate-400 mt-0.5">${dirText}${c.label?' · '+window.multiEsc(c.label):''}</div></div><button type="button" onclick="event.stopPropagation();multiOpenConnectionEdit('${String(c.id).replace(/'/g,"\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 flex items-center justify-center shrink-0" title="编辑"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="event.stopPropagation();multiRemoveConnection('${String(c.id).replace(/'/g,"\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center shrink-0" title="删除"><i class="fa-solid fa-xmark"></i></button></div>`;
             }).join('');
         };
         window.multiAddConnection=function(){const target=document.getElementById('multiConnTarget')?.value,dir=document.querySelector('input[name="multiConnDir"]:checked')?.value||'forward',label=document.getElementById('multiConnLabel')?.value.trim()||'';if(!target){window.showToast('请选择要连接的事件','error');return;}const selfSeg=String(document.getElementById('multiConnSelfSegment')?.value||''),otherSeg=String(document.getElementById('multiConnTargetSegment')?.value||'');let source=window.multiTimeEditingId,t=target,d=dir;if(dir==='backward'){source=target;t=window.multiTimeEditingId;d='forward';}const c={id:'draft_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),sourceId:isNaN(Number(source))?source:Number(source),targetId:isNaN(Number(t))?t:Number(t),dir:d==='both'?'both':'forward',label};if(dir==='backward'){if(otherSeg)c.sourceSegmentId=otherSeg;if(selfSeg)c.targetSegmentId=selfSeg;}else{if(selfSeg)c.sourceSegmentId=selfSeg;if(otherSeg)c.targetSegmentId=otherSeg;}window.multiTimeConnections.push(c);document.getElementById('multiConnTarget').value='';document.getElementById('multiConnTargetLabel').textContent='选择连接的事件';document.getElementById('multiConnLabel').value='';const row=document.getElementById('multiConnTargetSegmentRow');if(row)row.classList.add('hidden');window.multiRenderConnections();};
@@ -14950,36 +14926,31 @@ viewer.style.visibility='';
                 <div><label class="block text-xs font-bold text-slate-700 mb-1">事件名称 *</label><input id="multiEventTitle" value="${window.multiEsc(ev.title||'')}" placeholder="输入事件标题" oninput="multiTimeGeneralDraft.title=this.value;updateEventTitleDuplicateHint(this,'multiTitleDuplicateHint',window.multiTimeEditingId)" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"><p id="multiTitleDuplicateHint" class="hidden mt-1 text-[11px] text-rose-600">该名称已存在</p></div>
                 <div><label class="block text-xs font-bold text-slate-700 mb-1">节点类型</label><select id="multiEventType" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"><option value="minor" ${ev.type==='minor'?'selected':''}>普通事件</option><option value="major" ${ev.type==='major'?'selected':''}>重大里程碑</option></select></div>
                 <div><label class="block text-xs font-bold text-slate-700 mb-1">时间线排序基准</label><select id="multiTimelineSortSegment" onchange="multiTimeGeneralDraft.timelineSortSegmentId=this.value" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"><option value="">默认（最早时间）</option>${(window.multiTimeDraft||[]).map((seg,i)=>`<option value="${window.multiEsc(seg.id||'')}" ${String(ev.timelineSortSegmentId||'')===String(seg.id||'')?'selected':''}>时间 ${i+1} · ${window.multiEsc(window.formatDisplayDate(seg.date||''))}${seg.subtitle?' · '+window.multiEsc(seg.subtitle):''}</option>`).join('')}</select><p class="mt-1 text-[10px] text-slate-400">只影响节点在时间线上的排序位置，不改变事件显示的时间</p></div>
-                <div><label class="block text-xs font-bold text-slate-700 mb-1">选择tag（多选）</label><div class="flex flex-wrap gap-1.5 p-2 border border-slate-200 rounded-lg bg-slate-50 max-h-28 overflow-y-auto">${tagHtml}</div></div>
-                <div class="space-y-2 bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
-                    <div class="flex items-center justify-between"><div><label class="block text-xs font-bold text-slate-700"><i class="fa-solid fa-diagram-project text-indigo-600 mr-1"></i>逻辑连线</label><p class="text-[10px] text-slate-400 mt-0.5">可直接添加、修改和删除当前节点的连线</p></div></div>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div class="relative min-w-0">
-                            <input type="hidden" id="multiConnTarget">
-                            <button type="button" onclick="multiToggleConnPicker()" class="w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-indigo-500 flex items-center justify-between gap-2 text-left"><span id="multiConnTargetLabel" class="truncate text-slate-400">选择连接的事件</span><i class="fa-solid fa-chevron-down text-[9px] text-slate-400 shrink-0"></i></button>
-                            <div id="multiConnPicker" class="hidden absolute left-0 right-0 top-full mt-1 z-[40] bg-white border border-slate-200 rounded-xl shadow-xl p-2">
-                                <input id="multiConnSearch" oninput="multiRenderConnectionPicker()" placeholder="搜索事件" class="w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500 mb-2">
-                                <div id="multiConnPickerList" class="max-h-48 overflow-y-auto custom-scrollbar space-y-0.5"></div>
-                            </div>
-                        </div>
-                        <input id="multiConnLabel" placeholder="连线文字" maxlength="40" class="w-full min-w-0 px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500">
-                    </div>
-                    <div class="flex gap-2">
-                        <select id="multiConnSelfSegment" class="flex-1 min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-indigo-500"><option value="">当前事件：整个事件</option>${(window.multiTimeDraft||[]).map((seg,i)=>`<option value="${window.multiEsc(seg.id||'')}">当前事件：时间 ${i+1} · ${window.multiEsc(window.formatDisplayDate(seg.date||''))}${seg.subtitle?' · '+window.multiEsc(seg.subtitle):''}</option>`).join('')}</select>
-                        <div id="multiConnTargetSegmentRow" class="hidden flex-1 min-w-0"><select id="multiConnTargetSegment" class="w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-indigo-500"><option value="">连接到整个事件</option></select></div>
-                    </div>
-                    <div class="flex items-stretch gap-2"><div class="grid grid-cols-3 gap-1.5 flex-1 min-w-0">
-                        <label class="cursor-pointer"><input type="radio" name="multiConnDir" value="forward" checked class="sr-only peer"><span class="flex h-full items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">→ 指向</span></label>
-                        <label class="cursor-pointer"><input type="radio" name="multiConnDir" value="backward" class="sr-only peer"><span class="flex h-full items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">← 被指向</span></label>
-                        <label class="cursor-pointer"><input type="radio" name="multiConnDir" value="both" class="sr-only peer"><span class="flex h-full items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">↔ 双向</span></label>
-                    </div><button type="button" onclick="multiAddConnection()" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm shrink-0"><i class="fa-solid fa-plus mr-1"></i>添加</button></div>
-                    <div id="multiConnectionsList" class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-32 overflow-y-auto"></div>
-                </div>
+                <div><label class="block text-xs font-bold text-slate-700 mb-1">tag选择（可多选）</label><div class="flex flex-wrap gap-1.5 p-2 border border-slate-200 rounded-lg bg-slate-50 max-h-28 overflow-y-auto">${tagHtml}</div></div>
                 <div class="space-y-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
                     <div class="flex items-center justify-between gap-3 bg-indigo-50/70 border border-indigo-100 rounded-xl px-3 py-2.5">
                         <div><div class="text-xs font-bold text-slate-700"><i class="fa-solid fa-expand text-indigo-600 mr-1"></i>深入描述</div><p class="text-[10px] text-slate-500 mt-0.5">开启后，每个图片、动图、视频都可以进入独立的全屏画布进行图文解析。</p></div>
                         <label class="relative inline-flex items-center cursor-pointer shrink-0"><input id="multiDeepToggle" type="checkbox" ${window.multiTimeDeepEnabledDraft?'checked':''} onchange="multiToggleDeepDescriptionFeature(this.checked)" class="sr-only peer"><span class="w-10 h-5 bg-slate-300 peer-checked:bg-indigo-600 rounded-full transition-colors"></span><span class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5"></span></label>
                     </div>
+                </div>
+                <div class="space-y-2 bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
+                    <div class="flex items-center justify-between"><div><label class="block text-xs font-bold text-slate-700"><i class="fa-solid fa-diagram-project text-indigo-600 mr-1"></i>逻辑连线</label><p class="text-[10px] text-slate-400 mt-0.5">可直接添加、修改和删除当前节点的连线</p></div></div>
+                    <div class="relative min-w-0">
+                        <input type="hidden" id="multiConnTarget">
+                        <button type="button" onclick="multiToggleConnPicker()" class="w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-indigo-500 flex items-center justify-between gap-2 text-left"><span id="multiConnTargetLabel" class="truncate text-slate-400">选择连接的事件</span><i class="fa-solid fa-chevron-down text-[9px] text-slate-400 shrink-0"></i></button>
+                        <div id="multiConnPicker" class="hidden absolute left-0 right-0 top-full mt-1 z-[40] bg-white border border-slate-200 rounded-xl shadow-xl p-2">
+                            <input id="multiConnSearch" oninput="multiRenderConnectionPicker()" placeholder="搜索事件" class="w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500 mb-2">
+                            <div id="multiConnPickerList" class="max-h-48 overflow-y-auto custom-scrollbar space-y-0.5"></div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2"><select id="multiConnSelfSegment" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-indigo-500"><option value="">当前事件：整个事件</option>${(window.multiTimeDraft||[]).map((seg,i)=>`<option value="${window.multiEsc(seg.id||'')}">当前事件：时间 ${i+1} · ${window.multiEsc(window.formatDisplayDate(seg.date||''))}${seg.subtitle?' · '+window.multiEsc(seg.subtitle):''}</option>`).join('')}</select><input id="multiConnLabel" placeholder="连线文字" maxlength="40" class="w-full min-w-0 px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500"></div>
+                    <div id="multiConnTargetSegmentRow" class="hidden"><select id="multiConnTargetSegment" class="w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-indigo-500"><option value="">连接到整个事件</option></select></div>
+                    <div class="flex items-stretch gap-2"><div class="grid grid-cols-3 gap-1.5 flex-1 min-w-0">
+                        <label class="cursor-pointer"><input type="radio" name="multiConnDir" value="forward" checked class="sr-only peer"><span class="flex h-full items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">→ 指向</span></label>
+                        <label class="cursor-pointer"><input type="radio" name="multiConnDir" value="backward" class="sr-only peer"><span class="flex h-full items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">← 被指向</span></label>
+                        <label class="cursor-pointer"><input type="radio" name="multiConnDir" value="both" class="sr-only peer"><span class="flex h-full items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">↔ 双向</span></label>
+                    </div><button type="button" onclick="multiAddConnection()" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm shrink-0"><i class="fa-solid fa-plus mr-1"></i>添加</button></div>
+                    <div id="multiConnectionsList" class="grid grid-cols-1 gap-1.5 max-h-32 overflow-y-auto"></div>
                 </div>
                 <button type="button" onclick="multiAddSegment()" class="w-full border-2 border-dashed border-slate-300 rounded-xl p-3 text-center hover:bg-slate-50 transition-colors text-xs text-slate-600 font-medium"><i class="fa-solid fa-plus text-indigo-500 mr-1.5"></i>新建时间</button>
             </div>`;
@@ -14989,10 +14960,13 @@ viewer.style.visibility='';
             const s=window.multiTimeDraft[segIndex];if(!s)return'';
             const images=(s.images||[]).map((im,j)=>`<div draggable="true" data-multi-drag data-seg="${segIndex}" data-key="images" data-index="${j}" class="media-drag-item relative w-20 h-16 rounded-lg overflow-hidden border border-slate-200 bg-slate-900 group cursor-grab"><img src="${window.multiEsc(window.multiGetImageThumb(im))}" class="w-full h-full object-cover" draggable="false"><span class="absolute top-1 left-1 text-white/80 text-[9px]"><i class="fa-solid fa-grip-vertical"></i></span><div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1"><button type="button" onclick="event.stopPropagation();multiOpenCropModal(${segIndex},${j})" class="w-6 h-6 rounded-full bg-indigo-600 text-white" title="截选"><i class="fa-solid fa-crop text-[10px]"></i></button>${window.multiTimeDeepEnabledDraft?`<button type="button" onclick="event.stopPropagation();multiOpenDeepDescriptionEditor(${segIndex},'image',${j})" class="w-6 h-6 rounded-full bg-violet-600 text-white" title="深入描述"><i class="fa-solid fa-feather-pointed text-[10px]"></i></button>`:''}<button type="button" onclick="event.stopPropagation();multiRemoveMedia(${segIndex},'images',${j})" class="w-6 h-6 rounded-full bg-rose-600 text-white" title="删除"><i class="fa-solid fa-xmark text-[10px]"></i></button></div></div>`).join('');
             const videos=(s.videos||[]).map((v,j)=>`<div draggable="true" data-multi-drag data-seg="${segIndex}" data-key="videos" data-index="${j}" class="media-drag-item video-edit-card border border-slate-200 rounded-lg px-2.5 py-2 flex items-center gap-2 cursor-grab bg-white"><i class="fa-solid fa-grip-vertical text-slate-300 text-[10px]"></i>${v.cover?`<img src="${window.multiEsc(v.cover)}" class="w-10 h-7 object-cover rounded">`:`<div class="w-10 h-7 bg-slate-100 rounded text-[9px] text-slate-400 flex items-center justify-center">视频</div>`}<div class="min-w-0 flex-1"><div class="text-xs font-semibold truncate text-slate-700">${window.multiEsc(v.title||'未命名视频')}</div></div><span class="text-[10px] text-indigo-500">${Number(v.previewDuration)||4}s</span><button type="button" onclick="multiOpenVideoEdit(${segIndex},${j})" class="px-2 py-1 bg-indigo-50 text-indigo-600 rounded text-[10px]">编辑</button>${window.multiTimeDeepEnabledDraft?`<button type="button" onclick="multiOpenDeepDescriptionEditor(${segIndex},'video',${j})" class="px-2 py-1 bg-violet-50 text-violet-600 rounded text-[10px]">深入描述</button>`:''}<button type="button" onclick="multiOpenVideoCropModal(${segIndex},${j})" class="px-2 py-1 bg-slate-100 text-slate-600 rounded text-[10px]">截选</button><button type="button" onclick="multiRemoveMedia(${segIndex},'videos',${j})" class="text-rose-500 w-6 h-6"><i class="fa-solid fa-xmark"></i></button></div>`).join('');
-            const links=(s.links||[]).map((l,j)=>`<div draggable="true" data-multi-drag data-seg="${segIndex}" data-key="links" data-index="${j}" class="flex items-center gap-2 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs cursor-grab bg-white"><i class="fa-solid fa-grip-vertical text-slate-300"></i><button type="button" onclick="multiOpenLinkEdit(${segIndex},${j})" class="min-w-0 flex-1 text-left truncate text-slate-700"><i class="fa-solid fa-globe text-indigo-500 mr-1"></i>${window.multiEsc(l.title||l.url)}</button><button type="button" onclick="event.stopPropagation();multiOpenLinkEdit(${segIndex},${j})" class="text-slate-400 hover:text-indigo-600 w-6 h-6" title="编辑"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="event.stopPropagation();multiRemoveMedia(${segIndex},'links',${j})" class="text-rose-500 w-6 h-6" title="删除"><i class="fa-solid fa-xmark"></i></button></div>`).join('');
+            const links=(s.links||[]).map((l,j)=>`<div draggable="true" data-multi-drag data-seg="${segIndex}" data-key="links" data-index="${j}" class="flex items-center gap-2 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs cursor-grab bg-white"><i class="fa-solid fa-grip-vertical text-slate-300"></i><div class="min-w-0 flex-1 text-left truncate text-slate-700"><i class="fa-solid fa-globe text-indigo-500 mr-1"></i>${window.multiEsc(l.title||l.url)}</div><button type="button" onclick="event.stopPropagation();multiOpenLinkEdit(${segIndex},${j})" class="text-slate-400 hover:text-indigo-600 w-6 h-6" title="编辑"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="event.stopPropagation();multiRemoveMedia(${segIndex},'links',${j})" class="text-rose-500 w-6 h-6" title="删除"><i class="fa-solid fa-xmark"></i></button></div>`).join('');
             return `<div class="space-y-3.5">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">小标题</label>
+                    <div class="flex items-center gap-2"><input value="${window.multiEsc(s.subtitle||'')}" oninput="multiSet(${segIndex},'subtitle',this.value)" maxlength="120" placeholder="输入小标题" class="min-w-0 flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">${window.multiTimeDraft.length>1?`<button type="button" onclick="multiRemoveSegment(${segIndex})" class="text-[10px] text-rose-500 hover:text-rose-600 shrink-0"><i class="fa-solid fa-trash-can mr-1"></i>删除这个时间</button>`:''}</div>
+                </div>
                 <div class="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                    <div class="flex items-center gap-2"><input value="${window.multiEsc(s.subtitle||'')}" oninput="multiSet(${segIndex},'subtitle',this.value)" maxlength="120" placeholder="小标题" class="min-w-0 flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">${window.multiTimeDraft.length>1?`<button type="button" onclick="multiRemoveSegment(${segIndex})" class="text-[10px] text-rose-500 hover:text-rose-600 shrink-0"><i class="fa-solid fa-trash-can mr-1"></i>删除这个时间</button>`:''}</div>
                     <div class="flex items-center justify-between"><label class="block text-xs font-bold text-slate-700">时间与日期范围 *</label><label class="cursor-pointer text-xs text-indigo-600 flex items-center gap-1 font-medium select-none"><input type="checkbox" id="multiRangeToggle_${segIndex}" ${String(s.date||'').includes('至')?'checked':''} onchange="multiToggleDateRange(${segIndex},this.checked)"><span>启用日期范围</span></label></div>
                     ${window.multiSegmentDateFieldsHtml(segIndex,s.date||'')}
                 </div>
@@ -15026,7 +15000,7 @@ viewer.style.visibility='';
                             <button id="richUnderlineBtn" type="button" disabled onmousedown="event.preventDefault(); richRememberSelection()" onclick="richExec('underline')" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 underline w-7 h-7" title="下划线">U</button>
                             <button id="richStrikeBtn" type="button" disabled onmousedown="event.preventDefault(); richRememberSelection()" onclick="richExec('strikeThrough')" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 line-through w-7 h-7" title="删除线">S</button>
                             <button id="richRevealBtn" type="button" disabled onmousedown="event.preventDefault(); richRememberSelection()" onclick="richToggleReveal()" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 px-1.5 h-7 text-[10px] font-semibold" title="悬停显现：选中文字后仅在鼠标悬停时显示">悬停</button>
-                            <select id="richFontSizePreset" disabled onmousedown="richRememberSelection()" onchange="richSetFontSize(this.value)" class="h-7 rounded-md border border-slate-200 bg-white text-[11px] text-slate-700" title="字号">
+                            <select id="richFontSizePreset" style="width:138px;min-width:138px" disabled onmousedown="richRememberSelection()" onchange="richSetFontSize(this.value)" class="h-7 rounded-md border border-slate-200 bg-white text-[11px] text-slate-700" title="字号">
                                 <option value="">字号</option>
                                 ${['8px','9px','10px','11px','12px','13px','14px','16px','18px','20px','24px','28px','32px'].map(v=>`<option value="${v}">${v}${v==='14px'?'（默认大小）':''}</option>`).join('')}
                             </select>
@@ -15066,15 +15040,15 @@ viewer.style.visibility='';
         window.multiRenderCurrentPage=function(){const b=document.getElementById('multiPageBody');if(!b)return;window.richResetOpacitySelection?.();window.richSelectionRange=null;window.richOpacitySpan=null;const page=window.multiTimePage;b.innerHTML=page===0?window.multiGeneralPageHtml(window.multiTimeGeneralDraft):page===1?window.eventPermissionSettingsHtml(window.multiTimePermissionDraft||{},!window.multiTimeIsEdit):window.multiSegmentPageHtml(page-2);const lbl=document.getElementById('multiPageTitle');if(lbl)lbl.textContent=page===0?'总设置':page===1?'权限设置':`时间 ${page-1}`;window.multiRenderPageTabs();if(page===0){window.multiRenderConnections();}else if(page===1){window.initPermissionPage?.();}else{window.richResetOpacitySelection?.();const ed=document.getElementById('editDescription');if(ed)ed.addEventListener('input',window.richEditorInput);window.richSyncDecorationGeometry?.();}window.multiBindDrag();window.enhanceWebSelects?.(b);};
         window.multiRenderEditorShell=function(){
             const modal=document.getElementById('multiTimeEventModal');if(!modal)return;const isEdit=window.multiTimeIsEdit;
-            modal.innerHTML=`<div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full p-4 sm:p-5 my-3 sm:my-5 max-h-[92vh] overflow-y-auto custom-scrollbar">
-                <div class="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-200 mb-4 sm:mb-5">
+            modal.innerHTML=`<div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full p-4 sm:p-5 my-3 sm:my-5 max-h-[92vh] overflow-hidden flex flex-col">
+                <div class="shrink-0 flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-200 mb-3">
                     <h3 class="font-bold text-slate-800 text-base sm:text-lg flex items-center gap-2"><i class="fa-solid fa-pen-to-square text-indigo-600"></i><span>${isEdit?'编辑事件':'新建事件'}</span></h3>
                     <button type="button" onclick="closeMultiTimeEventModal()" class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
                 </div>
-                <div class="space-y-3.5">
-                    <div id="multiPageTabs" class="flex items-center gap-2 p-1 bg-slate-100 rounded-xl border border-slate-200 overflow-x-auto"></div>
+                <div class="space-y-3.5 min-h-0 flex-1 flex flex-col">
+                    <div id="multiPageTabs" class="shrink-0 flex items-center gap-2 p-1 bg-slate-100 rounded-xl border border-slate-200 overflow-x-auto"></div>
                     <div id="multiPageTitle" class="hidden"></div>
-                    <div id="multiPageBody"></div>
+                    <div id="multiPageBody" class="min-h-0 flex-1 overflow-y-auto custom-scrollbar pr-1"></div>
                     <div class="flex items-center justify-between pt-3 border-t border-slate-200 gap-3">
                         <div>${isEdit?`<button type="button" onclick="deleteEvent('${window.multiTimeEditingId}')" class="px-4 py-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg text-xs font-medium transition-colors">删除事件</button>`:'<div></div>'}</div>
                         <div class="flex items-center gap-2"><button type="button" onclick="closeMultiTimeEventModal()" class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button><button type="button" onclick="saveMultiTimeEvent()" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">保存事件</button></div>
@@ -16039,5 +16013,47 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
 
 </script>
 
+
+<style id="timeline-0930-ui-fixes">
+/* Keep event editor heading and page navigation visible while the form scrolls. */
+#editModal>div>div:first-child{position:sticky;top:-1rem;z-index:55;background:#fff;padding-top:1rem}
+#editModal>div>form>div:first-child{position:sticky;top:47px;z-index:54;background:#fff;padding-top:4px;padding-bottom:4px}
+.timeline-node-container .node-title-area>span{display:block!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;-webkit-line-clamp:unset!important}
+#richFontSizePreset,#deepFontSize{width:138px!important;min-width:138px!important;max-width:138px!important}
+#xiaoqingerRichSize{width:128px!important;min-width:128px!important;max-width:128px!important}
+#xiaoqingerDialogueEditorModal>div{max-height:88vh;overflow-y:auto}
+.detail-external-link-mark.compact-link-mark{position:absolute!important;right:10px!important;top:10px!important;left:auto!important;bottom:auto!important;width:auto!important;height:auto!important;z-index:20;display:flex;gap:5px;align-items:center;pointer-events:auto}
+.compact-link-mark.compact-bottom{top:auto!important;bottom:10px!important}
+.compact-link-chip{position:relative;width:42px;height:20px;border:1px solid rgba(99,102,241,.45);border-radius:8px;background:rgba(15,23,42,.86);display:flex;align-items:center;justify-content:center;color:#a5b4fc}
+.compact-link-chip svg{width:32px;height:12px;overflow:visible}
+.compact-link-chip .compact-tip{display:none;position:absolute;right:0;top:calc(100% + 7px);width:max-content;max-width:280px;padding:7px 9px;border-radius:8px;background:#0f172a;border:1px solid #334155;color:#e2e8f0;font-size:10px;line-height:1.45;text-align:left;box-shadow:0 10px 25px rgba(0,0,0,.3);z-index:80}
+.compact-link-chip:hover .compact-tip{display:block}
+</style>
+
+<script id="timeline-0930-behavior-fixes">
+(()=>{
+  // Compact relation marks replace the old large internal/external detail curves.
+  window.getDetailExternalLinkMark=function(currentEvent,connections,placement='top'){
+    const list=(connections||[]).filter(Boolean); if(!currentEvent||!list.length)return '';
+    const cur=String(currentEvent.id||'');
+    const chips=list.slice(0,8).map(c=>{
+      const isSource=String(c.sourceId)===cur, otherId=String(isSource?c.targetId:c.sourceId);
+      const other=window.findEventById?.(otherId)||(window.events||[]).find(e=>String(e.id)===otherId);
+      let forward=false,back=false;
+      if(c.dir==='both'){forward=back=true;} else if(c.dir==='backward'){forward=!isSource;back=isSource;} else {forward=isSource;back=!isSource;}
+      const left=back?'◀':'',right=forward?'▶':'';
+      const relation=back&&forward?'↔':forward?'→':'←';
+      const title=`${currentEvent.title||'当前事件'} ${relation} ${other?.title||otherId}`;
+      const label=String(c.label||'').trim();
+      return `<span class="compact-link-chip" aria-label="${window.escapeHtml?.(title)||title}"><svg viewBox="0 0 32 12" aria-hidden="true"><line x1="5" y1="6" x2="27" y2="6" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 3"/>${left?'<path d="M7 3 L3 6 L7 9" fill="none" stroke="currentColor" stroke-width="1.4"/>':''}${right?'<path d="M25 3 L29 6 L25 9" fill="none" stroke="currentColor" stroke-width="1.4"/>':''}<circle cx="5" cy="6" r="1.8" fill="currentColor"/><circle cx="27" cy="6" r="1.8" fill="currentColor"/></svg><span class="compact-tip"><b>${window.escapeHtml?.(title)||title}</b>${label?`<br>${window.escapeHtml?.(label)||label}`:''}</span></span>`;
+    }).join('');
+    return `<div class="detail-external-link-mark compact-link-mark ${placement==='bottom'?'compact-bottom':'compact-top'}">${chips}${list.length>8?`<span class="text-[9px] text-indigo-300">+${list.length-8}</span>`:''}</div>`;
+  };
+  // Keep adaptive connection row at 50/50 only when a concrete target-time selector exists.
+  const syncAdaptive=()=>{[['editConnTargetSegmentRow','editConnAdaptiveRow'],['multiConnTargetSegmentRow','__none__']].forEach(([r,a])=>{const row=document.getElementById(r),host=document.getElementById(a);if(!row||!host)return;const shown=!row.classList.contains('hidden');host.classList.toggle('grid-cols-2',shown);host.classList.toggle('grid-cols-1',!shown);});};
+  new MutationObserver(syncAdaptive).observe(document.body,{subtree:true,attributes:true,attributeFilter:['class'],childList:true});
+  document.addEventListener('click',()=>requestAnimationFrame(syncAdaptive),true);
+})();
+</script>
 </body>
 </html>
