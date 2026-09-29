@@ -10691,39 +10691,48 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
                 const otherKey=String(window.getEventTimelineSortDate?.(otherEvent)||otherEvent?.date||'');
                 const side=otherKey&&currentKey&&otherKey!==currentKey?(otherKey<currentKey?-1:1):((String(otherId).localeCompare(currentId)<0)?-1:1);
 
-                // 模拟真实连线在详情页里的局部延续：靠近事件时基本竖直，离开事件后才明显朝另一端所在方向弯去。
-                // 外端继续越过可视区域，不画人为终点，视觉上像同一条线仍延伸在详情之外。
                 const spread=(idx-(Math.min(list.length,4)-1)/2)*8;
                 const x0=innerX+spread, y0=innerY;
-                // 让远端明显朝真实连接对象所在一侧甩开：靠近事件仍保持近似竖直，
-                // 到中后段才快速偏向左/右，形成“这条线确实通往另一边”的空间感。
-                const x3=innerX+side*(285+Math.min(idx,2)*16)+spread*.15;
-                const y3=fromTop?-34:H+34;
-                const x1=x0+side*3;
-                const y1=fromTop?150:80;
-                const x2=innerX+side*(118+Math.min(idx,2)*10)+spread*.25;
-                const y2=fromTop?28:H-28;
-                const path=`M ${x0} ${y0} C ${x1} ${y1} ${x2} ${y2} ${x3} ${y3}`;
+
+                /*
+                 * 先单独画“用户实际看得到”的弧线，再从它的外端沿切线补一小段隐藏延伸。
+                 * 箭头与弯曲幅度都只按 visiblePath 计算，绝不把被裁掉的延伸段算进去。
+                 * 这样视觉中段就真的是箭头中段，明显的左右偏移也真实发生在可见区域。
+                 */
+                const visibleOuterY=fromTop?16:H-16;
+                const visibleOuterX=innerX+side*(238+Math.min(idx,2)*12)+spread*.12;
+                const c1x=x0+side*(10+Math.min(idx,2)*3);
+                const c1y=fromTop?154:76;
+                const c2x=innerX+side*(154+Math.min(idx,2)*10)+spread*.22;
+                const c2y=fromTop?72:H-72;
+                const visiblePath=`M ${x0} ${y0} C ${c1x} ${c1y} ${c2x} ${c2y} ${visibleOuterX} ${visibleOuterY}`;
+
+                // 只为“线在外面还会继续”的感觉补延伸；它不参与箭头/可见弧度计算。
+                const extX=visibleOuterX+side*96;
+                const extY=fromTop?-54:H+54;
+                const extC1x=visibleOuterX+side*34;
+                const extC1y=fromTop?-2:H+2;
+                const extC2x=visibleOuterX+side*70;
+                const extC2y=fromTop?-32:H+32;
+                const extensionPath=`M ${visibleOuterX} ${visibleOuterY} C ${extC1x} ${extC1y} ${extC2x} ${extC2y} ${extX} ${extY}`;
 
                 let currentToOther=false,otherToCurrent=false;
                 if(conn.dir==='both'){currentToOther=true;otherToCurrent=true;}
                 else if(conn.dir==='backward'){currentToOther=!isSource;otherToCurrent=isSource;}
                 else {currentToOther=isSource;otherToCurrent=!isSource;}
 
-                // 箭头直接按三次贝塞尔曲线的切线定位与旋转，始终贴合线本身。
-                const pointAt=t=>{const mt=1-t;const x=mt*mt*mt*x0+3*mt*mt*t*x1+3*mt*t*t*x2+t*t*t*x3;const y=mt*mt*mt*y0+3*mt*mt*t*y1+3*mt*t*t*y2+t*t*t*y3;const dx=3*mt*mt*(x1-x0)+6*mt*t*(x2-x1)+3*t*t*(x3-x2);const dy=3*mt*mt*(y1-y0)+6*mt*t*(y2-y1)+3*t*t*(y3-y2);return{x,y,a:Math.atan2(dy,dx)*180/Math.PI};};
-                // 箭头放在线段中部附近，并保持在渐隐区域之外；用 path 自身颜色绘制，避免被 mask 淡没。
+                // 这里只计算可见弧线。箭头的 50% 就是肉眼所见线段真正的中间。
+                const pointAt=t=>{const mt=1-t;const x=mt*mt*mt*x0+3*mt*mt*t*c1x+3*mt*t*t*c2x+t*t*t*visibleOuterX;const y=mt*mt*mt*y0+3*mt*mt*t*c1y+3*mt*t*t*c2y+t*t*t*visibleOuterY;const dx=3*mt*mt*(c1x-x0)+6*mt*t*(c2x-c1x)+3*t*t*(visibleOuterX-c2x);const dy=3*mt*mt*(c1y-y0)+6*mt*t*(c2y-c1y)+3*t*t*(visibleOuterY-c2y);return{x,y,a:Math.atan2(dy,dx)*180/Math.PI};};
                 const pt=pointAt(.50);
                 let arrows='';
                 if(currentToOther)arrows+=`<polygon class="detail-external-arrow" points="-6.5,-4.8 6.5,0 -6.5,4.8" transform="translate(${pt.x},${pt.y}) rotate(${pt.a})"></polygon>`;
-                if(otherToCurrent){const p2=conn.dir==='both'?pointAt(.61):pt;arrows+=`<polygon class="detail-external-arrow" points="-6.5,-4.8 6.5,0 -6.5,4.8" transform="translate(${p2.x},${p2.y}) rotate(${p2.a+180})"></polygon>`;}
+                if(otherToCurrent){const p2=conn.dir==='both'?pointAt(.62):pt;arrows+=`<polygon class="detail-external-arrow" points="-6.5,-4.8 6.5,0 -6.5,4.8" transform="translate(${p2.x},${p2.y}) rotate(${p2.a+180})"></polygon>`;}
 
                 const maskId=`detailLinkFade_${escId(currentId)}_${escId(otherId)}_${placement}_${idx}`;
-                // 只让最外侧逐渐淡出；靠近事件的一端保持完整，避免产生“在卡片边缘断掉”的感觉。
                 const grad=fromTop
-                    ?`<linearGradient id="${maskId}G" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="white" stop-opacity="0"/><stop offset=".11" stop-color="white" stop-opacity=".42"/><stop offset=".22" stop-color="white" stop-opacity="1"/><stop offset="1" stop-color="white" stop-opacity="1"/></linearGradient>`
-                    :`<linearGradient id="${maskId}G" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="white" stop-opacity="0"/><stop offset=".11" stop-color="white" stop-opacity=".42"/><stop offset=".22" stop-color="white" stop-opacity="1"/><stop offset="1" stop-color="white" stop-opacity="1"/></linearGradient>`;
-                return `<defs>${grad}<mask id="${maskId}"><rect x="-220" y="-55" width="740" height="340" fill="url(#${maskId}G)"/></mask></defs><g mask="url(#${maskId})"><path d="${path}"></path></g>${arrows}`;
+                    ?`<linearGradient id="${maskId}G" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="white" stop-opacity="0"/><stop offset=".55" stop-color="white" stop-opacity=".45"/><stop offset="1" stop-color="white" stop-opacity="1"/></linearGradient>`
+                    :`<linearGradient id="${maskId}G" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="white" stop-opacity="0"/><stop offset=".55" stop-color="white" stop-opacity=".45"/><stop offset="1" stop-color="white" stop-opacity="1"/></linearGradient>`;
+                return `<path d="${visiblePath}"></path><defs>${grad}<mask id="${maskId}"><rect x="-260" y="-70" width="950" height="380" fill="url(#${maskId}G)"/></mask></defs><g mask="url(#${maskId})"><path d="${extensionPath}"></path></g>${arrows}`;
             }).join('');
             return `<div class="detail-external-link-mark from-${fromTop?'top':'bottom'}" title="${list.length} 条连线与这里相连"><svg viewBox="0 0 ${W} ${H}" aria-hidden="true">${pieces}</svg>${list.length>4?`<span class="detail-external-count">${list.length}</span>`:''}</div>`;
         };
