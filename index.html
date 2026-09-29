@@ -3810,7 +3810,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             window.availableTags = window.tagRecords.map(x=>typeof x==='string'?x:String(x?.name||'')).filter(Boolean);
             window.tagNameById=new Map(window.tagRecords.map(x=>[String(x?.id||''),String(x?.name||'')]).filter(x=>x[0]&&x[1]));
             window.tagIdByName=new Map(window.tagRecords.map(x=>[String(x?.name||''),String(x?.id||'')]).filter(x=>x[0]&&x[1]));
-            window.events.forEach(ev=>{if(Array.isArray(ev?.tagIds)){ev.tags=ev.tagIds.map(id=>window.tagNameById.get(String(id))).filter(Boolean);}else if(Array.isArray(ev?.tags)){ev.tagIds=ev.tags.map(name=>window.tagIdByName.get(String(name))).filter(Boolean);ev.tags=ev.tagIds.map(id=>window.tagNameById.get(String(id))).filter(Boolean);}});
+            window.events.forEach(ev=>{if(Array.isArray(ev?.tagIds)){ev.tags=ev.tagIds.map(id=>window.tagNameById.get(String(id))).filter(Boolean);}else if(Array.isArray(ev?.tags)){ev.tagIds=ev.tags.map(name=>window.tagIdByName.get(String(name))).filter(Boolean);ev.tags=ev.tagIds.map(id=>window.tagNameById.get(String(id))).filter(Boolean);}if(ev?.timeMode==='multi'&&Array.isArray(ev.timeSegments)&&ev.timeSegments.length&&typeof window.getMultiEventDisplayDate==='function'){const multiDisplayDate=window.getMultiEventDisplayDate(ev.timeSegments);if(multiDisplayDate)ev.date=multiDisplayDate;}});
             window.bgmPlaylist = Array.isArray(bgmData?.items)
                 ? bgmData.items.filter(song => /^https?:\/\//i.test(song?.url || ''))
                 : [];
@@ -3978,6 +3978,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 });
             }
             if (eventData.timeMode === 'multi' && Array.isArray(eventData.timeSegments)) {
+                cloudEvent.timelineSortSegmentId = String(eventData.timelineSortSegmentId || '');
                 cloudEvent.timeSegments = eventData.timeSegments.map(seg => ({
                     id: seg?.id || '',
                     date: seg?.date || '',
@@ -4865,18 +4866,22 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
         window._editingFromStackDate = null;
         window._isEditingFromStack = false;
+        window.getMultiSegmentSortDate = function(value) {
+            const raw=String(value||'').trim();
+            const start=raw.split('至')[0].trim();
+            return window.normalizePartialDate(start)||'';
+        };
         window.getMultiEventDisplayDate = function(segments) {
-            const dates = (segments || []).map(x => window.normalizePartialDate(String(x?.date || ''))).filter(Boolean).sort();
-            if (!dates.length) return '';
+            const dates=(segments||[]).map(x=>String(x?.date||'').trim()).filter(Boolean).sort((a,b)=>String(window.getMultiSegmentSortDate(a)||a).localeCompare(String(window.getMultiSegmentSortDate(b)||b)));
             return dates.join('、');
         };
         window.getEventTimelineSortDate = function(event){
             if(event?.timeMode==='multi' && Array.isArray(event.timeSegments) && event.timeSegments.length){
                 const wanted=String(event.timelineSortSegmentId||'');
                 const chosen=event.timeSegments.find(seg=>String(seg?.id||'')===wanted);
-                const chosenDate=window.normalizePartialDate(String(chosen?.date||''));
+                const chosenDate=window.getMultiSegmentSortDate(chosen?.date||'');
                 if(chosenDate)return chosenDate;
-                return event.timeSegments.map(seg=>window.normalizePartialDate(String(seg?.date||''))).filter(Boolean).sort()[0]||'';
+                return event.timeSegments.map(seg=>window.getMultiSegmentSortDate(seg?.date||'')).filter(Boolean).sort()[0]||'';
             }
             return String(event?.date||'').split('至')[0].split('、')[0];
         };
@@ -7085,7 +7090,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     <button type="button" id="deepSaveBtn" onclick="saveDeepDescriptionEditor()" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold">保存</button>
                 </div>
                 <div class="deep-canvas-toolbar shrink-0 border-b border-slate-200 bg-slate-50 px-3 py-2 flex flex-wrap gap-1.5 items-center">
-                    <button type="button" onclick="deepOpenCanvasSize()" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs" title="调整深入描述画布宽度与高度"><i class="fa-solid fa-maximize mr-1"></i>画布大小</button><span id="deepBackupStatus" class="ml-auto text-[10px] text-slate-400 whitespace-nowrap">自动备份 · 等待首次备份</span>
+                    <button type="button" onclick="deepOpenCanvasSize()" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs" title="调整深入描述画布宽度与高度"><i class="fa-solid fa-maximize mr-1"></i>画布大小</button>
                     <button type="button" onclick="deepAddMedia()" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs"><i class="fa-solid fa-photo-film mr-1"></i>插入媒体</button>
                     <button type="button" onclick="deepAddUrl()" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs" title="在画布中放置可点击的网址"><i class="fa-solid fa-globe mr-1"></i>网址</button>
                     <button type="button" onclick="deepToggleTextTool()" id="deepTextToolBtn" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs"><i class="fa-solid fa-font mr-1"></i>文字</button>
@@ -7115,6 +7120,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     <label class="text-[10px] text-slate-500 flex items-center gap-1">透明度<input id="deepTextOpacity" data-deep-text-control data-deep-selection-only type="range" min="0" max="100" value="100" disabled oninput="deepApplyTextStyle('opacity',this.value)" class="deep-selection-text-control w-16"><span id="deepTextOpacityValue" class="w-5 text-right font-mono text-slate-400">—</span></label>
                     </div>
                     <button type="button" onclick="deepDeleteSelected()" class="px-2.5 py-1.5 bg-rose-50 border border-rose-200 text-rose-600 rounded-lg text-xs">删除选中</button>
+                    <span id="deepBackupStatus" class="ml-auto text-[10px] text-slate-400 whitespace-nowrap">自动备份 · 等待首次备份</span>
                 </div>
                 <div class="flex-1 min-h-0 overflow-auto bg-slate-200 p-3 sm:p-6"><div id="deepCanvasStage" class="deep-canvas-stage mx-auto" style="width:2600px;height:1600px"></div></div>
             </div>`;
