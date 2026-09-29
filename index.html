@@ -4868,7 +4868,17 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         window.getMultiEventDisplayDate = function(segments) {
             const dates = (segments || []).map(x => window.normalizePartialDate(String(x?.date || ''))).filter(Boolean).sort();
             if (!dates.length) return '';
-            return dates[0] === dates[dates.length - 1] ? dates[0] : `${dates[0]}至${dates[dates.length - 1]}`;
+            return dates.join('、');
+        };
+        window.getEventTimelineSortDate = function(event){
+            if(event?.timeMode==='multi' && Array.isArray(event.timeSegments) && event.timeSegments.length){
+                const wanted=String(event.timelineSortSegmentId||'');
+                const chosen=event.timeSegments.find(seg=>String(seg?.id||'')===wanted);
+                const chosenDate=window.normalizePartialDate(String(chosen?.date||''));
+                if(chosenDate)return chosenDate;
+                return event.timeSegments.map(seg=>window.normalizePartialDate(String(seg?.date||''))).filter(Boolean).sort()[0]||'';
+            }
+            return String(event?.date||'').split('至')[0].split('、')[0];
         };
         window.openNewEventTypeModal = function() {
             let menu=document.getElementById('newEventTypeModal');
@@ -5695,7 +5705,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 groupedMap.get(dateKey).push(event);
             });
 
-            const groupEntries = Array.from(groupedMap.entries()).sort((a, b) => new Date(a[0].split('至')[0]) - new Date(b[0].split('至')[0]));
+            const groupEntries = Array.from(groupedMap.entries()).sort((a, b) => { const ad=window.getEventTimelineSortDate?.(a[1]?.[0])||String(a[0]).split('至')[0].split('、')[0]; const bd=window.getEventTimelineSortDate?.(b[1]?.[0])||String(b[0]).split('至')[0].split('、')[0]; return new Date(ad)-new Date(bd); });
 
             const scale = window.getZoomScale();
             const gapPx = Math.round(150 * scale);
@@ -6018,6 +6028,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                                         <div class="text-[10px] text-indigo-600 font-medium flex items-center gap-1 pt-2 border-t border-slate-100">
                                             <i class="fa-solid fa-arrow-pointer"></i> 点击进入详情
                                         </div>
+                                        ${(()=>{const n=(window.connections||[]).filter(c=>String(c.sourceId)===String(event.id)||String(c.targetId)===String(event.id)).length;return n?`<div class="absolute right-0 bottom-5 flex items-center pointer-events-none" title="${n} 条连线连接到这个事件"><span class="block w-7 h-px bg-indigo-400"></span><span class="block w-3 h-3 rounded-full bg-indigo-500 border-2 border-white shadow"></span>${n>1?`<span class="ml-1 text-[9px] text-indigo-500 font-semibold">${n}</span>`:''}</div>`:'';})()}
                                     </div>
                                 </div>
                             `;
@@ -6317,6 +6328,16 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             label.classList.remove('text-slate-400');
             label.classList.add('text-slate-700');
             picker?.classList.add('hidden');
+            window.refreshConnectionSegmentPicker?.(hiddenInputId,event);
+        };
+        window.refreshConnectionSegmentPicker=function(hiddenInputId,event){
+            const selectId=hiddenInputId==='editConnTarget'?'editConnTargetSegment':hiddenInputId==='multiConnTarget'?'multiConnTargetSegment':hiddenInputId==='connEditOther'?'connEditOtherSegment':'';
+            const select=selectId?document.getElementById(selectId):null,row=selectId?document.getElementById(selectId+'Row'):null;
+            if(!select||!row)return;
+            const segs=event?.timeMode==='multi'&&Array.isArray(event.timeSegments)?event.timeSegments:[];
+            row.classList.toggle('hidden',!segs.length);
+            select.innerHTML='<option value="">连接到整个事件</option>'+segs.map((seg,i)=>`<option value="${escapeHtml(String(seg.id||''))}">时间 ${i+1} · ${escapeHtml(window.formatDisplayDate(seg.date||''))}${seg.subtitle?' · '+escapeHtml(seg.subtitle):''}</option>`).join('');
+            select.value='';
         };
 
         window.renderConnectionEventPickerOptions = function(pickerId, events, hiddenInputId, labelId) {
@@ -7064,7 +7085,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     <button type="button" id="deepSaveBtn" onclick="saveDeepDescriptionEditor()" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold">保存</button>
                 </div>
                 <div class="deep-canvas-toolbar shrink-0 border-b border-slate-200 bg-slate-50 px-3 py-2 flex flex-wrap gap-1.5 items-center">
-                    <button type="button" onclick="deepOpenCanvasSize()" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs" title="调整深入描述画布宽度与高度"><i class="fa-solid fa-maximize mr-1"></i>画布大小</button>
+                    <button type="button" onclick="deepOpenCanvasSize()" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs" title="调整深入描述画布宽度与高度"><i class="fa-solid fa-maximize mr-1"></i>画布大小</button><span id="deepBackupStatus" class="ml-auto text-[10px] text-slate-400 whitespace-nowrap">自动备份 · 等待首次备份</span>
                     <button type="button" onclick="deepAddMedia()" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs"><i class="fa-solid fa-photo-film mr-1"></i>插入媒体</button>
                     <button type="button" onclick="deepAddUrl()" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs" title="在画布中放置可点击的网址"><i class="fa-solid fa-globe mr-1"></i>网址</button>
                     <button type="button" onclick="deepToggleTextTool()" id="deepTextToolBtn" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs"><i class="fa-solid fa-font mr-1"></i>文字</button>
@@ -7166,17 +7187,28 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const enabled=obj.deepDescription ? window.deepDescriptionIsEnabled(obj.deepDescription) : true;
             window.deepDescriptionEnabledDraft=enabled;
             window.deepSyncEnabledToggle?.();
-            m.classList.remove('hidden'); window.deepSetTextToolsExpanded?.(false); window.deepSetDrawing(false); window.deepSetErasing(false); window.deepUpdateConnectorControls?.(); window.renderDeepCanvas(); window.deepStartAutosave?.();
+            m.classList.remove('hidden'); window.deepSetTextToolsExpanded?.(false); window.deepSetDrawing(false); window.deepSetErasing(false); window.deepUpdateConnectorControls?.(); window.renderDeepCanvas();
+            try{
+                const backupKey=window.deepBackupKey(window.deepCanvasTarget),backup=await window.deepBackupGet?.(backupKey);
+                if(backup?.state){
+                    const use=await window.deepAppConfirm({title:'检测到未保存的深入描述备份',desc:'发现上次意外退出前留下的自动备份。是否恢复这份备份？',confirmText:'恢复备份'});
+                    if(use){window.deepCanvasState=window.deepClone(backup.state);window.deepDescriptionEnabledDraft=backup.enabled!==false;window.deepSyncEnabledToggle?.();window.renderDeepCanvas();window._deepBackupLastAt=Number(backup.updatedAt)||Date.now();}
+                    else await window.deepBackupDelete?.(backupKey);
+                }
+            }catch(err){console.warn('读取深入描述自动备份失败',err);}
+            window.deepStartAutosave?.();
         };
         window.closeDeepDescriptionEditor = async function(discard){
             window.deepStopAutosave?.();
             const m=document.getElementById('deepDescriptionModal');
             if(discard&&window._deepEditSession){
+                const backupKey=window.deepBackupKey?.(window._deepEditSession.target);
                 const s=window._deepEditSession;
                 const obj=s.target?.multi?window.multiDeepMediaObject?.(s.target.segIndex,s.target.type,s.target.index):window.deepMediaObject?.(s.target?.type,s.target?.index);
                 if(obj)obj.deepDescription=window.deepClone(s.originalDeep);
                 window.deepDescriptionEnabledDraft=s.originalEnabled;
                 await window.discardTempUploadsSince?.(s.tempMark);
+                await window.deepBackupDelete?.(backupKey);
             }
             if(m)m.classList.add('hidden');
             window._deepEditSession=null;
@@ -7245,16 +7277,72 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             clean.items=(clean.items||[]).filter(x=>x.type!=='arrow').map(x=>{delete x._curveUndo;return x;});clean.enabled=!!window.deepDescriptionEnabledDraft;
             obj.deepDescription=window.deepCanvasHasContent(clean)?clean:null;return true;
         };
-        window.deepAutosaveNow=function(){
-            const modal=document.getElementById('deepDescriptionModal');if(!modal||modal.classList.contains('hidden'))return false;
-            if(!window.deepWriteCanvasToTarget?.())return false;
-            return true;
+        window.deepBackupDbOpen=function(){
+            if(window._deepBackupDbPromise)return window._deepBackupDbPromise;
+            window._deepBackupDbPromise=new Promise((resolve,reject)=>{
+                try{
+                    const req=indexedDB.open('timeline_deep_backups',1);
+                    req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains('backups'))db.createObjectStore('backups',{keyPath:'key'});};
+                    req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error||new Error('IndexedDB unavailable'));
+                }catch(err){reject(err);}
+            });
+            return window._deepBackupDbPromise;
+        };
+        window.deepBackupKey=function(target=window.deepCanvasTarget){
+            const obj=window.deepResolveTargetObject?.(target);
+            const mediaId=String(obj?.mediaId||obj?.cloudPath||window.deepGetSrc?.(target?.type,obj)||'');
+            const eventId=String(target?.multi?window.multiTimeEditingId:window.editingEventId||'new');
+            const segId=target?.multi?String(window.multiTimeDraft?.[target.segIndex]?.id||target.segIndex):'single';
+            return ['deep',eventId,segId,String(target?.type||''),mediaId].join('::');
+        };
+        window.deepBackupPut=async function(record){const db=await window.deepBackupDbOpen();return new Promise((resolve,reject)=>{const tx=db.transaction('backups','readwrite');tx.objectStore('backups').put(record);tx.oncomplete=()=>resolve(true);tx.onerror=()=>reject(tx.error);});};
+        window.deepBackupGet=async function(key){const db=await window.deepBackupDbOpen();return new Promise((resolve,reject)=>{const req=db.transaction('backups','readonly').objectStore('backups').get(key);req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error);});};
+        window.deepBackupDelete=async function(key){if(!key)return;try{const db=await window.deepBackupDbOpen();await new Promise((resolve,reject)=>{const tx=db.transaction('backups','readwrite');tx.objectStore('backups').delete(key);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}catch(_){}};
+        window.deepBackupDeleteForEvent=async function(eventId){
+            if(eventId===null||eventId===undefined)return;
+            try{const db=await window.deepBackupDbOpen();const prefix='deep::'+String(eventId)+'::';await new Promise((resolve,reject)=>{const tx=db.transaction('backups','readwrite'),store=tx.objectStore('backups'),req=store.openCursor();req.onsuccess=()=>{const c=req.result;if(!c)return;if(String(c.key).startsWith(prefix))c.delete();c.continue();};tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}catch(_){}
+        };
+        window.deepBackupSetStatus=function(kind,at){
+            const el=document.getElementById('deepBackupStatus');if(!el)return;
+            if(kind==='saving'){el.textContent='自动备份 · 备份中…';el.className='ml-auto text-[10px] text-indigo-500 whitespace-nowrap';return;}
+            if(kind==='error'){el.textContent='自动备份 · 备份失败';el.className='ml-auto text-[10px] text-rose-500 whitespace-nowrap';return;}
+            if(kind==='waiting'){el.textContent='自动备份 · 等待首次备份';el.className='ml-auto text-[10px] text-slate-400 whitespace-nowrap';return;}
+            window._deepBackupLastAt=Number(at)||Date.now();
+            window.deepBackupRefreshStatus?.();
+        };
+        window.deepBackupRefreshStatus=function(){
+            const el=document.getElementById('deepBackupStatus');if(!el||!window._deepBackupLastAt)return;
+            const sec=Math.max(0,Math.floor((Date.now()-window._deepBackupLastAt)/1000));
+            const text=sec<45?'刚刚':sec<3600?Math.floor(sec/60)+'分钟前':Math.floor(sec/3600)+'小时前';
+            el.textContent='自动备份 · '+text;el.className='ml-auto text-[10px] text-slate-400 whitespace-nowrap';
+        };
+        window.deepBackupNow=async function(force=false){
+            const modal=document.getElementById('deepDescriptionModal');if(!modal||modal.classList.contains('hidden')||!window.deepCanvasState||!window.deepCanvasTarget)return false;
+            const key=window.deepBackupKey();const payload={state:window.deepClone(window.deepCanvasState),enabled:!!window.deepDescriptionEnabledDraft};
+            const fingerprint=JSON.stringify(payload);if(!force&&fingerprint===window._deepBackupFingerprint)return false;
+            window.deepBackupSetStatus('saving');
+            try{const at=Date.now();await window.deepBackupPut({key,eventId:String(window.deepCanvasTarget?.multi?window.multiTimeEditingId:window.editingEventId||'new'),updatedAt:at,...payload});window._deepBackupFingerprint=fingerprint;window.deepBackupSetStatus('saved',at);return true;}
+            catch(err){console.warn('深入描述自动备份失败',err);window.deepBackupSetStatus('error');return false;}
+        };
+        window.deepScheduleBackup=function(){
+            if(window._deepBackupDebounce)clearTimeout(window._deepBackupDebounce);
+            window._deepBackupDebounce=setTimeout(()=>window.deepBackupNow?.(),2500);
         };
         window.deepStartAutosave=function(){
-            if(window.deepAutosaveTimer)clearInterval(window.deepAutosaveTimer);
-            window.deepAutosaveTimer=setInterval(()=>window.deepAutosaveNow?.(),5*60*1000);
+            window.deepStopAutosave?.();window._deepBackupFingerprint='';window._deepBackupLastAt=0;window.deepBackupSetStatus?.('waiting');
+            const modal=document.getElementById('deepDescriptionModal');
+            window._deepBackupInputHandler=()=>window.deepScheduleBackup?.();
+            modal?.addEventListener('input',window._deepBackupInputHandler,true);
+            modal?.addEventListener('change',window._deepBackupInputHandler,true);
+            window.deepAutosaveTimer=setInterval(()=>window.deepBackupNow?.(),60*1000);
+            window._deepBackupStatusTimer=setInterval(()=>window.deepBackupRefreshStatus?.(),30*1000);
         };
-        window.deepStopAutosave=function(){if(window.deepAutosaveTimer){clearInterval(window.deepAutosaveTimer);window.deepAutosaveTimer=null;}};
+        window.deepStopAutosave=function(){
+            if(window.deepAutosaveTimer){clearInterval(window.deepAutosaveTimer);window.deepAutosaveTimer=null;}
+            if(window._deepBackupStatusTimer){clearInterval(window._deepBackupStatusTimer);window._deepBackupStatusTimer=null;}
+            if(window._deepBackupDebounce){clearTimeout(window._deepBackupDebounce);window._deepBackupDebounce=null;}
+            const modal=document.getElementById('deepDescriptionModal');if(window._deepBackupInputHandler){modal?.removeEventListener('input',window._deepBackupInputHandler,true);modal?.removeEventListener('change',window._deepBackupInputHandler,true);window._deepBackupInputHandler=null;}
+        };
         window.saveDeepDescriptionEditor=async function(){
             const target=window.deepCanvasTarget;if(!target)return;
             if(!await window.deepAppConfirm({title:'确认保存深入描述？',desc:'请检查画布内容是否无误，确认后将保存当前深入描述。',confirmText:'确认保存'}))return;
@@ -7262,7 +7350,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const obj=window.deepResolveTargetObject?.(target);if(!obj)return;
             const sessionObj=window.deepResolveTargetObject?.(window._deepEditSession?.target);
             if(sessionObj!==obj){window.showToast?.('当前深入描述目标已变化，请重新打开后编辑','error');return;}
-            window.deepDescriptionEnabledDraft=window.deepDescriptionEnabledDraft!==false;window.deepWriteCanvasToTarget?.();
+            window.deepDescriptionEnabledDraft=window.deepDescriptionEnabledDraft!==false;await window.deepBackupNow?.(true);window.deepWriteCanvasToTarget?.();
             if(obj.deepDescription)obj.deepDescription._pendingOuterSave=true;
             try{
                 await window.promoteTempUploadsSince?.(window._deepEditSession?.tempMark||0,obj.deepDescription);
@@ -10586,7 +10674,9 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
                     const desc=String(seg.description||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/gi,' ').trim()?`<div class="event-description-html text-sm leading-7 text-slate-200">${window.prepareDescriptionForView?window.prepareDescriptionForView(seg.description):seg.description}</div>`:'';
                     const body=imagesBlock+videosBlock+links+desc;
                     const subtitle=String(seg.subtitle||'').trim();
-                    return `<section class="shrink-0 w-[78vw] sm:w-[360px] rounded-2xl border border-slate-700 bg-slate-900/80 p-4 self-start"><div class="text-xs font-mono text-indigo-300 ${subtitle?'mb-1':'mb-3'}">${window.formatDisplayDate(seg.date)}</div>${subtitle?`<h2 class="text-sm sm:text-base font-normal text-slate-200 mb-3">${escapeHtml(subtitle)}</h2>`:''}<div class="space-y-3">${body||'<div class="text-xs text-slate-500">这个时间没有附加内容</div>'}</div></section>`;
+                    const endpointCount=(window.connections||[]).filter(c=>(String(c.sourceId)===String(event.id)&&String(c.sourceSegmentId||'')===String(seg.id||''))||(String(c.targetId)===String(event.id)&&String(c.targetSegmentId||'')===String(seg.id||''))).length;
+                    const endpointMark=endpointCount?`<div class="absolute right-0 top-12 translate-x-[1px] flex items-center" title="${endpointCount} 条连线连接到这个时间"><span class="block w-8 h-px bg-indigo-400/80"></span><span class="block w-3 h-3 rounded-full bg-indigo-400 border-2 border-slate-900 shadow"></span>${endpointCount>1?`<span class="ml-1 text-[9px] text-indigo-300">${endpointCount}</span>`:''}</div>`:'';
+                    return `<section class="relative shrink-0 w-[78vw] sm:w-[360px] rounded-2xl border border-slate-700 bg-slate-900/80 p-4 self-start">${endpointMark}<div class="text-xs font-mono text-indigo-300 ${subtitle?'mb-1':'mb-3'}">${window.formatDisplayDate(seg.date)}</div>${subtitle?`<h2 class="text-sm sm:text-base font-normal text-slate-200 mb-3">${escapeHtml(subtitle)}</h2>`:''}<div class="space-y-3">${body||'<div class="text-xs text-slate-500">这个时间没有附加内容</div>'}</div></section>`;
                 }).join('');
                 viewer.innerHTML=`<div data-detail-shell class="max-w-6xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-8 shadow-2xl relative"><div class="detail-window-dragbar" data-detail-drag-handle><i class="fa-solid fa-grip-lines"></i><span>点击此处拖动详情页</span></div><button type="button" onclick="window.openEventCommentWindow('${event.id}')" class="detail-window-comments-btn"><i class="fa-regular fa-comments"></i><span>评论区</span></button><button onclick="closeReadOnlyFullscreen('${fromStackDate?fromStackDate.replace(/'/g,"\\'"):''}')" class="absolute top-3 right-4 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full"><i class="fa-solid fa-xmark"></i></button><h1 class="text-xl sm:text-2xl font-bold mb-5 pr-12">${escapeHtml(event.title)}</h1><div id="multiDetailScroller" class="flex gap-4 overflow-x-auto overflow-y-visible pb-3 cursor-grab select-none" style="touch-action:pan-x pan-y;overscroll-behavior-x:contain;scroll-snap-type:none;scroll-behavior:auto;">${cols}</div></div>`;
                 viewer.classList.remove('hidden');window.bindDetailVideoBehavior(viewer,event.id);window.initMultiDetailScroller?.();window.initFloatingDetailWindow(viewer);return;
@@ -10896,13 +10986,16 @@ viewer.style.visibility='';
                 window.showToast('连线已存在', 'error');
                 return;
             }
-            window.editingConnections.push({
+            const pickedTargetSegment=String(document.getElementById('editConnTargetSegment')?.value||'');
+            const connection={
                 id: 'draft_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
                 sourceId: isNaN(Number(sourceId)) ? sourceId : Number(sourceId),
                 targetId: isNaN(Number(targetId)) ? targetId : Number(targetId),
                 dir: storedDir === 'both' ? 'both' : 'forward',
                 label: label
-            });
+            };
+            if(pickedTargetSegment){if(dir==='backward')connection.sourceSegmentId=pickedTargetSegment;else connection.targetSegmentId=pickedTargetSegment;}
+            window.editingConnections.push(connection);
             window.editingConnectionsDirty = true;
             const labelInput = document.getElementById('editConnLabel');
             if (labelInput) labelInput.value = '';
@@ -11149,7 +11242,7 @@ viewer.style.visibility='';
                                         <div data-conn-empty class="hidden px-3 py-4 text-center text-[11px] text-slate-400">没有匹配的事件</div>
                                     </div>
                                 </div>
-                                <div class="grid grid-cols-3 gap-1.5"><label class="cursor-pointer"><input type="radio" name="editConnDirection" value="forward" checked class="sr-only peer"><span class="flex items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">→ 指向</span></label><label class="cursor-pointer"><input type="radio" name="editConnDirection" value="backward" class="sr-only peer"><span class="flex items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">← 被指向</span></label><label class="cursor-pointer"><input type="radio" name="editConnDirection" value="both" class="sr-only peer"><span class="flex items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">↔ 双向</span></label></div>
+                                <div id="editConnTargetSegmentRow" class="hidden"><select id="editConnTargetSegment" class="w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-indigo-500"><option value="">连接到整个事件</option></select></div><div class="grid grid-cols-3 gap-1.5"><label class="cursor-pointer"><input type="radio" name="editConnDirection" value="forward" checked class="sr-only peer"><span class="flex items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">→ 指向</span></label><label class="cursor-pointer"><input type="radio" name="editConnDirection" value="backward" class="sr-only peer"><span class="flex items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">← 被指向</span></label><label class="cursor-pointer"><input type="radio" name="editConnDirection" value="both" class="sr-only peer"><span class="flex items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">↔ 双向</span></label></div>
                                 <div class="flex gap-2"><input id="editConnLabel" type="text" maxlength="40" placeholder="连线文字" class="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500"><button type="button" onclick="addEditingConnection()" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm shrink-0"><i class="fa-solid fa-plus mr-1"></i>添加</button></div>
                                 <div id="editConnectionsList" class="space-y-1.5 max-h-32 overflow-y-auto"></div>
                             </div>
@@ -11384,6 +11477,7 @@ viewer.style.visibility='';
 
         window.closeEditModal = function() {
             window.rollbackEditMediaTxn?.();
+            void window.deepBackupDeleteForEvent?.(window.editingEventId);
             const returnStackDate=window._isEditingFromStack ? window._editingFromStackDate : null;
             const editedEventId=window.editingEventId;
             void window.releaseEventEditLock?.(editedEventId);
@@ -14677,7 +14771,7 @@ viewer.style.visibility='';
 
         window.multiRenderConnectionPicker=function(){const list=document.getElementById('multiConnPickerList');if(!list)return;const q=(document.getElementById('multiConnSearch')?.value||'').trim().toLowerCase();const others=(window.events||[]).filter(e=>String(e.id)!==String(window.multiTimeEditingId)&&(!q||String(e.title||'').toLowerCase().includes(q))).sort((a,b)=>String(a.date).localeCompare(String(b.date)));list.innerHTML=others.length?others.map(e=>`<button type="button" onclick="multiPickConnectionEvent('${String(e.id).replace(/'/g,"\\'")}')" class="w-full text-left px-2 py-1.5 hover:bg-indigo-50 rounded text-xs"><b>${window.multiEsc(e.title||'未命名事件')}</b><span class="text-slate-400 ml-2">${window.multiEsc(window.formatDisplayDate(e.date))}</span></button>`).join(''):'<div class="text-[11px] text-slate-400 p-2">没有匹配事件</div>';};
         window.multiToggleConnPicker=function(){const p=document.getElementById('multiConnPicker');p?.classList.toggle('hidden');setTimeout(()=>document.getElementById('multiConnSearch')?.focus(),0);window.multiRenderConnectionPicker();};
-        window.multiPickConnectionEvent=function(id){const e=window.findEventById(id);const h=document.getElementById('multiConnTarget');if(h)h.value=id;const l=document.getElementById('multiConnTargetLabel');if(l)l.textContent=e?.title||'已选择事件';document.getElementById('multiConnPicker')?.classList.add('hidden');};
+        window.multiPickConnectionEvent=function(id){const e=window.findEventById(id);const h=document.getElementById('multiConnTarget');if(h)h.value=id;const l=document.getElementById('multiConnTargetLabel');if(l)l.textContent=e?.title||'已选择事件';document.getElementById('multiConnPicker')?.classList.add('hidden');window.refreshConnectionSegmentPicker?.('multiConnTarget',e);};
         window.multiRenderConnections=function(){
             const h=document.getElementById('multiConnectionsList');if(!h)return;
             const self=window.multiTimeEditingId;
@@ -14691,7 +14785,7 @@ viewer.style.visibility='';
                 return `<div onclick="multiOpenConnectionEdit('${String(c.id).replace(/'/g,"\\'")}')" class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-xs cursor-pointer hover:border-indigo-200 hover:bg-indigo-50/40 transition-colors"><span class="text-indigo-600 font-bold w-5 text-center">${dirIcon}</span><div class="min-w-0 flex-1"><div class="font-semibold text-slate-700 truncate">${window.multiEsc(sourceTitle)} <span class="text-slate-400 font-normal">→</span> ${window.multiEsc(targetTitle)}</div><div class="text-[10px] text-slate-400 mt-0.5">${dirText}${c.label?' · '+window.multiEsc(c.label):''}</div></div><button type="button" onclick="event.stopPropagation();multiRemoveConnection('${String(c.id).replace(/'/g,"\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center shrink-0"><i class="fa-solid fa-xmark"></i></button></div>`;
             }).join('');
         };
-        window.multiAddConnection=function(){const target=document.getElementById('multiConnTarget')?.value,dir=document.querySelector('input[name="multiConnDir"]:checked')?.value||'forward',label=document.getElementById('multiConnLabel')?.value.trim()||'';if(!target){window.showToast('请选择要连接的事件','error');return;}let source=window.multiTimeEditingId,t=target,d=dir;if(dir==='backward'){source=target;t=window.multiTimeEditingId;d='forward';}window.multiTimeConnections.push({id:'draft_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),sourceId:isNaN(Number(source))?source:Number(source),targetId:isNaN(Number(t))?t:Number(t),dir:d==='both'?'both':'forward',label});document.getElementById('multiConnTarget').value='';document.getElementById('multiConnTargetLabel').textContent='选择连接的事件';document.getElementById('multiConnLabel').value='';window.multiRenderConnections();};
+        window.multiAddConnection=function(){const target=document.getElementById('multiConnTarget')?.value,dir=document.querySelector('input[name="multiConnDir"]:checked')?.value||'forward',label=document.getElementById('multiConnLabel')?.value.trim()||'';if(!target){window.showToast('请选择要连接的事件','error');return;}const selfSeg=String(document.getElementById('multiConnSelfSegment')?.value||''),otherSeg=String(document.getElementById('multiConnTargetSegment')?.value||'');let source=window.multiTimeEditingId,t=target,d=dir;if(dir==='backward'){source=target;t=window.multiTimeEditingId;d='forward';}const c={id:'draft_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),sourceId:isNaN(Number(source))?source:Number(source),targetId:isNaN(Number(t))?t:Number(t),dir:d==='both'?'both':'forward',label};if(dir==='backward'){if(otherSeg)c.sourceSegmentId=otherSeg;if(selfSeg)c.targetSegmentId=selfSeg;}else{if(selfSeg)c.sourceSegmentId=selfSeg;if(otherSeg)c.targetSegmentId=otherSeg;}window.multiTimeConnections.push(c);document.getElementById('multiConnTarget').value='';document.getElementById('multiConnTargetLabel').textContent='选择连接的事件';document.getElementById('multiConnLabel').value='';const row=document.getElementById('multiConnTargetSegmentRow');if(row)row.classList.add('hidden');window.multiRenderConnections();};
         window.multiRemoveConnection=function(id){window.confirmEditAttachmentDelete?.('connection',()=>{window.multiTimeConnections=window.multiTimeConnections.filter(c=>String(c.id)!==String(id));window.multiRenderConnections();});};
         window.multiOpenConnectionEdit=function(id){
             window.editingConnections=window.multiTimeConnections;
@@ -14710,6 +14804,7 @@ viewer.style.visibility='';
                 <div><label class="block text-xs font-bold text-slate-700 mb-1">事件名称 *</label><input id="multiEventTitle" value="${window.multiEsc(ev.title||'')}" placeholder="输入事件标题" oninput="multiTimeGeneralDraft.title=this.value;updateEventTitleDuplicateHint(this,'multiTitleDuplicateHint',window.multiTimeEditingId)" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"><p id="multiTitleDuplicateHint" class="hidden mt-1 text-[11px] text-rose-600">该名称已存在</p></div>
                 <div><label class="block text-xs font-bold text-slate-700 mb-1">节点类型</label><select id="multiEventType" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"><option value="minor" ${ev.type==='minor'?'selected':''}>普通事件</option><option value="major" ${ev.type==='major'?'selected':''}>重大里程碑</option></select></div>
                 <div><label class="block text-xs font-bold text-slate-700 mb-1">选择tag（多选）</label><div class="flex flex-wrap gap-1.5 p-2 border border-slate-200 rounded-lg bg-slate-50 max-h-28 overflow-y-auto">${tagHtml}</div></div>
+                <div><label class="block text-xs font-bold text-slate-700 mb-1">时间线排序基准</label><select id="multiTimelineSortSegment" onchange="multiTimeGeneralDraft.timelineSortSegmentId=this.value" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"><option value="">默认（最早时间）</option>${(window.multiTimeDraft||[]).map((seg,i)=>`<option value="${window.multiEsc(seg.id||'')}" ${String(ev.timelineSortSegmentId||'')===String(seg.id||'')?'selected':''}>时间 ${i+1} · ${window.multiEsc(window.formatDisplayDate(seg.date||''))}${seg.subtitle?' · '+window.multiEsc(seg.subtitle):''}</option>`).join('')}</select><p class="mt-1 text-[10px] text-slate-400">只影响节点在时间线上的排序位置，不改变事件显示的时间</p></div>
                 <div class="space-y-2 bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
                     <div class="flex items-center justify-between"><div><label class="block text-xs font-bold text-slate-700"><i class="fa-solid fa-diagram-project text-indigo-600 mr-1"></i>逻辑连线</label><p class="text-[10px] text-slate-400 mt-0.5">可直接添加、修改和删除当前节点的连线</p></div></div>
                     <div id="multiConnectionsList" class="space-y-1.5 max-h-32 overflow-y-auto"></div>
@@ -14721,6 +14816,8 @@ viewer.style.visibility='';
                             <div id="multiConnPickerList" class="max-h-48 overflow-y-auto custom-scrollbar space-y-0.5"></div>
                         </div>
                     </div>
+                    <div><select id="multiConnSelfSegment" class="w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-indigo-500"><option value="">当前事件：整个事件</option>${(window.multiTimeDraft||[]).map((seg,i)=>`<option value="${window.multiEsc(seg.id||'')}">当前事件：时间 ${i+1} · ${window.multiEsc(window.formatDisplayDate(seg.date||''))}${seg.subtitle?' · '+window.multiEsc(seg.subtitle):''}</option>`).join('')}</select></div>
+                    <div id="multiConnTargetSegmentRow" class="hidden"><select id="multiConnTargetSegment" class="w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-indigo-500"><option value="">连接到整个事件</option></select></div>
                     <div class="grid grid-cols-3 gap-1.5">
                         <label class="cursor-pointer"><input type="radio" name="multiConnDir" value="forward" checked class="sr-only peer"><span class="flex items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">→ 指向</span></label>
                         <label class="cursor-pointer"><input type="radio" name="multiConnDir" value="backward" class="sr-only peer"><span class="flex items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">← 被指向</span></label>
@@ -14809,7 +14906,7 @@ viewer.style.visibility='';
                 </div>            </div>`;
         };
 
-        window.multiPersistCurrentPage=function(){const title=document.getElementById('multiEventTitle');if(title)window.multiTimeGeneralDraft.title=title.value;if(window.multiTimePage===1){const permissionMode=document.querySelector('input[name="eventPermissionMode"]:checked');if(permissionMode)window.multiTimePermissionDraft.editPermissionMode=permissionMode.value;if(document.querySelector('[data-permission-picker="normal"]'))window.multiTimePermissionDraft.allowedEditorProfileIds=window.permissionSelected('normal');const devLock=document.getElementById('eventDeveloperLocked');if(devLock)window.multiTimePermissionDraft.developerLocked=devLock.checked;if(document.querySelector('[data-permission-picker="developer"]'))window.multiTimePermissionDraft.developerAllowedProfileIds=window.permissionSelected('developer');}const type=document.getElementById('multiEventType');if(type)window.multiTimeGeneralDraft.type=type.value;const tags=document.querySelectorAll('.multi-tag');if(tags.length)window.multiTimeGeneralDraft.tags=Array.from(tags).filter(x=>x.checked).map(x=>x.value);if(window.multiTimePage>1&&window.multiTimeDraft?.[window.multiTimePage-2]){const segIndex=window.multiTimePage-2,seg=window.multiTimeDraft[segIndex],dateInput=document.getElementById(`multiDateInput_${segIndex}`);if(dateInput){const wrap=dateInput.closest?.('[data-inline-date]');if(wrap)window.syncInlineDateFields(dateInput.id,wrap,'');const currentDate=window.normalizePartialDate(String(dateInput.value||''));if(currentDate)seg.date=currentDate;}const ed=document.getElementById('editDescription');if(ed){window.richSyncDecorationGeometry?.();seg.description=(window.normalizeDescriptionDefaultFontSize?.(ed.innerHTML)||ed.innerHTML).trim().replace(/^<br>+|<br>+$/g,'').trim();}}};
+        window.multiPersistCurrentPage=function(){const title=document.getElementById('multiEventTitle');if(title)window.multiTimeGeneralDraft.title=title.value;if(window.multiTimePage===1){const permissionMode=document.querySelector('input[name="eventPermissionMode"]:checked');if(permissionMode)window.multiTimePermissionDraft.editPermissionMode=permissionMode.value;if(document.querySelector('[data-permission-picker="normal"]'))window.multiTimePermissionDraft.allowedEditorProfileIds=window.permissionSelected('normal');const devLock=document.getElementById('eventDeveloperLocked');if(devLock)window.multiTimePermissionDraft.developerLocked=devLock.checked;if(document.querySelector('[data-permission-picker="developer"]'))window.multiTimePermissionDraft.developerAllowedProfileIds=window.permissionSelected('developer');}const type=document.getElementById('multiEventType');if(type)window.multiTimeGeneralDraft.type=type.value;const sortSeg=document.getElementById('multiTimelineSortSegment');if(sortSeg)window.multiTimeGeneralDraft.timelineSortSegmentId=sortSeg.value;const tags=document.querySelectorAll('.multi-tag');if(tags.length)window.multiTimeGeneralDraft.tags=Array.from(tags).filter(x=>x.checked).map(x=>x.value);if(window.multiTimePage>1&&window.multiTimeDraft?.[window.multiTimePage-2]){const segIndex=window.multiTimePage-2,seg=window.multiTimeDraft[segIndex],dateInput=document.getElementById(`multiDateInput_${segIndex}`);if(dateInput){const wrap=dateInput.closest?.('[data-inline-date]');if(wrap)window.syncInlineDateFields(dateInput.id,wrap,'');const currentDate=window.normalizePartialDate(String(dateInput.value||''));if(currentDate)seg.date=currentDate;}const ed=document.getElementById('editDescription');if(ed){window.richSyncDecorationGeometry?.();seg.description=(window.normalizeDescriptionDefaultFontSize?.(ed.innerHTML)||ed.innerHTML).trim().replace(/^<br>+|<br>+$/g,'').trim();}}};
         window.multiRenderPageTabs=function(){
             const host=document.getElementById('multiPageTabs');if(!host)return;
             const total=window.multiTimeDraft.length+2;
@@ -14840,6 +14937,7 @@ viewer.style.visibility='';
 
         window.closeMultiTimeEventModal=function(){
             window.rollbackEditMediaTxn?.();
+            void window.deepBackupDeleteForEvent?.(window.multiTimeEditingId);
             if(window.multiTimeIsEdit) void window.releaseEventEditLock?.(window.multiTimeEditingId);
             const modal=document.getElementById('multiTimeEventModal');
             if(!modal)return;
@@ -14861,7 +14959,7 @@ viewer.style.visibility='';
             const ev=old||{id:Date.now(),title:'',type:'minor',tags:[],timeMode:'multi',timeSegments:[window.multiNewSegment()],deepDescriptionEnabled:false};
             window.multiTimeEditingId=ev.id;window.multiTimeIsEdit=isEdit;window.multiTimeDeepEnabledDraft=ev.deepDescriptionEnabled===true;
             window.multiTimeDraft=window.multiNormalizeDraft(JSON.parse(JSON.stringify((ev.timeSegments&&ev.timeSegments.length)?ev.timeSegments:[window.multiNewSegment()])));
-            window.multiTimeGeneralDraft={title:ev.title||'',type:ev.type||'minor',tags:Array.isArray(ev.tags)?ev.tags.slice():[]};window.multiTimePermissionDraft={creatorOwned:ev.creatorOwned===true,editPermissionMode:window.permissionModeOf(ev),allowedEditorProfileIds:Array.isArray(ev.allowedEditorProfileIds)?ev.allowedEditorProfileIds.slice():[],developerLocked:ev.developerLocked===true,developerAllowedProfileIds:Array.isArray(ev.developerAllowedProfileIds)?ev.developerAllowedProfileIds.slice():[]};
+            window.multiTimeGeneralDraft={title:ev.title||'',type:ev.type||'minor',tags:Array.isArray(ev.tags)?ev.tags.slice():[],timelineSortSegmentId:String(ev.timelineSortSegmentId||'')};window.multiTimePermissionDraft={creatorOwned:ev.creatorOwned===true,editPermissionMode:window.permissionModeOf(ev),allowedEditorProfileIds:Array.isArray(ev.allowedEditorProfileIds)?ev.allowedEditorProfileIds.slice():[],developerLocked:ev.developerLocked===true,developerAllowedProfileIds:Array.isArray(ev.developerAllowedProfileIds)?ev.developerAllowedProfileIds.slice():[]};
             window.multiTimeConnections=isEdit?window.getEditingConnectionsForEvent(ev.id):[];window.multiTimePage=0;
             window.richResetOpacitySelection?.();window.richSelectionRange=null;window.richOpacitySpan=null;
             const singleEdit=document.getElementById('editModal');if(singleEdit){singleEdit.classList.add('hidden');singleEdit.innerHTML='';}
@@ -14886,7 +14984,7 @@ viewer.style.visibility='';
             window.multiTimeDeepEnabledDraft=!!enabled;
             window.multiRenderCurrentPage?.();
         };
-        window.saveMultiTimeEvent=function(){window.multiPersistCurrentPage();const title=String(window.multiTimeGeneralDraft?.title||'').trim();if(window.eventTitleExists(title,window.multiTimeEditingId)){window.multiTimePage=0;window.multiRenderCurrentPage();window.updateEventTitleDuplicateHint(document.getElementById('multiEventTitle'),'multiTitleDuplicateHint',window.multiTimeEditingId);window.showToast('该名称已存在','error');return;}if(!title){window.showToast('请填写事件名称','error');window.multiTimePage=0;window.multiRenderCurrentPage();return;}const segs=window.multiNormalizeDraft(JSON.parse(JSON.stringify(window.multiTimeDraft||[])));for(let si=0;si<segs.length;si++){const seg=segs[si];const inputId=`multiDateInput_${si}`;if(document.getElementById(inputId)&&!window.validateInlineDateTarget(inputId)){window.showToast('请为每个时间填写有效日期','error');return;}const d=window.normalizePartialDate(String(seg.date||''));if(!d){window.showToast('请为每个时间填写有效日期','error');return;}seg.date=d;seg.subtitle=String(seg.subtitle||'').trim();seg.description=String(seg.description||'');}segs.sort((a,b)=>String(a.date).localeCompare(String(b.date)));const date=window.getMultiEventDisplayDate(segs);const existing=window.findEventById(window.multiTimeEditingId);window.pendingSaveData={id:window.multiTimeEditingId,title,date,type:window.multiTimeGeneralDraft.type||'minor',tags:window.multiTimeGeneralDraft.tags||[],tagIds:window.tagIdsForNames?.(window.multiTimeGeneralDraft.tags||[])||[],timeMode:'multi',timeSegments:segs,deepDescriptionEnabled:!!window.multiTimeDeepEnabledDraft,images:[],videos:[],links:[],description:'',connections:window.multiTimeConnections||[],editPermissionMode:window.multiTimePermissionDraft?.editPermissionMode||'all',allowedEditorProfileIds:window.multiTimePermissionDraft?.allowedEditorProfileIds||[],developerLocked:!!window.multiTimePermissionDraft?.developerLocked,developerAllowedProfileIds:window.multiTimePermissionDraft?.developerAllowedProfileIds||[],creatorOwned:window.multiTimeIsEdit?window.multiTimePermissionDraft?.creatorOwned===true:true,_isEdit:!!window.multiTimeIsEdit};if(existing&&Number.isFinite(Number(existing.stackOrder)))window.pendingSaveData.stackOrder=existing.stackOrder;document.getElementById('confirmSaveModal')?.classList.remove('hidden');};
+        window.saveMultiTimeEvent=function(){window.multiPersistCurrentPage();const title=String(window.multiTimeGeneralDraft?.title||'').trim();if(window.eventTitleExists(title,window.multiTimeEditingId)){window.multiTimePage=0;window.multiRenderCurrentPage();window.updateEventTitleDuplicateHint(document.getElementById('multiEventTitle'),'multiTitleDuplicateHint',window.multiTimeEditingId);window.showToast('该名称已存在','error');return;}if(!title){window.showToast('请填写事件名称','error');window.multiTimePage=0;window.multiRenderCurrentPage();return;}const segs=window.multiNormalizeDraft(JSON.parse(JSON.stringify(window.multiTimeDraft||[])));for(let si=0;si<segs.length;si++){const seg=segs[si];const inputId=`multiDateInput_${si}`;if(document.getElementById(inputId)&&!window.validateInlineDateTarget(inputId)){window.showToast('请为每个时间填写有效日期','error');return;}const d=window.normalizePartialDate(String(seg.date||''));if(!d){window.showToast('请为每个时间填写有效日期','error');return;}seg.date=d;seg.subtitle=String(seg.subtitle||'').trim();seg.description=String(seg.description||'');}segs.sort((a,b)=>String(a.date).localeCompare(String(b.date)));const date=window.getMultiEventDisplayDate(segs);const timelineSortSegmentId=segs.some(x=>String(x.id)===String(window.multiTimeGeneralDraft?.timelineSortSegmentId||''))?String(window.multiTimeGeneralDraft.timelineSortSegmentId):'';const existing=window.findEventById(window.multiTimeEditingId);window.pendingSaveData={id:window.multiTimeEditingId,title,date,type:window.multiTimeGeneralDraft.type||'minor',tags:window.multiTimeGeneralDraft.tags||[],tagIds:window.tagIdsForNames?.(window.multiTimeGeneralDraft.tags||[])||[],timeMode:'multi',timeSegments:segs,timelineSortSegmentId,deepDescriptionEnabled:!!window.multiTimeDeepEnabledDraft,images:[],videos:[],links:[],description:'',connections:window.multiTimeConnections||[],editPermissionMode:window.multiTimePermissionDraft?.editPermissionMode||'all',allowedEditorProfileIds:window.multiTimePermissionDraft?.allowedEditorProfileIds||[],developerLocked:!!window.multiTimePermissionDraft?.developerLocked,developerAllowedProfileIds:window.multiTimePermissionDraft?.developerAllowedProfileIds||[],creatorOwned:window.multiTimeIsEdit?window.multiTimePermissionDraft?.creatorOwned===true:true,_isEdit:!!window.multiTimeIsEdit};if(existing&&Number.isFinite(Number(existing.stackOrder)))window.pendingSaveData.stackOrder=existing.stackOrder;document.getElementById('confirmSaveModal')?.classList.remove('hidden');};
 
         window.multiRenderSegments=function(){ window.multiRenderCurrentPage?.(); };
 
