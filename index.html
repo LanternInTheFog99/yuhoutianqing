@@ -6046,6 +6046,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     </div>
 
                     <div id="stackCardsWrapper" class="relative w-full flex-grow flex items-center justify-center overflow-hidden my-auto" style="height: 420px; perspective: 800px;">
+                        ${window.getStackCollectionRelationMark?.(items)||''}
                         ${items.map((event, idx) => {
                             const slideMedia = window.getEventPreviewMedia(event, false);
                             const firstPreviewItem = slideMedia[0] || null;
@@ -6076,7 +6077,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                                         <div class="text-[10px] text-indigo-600 font-medium flex items-center gap-1 pt-2 border-t border-slate-100">
                                             <i class="fa-solid fa-arrow-pointer"></i> 点击进入详情
                                         </div>
-                                        ${(()=>{const cs=(window.connections||[]).filter(c=>String(c.sourceId)===String(event.id)||String(c.targetId)===String(event.id));return window.getDetailExternalLinkMark?.(event,cs,'bottom')||'';})()}
                                     </div>
                                 </div>
                             `;
@@ -7176,7 +7176,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                             <button type="button" id="deepBorderToggleBtn" onclick="deepApplyTextStyle('borderToggle')" class="mt-3 w-full px-2 py-1.5 rounded-lg border text-[10px] transition-all">显示边框：关</button>
                         </div>
                     </div>
-                    <label class="text-[10px] text-slate-500 flex items-center gap-1">字号<select id="deepFontSize" style="width:112px;min-width:112px" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onchange="deepSetFontSizeControl(this.value)" class="deep-selection-text-control h-7 border rounded-md bg-white"><option value="">常用</option><option value="10">10</option><option value="12">12</option><option value="14">14</option><option value="16">16</option><option value="18" selected>18（默认大小）</option><option value="20">20</option><option value="24">24</option><option value="28">28</option><option value="32">32</option><option value="36">36</option><option value="40">40</option><option value="48">48</option><option value="56">56</option><option value="64">64</option><option value="72">72</option></select><input id="deepFontSizeCustom" disabled data-deep-text-control data-deep-selection-only type="number" min="6" max="240" step="0.1" value="18" class="deep-selection-text-control h-7 w-12 border rounded-md bg-white px-1.5 font-mono text-[10px]" title="实际字号，可输入任意数值" oninput="deepPreviewFontSizeControl(this.value)" onchange="deepCommitFontSizeControl(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"><span class="font-mono text-[10px] text-slate-400">px</span></label>
+                    <label class="text-[10px] text-slate-500 flex items-center gap-1">字号<select id="deepFontSize" style="width:112px;min-width:112px" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onchange="deepSetFontSizeControl(this.value)" class="deep-selection-text-control h-7 border rounded-md bg-white"><option value="">常用</option><option value="10">10</option><option value="12">12</option><option value="14">14</option><option value="16">16</option><option value="18" selected>18（默认）</option><option value="20">20</option><option value="24">24</option><option value="28">28</option><option value="32">32</option><option value="36">36</option><option value="40">40</option><option value="48">48</option><option value="56">56</option><option value="64">64</option><option value="72">72</option></select><input id="deepFontSizeCustom" disabled data-deep-text-control data-deep-selection-only type="number" min="6" max="240" step="0.1" value="18" class="deep-selection-text-control h-7 w-12 border rounded-md bg-white px-1.5 font-mono text-[10px]" title="实际字号，可输入任意数值" oninput="deepPreviewFontSizeControl(this.value)" onchange="deepCommitFontSizeControl(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"><span class="font-mono text-[10px] text-slate-400">px</span></label>
                     <button id="deepBoldBtn" type="button" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('bold')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs font-bold">B</button>
                     <button id="deepItalicBtn" type="button" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('italic')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs italic">I</button>
                     <button id="deepUnderlineBtn" type="button" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('underline')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs underline">U</button>
@@ -10818,11 +10818,10 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
                     const desc=String(seg.description||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/gi,' ').trim()?`<div class="event-description-html text-sm leading-7 text-slate-200">${window.prepareDescriptionForView?window.prepareDescriptionForView(seg.description):seg.description}</div>`:'';
                     const body=imagesBlock+videosBlock+links+desc;
                     const subtitle=String(seg.subtitle||'').trim();
-                    const endpointConnections=(window.connections||[]).filter(c=>(String(c.sourceId)===String(event.id)&&String(c.sourceSegmentId||'')===String(seg.id||''))||(String(c.targetId)===String(event.id)&&String(c.targetSegmentId||'')===String(seg.id||'')));
-                    const endpointMark=window.getDetailExternalLinkMark?.(event,endpointConnections,'top')||'';
-                    return `<section class="relative shrink-0 w-[78vw] sm:w-[360px] rounded-2xl border border-slate-700 bg-slate-900/80 p-4 self-start">${endpointMark}<div class="text-xs font-mono text-indigo-300 ${subtitle?'mb-1':'mb-3'}">${window.formatDisplayDate(seg.date)}</div>${subtitle?`<h2 class="text-sm sm:text-base font-normal text-slate-200 mb-3">${escapeHtml(subtitle)}</h2>`:''}<div class="space-y-3">${body||'<div class="text-xs text-slate-500">这个时间没有附加内容</div>'}</div></section>`;
+                    return `<section class="relative shrink-0 w-[78vw] sm:w-[360px] rounded-2xl border border-slate-700 bg-slate-900/80 p-4 self-start"><div class="text-xs font-mono text-indigo-300 ${subtitle?'mb-1':'mb-3'}">${window.formatDisplayDate(seg.date)}</div>${subtitle?`<h2 class="text-sm sm:text-base font-normal text-slate-200 mb-3">${escapeHtml(subtitle)}</h2>`:''}<div class="space-y-3">${body||'<div class="text-xs text-slate-500">这个时间没有附加内容</div>'}</div></section>`;
                 }).join('');
-                viewer.innerHTML=`<div data-detail-shell class="multi-detail-shell max-w-6xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-8 shadow-2xl relative"><div class="detail-window-dragbar" data-detail-drag-handle><i class="fa-solid fa-grip-lines"></i><span>点击此处拖动详情页</span></div><button type="button" onclick="window.openEventCommentWindow('${event.id}')" class="detail-window-comments-btn"><i class="fa-regular fa-comments"></i><span>评论区</span></button><button onclick="closeReadOnlyFullscreen('${fromStackDate?fromStackDate.replace(/'/g,"\\'"):''}')" class="absolute top-3 right-4 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full"><i class="fa-solid fa-xmark"></i></button><h1 class="text-xl sm:text-2xl font-bold mb-5 pr-12">${escapeHtml(event.title)}</h1><div id="multiDetailScroller" class="flex gap-4 overflow-x-auto overflow-y-visible pb-3 cursor-grab select-none" style="touch-action:pan-x pan-y;overscroll-behavior-x:contain;scroll-snap-type:none;scroll-behavior:auto;">${cols}</div></div>`;
+                const multiRelationMark=window.getMultiDetailRelationMark?.(event)||'';
+                viewer.innerHTML=`<div data-detail-shell class="multi-detail-shell max-w-6xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-8 shadow-2xl relative">${multiRelationMark}<div class="detail-window-dragbar" data-detail-drag-handle><i class="fa-solid fa-grip-lines"></i><span>点击此处拖动详情页</span></div><button type="button" onclick="window.openEventCommentWindow('${event.id}')" class="detail-window-comments-btn"><i class="fa-regular fa-comments"></i><span>评论区</span></button><button onclick="closeReadOnlyFullscreen('${fromStackDate?fromStackDate.replace(/'/g,"\\'"):''}')" class="absolute top-3 right-4 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full"><i class="fa-solid fa-xmark"></i></button><h1 class="text-xl sm:text-2xl font-bold mb-5 pr-12">${escapeHtml(event.title)}</h1><div id="multiDetailScroller" class="flex gap-4 overflow-x-auto overflow-y-visible pb-3 cursor-grab select-none" style="touch-action:pan-x pan-y;overscroll-behavior-x:contain;scroll-snap-type:none;scroll-behavior:auto;">${cols}</div></div>`;
                 viewer.classList.remove('hidden');window.bindDetailVideoBehavior(viewer,event.id);window.initMultiDetailScroller?.();window.initFloatingDetailWindow(viewer);return;
             }
             const detailHasImages=Array.isArray(event.images)&&event.images.length>0,detailHasVideos=Array.isArray(event.videos)&&event.videos.length>0,detailDescriptionText=String(event.description||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/gi,' ').trim(),detailHasDescription=!!detailDescriptionText;
@@ -11447,7 +11446,7 @@ viewer.style.visibility='';
                                         <button id="richRevealBtn" type="button" disabled onmousedown="event.preventDefault(); richRememberSelection()" onclick="richToggleReveal()" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 px-1.5 h-7 text-[10px] font-semibold" title="悬停显现：选中文字后仅在鼠标悬停时显示">悬停</button>
                                         <select id="richFontSizePreset" style="width:160px;min-width:160px" disabled onmousedown="richRememberSelection()" onchange="richSetFontSize(this.value)" class="h-7 rounded-md border border-slate-200 bg-white text-[11px] text-slate-700" title="字号">
                                             <option value="">字号</option>
-                                            ${['8px','9px','10px','11px','12px','13px','14px','16px','18px','20px','24px','28px','32px'].map(v=>`<option value="${v}">${v}${v==='14px'?'（默认大小）':''}</option>`).join('')}
+                                            ${['8px','9px','10px','11px','12px','13px','14px','16px','18px','20px','24px','28px','32px'].map(v=>`<option value="${v}">${v}${v==='14px'?'（默认）':''}</option>`).join('')}
                                         </select>
                                         <div class="relative">
                                             <button id="richColorBtn" type="button" disabled onmousedown="event.preventDefault(); richRememberSelection()" onclick="openRichColorPalette()" class="rich-selection-btn rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 px-2 h-7" title="字体颜色"><i class="fa-solid fa-palette"></i></button>
@@ -11922,7 +11921,7 @@ viewer.style.visibility='';
             }
         };
 
-        // 详细描述中的“14px（默认大小）”必须真实作用于当前选区。
+        // 详细描述中的“14px（默认）”必须真实作用于当前选区。
         // 过去把 14px 样式移除会导致它继续继承外层的大字号，看起来像“默认大小没有生效”。
         window.normalizeDescriptionDefaultFontSize = function(value) {
             return String(value || '');
@@ -15002,7 +15001,7 @@ viewer.style.visibility='';
                             <button id="richRevealBtn" type="button" disabled onmousedown="event.preventDefault(); richRememberSelection()" onclick="richToggleReveal()" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 px-1.5 h-7 text-[10px] font-semibold" title="悬停显现：选中文字后仅在鼠标悬停时显示">悬停</button>
                             <select id="richFontSizePreset" style="width:160px;min-width:160px" disabled onmousedown="richRememberSelection()" onchange="richSetFontSize(this.value)" class="h-7 rounded-md border border-slate-200 bg-white text-[11px] text-slate-700" title="字号">
                                 <option value="">字号</option>
-                                ${['8px','9px','10px','11px','12px','13px','14px','16px','18px','20px','24px','28px','32px'].map(v=>`<option value="${v}">${v}${v==='14px'?'（默认大小）':''}</option>`).join('')}
+                                ${['8px','9px','10px','11px','12px','13px','14px','16px','18px','20px','24px','28px','32px'].map(v=>`<option value="${v}">${v}${v==='14px'?'（默认）':''}</option>`).join('')}
                             </select>
                             <div class="relative">
                                 <button id="richColorBtn" type="button" disabled onmousedown="event.preventDefault(); richRememberSelection()" onclick="openRichColorPalette()" class="rich-selection-btn rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 px-2 h-7" title="字体颜色"><i class="fa-solid fa-palette"></i></button>
@@ -16060,44 +16059,34 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
 </script>
 
 <style id="timeline-0930-followup-fixes">
-/* Rich text size selectors keep one stable width; default label must never truncate. */
-#richFontSizePreset,#xiaoqingerRichSize{width:160px!important;min-width:160px!important;max-width:160px!important}
-.web-select-wrap:has(#richFontSizePreset),.web-select-wrap:has(#xiaoqingerRichSize){width:160px!important;min-width:160px!important;flex:0 0 160px!important}
-/* Deep-description toolbar must adapt to the available width instead of overflowing. */
-#deepTextTools{flex-wrap:wrap!important;min-width:0!important;max-width:100%!important;gap:6px!important;align-items:center!important}
-#deepTextTools>*,.deep-canvas-toolbar>*{max-width:100%}
-#deepTextTools .web-select-wrap:has(#deepFontSize){width:112px!important;min-width:92px!important;flex:0 1 112px!important}
-#deepFontSize{width:112px!important;min-width:92px!important;max-width:112px!important}
-#deepTextTools .web-select-wrap:has(#deepFontSize)>button{min-height:34px!important;padding-top:3px!important;padding-bottom:3px!important}
-#deepTextTools .web-select-wrap:has(#deepFontSize)>button>span{white-space:normal!important;line-height:1.05!important;overflow:visible!important;text-overflow:clip!important}
-#deepFontSizeCustom{width:42px!important;min-width:42px!important}
-#deepBorderColorPalette,#deepTextColorPalette{max-width:min(256px,calc(100vw - 20px))!important}
+#richFontSizePreset,#xiaoqingerRichSize{width:138px!important;min-width:138px!important;max-width:138px!important}
+.web-select-wrap:has(#richFontSizePreset),.web-select-wrap:has(#xiaoqingerRichSize){width:138px!important;min-width:138px!important;flex:0 0 138px!important}
 #deepUndoBtn:disabled,#deepRedoBtn:disabled{color:#94a3b8!important;background:#f8fafc!important;border-color:#e2e8f0!important;opacity:.6!important;cursor:not-allowed!important}
+#editModal>div.editor-stuck>div:first-child,#multiTimeEventModal>div.editor-stuck>div:first-child{margin-bottom:0!important;padding-bottom:12px!important;box-shadow:0 10px 0 #fff}
+#editModal>div.editor-stuck>form>div:first-child,#multiTimeEventModal>div.editor-stuck #multiPageTabs{margin-top:0!important;box-shadow:0 -8px 0 #fff,0 8px 12px rgba(15,23,42,.05)}
+.detail-external-link-mark.compact-link-mark{position:absolute!important;right:12px!important;top:12px!important;left:auto!important;bottom:auto!important;width:auto!important;height:auto!important;z-index:35;display:flex;gap:5px;align-items:center;pointer-events:auto}
+.stack-collection-link-mark{top:auto!important;bottom:10px!important;right:10px!important}
+.compact-link-chip{position:relative;width:42px;height:20px;border:1px solid rgba(99,102,241,.45);border-radius:8px;background:rgba(15,23,42,.9);display:flex;align-items:center;justify-content:center;color:#a5b4fc;flex:none}
+.compact-link-chip svg{width:32px;height:12px;overflow:visible}
+.compact-link-chip .compact-tip{display:none;position:absolute;right:0;top:calc(100% + 7px);width:max-content;max-width:300px;padding:7px 9px;border-radius:8px;background:#0f172a;border:1px solid #334155;color:#e2e8f0;font-size:10px;line-height:1.45;text-align:left;box-shadow:0 10px 25px rgba(0,0,0,.3);z-index:90;white-space:nowrap}
+.compact-link-chip:hover .compact-tip{display:block}
 </style>
 <script id="timeline-0930-followup-behavior">
 (()=>{
-  const syncDeepHistoryButtons=()=>{
-    const u=document.getElementById('deepUndoBtn'),r=document.getElementById('deepRedoBtn');
-    if(u)u.disabled=!(window.deepCanvasUndo&&window.deepCanvasUndo.length);
-    if(r)r.disabled=!(window.deepCanvasRedo&&window.deepCanvasRedo.length);
-  };
-  const oldPush=window.deepPushUndo,oldUndo=window.deepUndo,oldRedo=window.deepRedo,oldRestore=window.deepRestoreState;
-  if(oldPush)window.deepPushUndo=function(){const v=oldPush.apply(this,arguments);syncDeepHistoryButtons();return v;};
-  if(oldUndo)window.deepUndo=function(){const v=oldUndo.apply(this,arguments);syncDeepHistoryButtons();return v;};
-  if(oldRedo)window.deepRedo=function(){const v=oldRedo.apply(this,arguments);syncDeepHistoryButtons();return v;};
-  if(oldRestore)window.deepRestoreState=function(){const v=oldRestore.apply(this,arguments);syncDeepHistoryButtons();return v;};
-  new MutationObserver(()=>syncDeepHistoryButtons()).observe(document.body,{childList:true,subtree:true});
-  document.addEventListener('click',()=>requestAnimationFrame(syncDeepHistoryButtons),true);
-  // Deep-description default-size text uses two visual lines so the control stays compact horizontally.
-  const formatDeepSize=()=>{
-    const sel=document.getElementById('deepFontSize'); if(!sel)return;
-    const wrap=sel.closest('.web-select-wrap'),label=wrap?.querySelector('button>span'); if(!label)return;
-    const opt=sel.options[sel.selectedIndex],txt=opt?.textContent||'常用';
-    if(txt.includes('（默认大小）')) label.innerHTML=`${txt.replace('（默认大小）','')}<small style="display:block;font-size:9px;color:#94a3b8">（默认大小）</small>`;
-    else label.textContent=txt;
-  };
-  document.addEventListener('change',e=>{if(e.target?.id==='deepFontSize')requestAnimationFrame(formatDeepSize)},true);
-  new MutationObserver(()=>formatDeepSize()).observe(document.body,{childList:true,subtree:true});
+ const syncDeepHistoryButtons=()=>{const u=document.getElementById('deepUndoBtn'),r=document.getElementById('deepRedoBtn');if(u)u.disabled=!(window.deepCanvasUndo&&window.deepCanvasUndo.length);if(r)r.disabled=!(window.deepCanvasRedo&&window.deepCanvasRedo.length);};
+ const oldPush=window.deepPushUndo,oldUndo=window.deepUndo,oldRedo=window.deepRedo,oldRestore=window.deepRestoreState,oldOpen=window.openDeepDescriptionEditor;
+ if(oldPush)window.deepPushUndo=function(){const v=oldPush.apply(this,arguments);syncDeepHistoryButtons();return v;};
+ if(oldUndo)window.deepUndo=function(){const v=oldUndo.apply(this,arguments);syncDeepHistoryButtons();return v;};
+ if(oldRedo)window.deepRedo=function(){const v=oldRedo.apply(this,arguments);syncDeepHistoryButtons();return v;};
+ if(oldRestore)window.deepRestoreState=function(){const v=oldRestore.apply(this,arguments);syncDeepHistoryButtons();return v;};
+ if(oldOpen)window.openDeepDescriptionEditor=async function(){const v=await oldOpen.apply(this,arguments);syncDeepHistoryButtons();return v;};
+ const bindSticky=modalId=>{const modal=document.getElementById(modalId);if(!modal)return;const box=modal.firstElementChild;if(!box||box.dataset.stickyStateBound)return;box.dataset.stickyStateBound='1';const sync=()=>box.classList.toggle('editor-stuck',box.scrollTop>12);box.addEventListener('scroll',sync,{passive:true});sync();};
+ const bindAll=()=>{bindSticky('editModal');bindSticky('multiTimeEventModal');};bindAll();new MutationObserver(bindAll).observe(document.body,{childList:true,subtree:true});
+ const esc=v=>window.escapeHtml?.(String(v??''))??String(v??'');
+ const segName=(ev,id)=>{if(!id)return '';const seg=(ev?.timeSegments||[]).find(x=>String(x.id||'')===String(id));if(!seg)return '';const name=String(seg.subtitle||'').trim(),date=window.formatDisplayDate?.(seg.date)||seg.date||'';return name?`${name}（${date}）`:date;};
+ const chip=(current,conn)=>{const cur=String(current.id||''),isSource=String(conn.sourceId)===cur,otherId=String(isSource?conn.targetId:conn.sourceId),other=window.findEventById?.(otherId)||(window.events||[]).find(e=>String(e.id)===otherId);let out=false,inn=false;if(conn.dir==='both'){out=inn=true;}else if(conn.dir==='backward'){out=!isSource;inn=isSource;}else{out=isSource;inn=!isSource;}const rel=out&&inn?'↔':out?'→':'←',curSeg=segName(current,isSource?conn.sourceSegmentId:conn.targetSegmentId),otherSeg=segName(other,isSource?conn.targetSegmentId:conn.sourceSegmentId),left=`${current.title||'当前事件'}${curSeg?' · '+curSeg:''}`,right=`${other?.title||otherId}${otherSeg?' · '+otherSeg:''}`,title=`${left} ${rel} ${right}`,label=String(conn.label||'').trim();return `<span class="compact-link-chip"><svg viewBox="0 0 32 12" aria-hidden="true"><line x1="5" y1="6" x2="27" y2="6" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 3"/>${inn?'<path d="M7 3 L3 6 L7 9" fill="none" stroke="currentColor" stroke-width="1.4"/>':''}${out?'<path d="M25 3 L29 6 L25 9" fill="none" stroke="currentColor" stroke-width="1.4"/>':''}<circle cx="5" cy="6" r="1.8" fill="currentColor"/><circle cx="27" cy="6" r="1.8" fill="currentColor"/></svg><span class="compact-tip"><b>${esc(title)}</b>${label?`<br>${esc(label)}`:''}</span></span>`;};
+ window.getMultiDetailRelationMark=function(ev){const cs=(window.connections||[]).filter(c=>String(c.sourceId)===String(ev.id)||String(c.targetId)===String(ev.id));if(!cs.length)return '';return `<div class="detail-external-link-mark compact-link-mark">${cs.slice(0,8).map(c=>chip(ev,c)).join('')}${cs.length>8?`<span class="text-[9px] text-indigo-300">+${cs.length-8}</span>`:''}</div>`;};
+ window.getStackCollectionRelationMark=function(items){const ids=new Set((items||[]).map(e=>String(e.id))),rows=[];(items||[]).forEach(ev=>(window.connections||[]).forEach(c=>{if((String(c.sourceId)===String(ev.id)||String(c.targetId)===String(ev.id))&&!(ids.has(String(c.sourceId))&&ids.has(String(c.targetId))))rows.push([ev,c]);}));const seen=new Set(),unique=rows.filter(([ev,c])=>{const k=String(c.id||`${c.sourceId}|${c.targetId}|${c.sourceSegmentId||''}|${c.targetSegmentId||''}|${c.label||''}`);if(seen.has(k))return false;seen.add(k);return true;});if(!unique.length)return '';return `<div class="detail-external-link-mark compact-link-mark stack-collection-link-mark">${unique.slice(0,8).map(([ev,c])=>chip(ev,c)).join('')}${unique.length>8?`<span class="text-[9px] text-indigo-300">+${unique.length-8}</span>`:''}</div>`;};
 })();
 </script>
 
