@@ -861,17 +861,17 @@
         /* 详情中的外部连线提示：只表现“从页面外延伸进来”的视觉，不渲染真实时间线。 */
         /* 详情中的关系端点沿用时间线真实连线的视觉：#6366f1 / 2.5px / 6 4 虚线。
            多时间从卡片上方空白处向下接入；同期集合从卡片下方空白处向上接入。 */
-        .detail-external-link-mark{position:absolute;width:430px;height:230px;overflow:visible;pointer-events:none;z-index:30;}
-        .detail-external-link-mark svg{position:absolute;inset:0;width:430px;height:230px;overflow:visible;}
+        .detail-external-link-mark{position:absolute;width:760px;height:300px;overflow:visible;pointer-events:none;z-index:30;}
+        .detail-external-link-mark svg{position:absolute;inset:0;width:760px;height:300px;overflow:visible;}
         /* 同期集合只给当前翻到的卡片显示局部关系线，后排卡片即使有连线也不展示。 */
         .stack-card:not(.stack-card-current) .detail-external-link-mark{display:none!important;}
         .detail-external-link-mark path{fill:none;stroke:#6366f1;stroke-width:2.5;stroke-dasharray:6 4;stroke-linecap:butt;stroke-linejoin:round;}
         .detail-external-link-mark polygon{fill:#4f46e5;}
         .detail-external-link-mark .detail-external-count{position:absolute;font-size:9px;line-height:14px;color:#6366f1;font-weight:800;text-shadow:0 1px 2px rgba(255,255,255,.85);}
         /* 外端故意越出可视范围并渐隐，像真实逻辑连线仍在详情页之外继续，而不是在这里截断。 */
-        .detail-external-link-mark.from-top{top:-210px;left:50%;transform:translateX(-50%);}
+        .detail-external-link-mark.from-top{top:-298px;left:50%;transform:translateX(-50%);}
         .detail-external-link-mark.from-top .detail-external-count{right:7px;bottom:5px;}
-        .detail-external-link-mark.from-bottom{bottom:-210px;left:50%;transform:translateX(-50%);}
+        .detail-external-link-mark.from-bottom{bottom:-298px;left:50%;transform:translateX(-50%);}
         .detail-external-link-mark.from-bottom .detail-external-count{right:7px;top:5px;}
         .deep-backup-status{margin-left:auto;white-space:nowrap;border:1px solid #cbd5e1;background:#f8fafc;border-radius:8px;padding:4px 8px;font-size:10px;line-height:1.2;color:#64748b;box-shadow:0 1px 2px rgba(15,23,42,.04);}
         .deep-backup-status.is-saving{border-color:#c7d2fe;background:#eef2ff;color:#4f46e5;}
@@ -10681,62 +10681,66 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
             if(!currentEvent||!list.length)return '';
             const currentId=String(currentEvent.id||'');
             const fromTop=placement==='top';
-            const W=430,H=230,innerX=215,innerY=fromTop?228:2;
-            const escId=v=>String(v||'').replace(/[^a-zA-Z0-9_-]/g,'_');
+
+            // 详情页只画“真实连线进入/离开详情后的可见局部”。
+            // 几何模型与时间线真实连线保持一致：单条二次 Bézier + 曲线中点箭头。
+            // 外端直接放到 SVG 可视范围之外，不再拼 extension / mask / 渐隐假尾巴。
+            const W=760,H=300,innerX=W/2,innerY=fromTop?H-2:2;
+            const quadPoint=(t,p0x,p0y,p1x,p1y,p2x,p2y)=>{
+                const mt=1-t;
+                const x=mt*mt*p0x+2*mt*t*p1x+t*t*p2x;
+                const y=mt*mt*p0y+2*mt*t*p1y+t*t*p2y;
+                const dx=2*mt*(p1x-p0x)+2*t*(p2x-p1x);
+                const dy=2*mt*(p1y-p0y)+2*t*(p2y-p1y);
+                return {x,y,a:Math.atan2(dy,dx)*180/Math.PI};
+            };
+
             const pieces=list.slice(0,4).map((conn,idx)=>{
                 const isSource=String(conn.sourceId)===currentId;
                 const otherId=String(isSource?conn.targetId:conn.sourceId);
                 const otherEvent=window.findEventById?.(otherId)||(window.events||[]).find(e=>String(e.id)===otherId);
                 const currentKey=String(window.getEventTimelineSortDate?.(currentEvent)||currentEvent.date||'');
                 const otherKey=String(window.getEventTimelineSortDate?.(otherEvent)||otherEvent?.date||'');
-                const side=otherKey&&currentKey&&otherKey!==currentKey?(otherKey<currentKey?-1:1):((String(otherId).localeCompare(currentId)<0)?-1:1);
+                const side=otherKey&&currentKey&&otherKey!==currentKey
+                    ? (otherKey<currentKey?-1:1)
+                    : (String(otherId).localeCompare(currentId)<0?-1:1);
 
-                const spread=(idx-(Math.min(list.length,4)-1)/2)*8;
+                // 多条线只在连接事件处稍微错开，避免完全盖住；不改变每条线的总体方向。
+                const spread=(idx-(Math.min(list.length,4)-1)/2)*9;
                 const x0=innerX+spread, y0=innerY;
 
-                /*
-                 * 详情里的局部连线按“竖直接出 -> 大弧转向 -> 横向延伸到外部”的方式绘制。
-                 * 主弧本身就是用户看到的主体，不再把隐藏延伸段算进箭头位置或弯曲幅度。
-                 * 这样形状更接近时间线真实连线：靠事件处自然接出，越往外越朝另一端所在方向转过去。
-                 */
-                const arcEndX=innerX+side*(330+Math.min(idx,2)*16)+spread*.10;
-                const arcEndY=fromTop?-34:H+34;
-                const verticalRun=fromTop?-96:96;
-                const c1x=x0;
-                const c1y=y0+verticalRun;
-                const c2x=arcEndX-side*(118+Math.min(idx,2)*6);
-                const c2y=arcEndY;
-                const visiblePath=`M ${x0} ${y0} C ${c1x} ${c1y} ${c2x} ${c2y} ${arcEndX} ${arcEndY}`;
-
-                // 外端继续顺着已经接近水平的切线延伸；只负责“线还在外面继续”的感觉。
-                const extX=arcEndX+side*150;
-                const extY=arcEndY+(fromTop?-8:8);
-                const extC1x=arcEndX+side*52;
-                const extC1y=arcEndY;
-                const extC2x=arcEndX+side*112;
-                const extC2y=extY;
-                const extensionPath=`M ${arcEndX} ${arcEndY} C ${extC1x} ${extC1y} ${extC2x} ${extC2y} ${extX} ${extY}`;
+                // 外端位于 SVG 左/右上（多时间）或左/右下（同期集合）之外。
+                // 控制点与外端处于同一高度：靠事件一端切线近似竖直，越往外越自然转成横向，
+                // 对应用户手绘的“大弧拐向另一边”，而不是 S 弯或后半段斜直线。
+                const x2=side>0?W+170:-170;
+                const y2=fromTop?-54:H+54;
+                const cx=x0;
+                const cy=y2;
+                const path=`M ${x0} ${y0} Q ${cx} ${cy} ${x2} ${y2}`;
 
                 let currentToOther=false,otherToCurrent=false;
                 if(conn.dir==='both'){currentToOther=true;otherToCurrent=true;}
                 else if(conn.dir==='backward'){currentToOther=!isSource;otherToCurrent=isSource;}
                 else {currentToOther=isSource;otherToCurrent=!isSource;}
 
-                const pointAt=t=>{const mt=1-t;const x=mt*mt*mt*x0+3*mt*mt*t*c1x+3*mt*t*t*c2x+t*t*t*arcEndX;const y=mt*mt*mt*y0+3*mt*mt*t*c1y+3*mt*t*t*c2y+t*t*t*arcEndY;const dx=3*mt*mt*(c1x-x0)+6*mt*t*(c2x-c1x)+3*t*t*(arcEndX-c2x);const dy=3*mt*mt*(c1y-y0)+6*mt*t*(c2y-c1y)+3*t*t*(arcEndY-c2y);return{x,y,a:Math.atan2(dy,dx)*180/Math.PI};};
-
-                // 箭头只按主弧定位。约 48% 是肉眼看到的大弧中部，不受外侧延伸段影响。
-                const pt=pointAt(.48);
+                // 与真实时间线一致：箭头按二次 Bézier t=.5 的曲线中点和切线方向计算。
+                const pt=quadPoint(.5,x0,y0,cx,cy,x2,y2);
                 let arrows='';
-                if(currentToOther)arrows+=`<polygon class="detail-external-arrow" points="-6.5,-4.8 6.5,0 -6.5,4.8" transform="translate(${pt.x},${pt.y}) rotate(${pt.a})"></polygon>`;
-                if(otherToCurrent){const p2=conn.dir==='both'?pointAt(.60):pt;arrows+=`<polygon class="detail-external-arrow" points="-6.5,-4.8 6.5,0 -6.5,4.8" transform="translate(${p2.x},${p2.y}) rotate(${p2.a+180})"></polygon>`;}
-
-                const maskId=`detailLinkFade_${escId(currentId)}_${escId(otherId)}_${placement}_${idx}`;
-                // 渐隐只作用在最外侧延伸，不碰主弧和箭头。
-                const grad=side>0
-                    ?`<linearGradient id="${maskId}G" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="white" stop-opacity="1"/><stop offset=".52" stop-color="white" stop-opacity=".72"/><stop offset="1" stop-color="white" stop-opacity="0"/></linearGradient>`
-                    :`<linearGradient id="${maskId}G" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="white" stop-opacity="1"/><stop offset=".52" stop-color="white" stop-opacity=".72"/><stop offset="1" stop-color="white" stop-opacity="0"/></linearGradient>`;
-                return `<path d="${visiblePath}"></path><defs>${grad}<mask id="${maskId}"><rect x="-520" y="-90" width="1470" height="440" fill="url(#${maskId}G)"/></mask></defs><g mask="url(#${maskId})"><path d="${extensionPath}"></path></g>${arrows}`;
+                if(conn.dir==='both'){
+                    const rad=pt.a*Math.PI/180;
+                    const ux=Math.cos(rad),uy=Math.sin(rad);
+                    const pF={x:pt.x+ux*7,y:pt.y+uy*7};
+                    const pB={x:pt.x-ux*7,y:pt.y-uy*7};
+                    arrows+=`<polygon class="detail-external-arrow" points="-6,-4.5 6,0 -6,4.5" transform="translate(${pF.x},${pF.y}) rotate(${pt.a})"></polygon>`;
+                    arrows+=`<polygon class="detail-external-arrow" points="-6,-4.5 6,0 -6,4.5" transform="translate(${pB.x},${pB.y}) rotate(${pt.a+180})"></polygon>`;
+                }else if(currentToOther){
+                    arrows+=`<polygon class="detail-external-arrow" points="-6,-4.5 6,0 -6,4.5" transform="translate(${pt.x},${pt.y}) rotate(${pt.a})"></polygon>`;
+                }else if(otherToCurrent){
+                    arrows+=`<polygon class="detail-external-arrow" points="-6,-4.5 6,0 -6,4.5" transform="translate(${pt.x},${pt.y}) rotate(${pt.a+180})"></polygon>`;
+                }
+                return `<path d="${path}"></path>${arrows}`;
             }).join('');
+
             return `<div class="detail-external-link-mark from-${fromTop?'top':'bottom'}" title="${list.length} 条连线与这里相连"><svg viewBox="0 0 ${W} ${H}" aria-hidden="true">${pieces}</svg>${list.length>4?`<span class="detail-external-count">${list.length}</span>`:''}</div>`;
         };
 
