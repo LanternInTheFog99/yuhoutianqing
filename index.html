@@ -861,16 +861,16 @@
         /* 详情中的外部连线提示：只表现“从页面外延伸进来”的视觉，不渲染真实时间线。 */
         /* 详情中的关系端点沿用时间线真实连线的视觉：#6366f1 / 2.5px / 6 4 虚线。
            多时间从卡片上方空白处向下接入；同期集合从卡片下方空白处向上接入。 */
-        .detail-external-link-mark{position:absolute;width:116px;height:118px;overflow:visible;pointer-events:none;z-index:30;}
-        .detail-external-link-mark svg{position:absolute;inset:0;width:116px;height:118px;overflow:visible;}
+        .detail-external-link-mark{position:absolute;width:180px;height:210px;overflow:visible;pointer-events:none;z-index:30;}
+        .detail-external-link-mark svg{position:absolute;inset:0;width:180px;height:210px;overflow:visible;}
         .detail-external-link-mark path{fill:none;stroke:#6366f1;stroke-width:2.5;stroke-dasharray:6 4;stroke-linecap:butt;stroke-linejoin:round;}
         .detail-external-link-mark polygon{fill:#4f46e5;}
         .detail-external-link-mark .detail-external-count{position:absolute;font-size:9px;line-height:14px;color:#6366f1;font-weight:800;text-shadow:0 1px 2px rgba(255,255,255,.85);}
         /* 外端故意越出可视范围并渐隐，像真实逻辑连线仍在详情页之外继续，而不是在这里截断。 */
-        .detail-external-link-mark.from-top{top:-101px;right:16px;}
-        .detail-external-link-mark.from-top .detail-external-count{right:3px;bottom:2px;}
-        .detail-external-link-mark.from-bottom{bottom:-101px;right:12px;}
-        .detail-external-link-mark.from-bottom .detail-external-count{right:3px;top:2px;}
+        .detail-external-link-mark.from-top{top:-190px;left:50%;transform:translateX(-50%);}
+        .detail-external-link-mark.from-top .detail-external-count{right:7px;bottom:5px;}
+        .detail-external-link-mark.from-bottom{bottom:-190px;left:50%;transform:translateX(-50%);}
+        .detail-external-link-mark.from-bottom .detail-external-count{right:7px;top:5px;}
         .deep-backup-status{margin-left:auto;white-space:nowrap;border:1px solid #cbd5e1;background:#f8fafc;border-radius:8px;padding:4px 8px;font-size:10px;line-height:1.2;color:#64748b;box-shadow:0 1px 2px rgba(15,23,42,.04);}
         .deep-backup-status.is-saving{border-color:#c7d2fe;background:#eef2ff;color:#4f46e5;}
         .deep-backup-status.is-error{border-color:#fecdd3;background:#fff1f2;color:#e11d48;}
@@ -10676,34 +10676,48 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
         window.getDetailExternalLinkMark = function(currentEvent, connections, placement='top') {
             const list=(connections||[]).filter(Boolean);
             if(!currentEvent||!list.length)return '';
-            const conn=list[0];
             const currentId=String(currentEvent.id||'');
-            const isSource=String(conn.sourceId)===currentId;
-            const otherId=String(isSource?conn.targetId:conn.sourceId);
-            const otherEvent=window.findEventById?.(otherId)||(window.events||[]).find(e=>String(e.id)===otherId);
-            const currentKey=String(window.getEventTimelineSortDate?.(currentEvent)||currentEvent.date||'');
-            const otherKey=String(window.getEventTimelineSortDate?.(otherEvent)||otherEvent?.date||'');
-            let side=otherKey&&currentKey&&otherKey!==currentKey?(otherKey<currentKey?-1:1):((String(otherId).localeCompare(currentId)<0)?-1:1);
-            // 和真实时间线一样用单一二次曲线：外端按另一事件在左/右决定轻微偏向，不做刻意 S 弯。
-            const innerX=58, outerX=58+side*34;
             const fromTop=placement==='top';
-            const outerY=fromTop?-18:136, innerY=fromTop?116:2;
-            const controlX=58+side*17, controlY=59;
-            const path=`M ${outerX} ${outerY} Q ${controlX} ${controlY} ${innerX} ${innerY}`;
-            // path 是“外 -> 内”。按真实 conn.dir 判断箭头应朝详情外还是详情内。
-            let currentToOther=false, otherToCurrent=false;
-            if(conn.dir==='both'){currentToOther=true;otherToCurrent=true;}
-            else if(conn.dir==='backward'){currentToOther=!isSource;otherToCurrent=isSource;}
-            else {currentToOther=isSource;otherToCurrent=!isSource;}
-            const quadPoint=(t)=>{const mt=1-t;const x=mt*mt*outerX+2*mt*t*controlX+t*t*innerX;const y=mt*mt*outerY+2*mt*t*controlY+t*t*innerY;const dx=2*mt*(controlX-outerX)+2*t*(innerX-controlX);const dy=2*mt*(controlY-outerY)+2*t*(innerY-controlY);return{x,y,a:Math.atan2(dy,dx)*180/Math.PI};};
-            const pt=quadPoint(.53);
-            let arrows='';
-            if(otherToCurrent)arrows+=`<polygon points="-6,-4.5 6,0 -6,4.5" transform="translate(${pt.x+3},${pt.y}) rotate(${pt.a})"></polygon>`;
-            if(currentToOther)arrows+=`<polygon points="-6,-4.5 6,0 -6,4.5" transform="translate(${pt.x-3},${pt.y}) rotate(${pt.a+180})"></polygon>`;
-            const maskId=`detailLinkFade_${String(currentId).replace(/[^a-zA-Z0-9_-]/g,'_')}_${String(otherId).replace(/[^a-zA-Z0-9_-]/g,'_')}_${placement}`;
-            // 顶部从上缘渐入、底部从下缘渐入；内端保持完整，不画额外圆点。
-            const grad=fromTop?`<linearGradient id="${maskId}G" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="white" stop-opacity="0"/><stop offset=".24" stop-color="white" stop-opacity=".48"/><stop offset=".46" stop-color="white" stop-opacity="1"/><stop offset="1" stop-color="white" stop-opacity="1"/></linearGradient>`:`<linearGradient id="${maskId}G" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="white" stop-opacity="0"/><stop offset=".24" stop-color="white" stop-opacity=".48"/><stop offset=".46" stop-color="white" stop-opacity="1"/><stop offset="1" stop-color="white" stop-opacity="1"/></linearGradient>`;
-            return `<div class="detail-external-link-mark from-${fromTop?'top':'bottom'}" title="${list.length} 条连线与这里相连"><svg viewBox="0 0 116 118" aria-hidden="true"><defs>${grad}<mask id="${maskId}"><rect x="0" y="0" width="116" height="118" fill="url(#${maskId}G)"/></mask></defs><g mask="url(#${maskId})"><path d="${path}"></path>${arrows}</g></svg>${list.length>1?`<span class="detail-external-count">${list.length}</span>`:''}</div>`;
+            const W=180,H=210,innerX=90,innerY=fromTop?208:2;
+            const escId=v=>String(v||'').replace(/[^a-zA-Z0-9_-]/g,'_');
+            const pieces=list.slice(0,4).map((conn,idx)=>{
+                const isSource=String(conn.sourceId)===currentId;
+                const otherId=String(isSource?conn.targetId:conn.sourceId);
+                const otherEvent=window.findEventById?.(otherId)||(window.events||[]).find(e=>String(e.id)===otherId);
+                const currentKey=String(window.getEventTimelineSortDate?.(currentEvent)||currentEvent.date||'');
+                const otherKey=String(window.getEventTimelineSortDate?.(otherEvent)||otherEvent?.date||'');
+                const side=otherKey&&currentKey&&otherKey!==currentKey?(otherKey<currentKey?-1:1):((String(otherId).localeCompare(currentId)<0)?-1:1);
+
+                // 详情只画真实关系线靠近当前事件的一段：从事件边缘出发，先近似沿竖直方向，
+                // 再按另一端位于时间线左/右自然偏过去；远端越出可视范围并渐隐。
+                const spread=(idx-(Math.min(list.length,4)-1)/2)*7;
+                const x0=innerX+spread;
+                const y0=innerY;
+                const x2=innerX+side*(76+Math.min(idx,2)*7)+spread*.25;
+                const y2=fromTop?-28:H+28;
+                const x1=x0+side*10;
+                const y1=fromTop?72:138;
+                const path=`M ${x0} ${y0} Q ${x1} ${y1} ${x2} ${y2}`;
+
+                let currentToOther=false,otherToCurrent=false;
+                if(conn.dir==='both'){currentToOther=true;otherToCurrent=true;}
+                else if(conn.dir==='backward'){currentToOther=!isSource;otherToCurrent=isSource;}
+                else {currentToOther=isSource;otherToCurrent=!isSource;}
+
+                // path 的方向固定为“当前事件 -> 外部”。箭头直接按路径切线旋转，确保始终贴在线上。
+                const pointAt=t=>{const mt=1-t;const x=mt*mt*x0+2*mt*t*x1+t*t*x2;const y=mt*mt*y0+2*mt*t*y1+t*t*y2;const dx=2*mt*(x1-x0)+2*t*(x2-x1);const dy=2*mt*(y1-y0)+2*t*(y2-y1);return{x,y,a:Math.atan2(dy,dx)*180/Math.PI};};
+                const pt=pointAt(.48);
+                let arrows='';
+                if(currentToOther)arrows+=`<polygon points="-6,-4.5 6,0 -6,4.5" transform="translate(${pt.x},${pt.y}) rotate(${pt.a})"></polygon>`;
+                if(otherToCurrent){const p2=conn.dir==='both'?pointAt(.58):pt;arrows+=`<polygon points="-6,-4.5 6,0 -6,4.5" transform="translate(${p2.x},${p2.y}) rotate(${p2.a+180})"></polygon>`;}
+
+                const maskId=`detailLinkFade_${escId(currentId)}_${escId(otherId)}_${placement}_${idx}`;
+                const grad=fromTop
+                    ?`<linearGradient id="${maskId}G" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="white" stop-opacity="0"/><stop offset=".16" stop-color="white" stop-opacity=".65"/><stop offset=".30" stop-color="white" stop-opacity="1"/><stop offset="1" stop-color="white" stop-opacity="1"/></linearGradient>`
+                    :`<linearGradient id="${maskId}G" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="white" stop-opacity="0"/><stop offset=".16" stop-color="white" stop-opacity=".65"/><stop offset=".30" stop-color="white" stop-opacity="1"/><stop offset="1" stop-color="white" stop-opacity="1"/></linearGradient>`;
+                return `<defs>${grad}<mask id="${maskId}"><rect x="-40" y="-40" width="260" height="290" fill="url(#${maskId}G)"/></mask></defs><g mask="url(#${maskId})"><path d="${path}"></path>${arrows}</g>`;
+            }).join('');
+            return `<div class="detail-external-link-mark from-${fromTop?'top':'bottom'}" title="${list.length} 条连线与这里相连"><svg viewBox="0 0 ${W} ${H}" aria-hidden="true">${pieces}</svg>${list.length>4?`<span class="detail-external-count">${list.length}</span>`:''}</div>`;
         };
 
         window.openReadOnlyFullscreen = function(eventId, fromStackDate = null) {
