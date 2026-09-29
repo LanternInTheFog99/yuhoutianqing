@@ -861,8 +861,8 @@
         /* 详情中的外部连线提示：只表现“从页面外延伸进来”的视觉，不渲染真实时间线。 */
         /* 详情中的关系端点沿用时间线真实连线的视觉：#6366f1 / 2.5px / 6 4 虚线。
            多时间从卡片上方空白处向下接入；同期集合从卡片下方空白处向上接入。 */
-        .detail-external-link-mark{position:absolute;width:300px;height:230px;overflow:visible;pointer-events:none;z-index:30;}
-        .detail-external-link-mark svg{position:absolute;inset:0;width:300px;height:230px;overflow:visible;}
+        .detail-external-link-mark{position:absolute;width:430px;height:230px;overflow:visible;pointer-events:none;z-index:30;}
+        .detail-external-link-mark svg{position:absolute;inset:0;width:430px;height:230px;overflow:visible;}
         /* 同期集合只给当前翻到的卡片显示局部关系线，后排卡片即使有连线也不展示。 */
         .stack-card:not(.stack-card-current) .detail-external-link-mark{display:none!important;}
         .detail-external-link-mark path{fill:none;stroke:#6366f1;stroke-width:2.5;stroke-dasharray:6 4;stroke-linecap:butt;stroke-linejoin:round;}
@@ -10681,7 +10681,7 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
             if(!currentEvent||!list.length)return '';
             const currentId=String(currentEvent.id||'');
             const fromTop=placement==='top';
-            const W=300,H=230,innerX=150,innerY=fromTop?228:2;
+            const W=430,H=230,innerX=215,innerY=fromTop?228:2;
             const escId=v=>String(v||'').replace(/[^a-zA-Z0-9_-]/g,'_');
             const pieces=list.slice(0,4).map((conn,idx)=>{
                 const isSource=String(conn.sourceId)===currentId;
@@ -10695,12 +10695,14 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
                 // 外端继续越过可视区域，不画人为终点，视觉上像同一条线仍延伸在详情之外。
                 const spread=(idx-(Math.min(list.length,4)-1)/2)*8;
                 const x0=innerX+spread, y0=innerY;
-                const x3=innerX+side*(176+Math.min(idx,2)*10)+spread*.2;
-                const y3=fromTop?-22:H+22;
-                const x1=x0+side*2;
-                const y1=fromTop?145:85;
-                const x2=innerX+side*(42+Math.min(idx,2)*5)+spread*.35;
-                const y2=fromTop?42:H-42;
+                // 让远端明显朝真实连接对象所在一侧甩开：靠近事件仍保持近似竖直，
+                // 到中后段才快速偏向左/右，形成“这条线确实通往另一边”的空间感。
+                const x3=innerX+side*(285+Math.min(idx,2)*16)+spread*.15;
+                const y3=fromTop?-34:H+34;
+                const x1=x0+side*3;
+                const y1=fromTop?150:80;
+                const x2=innerX+side*(118+Math.min(idx,2)*10)+spread*.25;
+                const y2=fromTop?28:H-28;
                 const path=`M ${x0} ${y0} C ${x1} ${y1} ${x2} ${y2} ${x3} ${y3}`;
 
                 let currentToOther=false,otherToCurrent=false;
@@ -10710,17 +10712,18 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
 
                 // 箭头直接按三次贝塞尔曲线的切线定位与旋转，始终贴合线本身。
                 const pointAt=t=>{const mt=1-t;const x=mt*mt*mt*x0+3*mt*mt*t*x1+3*mt*t*t*x2+t*t*t*x3;const y=mt*mt*mt*y0+3*mt*mt*t*y1+3*mt*t*t*y2+t*t*t*y3;const dx=3*mt*mt*(x1-x0)+6*mt*t*(x2-x1)+3*t*t*(x3-x2);const dy=3*mt*mt*(y1-y0)+6*mt*t*(y2-y1)+3*t*t*(y3-y2);return{x,y,a:Math.atan2(dy,dx)*180/Math.PI};};
-                const pt=pointAt(.56);
+                // 箭头放在线段中部附近，并保持在渐隐区域之外；用 path 自身颜色绘制，避免被 mask 淡没。
+                const pt=pointAt(.50);
                 let arrows='';
-                if(currentToOther)arrows+=`<polygon points="-6,-4.5 6,0 -6,4.5" transform="translate(${pt.x},${pt.y}) rotate(${pt.a})"></polygon>`;
-                if(otherToCurrent){const p2=conn.dir==='both'?pointAt(.68):pt;arrows+=`<polygon points="-6,-4.5 6,0 -6,4.5" transform="translate(${p2.x},${p2.y}) rotate(${p2.a+180})"></polygon>`;}
+                if(currentToOther)arrows+=`<polygon class="detail-external-arrow" points="-6.5,-4.8 6.5,0 -6.5,4.8" transform="translate(${pt.x},${pt.y}) rotate(${pt.a})"></polygon>`;
+                if(otherToCurrent){const p2=conn.dir==='both'?pointAt(.61):pt;arrows+=`<polygon class="detail-external-arrow" points="-6.5,-4.8 6.5,0 -6.5,4.8" transform="translate(${p2.x},${p2.y}) rotate(${p2.a+180})"></polygon>`;}
 
                 const maskId=`detailLinkFade_${escId(currentId)}_${escId(otherId)}_${placement}_${idx}`;
                 // 只让最外侧逐渐淡出；靠近事件的一端保持完整，避免产生“在卡片边缘断掉”的感觉。
                 const grad=fromTop
                     ?`<linearGradient id="${maskId}G" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="white" stop-opacity="0"/><stop offset=".11" stop-color="white" stop-opacity=".42"/><stop offset=".22" stop-color="white" stop-opacity="1"/><stop offset="1" stop-color="white" stop-opacity="1"/></linearGradient>`
                     :`<linearGradient id="${maskId}G" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="white" stop-opacity="0"/><stop offset=".11" stop-color="white" stop-opacity=".42"/><stop offset=".22" stop-color="white" stop-opacity="1"/><stop offset="1" stop-color="white" stop-opacity="1"/></linearGradient>`;
-                return `<defs>${grad}<mask id="${maskId}"><rect x="-90" y="-40" width="480" height="310" fill="url(#${maskId}G)"/></mask></defs><g mask="url(#${maskId})"><path d="${path}"></path>${arrows}</g>`;
+                return `<defs>${grad}<mask id="${maskId}"><rect x="-220" y="-55" width="740" height="340" fill="url(#${maskId}G)"/></mask></defs><g mask="url(#${maskId})"><path d="${path}"></path></g>${arrows}`;
             }).join('');
             return `<div class="detail-external-link-mark from-${fromTop?'top':'bottom'}" title="${list.length} 条连线与这里相连"><svg viewBox="0 0 ${W} ${H}" aria-hidden="true">${pieces}</svg>${list.length>4?`<span class="detail-external-count">${list.length}</span>`:''}</div>`;
         };
