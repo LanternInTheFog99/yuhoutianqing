@@ -11483,7 +11483,7 @@ viewer.style.visibility='';
 
                         <div class="flex items-center justify-between pt-3 border-t border-slate-200 gap-3">
                             <div>${isEdit ? `<button type="button" onclick="deleteEvent('${event.id}')" class="px-4 py-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg text-xs font-medium transition-colors">删除事件</button>` : '<div></div>'}</div>
-                            <div class="flex items-center gap-2"><button type="button" id="editPrevBtn" onclick="switchEditPage(1)" class="hidden px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">上一步</button><button type="button" id="editNextBtn" onclick="switchEditPage(2)" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium">下一步</button><button type="button" onclick="closeEditModal()" class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button><button type="submit" id="editSaveBtn" class="hidden px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">保存事件</button></div>
+                            <div class="flex items-center gap-2"><button type="button" id="editPrevBtn" onclick="switchEditPage(1)" class="hidden px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">上一步</button><button type="button" id="editNextBtn" onclick="switchEditPage(2)" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium">下一页</button><button type="button" onclick="closeEditModal()" class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button><button type="submit" id="editSaveBtn" class="hidden px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">保存事件</button></div>
                         </div>
                     </form>
                 </div>
@@ -15039,7 +15039,7 @@ viewer.style.visibility='';
             host.innerHTML=Array.from({length:total},(_,i)=>{const label=i===0?'总设置':i===1?'权限设置':String(i-1),permissionAllowed=i!==1||window.canOpenEventPermissionSettings?.(window.multiTimePermissionDraft||{},!window.multiTimeIsEdit);return `<button type="button" ${permissionAllowed?`onclick="multiSwitchPage(${i})"`:'disabled aria-disabled="true" title="仅事件创建者可查看和设置权限"'} title="${permissionAllowed?(i===0?'总设置':i===1?'权限设置':'时间 '+(i-1)):''}" class="${!permissionAllowed?'min-w-10 px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 cursor-not-allowed':i===window.multiTimePage?'min-w-10 px-3 py-2 rounded-lg text-xs font-semibold bg-white text-indigo-700 shadow-sm border border-indigo-100':'min-w-10 px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-700'}">${label}</button>`;}).join('');
         };
         window.multiSwitchPage=function(p){p=Number(p)||0;if(p===1&&!window.canOpenEventPermissionSettings?.(window.multiTimePermissionDraft||{},!window.multiTimeIsEdit))return;window.multiPersistCurrentPage();window.richResetOpacitySelection?.();const sel=window.getSelection?.();try{sel?.removeAllRanges();}catch(_){}window.multiTimePage=Math.max(0,Math.min(Number(p)||0,window.multiTimeDraft.length+1));window.multiRenderCurrentPage();};
-        window.multiRenderCurrentPage=function(){const b=document.getElementById('multiPageBody');if(!b)return;window.richResetOpacitySelection?.();window.richSelectionRange=null;window.richOpacitySpan=null;const page=window.multiTimePage;b.innerHTML=page===0?window.multiGeneralPageHtml(window.multiTimeGeneralDraft):page===1?window.eventPermissionSettingsHtml(window.multiTimePermissionDraft||{},!window.multiTimeIsEdit):window.multiSegmentPageHtml(page-2);const lbl=document.getElementById('multiPageTitle');if(lbl)lbl.textContent=page===0?'总设置':page===1?'权限设置':`时间 ${page-1}`;window.multiRenderPageTabs();if(page===0){window.multiRenderConnections();}else if(page===1){window.initPermissionPage?.();}else{window.richResetOpacitySelection?.();const ed=document.getElementById('editDescription');if(ed)ed.addEventListener('input',window.richEditorInput);window.richSyncDecorationGeometry?.();}window.multiBindDrag();window.enhanceWebSelects?.(b);};
+        window.multiRenderCurrentPage=function(){const b=document.getElementById('multiPageBody');if(!b)return;window.richResetOpacitySelection?.();window.richSelectionRange=null;window.richOpacitySpan=null;const page=window.multiTimePage;b.innerHTML=page===0?window.multiGeneralPageHtml(window.multiTimeGeneralDraft):page===1?window.eventPermissionSettingsHtml(window.multiTimePermissionDraft||{},!window.multiTimeIsEdit):window.multiSegmentPageHtml(page-2);const lbl=document.getElementById('multiPageTitle');if(lbl)lbl.textContent=page===0?'总设置':page===1?'权限设置':`时间 ${page-1}`;window.multiRenderPageTabs();const maxPage=(window.multiTimeDraft?.length||0)+1;const prevBtn=document.getElementById('multiPrevPageBtn'),nextBtn=document.getElementById('multiNextPageBtn'),saveBtn=document.getElementById('multiSaveBtn');if(prevBtn)prevBtn.classList.toggle('hidden',page<=0);if(nextBtn)nextBtn.classList.toggle('hidden',page>=maxPage);if(saveBtn)saveBtn.classList.toggle('hidden',page<maxPage);if(page===0){window.multiRenderConnections();}else if(page===1){window.initPermissionPage?.();}else{window.richResetOpacitySelection?.();const ed=document.getElementById('editDescription');if(ed)ed.addEventListener('input',window.richEditorInput);window.richSyncDecorationGeometry?.();}window.multiBindDrag();window.enhanceWebSelects?.(b);};
         window.multiRenderEditorShell=function(){
             const modal=document.getElementById('multiTimeEventModal');if(!modal)return;const isEdit=window.multiTimeIsEdit;
             modal.innerHTML=`<div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full p-4 sm:p-5 my-3 sm:my-5 max-h-[92vh] overflow-y-auto custom-scrollbar">
@@ -15053,7 +15053,7 @@ viewer.style.visibility='';
                     <div id="multiPageBody"></div>
                     <div class="flex items-center justify-between pt-3 border-t border-slate-200 gap-3">
                         <div>${isEdit?`<button type="button" onclick="deleteEvent('${window.multiTimeEditingId}')" class="px-4 py-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg text-xs font-medium transition-colors">删除事件</button>`:'<div></div>'}</div>
-                        <div class="flex items-center gap-2"><button type="button" onclick="closeMultiTimeEventModal()" class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button><button type="button" onclick="saveMultiTimeEvent()" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">保存事件</button></div>
+                        <div class="flex items-center gap-2"><button type="button" id="multiPrevPageBtn" onclick="multiSwitchPage(Math.max(0,multiTimePage-1))" class="hidden px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">上一页</button><button type="button" id="multiNextPageBtn" onclick="multiSwitchPage(Math.min(multiTimeDraft.length+1,multiTimePage+1))" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium">下一页</button><button type="button" onclick="closeMultiTimeEventModal()" class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button><button type="button" id="multiSaveBtn" onclick="saveMultiTimeEvent()" class="hidden px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">保存事件</button></div>
                     </div>
                 </div>
             </div>`;
@@ -16100,11 +16100,51 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
    const inn=d.inn?`<path d="M54 18 Q41 7 29 7" fill="none" stroke="transparent" stroke-width="1" marker-end="url(#${marker})"/>`:'';
    const arrowWidth=Math.max(44,Math.min(150,36+Array.from(label).length*8));
    const dirClass=d.rel==='both'?'is-both':d.rel==='backward'?'is-backward':'is-forward';
-   return `<span class="relation-curve-mark stack-card-mark"><svg viewBox="0 0 58 22" aria-hidden="true">${defs}${visible}${out}${inn}</svg><span class="relation-tip">${label?`<div class="relation-tip-label">${esc(label)}</div>`:''}<div class="relation-tip-row"><span>该事件</span><span class="relation-tip-arrow-line ${dirClass}" style="--relation-arrow-width:${arrowWidth}px"></span><span>${esc(other?.title||otherId)}</span></div></span></span>`;
+   return `<span class="relation-curve-mark stack-card-mark"><svg viewBox="0 0 58 22" aria-hidden="true">${defs}${visible}${out}${inn}</svg><span class="relation-tip" style="--relation-arrow-width:${arrowWidth}px">${label?`<div class="relation-tip-label">${esc(label)}</div>`:''}<div class="relation-tip-row"><span>该事件</span><span class="relation-tip-arrow-line ${dirClass}"></span><span>${esc(other?.title||otherId)}</span></div></span></span>`;
  };
  window.getStackCardRelationMark=(event)=>{const cs=(window.connections||[]).filter(c=>String(c.sourceId)===String(event.id)||String(c.targetId)===String(event.id));return cs.map(c=>curve(event,c)).join('');};
  try{delete window.getMultiSegmentRelationMark;}catch(_){window.getMultiSegmentRelationMark=undefined;}
 
+})();
+</script>
+
+
+<style id="timeline-0930-final-small-fixes">
+/* Deep text toolbar: preset size remains stable; custom size may wrap, but the preset itself never stretches. */
+#deepTextTools label:has(#deepFontSize){flex:0 1 auto!important;min-width:0!important;max-width:100%!important;align-items:center!important;gap:4px!important;flex-wrap:wrap!important}
+#deepFontSize{width:82px!important;min-width:82px!important;max-width:82px!important;flex:0 0 82px!important}
+.web-select-wrap:has(#deepFontSize){width:82px!important;min-width:82px!important;max-width:82px!important;flex:0 0 82px!important}
+.web-select-wrap:has(#deepFontSize)>button{width:82px!important;min-width:82px!important;max-width:82px!important;height:28px!important;padding-top:4px!important;padding-bottom:4px!important}
+/* Keep the whole preset menu readable and scrollable above the canvas. */
+.web-select-wrap:has(#deepFontSize)>div{left:0!important;right:auto!important;width:132px!important;min-width:132px!important;max-height:224px!important;overflow-y:auto!important;overscroll-behavior:contain!important;z-index:700!important}
+#deepCustomSizeGroup{flex:0 0 auto!important}
+/* Opacity is a single vertically-centred control; don't split its label/slider/value. */
+#deepTextTools>label:has(#deepTextOpacity){display:flex!important;align-items:center!important;align-self:center!important;flex:0 1 auto!important;min-width:0!important;max-width:100%!important;flex-wrap:nowrap!important;gap:5px!important}
+#deepTextOpacity{width:72px!important;min-width:46px!important;flex:0 1 72px!important;margin:0!important;align-self:center!important}
+#deepTextOpacityValue{align-self:center!important;line-height:1!important}
+/* Tooltip uses a real 3-column relation grid. The label is centred over the arrow column, not over the whole tooltip. */
+.relation-curve-mark .relation-tip{grid-template-columns:max-content var(--relation-arrow-width,72px) max-content;align-items:center;column-gap:7px;row-gap:5px}
+.relation-curve-mark:hover .relation-tip{display:grid!important}
+.relation-tip-label{grid-column:2;grid-row:1;margin:0!important;text-align:center!important;justify-self:stretch}
+.relation-tip-row{display:contents!important}
+.relation-tip-row>span:nth-child(1){grid-column:1;grid-row:2}
+.relation-tip-row>span:nth-child(2){grid-column:2;grid-row:2;width:100%!important}
+.relation-tip-row>span:nth-child(3){grid-column:3;grid-row:2}
+</style>
+<script id="timeline-0930-final-small-behavior">
+(()=>{
+  /* The custom web-select lives over a draggable/zoomable canvas: consume wheel here so its own list scrolls. */
+  const bindDeepSizeMenuWheel=()=>{
+    const wrap=document.querySelector('.web-select-wrap:has(#deepFontSize)');
+    const menu=wrap?.querySelector(':scope > div');
+    if(menu&&!menu.dataset.deepWheelBound){
+      menu.dataset.deepWheelBound='1';
+      menu.addEventListener('wheel',e=>{e.stopPropagation();},{passive:false});
+    }
+  };
+  document.addEventListener('click',()=>requestAnimationFrame(bindDeepSizeMenuWheel),true);
+  new MutationObserver(()=>bindDeepSizeMenuWheel()).observe(document.body,{childList:true,subtree:true});
+  bindDeepSizeMenuWheel();
 })();
 </script>
 
