@@ -6369,18 +6369,72 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if (empty) empty.classList.toggle('hidden', visible !== 0);
         };
 
+        window.getConnectionSegmentOptions = function(event, prefix) {
+            const segs = event?.timeMode === 'multi' && Array.isArray(event.timeSegments) ? event.timeSegments : [];
+            return `<option value="">${prefix}：整个事件</option>` + segs.map((seg,i)=>`<option value="${escapeHtml(String(seg.id||''))}">${prefix}：时间 ${i+1} · ${escapeHtml(window.formatDisplayDate(seg.date||''))}${seg.subtitle?' · '+escapeHtml(seg.subtitle):''}</option>`).join('');
+        };
+        window.getConnectionSegmentText = function(event, segmentId, prefix='时间') {
+            if (!segmentId || event?.timeMode !== 'multi' || !Array.isArray(event.timeSegments)) return '';
+            const i=event.timeSegments.findIndex(seg=>String(seg.id||'')===String(segmentId));
+            if(i<0)return '';
+            const seg=event.timeSegments[i];
+            return `${prefix} ${i+1} · ${window.formatDisplayDate(seg.date||'')}${seg.subtitle?' · '+seg.subtitle:''}`;
+        };
+        // 已有连线卡片只需要一个简短的“具体时间”辅助标签：优先时间名称，否则回退为时间N。
+        window.getConnectionSegmentShortLabel = function(event, segmentId) {
+            if (!segmentId || event?.timeMode !== 'multi' || !Array.isArray(event.timeSegments)) return '';
+            const i=event.timeSegments.findIndex(seg=>String(seg.id||'')===String(segmentId));
+            if(i<0)return '';
+            const seg=event.timeSegments[i];
+            return String(seg.subtitle||'').trim() || `时间${i+1}`;
+        };
+        window.resetConnectionDirection = function(name) {
+            const radios=[...document.querySelectorAll(`input[name="${name}"]`)];
+            radios.forEach(r=>r.checked=r.value==='forward');
+        };
+        window.resetNewConnectionFields = function(kind, keepSelfTime=false) {
+            const cfg = kind==='multi'
+                ? {target:'multiConnTarget',label:'multiConnTargetLabel',text:'multiConnLabel',dir:'multiConnDir',other:'multiConnTargetSegment',otherRow:'multiConnTargetSegmentRow',self:'multiConnSelfSegment'}
+                : {target:'editConnTarget',label:'editConnTargetLabel',text:'editConnLabel',dir:'editConnDirection',other:'editConnTargetSegment',otherRow:'editConnTargetSegmentRow'};
+            const t=document.getElementById(cfg.target); if(t)t.value='';
+            const l=document.getElementById(cfg.label); if(l){l.textContent='选择连接的事件';l.classList.add('text-slate-400');l.classList.remove('text-slate-700');}
+            const tx=document.getElementById(cfg.text); if(tx)tx.value='';
+            window.resetConnectionDirection(cfg.dir);
+            const o=document.getElementById(cfg.other); if(o)o.value='';
+            const row=document.getElementById(cfg.otherRow); if(row)row.classList.add('hidden');
+            if(kind==='multi'){const label=document.getElementById('multiConnLabel');if(label)label.classList.remove('col-span-2');}
+            if(cfg.self && !keepSelfTime){const self=document.getElementById(cfg.self);if(self)self.value='';}
+            if(kind==='edit'){
+                const adaptive=document.getElementById('editConnAdaptiveRow');
+                if(adaptive){adaptive.classList.remove('grid-cols-2');adaptive.classList.add('grid-cols-1');}
+            }
+        };
         window.selectConnectionEventPicker = function(pickerId, hiddenInputId, labelId, eventId) {
             const event = window.events.find(e => String(e.id) === String(eventId));
             const hidden = document.getElementById(hiddenInputId);
             const label = document.getElementById(labelId);
             const picker = document.getElementById(pickerId);
             if (!event || !hidden || !label) return;
+            if (hiddenInputId === 'editConnTarget') {
+                const tx=document.getElementById('editConnLabel'); if(tx)tx.value='';
+                window.resetConnectionDirection('editConnDirection');
+            } else if (hiddenInputId === 'multiConnTarget') {
+                const tx=document.getElementById('multiConnLabel'); if(tx)tx.value='';
+                window.resetConnectionDirection('multiConnDir');
+                const other=document.getElementById('multiConnTargetSegment'); if(other)other.value='';
+                const self=document.getElementById('multiConnSelfSegment'); if(self)self.value='';
+            } else if (hiddenInputId === 'connEditOther') {
+                const tx=document.getElementById('connEditLabel'); if(tx)tx.value='';
+                window.resetConnectionDirection('connEditDirection');
+                ['connEditSelfSegment','connEditOtherSegment'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+            }
             hidden.value = String(event.id);
             label.textContent = `${window.formatDisplayDate(event.date)} · ${event.title || '未命名事件'}`;
             label.classList.remove('text-slate-400');
             label.classList.add('text-slate-700');
             picker?.classList.add('hidden');
-            window.refreshConnectionSegmentPicker?.(hiddenInputId,event);
+            if(hiddenInputId==='connEditOther') window.refreshConnectionEditAdaptiveFields?.(event);
+            else window.refreshConnectionSegmentPicker?.(hiddenInputId,event);
         };
         window.refreshConnectionSegmentPicker=function(hiddenInputId,event){
             const selectId=hiddenInputId==='editConnTarget'?'editConnTargetSegment':hiddenInputId==='multiConnTarget'?'multiConnTargetSegment':hiddenInputId==='connEditOther'?'connEditOtherSegment':'';
@@ -6390,8 +6444,10 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             row.classList.toggle('hidden',!segs.length);
             const adaptive=document.getElementById(hiddenInputId==='editConnTarget'?'editConnAdaptiveRow':hiddenInputId==='multiConnTarget'?'multiConnAdaptiveRow':'');
             if(adaptive){adaptive.classList.toggle('grid-cols-2',!!segs.length);adaptive.classList.toggle('grid-cols-1',!segs.length);}
-            select.innerHTML='<option value="">连接到整个事件</option>'+segs.map((seg,i)=>`<option value="${escapeHtml(String(seg.id||''))}">时间 ${i+1} · ${escapeHtml(window.formatDisplayDate(seg.date||''))}${seg.subtitle?' · '+escapeHtml(seg.subtitle):''}</option>`).join('');
+            const prefix=hiddenInputId==='multiConnTarget'?'连线时间':hiddenInputId==='connEditOther'?'连线时间':'连线时间';
+            select.innerHTML='<option value="">'+prefix+'：整个事件</option>'+segs.map((seg,i)=>`<option value="${escapeHtml(String(seg.id||''))}">${prefix}：时间 ${i+1} · ${escapeHtml(window.formatDisplayDate(seg.date||''))}${seg.subtitle?' · '+escapeHtml(seg.subtitle):''}</option>`).join('');
             select.value='';
+            if(hiddenInputId==='multiConnTarget'){const host=document.getElementById('multiConnTimeRow');const label=document.getElementById('multiConnLabel');if(host&&label){if(segs.length){host.classList.add('grid-cols-2');row.classList.remove('hidden');label.classList.add('col-span-2');}else{row.classList.add('hidden');label.classList.remove('col-span-2');}}}
         };
 
         window.renderConnectionEventPickerOptions = function(pickerId, events, hiddenInputId, labelId) {
@@ -6446,6 +6502,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const currentLabel = selfEvent ? `${window.formatDisplayDate(selfEvent.date)} · ${selfEvent.title || '未命名事件'}` : '当前事件';
             const otherLabel = otherEvent ? `${window.formatDisplayDate(otherEvent.date)} · ${otherEvent.title || '未命名事件'}` : '选择连接的事件';
             const safeConnId = String(connectionId).replace(/'/g, "\\'");
+            window._activeConnectionEditId=String(connectionId);
 
             modal.innerHTML = `<div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5">
                 <div class="flex items-center justify-between mb-4"><h3 class="font-bold text-slate-800">编辑连线</h3><button type="button" onclick="closeConnectionEditModal()" class="w-8 h-8 rounded-full text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button></div>
@@ -6461,14 +6518,38 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         </div>
                     </div>
                 </div>
-                <label class="block mt-3"><span class="block text-[10px] font-semibold text-slate-500 mb-1">连线文字</span><input id="connEditLabel" maxlength="40" value="${escapeHtml(conn.label||'')}" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs"></label>
+                <div id="connEditAdaptiveFields">${(()=>{const selfMulti=selfEvent?.timeMode==='multi',otherMulti=otherEvent?.timeMode==='multi';if(!selfMulti&&!otherMulti)return '';const selfVal=selfIsSource?conn.sourceSegmentId:conn.targetSegmentId,otherVal=selfIsSource?conn.targetSegmentId:conn.sourceSegmentId;if(selfMulti&&otherMulti)return `<div id="connEditTimeRow" class="grid grid-cols-2 gap-2 mt-3"><select id="connEditSelfSegment" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white">${window.getConnectionSegmentOptions(selfEvent,'当前时间')}</select><select id="connEditOtherSegment" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white">${window.getConnectionSegmentOptions(otherEvent,'连线时间')}</select></div>`;const eventForSeg=selfMulti?selfEvent:otherEvent;const id=selfMulti?'connEditSelfSegment':'connEditOtherSegment';const prefix=selfMulti?'当前时间':'连线时间';return `<div id="connEditTimeLabelRow" class="grid grid-cols-2 gap-2 mt-3"><select id="${id}" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white">${window.getConnectionSegmentOptions(eventForSeg,prefix)}</select><input id="connEditLabel" maxlength="40" value="${escapeHtml(conn.label||'')}" placeholder="连线文字" class="w-full min-w-0 px-3 py-2 border border-slate-300 rounded-lg text-xs"></div>`;})()}
+                ${!(selfEvent?.timeMode==='multi'||otherEvent?.timeMode==='multi')?`<label class="block mt-3"><span class="block text-[10px] font-semibold text-slate-500 mb-1">连线文字</span><input id="connEditLabel" maxlength="40" value="${escapeHtml(conn.label||'')}" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs"></label>`:(selfEvent?.timeMode==='multi'&&otherEvent?.timeMode==='multi'?`<label class="block mt-3"><span class="block text-[10px] font-semibold text-slate-500 mb-1">连线文字</span><input id="connEditLabel" maxlength="40" value="${escapeHtml(conn.label||'')}" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs"></label>`:'')}</div>
                 <div class="mt-3"><span class="block text-[10px] font-semibold text-slate-500 mb-1.5">方向</span><div class="grid grid-cols-3 gap-1.5">${[['forward','→ 指向'],['backward','← 被指向'],['both','↔ 双向']].map(([v,t])=>`<label class="cursor-pointer"><input type="radio" name="connEditDirection" value="${v}" ${relativeDir===v?'checked':''} class="sr-only peer"><span class="flex items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">${t}</span></label>`).join('')}</div></div>
                 <div class="flex justify-end gap-2 mt-5"><button type="button" onclick="closeConnectionEditModal()" class="px-3 py-2 border border-slate-300 rounded-lg text-xs">取消</button><button type="button" onclick="saveConnectionEdit('${safeConnId}')" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-semibold">保存修改</button></div>
             </div>`;
             window.renderConnectionEventPickerOptions('connEditOtherPicker', others, 'connEditOther', 'connEditOtherLabel');
+            const selfSegValue=selfIsSource?conn.sourceSegmentId:conn.targetSegmentId;
+            const otherSegValue=selfIsSource?conn.targetSegmentId:conn.sourceSegmentId;
+            const selfSegEl=document.getElementById('connEditSelfSegment'); if(selfSegEl)selfSegEl.value=String(selfSegValue||'');
+            const otherSegEl=document.getElementById('connEditOtherSegment'); if(otherSegEl)otherSegEl.value=String(otherSegValue||'');
+            window.enhanceWebSelects?.(modal);
             modal.classList.remove('hidden');
         };
-        window.closeConnectionEditModal = function(){ document.getElementById('connectionEditModal')?.classList.add('hidden'); };
+        window.refreshConnectionEditAdaptiveFields=function(otherEvent){
+            const host=document.getElementById('connEditAdaptiveFields');
+            const selfId=window.editingConnectionDraftEventId;
+            const selfEvent=(window.events||[]).find(e=>String(e.id)===String(selfId));
+            if(!host||!selfEvent)return;
+            const selfMulti=selfEvent?.timeMode==='multi',otherMulti=otherEvent?.timeMode==='multi';
+            let html='';
+            if(selfMulti&&otherMulti){
+                html=`<div class="grid grid-cols-2 gap-2 mt-3"><select id="connEditSelfSegment" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white">${window.getConnectionSegmentOptions(selfEvent,'当前时间')}</select><select id="connEditOtherSegment" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white">${window.getConnectionSegmentOptions(otherEvent,'连线时间')}</select></div><label class="block mt-3"><span class="block text-[10px] font-semibold text-slate-500 mb-1">连线文字</span><input id="connEditLabel" maxlength="40" value="" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs"></label>`;
+            }else if(selfMulti||otherMulti){
+                const ev=selfMulti?selfEvent:otherEvent,id=selfMulti?'connEditSelfSegment':'connEditOtherSegment',prefix=selfMulti?'当前时间':'连线时间';
+                html=`<div class="grid grid-cols-2 gap-2 mt-3"><select id="${id}" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white">${window.getConnectionSegmentOptions(ev,prefix)}</select><input id="connEditLabel" maxlength="40" value="" placeholder="连线文字" class="w-full min-w-0 px-3 py-2 border border-slate-300 rounded-lg text-xs"></div>`;
+            }else{
+                html=`<label class="block mt-3"><span class="block text-[10px] font-semibold text-slate-500 mb-1">连线文字</span><input id="connEditLabel" maxlength="40" value="" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs"></label>`;
+            }
+            host.innerHTML=html;
+            window.enhanceWebSelects?.(host);
+        };
+        window.closeConnectionEditModal = function(){ window._activeConnectionEditId=null; document.getElementById('connectionEditModal')?.classList.add('hidden'); };
         window.saveConnectionEdit = function(connectionId) {
             const list = window.editingConnections || [];
             const conn = list.find(c => String(c.id) === String(connectionId));
@@ -6481,10 +6562,17 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if (dir === 'backward') { sourceId = otherIdRaw; targetId = selfId; storedDir = 'forward'; }
             const duplicate = list.some(c => String(c.id) !== String(connectionId) && String(c.sourceId) === String(sourceId) && String(c.targetId) === String(targetId) && (c.dir === 'both') === (storedDir === 'both'));
             if (duplicate) { window.showToast('连线已存在','error'); return; }
+            const selfEvent=window.events.find(e=>String(e.id)===String(selfId));
+            const otherEvent=window.events.find(e=>String(e.id)===String(otherIdRaw));
+            const selfSeg=String(document.getElementById('connEditSelfSegment')?.value||'');
+            const otherSeg=String(document.getElementById('connEditOtherSegment')?.value||'');
             conn.sourceId = isNaN(Number(sourceId)) ? sourceId : Number(sourceId);
             conn.targetId = isNaN(Number(targetId)) ? targetId : Number(targetId);
             conn.dir = storedDir === 'both' ? 'both' : 'forward';
             conn.label = label;
+            delete conn.sourceSegmentId; delete conn.targetSegmentId;
+            if(dir==='backward'){if(otherEvent?.timeMode==='multi'&&otherSeg)conn.sourceSegmentId=otherSeg;if(selfEvent?.timeMode==='multi'&&selfSeg)conn.targetSegmentId=selfSeg;}
+            else {if(selfEvent?.timeMode==='multi'&&selfSeg)conn.sourceSegmentId=selfSeg;if(otherEvent?.timeMode==='multi'&&otherSeg)conn.targetSegmentId=otherSeg;}
             window.editingConnectionsDirty = true;
             window.renderEditConnections();
             window.closeConnectionEditModal();
@@ -11087,12 +11175,19 @@ viewer.style.visibility='';
                 const target = window.events.find(e => String(e.id) === String(conn.targetId));
                 const sourceTitle = String(conn.sourceId) === String(selfId) ? '当前事件' : (source?.title || String(conn.sourceId));
                 const targetTitle = String(conn.targetId) === String(selfId) ? '当前事件' : (target?.title || String(conn.targetId));
-                const dirText = conn.dir === 'both' ? '双向' : (conn.dir === 'backward' ? '被指向' : '指向');
-                const dirIcon = conn.dir === 'both' ? '↔' : (conn.dir === 'backward' ? '←' : '→');
-                return `<div class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-xs">
-                    <span class="text-indigo-600 font-bold w-5 text-center">${dirIcon}</span>
-                    <div class="min-w-0 flex-1"><div class="font-semibold text-slate-700 truncate">${escapeHtml(sourceTitle)} <span class="text-slate-400 font-normal">→</span> ${escapeHtml(targetTitle)}</div><div class="text-[10px] text-slate-400 mt-0.5">${dirText}${conn.label ? ` · ${escapeHtml(conn.label)}` : ''}</div></div>
-                    <button type="button" onclick="event.stopPropagation();openConnectionEditModal('${String(conn.id).replace(/'/g, "\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 flex items-center justify-center shrink-0" title="编辑"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="event.stopPropagation();removeEditingConnection('${String(conn.id).replace(/'/g, "\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center shrink-0" title="删除"><i class="fa-solid fa-xmark"></i></button>
+                const selfIsSource = String(conn.sourceId) === String(selfId);
+                const dirText = conn.dir === 'both' ? '双向' : (selfIsSource ? '指向' : '被指向');
+                const dirIcon = conn.dir === 'both' ? '↔' : (selfIsSource ? '→' : '←');
+                const sourceSegText=window.getConnectionSegmentShortLabel(source,conn.sourceSegmentId);
+                const targetSegText=window.getConnectionSegmentShortLabel(target,conn.targetSegmentId);
+                const connLabel=String(conn.label||'').trim();
+                return `<div class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-2.5 h-[52px] text-xs overflow-hidden">
+                    <div class="w-7 shrink-0 self-stretch flex flex-col items-center justify-center leading-none"><span class="text-indigo-600 font-bold text-sm">${dirIcon}</span><span class="text-[9px] text-slate-400 mt-1 whitespace-nowrap">${dirText}</span></div>
+                    <div class="min-w-0 flex-1 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] grid-rows-[18px_14px] items-center gap-x-1" title="${connLabel?escapeHtml(connLabel):''}">
+                        <div class="min-w-0 font-semibold text-slate-700 truncate">${escapeHtml(sourceTitle)}</div><span class="row-span-2 self-start pt-[2px] text-slate-400 font-normal">→</span><div class="min-w-0 font-semibold text-slate-700 truncate">${escapeHtml(targetTitle)}</div>
+                        <div class="min-w-0 text-[10px] text-slate-400 truncate">${sourceSegText?escapeHtml(sourceSegText):'&nbsp;'}</div><div class="min-w-0 text-[10px] text-slate-400 truncate">${targetSegText?escapeHtml(targetSegText):'&nbsp;'}</div>
+                    </div>
+                    <button type="button" onclick="event.stopPropagation();openConnectionEditModal('${String(conn.id).replace(/'/g, "\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 flex items-center justify-center shrink-0" title="编辑${connLabel?' · '+escapeHtml(connLabel):''}"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="event.stopPropagation();removeEditingConnection('${String(conn.id).replace(/'/g, "\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center shrink-0" title="删除"><i class="fa-solid fa-xmark"></i></button>
                 </div>`;
             }).join('');
             window.enhanceWebSelects?.(document.getElementById('editModal')||document);
@@ -11144,12 +11239,7 @@ viewer.style.visibility='';
             if(pickedTargetSegment){if(dir==='backward')connection.sourceSegmentId=pickedTargetSegment;else connection.targetSegmentId=pickedTargetSegment;}
             window.editingConnections.push(connection);
             window.editingConnectionsDirty = true;
-            const labelInput = document.getElementById('editConnLabel');
-            if (labelInput) labelInput.value = '';
-            const targetInput = document.getElementById('editConnTarget');
-            if (targetInput) targetInput.value = '';
-            const targetLabel = document.getElementById('editConnTargetLabel');
-            if (targetLabel) { targetLabel.textContent = '选择连接的事件'; targetLabel.classList.add('text-slate-400'); targetLabel.classList.remove('text-slate-700'); }
+            window.resetNewConnectionFields('edit');
             window.renderEditConnections();
         };
 
@@ -14895,7 +14985,7 @@ viewer.style.visibility='';
 
         window.multiRenderConnectionPicker=function(){const list=document.getElementById('multiConnPickerList');if(!list)return;const q=(document.getElementById('multiConnSearch')?.value||'').trim().toLowerCase();const others=(window.events||[]).filter(e=>String(e.id)!==String(window.multiTimeEditingId)).filter(e=>{const d=window.formatDisplayDate(e.date);return !q||`${e.title||''} ${d} ${e.id}`.toLowerCase().includes(q);}).sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.title||'').localeCompare(String(b.title||'')));list.innerHTML=others.length?others.map(e=>`<button type="button" onclick="multiPickConnectionEvent('${String(e.id).replace(/'/g,"\\'")}')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-indigo-50 text-xs text-slate-700 transition-colors"><span class="block font-medium truncate">${window.multiEsc(e.title||'未命名事件')}</span><span class="block mt-0.5 text-[10px] text-slate-400">${window.multiEsc(window.formatDisplayDate(e.date))}</span></button>`).join(''):'<div class="px-3 py-4 text-center text-[11px] text-slate-400">没有匹配事件</div>';};
         window.multiToggleConnPicker=function(){const p=document.getElementById('multiConnPicker');if(!p)return;const opening=p.classList.contains('hidden');p.classList.toggle('hidden');if(opening){const q=document.getElementById('multiConnSearch');if(q)q.value='';window.multiRenderConnectionPicker();const list=document.getElementById('multiConnPickerList');if(list)list.scrollTop=0;setTimeout(()=>{q?.focus();if(list)list.scrollTop=0;},0);}};
-        window.multiPickConnectionEvent=function(id){const e=window.findEventById(id);const h=document.getElementById('multiConnTarget');if(h)h.value=id;const l=document.getElementById('multiConnTargetLabel');if(l){l.textContent=e?`${window.formatDisplayDate(e.date)} · ${e.title||'未命名事件'}`:'已选择事件';l.classList.remove('text-slate-400');l.classList.add('text-slate-700');}document.getElementById('multiConnPicker')?.classList.add('hidden');window.refreshConnectionSegmentPicker?.('multiConnTarget',e);};
+        window.multiPickConnectionEvent=function(id){const e=window.findEventById(id);const tx=document.getElementById('multiConnLabel');if(tx)tx.value='';window.resetConnectionDirection?.('multiConnDir');const selfSeg=document.getElementById('multiConnSelfSegment');if(selfSeg)selfSeg.value='';const otherSeg=document.getElementById('multiConnTargetSegment');if(otherSeg)otherSeg.value='';const h=document.getElementById('multiConnTarget');if(h)h.value=id;const l=document.getElementById('multiConnTargetLabel');if(l){l.textContent=e?`${window.formatDisplayDate(e.date)} · ${e.title||'未命名事件'}`:'已选择事件';l.classList.remove('text-slate-400');l.classList.add('text-slate-700');}document.getElementById('multiConnPicker')?.classList.add('hidden');window.refreshConnectionSegmentPicker?.('multiConnTarget',e);};
         window.multiRenderConnections=function(){
             const h=document.getElementById('multiConnectionsList');if(!h)return;
             const self=window.multiTimeEditingId;
@@ -14904,12 +14994,16 @@ viewer.style.visibility='';
                 const source=window.findEventById(c.sourceId),target=window.findEventById(c.targetId);
                 const sourceTitle=String(c.sourceId)===String(self)?'当前事件':(source?.title||String(c.sourceId));
                 const targetTitle=String(c.targetId)===String(self)?'当前事件':(target?.title||String(c.targetId));
-                const dirText=c.dir==='both'?'双向':(String(c.sourceId)===String(self)?'指向':'被指向');
-                const dirIcon=c.dir==='both'?'↔':(String(c.sourceId)===String(self)?'→':'←');
-                return `<div class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-xs"><span class="text-indigo-600 font-bold w-5 text-center">${dirIcon}</span><div class="min-w-0 flex-1"><div class="font-semibold text-slate-700 truncate">${window.multiEsc(sourceTitle)} <span class="text-slate-400 font-normal">→</span> ${window.multiEsc(targetTitle)}</div><div class="text-[10px] text-slate-400 mt-0.5">${dirText}${c.label?' · '+window.multiEsc(c.label):''}</div></div><button type="button" onclick="event.stopPropagation();multiOpenConnectionEdit('${String(c.id).replace(/'/g,"\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 flex items-center justify-center shrink-0" title="编辑"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="event.stopPropagation();multiRemoveConnection('${String(c.id).replace(/'/g,"\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center shrink-0" title="删除"><i class="fa-solid fa-xmark"></i></button></div>`;
+                const selfIsSource=String(c.sourceId)===String(self);
+                const dirText=c.dir==='both'?'双向':(selfIsSource?'指向':'被指向');
+                const dirIcon=c.dir==='both'?'↔':(selfIsSource?'→':'←');
+                const sourceSegText=window.getConnectionSegmentShortLabel(source,c.sourceSegmentId);
+                const targetSegText=window.getConnectionSegmentShortLabel(target,c.targetSegmentId);
+                const connLabel=String(c.label||'').trim();
+                return `<div class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-2.5 h-[52px] text-xs overflow-hidden"><div class="w-7 shrink-0 self-stretch flex flex-col items-center justify-center leading-none"><span class="text-indigo-600 font-bold text-sm">${dirIcon}</span><span class="text-[9px] text-slate-400 mt-1 whitespace-nowrap">${dirText}</span></div><div class="min-w-0 flex-1 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] grid-rows-[18px_14px] items-center gap-x-1" title="${connLabel?window.multiEsc(connLabel):''}"><div class="min-w-0 font-semibold text-slate-700 truncate">${window.multiEsc(sourceTitle)}</div><span class="row-span-2 self-start pt-[2px] text-slate-400 font-normal">→</span><div class="min-w-0 font-semibold text-slate-700 truncate">${window.multiEsc(targetTitle)}</div><div class="min-w-0 text-[10px] text-slate-400 truncate">${sourceSegText?window.multiEsc(sourceSegText):'&nbsp;'}</div><div class="min-w-0 text-[10px] text-slate-400 truncate">${targetSegText?window.multiEsc(targetSegText):'&nbsp;'}</div></div><button type="button" onclick="event.stopPropagation();multiOpenConnectionEdit('${String(c.id).replace(/'/g,"\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 flex items-center justify-center shrink-0" title="编辑${connLabel?' · '+window.multiEsc(connLabel):''}"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="event.stopPropagation();multiRemoveConnection('${String(c.id).replace(/'/g,"\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center shrink-0" title="删除"><i class="fa-solid fa-xmark"></i></button></div>`;
             }).join('');
         };
-        window.multiAddConnection=function(){const target=document.getElementById('multiConnTarget')?.value,dir=document.querySelector('input[name="multiConnDir"]:checked')?.value||'forward',label=document.getElementById('multiConnLabel')?.value.trim()||'';if(!target){window.showToast('请选择要连接的事件','error');return;}const selfSeg=String(document.getElementById('multiConnSelfSegment')?.value||''),otherSeg=String(document.getElementById('multiConnTargetSegment')?.value||'');let source=window.multiTimeEditingId,t=target,d=dir;if(dir==='backward'){source=target;t=window.multiTimeEditingId;d='forward';}const c={id:'draft_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),sourceId:isNaN(Number(source))?source:Number(source),targetId:isNaN(Number(t))?t:Number(t),dir:d==='both'?'both':'forward',label};if(dir==='backward'){if(otherSeg)c.sourceSegmentId=otherSeg;if(selfSeg)c.targetSegmentId=selfSeg;}else{if(selfSeg)c.sourceSegmentId=selfSeg;if(otherSeg)c.targetSegmentId=otherSeg;}window.multiTimeConnections.push(c);document.getElementById('multiConnTarget').value='';document.getElementById('multiConnTargetLabel').textContent='选择连接的事件';document.getElementById('multiConnLabel').value='';const row=document.getElementById('multiConnTargetSegmentRow');if(row)row.classList.add('hidden');window.multiRenderConnections();};
+        window.multiAddConnection=function(){const target=document.getElementById('multiConnTarget')?.value,dir=document.querySelector('input[name="multiConnDir"]:checked')?.value||'forward',label=document.getElementById('multiConnLabel')?.value.trim()||'';if(!target){window.showToast('请选择要连接的事件','error');return;}const selfSeg=String(document.getElementById('multiConnSelfSegment')?.value||''),otherSeg=String(document.getElementById('multiConnTargetSegment')?.value||'');let source=window.multiTimeEditingId,t=target,d=dir;if(dir==='backward'){source=target;t=window.multiTimeEditingId;d='forward';}const c={id:'draft_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),sourceId:isNaN(Number(source))?source:Number(source),targetId:isNaN(Number(t))?t:Number(t),dir:d==='both'?'both':'forward',label};if(dir==='backward'){if(otherSeg)c.sourceSegmentId=otherSeg;if(selfSeg)c.targetSegmentId=selfSeg;}else{if(selfSeg)c.sourceSegmentId=selfSeg;if(otherSeg)c.targetSegmentId=otherSeg;}window.multiTimeConnections.push(c);window.resetNewConnectionFields?.('multi');window.multiRenderConnections();};
         window.multiRemoveConnection=function(id){window.confirmEditAttachmentDelete?.('connection',()=>{window.multiTimeConnections=window.multiTimeConnections.filter(c=>String(c.id)!==String(id));window.multiRenderConnections();});};
         window.multiOpenConnectionEdit=function(id){
             window.editingConnections=window.multiTimeConnections;
@@ -14945,8 +15039,7 @@ viewer.style.visibility='';
                             <div id="multiConnPickerList" class="max-h-48 overflow-y-auto custom-scrollbar space-y-0.5"></div>
                         </div>
                     </div>
-                    <div class="grid grid-cols-2 gap-2"><select id="multiConnSelfSegment" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-indigo-500"><option value="">当前事件：整个事件</option>${(window.multiTimeDraft||[]).map((seg,i)=>`<option value="${window.multiEsc(seg.id||'')}">当前事件：时间 ${i+1} · ${window.multiEsc(window.formatDisplayDate(seg.date||''))}${seg.subtitle?' · '+window.multiEsc(seg.subtitle):''}</option>`).join('')}</select><input id="multiConnLabel" placeholder="连线文字" maxlength="40" class="w-full min-w-0 px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500"></div>
-                    <div id="multiConnTargetSegmentRow" class="hidden"><select id="multiConnTargetSegment" class="w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-indigo-500"><option value="">连接到整个事件</option></select></div>
+                    <div id="multiConnTimeRow" class="grid grid-cols-2 gap-2"><select id="multiConnSelfSegment" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-indigo-500"><option value="">当前时间：整个事件</option>${(window.multiTimeDraft||[]).map((seg,i)=>`<option value="${window.multiEsc(seg.id||'')}">当前时间：时间 ${i+1} · ${window.multiEsc(window.formatDisplayDate(seg.date||''))}${seg.subtitle?' · '+window.multiEsc(seg.subtitle):''}</option>`).join('')}</select><div id="multiConnTargetSegmentRow" class="hidden"><select id="multiConnTargetSegment" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-indigo-500"><option value="">连线时间：整个事件</option></select></div><input id="multiConnLabel" placeholder="连线文字" maxlength="40" class="w-full min-w-0 px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500"></div>
                     <div class="flex items-stretch gap-2"><div class="grid grid-cols-3 gap-1.5 flex-1 min-w-0">
                         <label class="cursor-pointer"><input type="radio" name="multiConnDir" value="forward" checked class="sr-only peer"><span class="flex h-full items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">→ 指向</span></label>
                         <label class="cursor-pointer"><input type="radio" name="multiConnDir" value="backward" class="sr-only peer"><span class="flex h-full items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">← 被指向</span></label>
@@ -16097,7 +16190,7 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
  new MutationObserver(syncAdaptive).observe(document.body,{subtree:true,attributes:true,attributeFilter:['class'],childList:true});document.addEventListener('click',()=>requestAnimationFrame(syncAdaptive),true);
  const esc=v=>window.escapeHtml?.(String(v??''))??String(v??'');
  const direction=(current,c)=>{const src=String(c.sourceId)===String(current.id);if(c.dir==='both')return {out:1,inn:1,rel:'both'};if(c.dir==='backward')return src?{out:0,inn:1,rel:'backward'}:{out:1,inn:0,rel:'forward'};return src?{out:1,inn:0,rel:'forward'}:{out:0,inn:1,rel:'backward'};};
- const curve=(current,c)=>{
+ const curve=(current,c,context='event')=>{
    const d=direction(current,c),otherId=String(String(c.sourceId)===String(current.id)?c.targetId:c.sourceId),other=window.findEventById?.(otherId)||(window.events||[]).find(e=>String(e.id)===otherId),label=String(c.label||'').trim();
    const seq=(window._stackRelationMarkerSeq=(window._stackRelationMarkerSeq||0)+1),marker=`stackRelMid${seq}`;
    const defs=`<defs><marker id="${marker}" markerWidth="8" markerHeight="8" refX="6.8" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L8,4 L0,8 Z" fill="currentColor"/></marker></defs>`;
@@ -16107,10 +16200,10 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
    const inn=d.inn?`<path d="M54 18 Q41 7 29 7" fill="none" stroke="transparent" stroke-width="1" marker-end="url(#${marker})"/>`:'';
    const arrowWidth=Math.max(44,Math.min(150,36+Array.from(label).length*8));
    const dirClass=d.rel==='both'?'is-both':d.rel==='backward'?'is-backward':'is-forward';
-   return `<span class="relation-curve-mark stack-card-mark"><svg viewBox="0 0 58 22" aria-hidden="true">${defs}${visible}${out}${inn}</svg><span class="relation-tip" style="--relation-arrow-width:${arrowWidth}px">${label?`<div class="relation-tip-label">${esc(label)}</div>`:''}<div class="relation-tip-row"><span>该事件</span><span class="relation-tip-arrow-line ${dirClass}"></span><span>${esc(other?.title||otherId)}</span></div></span></span>`;
+   return `<span class="relation-curve-mark stack-card-mark"><svg viewBox="0 0 58 22" aria-hidden="true">${defs}${visible}${out}${inn}</svg><span class="relation-tip" style="--relation-arrow-width:${arrowWidth}px">${label?`<div class="relation-tip-label">${esc(label)}</div>`:''}<div class="relation-tip-row"><span>${context==='time'?'当前时间':'当前事件'}</span><span class="relation-tip-arrow-line ${dirClass}"></span><span>${esc(other?.title||otherId)}</span></div></span></span>`;
  };
  window.getStackCardRelationMark=(event)=>{const cs=(window.connections||[]).filter(c=>String(c.sourceId)===String(event.id)||String(c.targetId)===String(event.id));if(!cs.length)return '';return `<span class="stack-relation-marks" data-relation-count="${cs.length}">${cs.map(c=>curve(event,c)).join('')}</span>`;};
- window.getMultiSegmentRelationMarks=(event,segmentId)=>{const sid=String(segmentId||'');if(!sid)return '';const cs=(window.connections||[]).filter(c=>{if(String(c.sourceId)===String(event.id))return !!c.sourceSegmentId&&String(c.sourceSegmentId)===sid;if(String(c.targetId)===String(event.id))return !!c.targetSegmentId&&String(c.targetSegmentId)===sid;return false;});if(!cs.length)return '';return `<span class="multi-segment-relations" data-relation-count="${cs.length}">${cs.map(c=>curve(event,c)).join('')}</span>`;};
+ window.getMultiSegmentRelationMarks=(event,segmentId)=>{const sid=String(segmentId||'');if(!sid)return '';const cs=(window.connections||[]).filter(c=>{if(String(c.sourceId)===String(event.id))return !!c.sourceSegmentId&&String(c.sourceSegmentId)===sid;if(String(c.targetId)===String(event.id))return !!c.targetSegmentId&&String(c.targetSegmentId)===sid;return false;});if(!cs.length)return '';return `<span class="multi-segment-relations" data-relation-count="${cs.length}">${cs.map(c=>curve(event,c,'time')).join('')}</span>`;};
  try{delete window.getMultiSegmentRelationMark;}catch(_){window.getMultiSegmentRelationMark=undefined;}
 
 })();
