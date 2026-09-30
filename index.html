@@ -6061,7 +6061,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                                      onclick="handleStackCardClick(event, '${String(event.id).replace(/'/g, "\\'")}', '${String(event.date || '').replace(/'/g, "\\'")}')"
                                      style="width: 220px; height: 320px; position: absolute; left: 50%; top: 50%; margin-left: -110px; margin-top: -160px; transform-origin: center center; transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); cursor: ${canReorder ? 'grab' : 'pointer'};">
                                     ${window.getStackCardRelationMark?.(event,items)||''}
-                                    <div class="h-[160px] bg-slate-200 relative overflow-hidden shrink-0 rounded-t-2xl">
+                                    <div data-stack-media-host="1" class="h-[160px] bg-slate-200 relative overflow-hidden shrink-0 rounded-t-2xl">
                                         ${firstImgSrc ? `<img class="preview-slide-img w-full h-full object-cover" data-slide-json="${slideJson}" src="${firstImgSrc}" alt="" draggable="false">` : `
                                             <div class="w-full h-full flex items-center justify-center text-slate-400 bg-gradient-to-br from-slate-100 to-slate-200">
                                                 <i class="fa-solid fa-image text-3xl"></i>
@@ -7442,7 +7442,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             tools.classList.toggle('is-open',show);
             if(!show){tools.style.visibility='hidden';return;}
             const r=el.getBoundingClientRect();
-            const width=Math.max(150,Math.min(Math.round(r.width*0.78),Math.min(230,window.innerWidth-16)));
+            const width=Math.max(1,Math.min(Math.round(r.width),Math.min(360,window.innerWidth-16)));
             tools.style.width=width+'px';
             tools.style.maxWidth=(window.innerWidth-16)+'px';
             const h=tools.offsetHeight||42;
@@ -11561,7 +11561,7 @@ viewer.style.visibility='';
             if(titleEl)titleEl.textContent=ev.title||'';
             if(descEl)descEl.innerHTML=window.getDescriptionFirstParagraphHtml(ev.description);
 
-            const mediaHost=card.firstElementChild;
+            const mediaHost=card.querySelector('[data-stack-media-host="1"]') || card.querySelector('.h\[160px\].bg-slate-200');
             if(mediaHost){
                 // 只重建当前事件的媒体舞台，其他卡片 DOM/播放状态完全保留。
                 if(typeof window.stopPreviewSlideshow==='function')window.stopPreviewSlideshow(card,false);
@@ -16033,24 +16033,34 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
 #xiaoqingerDialogueEditorModal>div{max-height:88vh;overflow-y:auto}
 #deepUndoBtn:disabled,#deepRedoBtn:disabled{color:#94a3b8!important;background:#f8fafc!important;border-color:#e2e8f0!important;opacity:.6!important;cursor:not-allowed!important}
 
-/* Deep text toolbar remains sized from the selected text box. These rules only define the controls inside it. */
-#deepTextTools{white-space:normal!important;align-items:flex-start!important}
-#deepTextTools label:has(#deepFontSize){display:grid!important;grid-template-columns:auto 82px minmax(0,1fr)!important;align-items:center!important;column-gap:4px!important;row-gap:4px!important;min-width:0!important;max-width:100%!important}
-#deepFontSize{width:82px!important;min-width:82px!important;max-width:82px!important}
-.web-select-wrap:has(#deepFontSize){width:82px!important;min-width:82px!important;max-width:82px!important;flex:0 0 82px!important}
-#deepFontSizeCustom{width:52px!important}
-#deepCustomSizeGroup{min-width:72px;flex:0 0 auto}
-/* When the selected text box is narrow, move the custom value below and align it with the preset box. */
-#deepTextTools.deep-font-wrap label:has(#deepFontSize){grid-template-columns:auto 82px!important}
-#deepTextTools.deep-font-wrap #deepCustomSizeGroup{grid-column:2!important;margin-left:0!important}
+/* Deep text toolbar follows the selected text box continuously: no artificial minimum width. Controls wrap downward as space disappears and may merge rows again when space grows. */
+#deepTextTools{white-space:normal!important;align-items:flex-start!important;align-content:flex-start!important;gap:6px!important;min-width:0!important}
+#deepTextTools>*{max-width:100%!important}
+#deepTextTools>div:first-child{flex:1 1 100%!important;min-width:0!important}
+#deepTextTools>div:first-child>#deepBorderToolBtn{max-width:100%!important}
+#deepTextTools label:has(#deepFontSize){display:flex!important;flex:1 1 170px!important;min-width:0!important;max-width:100%!important;align-items:center!important;gap:4px!important;flex-wrap:wrap!important;white-space:nowrap!important}
+#deepTextTools label:has(#deepFontSize)>span:first-child{flex:0 0 auto!important}
+#deepFontSize{width:auto!important;min-width:0!important;max-width:100%!important;flex:1 1 78px!important}
+.web-select-wrap:has(#deepFontSize){width:auto!important;min-width:0!important;max-width:100%!important;flex:1 1 82px!important}
+.web-select-wrap:has(#deepFontSize) .web-select-button{min-width:0!important;width:100%!important}
+#deepCustomSizeGroup{display:inline-flex!important;align-items:center!important;gap:4px!important;flex:0 1 auto!important;min-width:0!important;max-width:100%!important}
+#deepFontSizeCustom{width:52px!important;min-width:38px!important;max-width:52px!important;flex:0 1 52px!important}
+#deepTextTools>button[data-deep-text-control]{flex:0 0 auto!important}
+#deepTextTools>div:has(#deepTextColorBtn){flex:0 1 auto!important;min-width:0!important}
+#deepTextTools>label:has(#deepTextOpacity){flex:1 1 135px!important;min-width:0!important;max-width:100%!important;flex-wrap:wrap!important}
+#deepTextOpacity{min-width:42px!important;flex:1 1 64px!important;width:auto!important}
+/* Very narrow text boxes are allowed to become narrow toolbars; individual semantic groups then occupy their own rows instead of overflowing. */
+@container (max-width:190px){
+ #deepTextTools label:has(#deepFontSize),#deepTextTools>label:has(#deepTextOpacity){flex-basis:100%!important}
+ #deepTextTools>div:has(#deepTextColorBtn){flex-basis:100%!important}
+}
 
-/* The modal shell itself no longer scrolls. The title stays fixed; only the content area below it scrolls. */
-#editModal>div,#multiTimeEventModal>div{overflow:hidden!important;display:flex!important;flex-direction:column!important;box-sizing:border-box!important}
-#editModal>div>div:first-child,#multiTimeEventModal>div>div:first-child{position:relative!important;top:auto!important;z-index:2!important;flex:0 0 auto!important;background:#fff!important;margin-bottom:0!important;border-bottom:0!important;box-shadow:none!important}
-#editModal>div>form{min-height:0!important;flex:1 1 auto!important;overflow-y:auto!important;overflow-x:hidden!important;padding-top:0!important}
-#editModal>div>form>div:first-child{position:sticky!important;top:0!important;z-index:3!important;background:#f1f5f9!important;margin-top:0!important;box-shadow:0 7px 0 #fff!important}
-#multiTimeEventModal>div>.space-y-3\.5{min-height:0!important;flex:1 1 auto!important;overflow-y:auto!important;overflow-x:hidden!important;padding-top:0!important}
-#multiTimeEventModal #multiPageTabs{position:sticky!important;top:0!important;z-index:3!important;background:#f1f5f9!important;margin-top:0!important;box-shadow:0 7px 0 #fff!important}
+/* Keep the original modal as the ONLY scroll container. The fixed-looking top therefore does not alter the form width or add a second scrollbar/padding layer. */
+#editModal>div,#multiTimeEventModal>div{position:relative!important;box-sizing:border-box!important}
+#editModal>div>div:first-child,#multiTimeEventModal>div>div:first-child{position:sticky!important;top:-1px!important;z-index:12!important;background:#fff!important;margin-bottom:0!important;padding-bottom:12px!important;border-bottom:0!important;box-shadow:none!important}
+#editModal>div>form>div:first-child,#multiTimeEventModal #multiPageTabs{position:sticky!important;top:var(--event-editor-header-h,60px)!important;z-index:11!important;background:#f1f5f9!important;margin-top:0!important;box-shadow:0 -2px 0 #fff,0 8px 0 #fff!important}
+/* Do not create/resize an inner scrolling body: preserve the original horizontal box model. */
+#editModal>div>form,#multiTimeEventModal>div>.space-y-3\.5{overflow:visible!important;min-width:0!important;width:auto!important;padding-left:0!important;padding-right:0!important}
 
 /* Same-time collection relation miniature. Its location stays where the card design puts it; arrowheads sit on the curve itself. */
 .relation-curve-mark{position:absolute;z-index:38;width:64px;height:34px;pointer-events:auto;color:#6366f1;background:transparent;border:0}
@@ -16081,26 +16091,24 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
  const direction=(current,c)=>{const src=String(c.sourceId)===String(current.id);if(c.dir==='both')return {out:1,inn:1,rel:'both'};if(c.dir==='backward')return src?{out:0,inn:1,rel:'backward'}:{out:1,inn:0,rel:'forward'};return src?{out:1,inn:0,rel:'forward'}:{out:0,inn:1,rel:'backward'};};
  const curve=(current,c)=>{
    const d=direction(current,c),otherId=String(String(c.sourceId)===String(current.id)?c.targetId:c.sourceId),other=window.findEventById?.(otherId)||(window.events||[]).find(e=>String(e.id)===otherId),label=String(c.label||'').trim();
-   const head=(x,y,a)=>`<polygon points="-6,-4.5 6,0 -6,4.5" transform="translate(${x},${y}) rotate(${a})" fill="currentColor"/>`;
-   let heads='';
-   if(d.out&&d.inn) heads=head(38,5,0)+head(26,5,180); else if(d.out) heads=head(32,5,0); else heads=head(32,5,180);
-   const arrowWidth=Math.max(48,Math.min(150,44+label.length*8));
+   const seq=(window._stackRelationMarkerSeq=(window._stackRelationMarkerSeq||0)+1),marker=`stackRelMid${seq}`;
+   const defs=`<defs><marker id="${marker}" markerWidth="10" markerHeight="10" refX="8.2" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,5 L0,10 Z" fill="currentColor"/></marker></defs>`;
+   /* Visible curve and arrow share the exact same geometry. The two hidden half-paths terminate at the apex, so marker-end is physically bound to the curve centre instead of being positioned with x/y guesses. */
+   const visible='<path d="M5 29 C13 11 22 5 32 5 C42 5 51 11 59 29" fill="none" stroke="currentColor" stroke-width="2.6" stroke-dasharray="6 4" stroke-linecap="round"/>';
+   const out=d.out?`<path d="M5 29 C13 11 22 5 32 5" fill="none" stroke="transparent" stroke-width="1" marker-end="url(#${marker})"/>`:'';
+   const inn=d.inn?`<path d="M59 29 C51 11 42 5 32 5" fill="none" stroke="transparent" stroke-width="1" marker-end="url(#${marker})"/>`:'';
+   const arrowWidth=Math.max(44,Math.min(150,36+Array.from(label).length*8));
    const dirClass=d.rel==='both'?'is-both':d.rel==='backward'?'is-backward':'is-forward';
-   return `<span class="relation-curve-mark stack-card-mark"><svg viewBox="0 0 64 34" aria-hidden="true"><path d="M5 29 Q32 -8 59 29" fill="none" stroke="currentColor" stroke-width="2.6" stroke-dasharray="6 4" stroke-linecap="round"/>${heads}</svg><span class="relation-tip">${label?`<div class="relation-tip-label">${esc(label)}</div>`:''}<div class="relation-tip-row"><span>该事件</span><span class="relation-tip-arrow-line ${dirClass}" style="--relation-arrow-width:${arrowWidth}px"></span><span>${esc(other?.title||otherId)}</span></div></span></span>`;
+   return `<span class="relation-curve-mark stack-card-mark"><svg viewBox="0 0 64 34" aria-hidden="true">${defs}${visible}${out}${inn}</svg><span class="relation-tip">${label?`<div class="relation-tip-label">${esc(label)}</div>`:''}<div class="relation-tip-row"><span>该事件</span><span class="relation-tip-arrow-line ${dirClass}" style="--relation-arrow-width:${arrowWidth}px"></span><span>${esc(other?.title||otherId)}</span></div></span></span>`;
  };
  window.getStackCardRelationMark=(event)=>{const cs=(window.connections||[]).filter(c=>String(c.sourceId)===String(event.id)||String(c.targetId)===String(event.id));return cs.map(c=>curve(event,c)).join('');};
  try{delete window.getMultiSegmentRelationMark;}catch(_){window.getMultiSegmentRelationMark=undefined;}
 
- /* Preserve the original selected-text-box sizing. Only decide whether the custom size must wrap. */
- const oldPosition=window.deepPositionTextTools;
- if(oldPosition)window.deepPositionTextTools=function(){
-   const v=oldPosition.apply(this,arguments),tools=document.getElementById('deepTextTools');
-   if(tools&&tools.classList.contains('is-open')){
-     const w=tools.getBoundingClientRect().width;
-     tools.classList.toggle('deep-font-wrap',w<215);
-   }
-   return v;
- };
+ /* Header height is measured, not guessed. Both single- and multi-time editors keep their original scroll/width model. */
+ const syncEditorHeaderHeight=()=>document.querySelectorAll('#editModal>div,#multiTimeEventModal>div').forEach(shell=>{const h=shell.querySelector(':scope>div:first-child');if(h)shell.style.setProperty('--event-editor-header-h',Math.ceil(h.getBoundingClientRect().height)+'px');});
+ new MutationObserver(()=>requestAnimationFrame(syncEditorHeaderHeight)).observe(document.body,{subtree:true,childList:true});
+ window.addEventListener('resize',syncEditorHeaderHeight,{passive:true});
+ document.addEventListener('click',()=>requestAnimationFrame(syncEditorHeaderHeight),true);
 })();
 </script>
 
