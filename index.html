@@ -6061,7 +6061,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                                      onclick="handleStackCardClick(event, '${String(event.id).replace(/'/g, "\\'")}', '${String(event.date || '').replace(/'/g, "\\'")}')"
                                      style="width: 220px; height: 320px; position: absolute; left: 50%; top: 50%; margin-left: -110px; margin-top: -160px; transform-origin: center center; transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); cursor: ${canReorder ? 'grab' : 'pointer'};">
                                     ${window.getStackCardRelationMark?.(event,items)||''}
-                                    <div data-stack-media-host="1" class="h-[160px] bg-slate-200 relative overflow-hidden shrink-0 rounded-t-2xl">
+                                    <div class="h-[160px] bg-slate-200 relative overflow-hidden shrink-0 rounded-t-2xl">
                                         ${firstImgSrc ? `<img class="preview-slide-img w-full h-full object-cover" data-slide-json="${slideJson}" src="${firstImgSrc}" alt="" draggable="false">` : `
                                             <div class="w-full h-full flex items-center justify-center text-slate-400 bg-gradient-to-br from-slate-100 to-slate-200">
                                                 <i class="fa-solid fa-image text-3xl"></i>
@@ -7442,7 +7442,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             tools.classList.toggle('is-open',show);
             if(!show){tools.style.visibility='hidden';return;}
             const r=el.getBoundingClientRect();
-            const width=Math.max(176,Math.min(Math.round(r.width*0.92),Math.min(340,window.innerWidth-16)));
+            const width=Math.max(150,Math.min(Math.round(r.width*0.78),Math.min(230,window.innerWidth-16)));
             tools.style.width=width+'px';
             tools.style.maxWidth=(window.innerWidth-16)+'px';
             const h=tools.offsetHeight||42;
@@ -11346,8 +11346,8 @@ viewer.style.visibility='';
             window.editingConnectionDraftEventId = event.id;
 
             modal.innerHTML = `
-                <div class="event-editor-shell bg-white rounded-2xl shadow-2xl max-w-xl w-full p-4 sm:p-5 my-3 sm:my-5 max-h-[92vh] custom-scrollbar">
-                    <div class="event-editor-header flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-200 mb-4 sm:mb-5">
+                <div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full p-4 sm:p-5 my-3 sm:my-5 max-h-[92vh] overflow-y-auto custom-scrollbar">
+                    <div class="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-200 mb-4 sm:mb-5">
                         <h3 class="font-bold text-slate-800 text-base sm:text-lg flex items-center gap-2">
                             <i class="fa-solid fa-pen-to-square text-indigo-600"></i>
                             <span>${isEdit ? '编辑事件' : '新建事件'}</span>
@@ -11357,8 +11357,8 @@ viewer.style.visibility='';
                         </button>
                     </div>
 
-                    <form onsubmit="handlePreSaveEvent(event, '${event.id}', ${isEdit})" novalidate class="event-editor-form space-y-3.5">
-                        <div class="event-editor-tabs flex items-center gap-2 p-1 bg-slate-100 rounded-xl border border-slate-200">
+                    <form onsubmit="handlePreSaveEvent(event, '${event.id}', ${isEdit})" novalidate class="space-y-3.5">
+                        <div class="flex items-center gap-2 p-1 bg-slate-100 rounded-xl border border-slate-200">
                             <button type="button" id="editPageTab1" onclick="switchEditPage(1)" class="flex-1 px-3 py-2 rounded-lg text-xs font-semibold bg-white text-indigo-700 shadow-sm border border-indigo-100">1. 基础信息</button>
                             <button type="button" id="editPageTab2" onclick="switchEditPage(2)" class="flex-1 px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-700">2. 插入信息</button>
                             <button type="button" id="editPageTab3" ${window.canOpenEventPermissionSettings?.(event,!isEdit)?'onclick="switchEditPage(3)"':'disabled aria-disabled="true" title="仅事件创建者可查看和设置权限"'} class="flex-1 px-3 py-2 rounded-lg text-xs font-semibold ${window.canOpenEventPermissionSettings?.(event,!isEdit)?'text-slate-500 hover:text-slate-700':'text-slate-300 cursor-not-allowed'}">3. 权限设置</button>
@@ -11487,16 +11487,6 @@ viewer.style.visibility='';
             window.renderMicroPreviews();
             window.renderVideoPreviews();
             window.renderLinkPreviews();
-            {
-                const form=modal.querySelector('.event-editor-form');
-                const tabs=form?.querySelector(':scope > .event-editor-tabs');
-                if(form&&tabs&&!form.querySelector(':scope > .event-editor-scroll')){
-                    const scroll=document.createElement('div');
-                    scroll.className='event-editor-scroll custom-scrollbar';
-                    Array.from(form.children).filter(n=>n!==tabs).forEach(n=>scroll.appendChild(n));
-                    form.appendChild(scroll);
-                }
-            }
             window.renderEditConnections();
             window.switchEditPage(1);
             window.richResetOpacitySelection?.();
@@ -11571,7 +11561,7 @@ viewer.style.visibility='';
             if(titleEl)titleEl.textContent=ev.title||'';
             if(descEl)descEl.innerHTML=window.getDescriptionFirstParagraphHtml(ev.description);
 
-            const mediaHost=card.querySelector('[data-stack-media-host="1"]');
+            const mediaHost=card.firstElementChild;
             if(mediaHost){
                 // 只重建当前事件的媒体舞台，其他卡片 DOM/播放状态完全保留。
                 if(typeof window.stopPreviewSlideshow==='function')window.stopPreviewSlideshow(card,false);
@@ -15048,13 +15038,13 @@ viewer.style.visibility='';
         window.multiRenderCurrentPage=function(){const b=document.getElementById('multiPageBody');if(!b)return;window.richResetOpacitySelection?.();window.richSelectionRange=null;window.richOpacitySpan=null;const page=window.multiTimePage;b.innerHTML=page===0?window.multiGeneralPageHtml(window.multiTimeGeneralDraft):page===1?window.eventPermissionSettingsHtml(window.multiTimePermissionDraft||{},!window.multiTimeIsEdit):window.multiSegmentPageHtml(page-2);const lbl=document.getElementById('multiPageTitle');if(lbl)lbl.textContent=page===0?'总设置':page===1?'权限设置':`时间 ${page-1}`;window.multiRenderPageTabs();if(page===0){window.multiRenderConnections();}else if(page===1){window.initPermissionPage?.();}else{window.richResetOpacitySelection?.();const ed=document.getElementById('editDescription');if(ed)ed.addEventListener('input',window.richEditorInput);window.richSyncDecorationGeometry?.();}window.multiBindDrag();window.enhanceWebSelects?.(b);};
         window.multiRenderEditorShell=function(){
             const modal=document.getElementById('multiTimeEventModal');if(!modal)return;const isEdit=window.multiTimeIsEdit;
-            modal.innerHTML=`<div class="event-editor-shell bg-white rounded-2xl shadow-2xl max-w-xl w-full p-4 sm:p-5 my-3 sm:my-5 max-h-[92vh] custom-scrollbar">
-                <div class="event-editor-header flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-200 mb-4 sm:mb-5">
+            modal.innerHTML=`<div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full p-4 sm:p-5 my-3 sm:my-5 max-h-[92vh] overflow-y-auto custom-scrollbar">
+                <div class="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-200 mb-4 sm:mb-5">
                     <h3 class="font-bold text-slate-800 text-base sm:text-lg flex items-center gap-2"><i class="fa-solid fa-pen-to-square text-indigo-600"></i><span>${isEdit?'编辑事件':'新建事件'}</span></h3>
                     <button type="button" onclick="closeMultiTimeEventModal()" class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
                 </div>
-                <div class="multi-editor-form space-y-3.5">
-                    <div id="multiPageTabs" class="event-editor-tabs flex items-center gap-2 p-1 bg-slate-100 rounded-xl border border-slate-200 overflow-x-auto"></div>
+                <div class="space-y-3.5">
+                    <div id="multiPageTabs" class="flex items-center gap-2 p-1 bg-slate-100 rounded-xl border border-slate-200 overflow-x-auto"></div>
                     <div id="multiPageTitle" class="hidden"></div>
                     <div id="multiPageBody"></div>
                     <div class="flex items-center justify-between pt-3 border-t border-slate-200 gap-3">
@@ -15063,16 +15053,6 @@ viewer.style.visibility='';
                     </div>
                 </div>
             </div>`;
-            {
-                const form=modal.querySelector('.multi-editor-form');
-                const tabs=form?.querySelector(':scope > #multiPageTabs');
-                if(form&&tabs&&!form.querySelector(':scope > .event-editor-scroll')){
-                    const scroll=document.createElement('div');
-                    scroll.className='event-editor-scroll custom-scrollbar';
-                    Array.from(form.children).filter(n=>n!==tabs).forEach(n=>scroll.appendChild(n));
-                    form.appendChild(scroll);
-                }
-            }
             window.multiRenderCurrentPage();
         };
         window.multiAddSegment=function(){window.multiPersistCurrentPage();window.multiTimeDraft.push(window.multiNewSegment());window.multiTimePage=window.multiTimeDraft.length+1;window.multiRenderEditorShell();};
@@ -16045,67 +16025,84 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
 
 \n
 
+<style id="timeline-0930-consolidated-fixes">
+/* Event cards: title/time stay on one line so density does not inflate node height. */
+.timeline-node-container .node-title-area>span{display:block!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;-webkit-line-clamp:unset!important}
+#richFontSizePreset,#xiaoqingerRichSize{width:138px!important;min-width:138px!important;max-width:138px!important}
+.web-select-wrap:has(#richFontSizePreset),.web-select-wrap:has(#xiaoqingerRichSize){width:138px!important;min-width:138px!important;flex:0 0 138px!important}
+#xiaoqingerDialogueEditorModal>div{max-height:88vh;overflow-y:auto}
+#deepUndoBtn:disabled,#deepRedoBtn:disabled{color:#94a3b8!important;background:#f8fafc!important;border-color:#e2e8f0!important;opacity:.6!important;cursor:not-allowed!important}
 
+/* Deep text toolbar remains sized from the selected text box. These rules only define the controls inside it. */
+#deepTextTools{white-space:normal!important;align-items:flex-start!important}
+#deepTextTools label:has(#deepFontSize){display:grid!important;grid-template-columns:auto 82px minmax(0,1fr)!important;align-items:center!important;column-gap:4px!important;row-gap:4px!important;min-width:0!important;max-width:100%!important}
+#deepFontSize{width:82px!important;min-width:82px!important;max-width:82px!important}
+.web-select-wrap:has(#deepFontSize){width:82px!important;min-width:82px!important;max-width:82px!important;flex:0 0 82px!important}
+#deepFontSizeCustom{width:52px!important}
+#deepCustomSizeGroup{min-width:72px;flex:0 0 auto}
+/* When the selected text box is narrow, move the custom value below and align it with the preset box. */
+#deepTextTools.deep-font-wrap label:has(#deepFontSize){grid-template-columns:auto 82px!important}
+#deepTextTools.deep-font-wrap #deepCustomSizeGroup{grid-column:2!important;margin-left:0!important}
 
+/* The modal shell itself no longer scrolls. The title stays fixed; only the content area below it scrolls. */
+#editModal>div,#multiTimeEventModal>div{overflow:hidden!important;display:flex!important;flex-direction:column!important;box-sizing:border-box!important}
+#editModal>div>div:first-child,#multiTimeEventModal>div>div:first-child{position:relative!important;top:auto!important;z-index:2!important;flex:0 0 auto!important;background:#fff!important;margin-bottom:0!important;border-bottom:0!important;box-shadow:none!important}
+#editModal>div>form{min-height:0!important;flex:1 1 auto!important;overflow-y:auto!important;overflow-x:hidden!important;padding-top:0!important}
+#editModal>div>form>div:first-child{position:sticky!important;top:0!important;z-index:3!important;background:#f1f5f9!important;margin-top:0!important;box-shadow:0 7px 0 #fff!important}
+#multiTimeEventModal>div>.space-y-3\.5{min-height:0!important;flex:1 1 auto!important;overflow-y:auto!important;overflow-x:hidden!important;padding-top:0!important}
+#multiTimeEventModal #multiPageTabs{position:sticky!important;top:0!important;z-index:3!important;background:#f1f5f9!important;margin-top:0!important;box-shadow:0 7px 0 #fff!important}
 
-<style id="timeline-0930-structural-fixes">
-/* Editor: header + tabs are real fixed rows. Only the body below them scrolls. No sticky masks and no extra horizontal wrapper padding. */
-.event-editor-shell{overflow:hidden!important;display:flex!important;flex-direction:column!important;box-sizing:border-box!important}
-.event-editor-header{position:relative!important;flex:0 0 auto!important;z-index:2!important;background:#fff!important}
-.event-editor-form,.multi-editor-form{display:flex!important;flex-direction:column!important;min-height:0!important;flex:1 1 auto!important;overflow:hidden!important}
-.event-editor-tabs{position:relative!important;flex:0 0 auto!important;z-index:2!important}
-.event-editor-scroll{min-height:0!important;flex:1 1 auto!important;overflow-y:auto!important;overflow-x:hidden!important;margin-top:.875rem!important;padding:0!important;width:100%!important;box-sizing:border-box!important}
-.event-editor-scroll>*:first-child{margin-top:0!important}
-
-/* Same-time relation mark. The arrowhead is attached to an invisible copy of the curve segment, so it follows the curve tangent instead of using guessed x/y coordinates. */
-.relation-curve-mark{position:absolute;z-index:38;width:64px;height:36px;pointer-events:auto;color:#6366f1;background:transparent;border:0}
+/* Same-time collection relation miniature. Its location stays where the card design puts it; arrowheads sit on the curve itself. */
+.relation-curve-mark{position:absolute;z-index:38;width:64px;height:34px;pointer-events:auto;color:#6366f1;background:transparent;border:0}
 .relation-curve-mark.stack-card-mark{right:10px;bottom:38px}
-.relation-curve-mark svg{display:block;width:64px;height:36px;overflow:visible}
-.relation-curve-mark .relation-tip{display:none;position:absolute;right:0;top:calc(100% + 5px);width:max-content;max-width:360px;padding:8px 10px;border-radius:8px;background:#0f172a;border:1px solid #334155;color:#e2e8f0;font-size:10px;line-height:1.45;text-align:center;box-shadow:0 10px 25px rgba(0,0,0,.3);z-index:120;white-space:nowrap}
+.relation-curve-mark svg{display:block;width:64px;height:34px;overflow:visible}
+.relation-curve-mark .relation-tip{display:none;position:absolute;right:0;top:calc(100% + 5px);width:max-content;max-width:340px;padding:8px 10px;border-radius:8px;background:#0f172a;border:1px solid #334155;color:#e2e8f0;font-size:10px;line-height:1.45;text-align:center;box-shadow:0 10px 25px rgba(0,0,0,.3);z-index:120;white-space:nowrap}
 .relation-curve-mark:hover .relation-tip{display:block}
 .relation-tip-label{font-weight:700;margin-bottom:5px;text-align:center}
 .relation-tip-row{display:flex;align-items:center;justify-content:center;gap:7px}
-.relation-tip-arrow-line{position:relative;display:inline-block;flex:0 0 auto;width:var(--relation-arrow-width,56px);height:10px;color:#a5b4fc}
+.relation-tip-arrow-line{position:relative;display:inline-block;flex:0 0 auto;width:var(--relation-arrow-width,72px);height:10px;color:#a5b4fc}
 .relation-tip-arrow-line::before{content:'';position:absolute;left:0;right:0;top:50%;border-top:1.5px solid currentColor;transform:translateY(-50%)}
 .relation-tip-arrow-line.is-forward::after{content:'';position:absolute;right:0;top:50%;width:6px;height:6px;border-top:1.5px solid currentColor;border-right:1.5px solid currentColor;transform:translateY(-50%) rotate(45deg)}
 .relation-tip-arrow-line.is-backward::after{content:'';position:absolute;left:0;top:50%;width:6px;height:6px;border-left:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:translateY(-50%) rotate(45deg)}
-.relation-tip-arrow-line.is-both::before{left:4px;right:4px}
-.relation-tip-arrow-line.is-both::after{content:'↔';position:absolute;inset:-5px 0 auto 0;font-size:15px;line-height:10px;letter-spacing:0;color:currentColor;transform:scaleX(var(--relation-arrow-scale,3.2));transform-origin:center}
-
-/* Deep text tools: width follows the selected text box up AND down, with a useful cap. The compact layout has four semantic rows; wider boxes may merge rows naturally. */
-#deepTextTools{container-type:inline-size;white-space:normal!important;align-items:flex-start!important;align-content:flex-start!important;gap:6px!important}
-#deepTextTools>div:first-child{flex:0 0 100%!important}
-#deepTextTools>label:has(#deepFontSize){flex:0 0 100%!important;display:flex!important;align-items:center!important;gap:4px!important;min-width:0!important;white-space:nowrap!important}
-#deepFontSize{width:76px!important;min-width:76px!important;max-width:76px!important}
-.web-select-wrap:has(#deepFontSize){width:76px!important;min-width:76px!important;max-width:76px!important;flex:0 0 76px!important}
-#deepFontSizeCustom{width:52px!important;min-width:52px!important}
-#deepCustomSizeGroup{display:inline-flex!important;align-items:center!important;gap:4px!important;flex:0 0 auto!important}
-#deepTextTools>button[id^="deepBold"],#deepTextTools>button[id^="deepItalic"],#deepTextTools>button[id^="deepUnderline"],#deepTextTools>button[id^="deepStrike"],#deepTextTools>#deepAlignLeftBtn,#deepTextTools>#deepAlignCenterBtn,#deepTextTools>#deepAlignRightBtn{flex:0 0 auto!important}
-#deepTextTools>div:has(#deepTextColorBtn){margin-top:1px}
-#deepTextTools>label:has(#deepTextOpacity){margin-top:1px}
-@container (min-width:300px){
-  #deepTextTools>div:first-child{flex-basis:auto!important}
-  #deepTextTools>label:has(#deepFontSize){flex-basis:auto!important}
-}
+.relation-tip-arrow-line.is-both::after{content:'‹                                      ›';position:absolute;inset:-5px -2px auto -2px;font-size:16px;line-height:10px;display:flex;justify-content:space-between;color:currentColor;letter-spacing:0;overflow:hidden}
 </style>
-<script id="timeline-0930-structural-behavior">
+<script id="timeline-0930-consolidated-behavior">
 (()=>{
+ const syncDeepHistoryButtons=()=>{const u=document.getElementById('deepUndoBtn'),r=document.getElementById('deepRedoBtn');if(u)u.disabled=!(window.deepCanvasUndo&&window.deepCanvasUndo.length);if(r)r.disabled=!(window.deepCanvasRedo&&window.deepCanvasRedo.length);};
+ const oldPush=window.deepPushUndo,oldUndo=window.deepUndo,oldRedo=window.deepRedo,oldRestore=window.deepRestoreState,oldOpen=window.openDeepDescriptionEditor;
+ if(oldPush)window.deepPushUndo=function(){const v=oldPush.apply(this,arguments);syncDeepHistoryButtons();return v;};
+ if(oldUndo)window.deepUndo=function(){const v=oldUndo.apply(this,arguments);syncDeepHistoryButtons();return v;};
+ if(oldRedo)window.deepRedo=function(){const v=oldRedo.apply(this,arguments);syncDeepHistoryButtons();return v;};
+ if(oldRestore)window.deepRestoreState=function(){const v=oldRestore.apply(this,arguments);syncDeepHistoryButtons();return v;};
+ if(oldOpen)window.openDeepDescriptionEditor=async function(){const v=await oldOpen.apply(this,arguments);syncDeepHistoryButtons();return v;};
+ const syncAdaptive=()=>{[['editConnTargetSegmentRow','editConnAdaptiveRow'],['multiConnTargetSegmentRow','__none__']].forEach(([r,a])=>{const row=document.getElementById(r),host=document.getElementById(a);if(!row||!host)return;const shown=!row.classList.contains('hidden');host.classList.toggle('grid-cols-2',shown);host.classList.toggle('grid-cols-1',!shown);});};
+ new MutationObserver(syncAdaptive).observe(document.body,{subtree:true,attributes:true,attributeFilter:['class'],childList:true});document.addEventListener('click',()=>requestAnimationFrame(syncAdaptive),true);
  const esc=v=>window.escapeHtml?.(String(v??''))??String(v??'');
  const direction=(current,c)=>{const src=String(c.sourceId)===String(current.id);if(c.dir==='both')return {out:1,inn:1,rel:'both'};if(c.dir==='backward')return src?{out:0,inn:1,rel:'backward'}:{out:1,inn:0,rel:'forward'};return src?{out:1,inn:0,rel:'forward'}:{out:0,inn:1,rel:'backward'};};
  const curve=(current,c)=>{
    const d=direction(current,c),otherId=String(String(c.sourceId)===String(current.id)?c.targetId:c.sourceId),other=window.findEventById?.(otherId)||(window.events||[]).find(e=>String(e.id)===otherId),label=String(c.label||'').trim();
-   const seq=(window._stackRelationMarkerSeq=(window._stackRelationMarkerSeq||0)+1),marker=`stackRelArrow${seq}`;
-   const defs=`<defs><marker id="${marker}" markerWidth="8" markerHeight="8" refX="6.7" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L8,4 L0,8 Z" fill="currentColor"/></marker></defs>`;
-   const visible='<path d="M5 28 Q32 -5 59 28" fill="none" stroke="currentColor" stroke-width="2.6" stroke-dasharray="6 4" stroke-linecap="round"/>';
-   const out=d.out?`<path d="M5 28 Q18.5 11.5 32 11.5" fill="none" stroke="transparent" stroke-width="1" marker-end="url(#${marker})"/>`:'';
-   const inn=d.inn?`<path d="M59 28 Q45.5 11.5 32 11.5" fill="none" stroke="transparent" stroke-width="1" marker-end="url(#${marker})"/>`:'';
-   const arrowWidth=Math.max(46,Math.min(142,38+Array.from(label).length*7));
+   const head=(x,y,a)=>`<polygon points="-6,-4.5 6,0 -6,4.5" transform="translate(${x},${y}) rotate(${a})" fill="currentColor"/>`;
+   let heads='';
+   if(d.out&&d.inn) heads=head(38,5,0)+head(26,5,180); else if(d.out) heads=head(32,5,0); else heads=head(32,5,180);
+   const arrowWidth=Math.max(48,Math.min(150,44+label.length*8));
    const dirClass=d.rel==='both'?'is-both':d.rel==='backward'?'is-backward':'is-forward';
-   return `<span class="relation-curve-mark stack-card-mark"><svg viewBox="0 0 64 36" aria-hidden="true">${defs}${visible}${out}${inn}</svg><span class="relation-tip">${label?`<div class="relation-tip-label">${esc(label)}</div>`:''}<div class="relation-tip-row"><span>该事件</span><span class="relation-tip-arrow-line ${dirClass}" style="--relation-arrow-width:${arrowWidth}px;--relation-arrow-scale:${Math.max(2.2,arrowWidth/20)}"></span><span>${esc(other?.title||otherId)}</span></div></span></span>`;
+   return `<span class="relation-curve-mark stack-card-mark"><svg viewBox="0 0 64 34" aria-hidden="true"><path d="M5 29 Q32 -8 59 29" fill="none" stroke="currentColor" stroke-width="2.6" stroke-dasharray="6 4" stroke-linecap="round"/>${heads}</svg><span class="relation-tip">${label?`<div class="relation-tip-label">${esc(label)}</div>`:''}<div class="relation-tip-row"><span>该事件</span><span class="relation-tip-arrow-line ${dirClass}" style="--relation-arrow-width:${arrowWidth}px"></span><span>${esc(other?.title||otherId)}</span></div></span></span>`;
  };
  window.getStackCardRelationMark=(event)=>{const cs=(window.connections||[]).filter(c=>String(c.sourceId)===String(event.id)||String(c.targetId)===String(event.id));return cs.map(c=>curve(event,c)).join('');};
  try{delete window.getMultiSegmentRelationMark;}catch(_){window.getMultiSegmentRelationMark=undefined;}
+
+ /* Preserve the original selected-text-box sizing. Only decide whether the custom size must wrap. */
+ const oldPosition=window.deepPositionTextTools;
+ if(oldPosition)window.deepPositionTextTools=function(){
+   const v=oldPosition.apply(this,arguments),tools=document.getElementById('deepTextTools');
+   if(tools&&tools.classList.contains('is-open')){
+     const w=tools.getBoundingClientRect().width;
+     tools.classList.toggle('deep-font-wrap',w<215);
+   }
+   return v;
+ };
 })();
 </script>
+
 </body>
 </html>
