@@ -16145,6 +16145,39 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
   document.addEventListener('click',()=>requestAnimationFrame(bindDeepSizeMenuWheel),true);
   new MutationObserver(()=>bindDeepSizeMenuWheel()).observe(document.body,{childList:true,subtree:true});
   bindDeepSizeMenuWheel();
+
+  /* Deep字号菜单不能依赖工具栏自身的高度：打开时按按钮在视口中的实际位置展开。
+     这样即使文字工具栏很矮/发生换行，也不会只露出第一项。 */
+  const bindDeepSizeMenuLayout=()=>{
+    const wrap=document.querySelector('.web-select-wrap:has(#deepFontSize)');
+    if(!wrap||wrap.dataset.deepMenuLayoutBound==='1')return;
+    const btn=wrap.querySelector(':scope > button');
+    const menu=wrap.querySelector(':scope > div');
+    if(!btn||!menu)return;
+    wrap.dataset.deepMenuLayoutBound='1';
+    const place=()=>{
+      if(menu.classList.contains('hidden'))return;
+      const r=btn.getBoundingClientRect();
+      const below=Math.max(96,window.innerHeight-r.bottom-10);
+      const above=Math.max(96,r.top-10);
+      const openUp=below<150&&above>below;
+      menu.style.position='fixed';
+      menu.style.left=Math.max(6,Math.min(r.left,window.innerWidth-138))+'px';
+      menu.style.right='auto';
+      menu.style.top=openUp?'auto':(r.bottom+4)+'px';
+      menu.style.bottom=openUp?(window.innerHeight-r.top+4)+'px':'auto';
+      menu.style.width='132px';
+      menu.style.minWidth='132px';
+      menu.style.maxHeight=Math.min(224,(openUp?above:below))+'px';
+      menu.style.overflowY='auto';
+      menu.style.zIndex='9999';
+    };
+    btn.addEventListener('click',()=>requestAnimationFrame(place));
+    menu.addEventListener('wheel',e=>e.stopPropagation(),{passive:true});
+    window.addEventListener('resize',place);
+  };
+  bindDeepSizeMenuLayout();
+  new MutationObserver(bindDeepSizeMenuLayout).observe(document.body,{childList:true,subtree:true});
 })();
 </script>
 
