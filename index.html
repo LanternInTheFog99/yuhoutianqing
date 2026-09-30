@@ -6060,7 +6060,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                                      ${dragAttr}
                                      onclick="handleStackCardClick(event, '${String(event.id).replace(/'/g, "\\'")}', '${String(event.date || '').replace(/'/g, "\\'")}')"
                                      style="width: 220px; height: 320px; position: absolute; left: 50%; top: 50%; margin-left: -110px; margin-top: -160px; transform-origin: center center; transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); cursor: ${canReorder ? 'grab' : 'pointer'};">
-                                    ${window.getStackCardRelationMark?.(event,items)||''}
                                     <div data-stack-media-host="1" class="h-[160px] bg-slate-200 relative overflow-hidden shrink-0 rounded-t-2xl">
                                         ${firstImgSrc ? `<img class="preview-slide-img w-full h-full object-cover" data-slide-json="${slideJson}" src="${firstImgSrc}" alt="" draggable="false">` : `
                                             <div class="w-full h-full flex items-center justify-center text-slate-400 bg-gradient-to-br from-slate-100 to-slate-200">
@@ -6074,8 +6073,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                                             <h4 class="font-bold text-slate-800 text-sm mt-1.5 line-clamp-1">${event.title}</h4>
                                             <div class="stack-description-html text-[11px] text-slate-500 line-clamp-2 mt-1 leading-relaxed">${window.getDescriptionFirstParagraphHtml(event.description)}</div>
                                         </div>
-                                        <div class="text-[10px] text-indigo-600 font-medium flex items-center gap-1 pt-2 border-t border-slate-100">
+                                        <div class="stack-card-footer relative text-[10px] text-indigo-600 font-medium flex items-center gap-1 pt-2 pr-[68px] border-t border-slate-100 min-h-[30px]">
                                             <i class="fa-solid fa-arrow-pointer"></i> 点击进入详情
+                                            ${window.getStackCardRelationMark?.(event,items)||''}
                                         </div>
                                     </div>
                                 </div>
@@ -7177,13 +7177,17 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         </div>
                     </div>
                     <label class="text-[10px] text-slate-500 flex items-center gap-1">字号<select id="deepFontSize" style="width:82px;min-width:82px" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onchange="deepSetFontSizeControl(this.value)" class="deep-selection-text-control h-7 border rounded-md bg-white"><option value="10">10px</option><option value="12">12px</option><option value="14">14px</option><option value="16">16px</option><option value="18" selected>18px（默认）</option><option value="20">20px</option><option value="24">24px</option><option value="28">28px</option><option value="32">32px</option><option value="36">36px</option><option value="40">40px</option><option value="48">48px</option><option value="56">56px</option><option value="64">64px</option><option value="72">72px</option></select><span id="deepCustomSizeGroup" class="inline-flex items-center gap-1 shrink-0"><input id="deepFontSizeCustom" disabled data-deep-text-control data-deep-selection-only type="number" min="6" max="240" step="0.1" value="18" class="deep-selection-text-control h-7 w-12 border rounded-md bg-white px-1.5 font-mono text-[10px]" title="实际字号，可输入任意数值" oninput="deepPreviewFontSizeControl(this.value)" onchange="deepCommitFontSizeControl(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"><span class="font-mono text-[10px] text-slate-400">px</span></span></label>
-                    <button id="deepBoldBtn" type="button" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('bold')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs font-bold">B</button>
-                    <button id="deepItalicBtn" type="button" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('italic')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs italic">I</button>
-                    <button id="deepUnderlineBtn" type="button" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('underline')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs underline">U</button>
-                    <button id="deepStrikeBtn" type="button" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('strike')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs line-through">S</button>
-                    <button id="deepAlignLeftBtn" type="button" disabled data-deep-text-control data-deep-selection-only class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs" title="左对齐" onclick="deepApplyTextStyle('align','left')"><i class="fa-solid fa-align-left"></i></button>
-                    <button id="deepAlignCenterBtn" type="button" disabled data-deep-text-control data-deep-selection-only class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs" title="居中" onclick="deepApplyTextStyle('align','center')"><i class="fa-solid fa-align-center"></i></button>
-                    <button id="deepAlignRightBtn" type="button" disabled data-deep-text-control data-deep-selection-only class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs" title="右对齐" onclick="deepApplyTextStyle('align','right')"><i class="fa-solid fa-align-right"></i></button>
+                    <div class="deep-text-style-group" role="group" aria-label="文字样式">
+                        <button id="deepBoldBtn" type="button" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('bold')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs font-bold">B</button>
+                        <button id="deepItalicBtn" type="button" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('italic')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs italic">I</button>
+                        <button id="deepUnderlineBtn" type="button" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('underline')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs underline">U</button>
+                        <button id="deepStrikeBtn" type="button" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('strike')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs line-through">S</button>
+                    </div>
+                    <div class="deep-text-align-group" role="group" aria-label="文字对齐">
+                        <button id="deepAlignLeftBtn" type="button" disabled data-deep-text-control data-deep-selection-only class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs" title="左对齐" onclick="deepApplyTextStyle('align','left')"><i class="fa-solid fa-align-left"></i></button>
+                        <button id="deepAlignCenterBtn" type="button" disabled data-deep-text-control data-deep-selection-only class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs" title="居中" onclick="deepApplyTextStyle('align','center')"><i class="fa-solid fa-align-center"></i></button>
+                        <button id="deepAlignRightBtn" type="button" disabled data-deep-text-control data-deep-selection-only class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs" title="右对齐" onclick="deepApplyTextStyle('align','right')"><i class="fa-solid fa-align-right"></i></button>
+                    </div>
                     <div class="relative"><button id="deepTextColorBtn" type="button" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onclick="deepOpenColorPalette('text')" class="deep-selection-text-control px-2.5 py-1.5 bg-white border rounded-lg text-xs"><span id="deepTextColorSwatch" class="inline-block w-3 h-3 rounded-full mr-1 align-[-1px]" style="background:#334155"></span>文字颜色</button><div id="deepTextColorPalette" class="hidden absolute left-0 top-9 z-[260] w-64 p-3 bg-white border border-slate-200 rounded-xl shadow-xl"><div class="text-[10px] font-semibold text-slate-500 mb-2">固定色 / 自定义</div><div class="grid grid-cols-7 gap-2">${['#0f172a','#334155','#64748b','#dc2626','#ea580c','#f59e0b','#16a34a','#059669','#0284c7','#2563eb','#4f46e5','#7c3aed','#db2777','#ffffff'].map(c=>`<button type="button" onclick="deepPickColor('text','${c}')" class="w-6 h-6 rounded-full border border-slate-200 deep-color-choice" style="background:${c}" title="${c}"></button>`).join('')}</div><div class="flex items-center gap-2 mt-3 pt-2 border-t"><span class="text-[10px] text-slate-500">自定义</span><input id="deepTextCustomColor" type="color" value="#334155" onchange="deepPickColor('text',this.value)" class="w-7 h-7 p-0 border-0"><button type="button" onclick="deepPickColor('text',document.getElementById('deepTextCustomColor').value)" class="ml-auto px-2 py-1 rounded bg-indigo-600 text-white text-[10px]">使用</button></div></div></div>
                     <label class="text-[10px] text-slate-500 flex items-center gap-1">透明度<input id="deepTextOpacity" data-deep-text-control data-deep-selection-only type="range" min="0" max="100" value="100" disabled oninput="deepApplyTextStyle('opacity',this.value)" class="deep-selection-text-control w-16"><span id="deepTextOpacityValue" class="w-5 text-right font-mono text-slate-400">—</span></label>
                     </div>
@@ -16036,6 +16040,8 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
 /* Deep text toolbar follows the selected text box continuously: no artificial minimum width. Controls wrap downward as space disappears and may merge rows again when space grows. */
 #deepTextTools{white-space:normal!important;align-items:flex-start!important;align-content:flex-start!important;gap:6px!important;min-width:0!important}
 #deepTextTools>*{max-width:100%!important}
+#deepTextTools .deep-text-style-group,#deepTextTools .deep-text-align-group{display:inline-flex!important;align-items:center!important;gap:6px!important;flex:0 0 auto!important;flex-wrap:nowrap!important;max-width:none!important}
+#deepTextTools .deep-text-style-group>button,#deepTextTools .deep-text-align-group>button{flex:0 0 auto!important}
 #deepTextTools>div:first-child{flex:1 1 100%!important;min-width:0!important}
 #deepTextTools>div:first-child>#deepBorderToolBtn{max-width:100%!important}
 #deepTextTools label:has(#deepFontSize){display:flex!important;flex:1 1 170px!important;min-width:0!important;max-width:100%!important;align-items:center!important;gap:4px!important;flex-wrap:wrap!important;white-space:nowrap!important}
@@ -16055,17 +16061,12 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
  #deepTextTools>div:has(#deepTextColorBtn){flex-basis:100%!important}
 }
 
-/* Keep the original modal as the ONLY scroll container. The fixed-looking top therefore does not alter the form width or add a second scrollbar/padding layer. */
-#editModal>div,#multiTimeEventModal>div{position:relative!important;box-sizing:border-box!important}
-#editModal>div>div:first-child,#multiTimeEventModal>div>div:first-child{position:sticky!important;top:-1px!important;z-index:12!important;background:#fff!important;margin-bottom:0!important;padding-bottom:12px!important;border-bottom:0!important;box-shadow:none!important}
-#editModal>div>form>div:first-child,#multiTimeEventModal #multiPageTabs{position:sticky!important;top:var(--event-editor-header-h,60px)!important;z-index:11!important;background:#f1f5f9!important;margin-top:0!important;box-shadow:0 -2px 0 #fff,0 8px 0 #fff!important}
-/* Do not create/resize an inner scrolling body: preserve the original horizontal box model. */
-#editModal>div>form,#multiTimeEventModal>div>.space-y-3\.5{overflow:visible!important;min-width:0!important;width:auto!important;padding-left:0!important;padding-right:0!important}
+/* Editor header fixing experiment removed: editor uses its original scrolling/layout model. */
 
 /* Same-time collection relation miniature. Its location stays where the card design puts it; arrowheads sit on the curve itself. */
-.relation-curve-mark{position:absolute;z-index:38;width:64px;height:34px;pointer-events:auto;color:#6366f1;background:transparent;border:0}
-.relation-curve-mark.stack-card-mark{right:10px;bottom:38px}
-.relation-curve-mark svg{display:block;width:64px;height:34px;overflow:visible}
+.relation-curve-mark{position:absolute;z-index:38;width:58px;height:22px;pointer-events:auto;color:#6366f1;background:transparent;border:0}
+.relation-curve-mark.stack-card-mark{right:2px;top:5px}
+.relation-curve-mark svg{display:block;width:58px;height:22px;overflow:visible}
 .relation-curve-mark .relation-tip{display:none;position:absolute;right:0;top:calc(100% + 5px);width:max-content;max-width:340px;padding:8px 10px;border-radius:8px;background:#0f172a;border:1px solid #334155;color:#e2e8f0;font-size:10px;line-height:1.45;text-align:center;box-shadow:0 10px 25px rgba(0,0,0,.3);z-index:120;white-space:nowrap}
 .relation-curve-mark:hover .relation-tip{display:block}
 .relation-tip-label{font-weight:700;margin-bottom:5px;text-align:center}
@@ -16092,23 +16093,18 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
  const curve=(current,c)=>{
    const d=direction(current,c),otherId=String(String(c.sourceId)===String(current.id)?c.targetId:c.sourceId),other=window.findEventById?.(otherId)||(window.events||[]).find(e=>String(e.id)===otherId),label=String(c.label||'').trim();
    const seq=(window._stackRelationMarkerSeq=(window._stackRelationMarkerSeq||0)+1),marker=`stackRelMid${seq}`;
-   const defs=`<defs><marker id="${marker}" markerWidth="10" markerHeight="10" refX="8.2" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L10,5 L0,10 Z" fill="currentColor"/></marker></defs>`;
+   const defs=`<defs><marker id="${marker}" markerWidth="8" markerHeight="8" refX="6.8" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L8,4 L0,8 Z" fill="currentColor"/></marker></defs>`;
    /* Visible curve and arrow share the exact same geometry. The two hidden half-paths terminate at the apex, so marker-end is physically bound to the curve centre instead of being positioned with x/y guesses. */
-   const visible='<path d="M5 29 C13 11 22 5 32 5 C42 5 51 11 59 29" fill="none" stroke="currentColor" stroke-width="2.6" stroke-dasharray="6 4" stroke-linecap="round"/>';
-   const out=d.out?`<path d="M5 29 C13 11 22 5 32 5" fill="none" stroke="transparent" stroke-width="1" marker-end="url(#${marker})"/>`:'';
-   const inn=d.inn?`<path d="M59 29 C51 11 42 5 32 5" fill="none" stroke="transparent" stroke-width="1" marker-end="url(#${marker})"/>`:'';
+   const visible='<path d="M4 18 Q17 7 29 7 Q41 7 54 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-dasharray="5 3.5" stroke-linecap="round"/>';
+   const out=d.out?`<path d="M4 18 Q17 7 29 7" fill="none" stroke="transparent" stroke-width="1" marker-end="url(#${marker})"/>`:'';
+   const inn=d.inn?`<path d="M54 18 Q41 7 29 7" fill="none" stroke="transparent" stroke-width="1" marker-end="url(#${marker})"/>`:'';
    const arrowWidth=Math.max(44,Math.min(150,36+Array.from(label).length*8));
    const dirClass=d.rel==='both'?'is-both':d.rel==='backward'?'is-backward':'is-forward';
-   return `<span class="relation-curve-mark stack-card-mark"><svg viewBox="0 0 64 34" aria-hidden="true">${defs}${visible}${out}${inn}</svg><span class="relation-tip">${label?`<div class="relation-tip-label">${esc(label)}</div>`:''}<div class="relation-tip-row"><span>该事件</span><span class="relation-tip-arrow-line ${dirClass}" style="--relation-arrow-width:${arrowWidth}px"></span><span>${esc(other?.title||otherId)}</span></div></span></span>`;
+   return `<span class="relation-curve-mark stack-card-mark"><svg viewBox="0 0 58 22" aria-hidden="true">${defs}${visible}${out}${inn}</svg><span class="relation-tip">${label?`<div class="relation-tip-label">${esc(label)}</div>`:''}<div class="relation-tip-row"><span>该事件</span><span class="relation-tip-arrow-line ${dirClass}" style="--relation-arrow-width:${arrowWidth}px"></span><span>${esc(other?.title||otherId)}</span></div></span></span>`;
  };
  window.getStackCardRelationMark=(event)=>{const cs=(window.connections||[]).filter(c=>String(c.sourceId)===String(event.id)||String(c.targetId)===String(event.id));return cs.map(c=>curve(event,c)).join('');};
  try{delete window.getMultiSegmentRelationMark;}catch(_){window.getMultiSegmentRelationMark=undefined;}
 
- /* Header height is measured, not guessed. Both single- and multi-time editors keep their original scroll/width model. */
- const syncEditorHeaderHeight=()=>document.querySelectorAll('#editModal>div,#multiTimeEventModal>div').forEach(shell=>{const h=shell.querySelector(':scope>div:first-child');if(h)shell.style.setProperty('--event-editor-header-h',Math.ceil(h.getBoundingClientRect().height)+'px');});
- new MutationObserver(()=>requestAnimationFrame(syncEditorHeaderHeight)).observe(document.body,{subtree:true,childList:true});
- window.addEventListener('resize',syncEditorHeaderHeight,{passive:true});
- document.addEventListener('click',()=>requestAnimationFrame(syncEditorHeaderHeight),true);
 })();
 </script>
 
