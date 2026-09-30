@@ -6046,7 +6046,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                     </div>
 
                     <div id="stackCardsWrapper" class="relative w-full flex-grow flex items-center justify-center overflow-hidden my-auto" style="height: 420px; perspective: 800px;">
-                        ${window.getStackCollectionRelationMark?.(items)||''}
                         ${items.map((event, idx) => {
                             const slideMedia = window.getEventPreviewMedia(event, false);
                             const firstPreviewItem = slideMedia[0] || null;
@@ -6061,6 +6060,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                                      ${dragAttr}
                                      onclick="handleStackCardClick(event, '${String(event.id).replace(/'/g, "\\'")}', '${String(event.date || '').replace(/'/g, "\\'")}')"
                                      style="width: 220px; height: 320px; position: absolute; left: 50%; top: 50%; margin-left: -110px; margin-top: -160px; transform-origin: center center; transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); cursor: ${canReorder ? 'grab' : 'pointer'};">
+                                    ${window.getStackCardRelationMark?.(event,items)||''}
                                     <div class="h-[160px] bg-slate-200 relative overflow-hidden shrink-0 rounded-t-2xl">
                                         ${firstImgSrc ? `<img class="preview-slide-img w-full h-full object-cover" data-slide-json="${slideJson}" src="${firstImgSrc}" alt="" draggable="false">` : `
                                             <div class="w-full h-full flex items-center justify-center text-slate-400 bg-gradient-to-br from-slate-100 to-slate-200">
@@ -10818,10 +10818,9 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
                     const desc=String(seg.description||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/gi,' ').trim()?`<div class="event-description-html text-sm leading-7 text-slate-200">${window.prepareDescriptionForView?window.prepareDescriptionForView(seg.description):seg.description}</div>`:'';
                     const body=imagesBlock+videosBlock+links+desc;
                     const subtitle=String(seg.subtitle||'').trim();
-                    return `<section class="relative shrink-0 w-[78vw] sm:w-[360px] rounded-2xl border border-slate-700 bg-slate-900/80 p-4 self-start"><div class="text-xs font-mono text-indigo-300 ${subtitle?'mb-1':'mb-3'}">${window.formatDisplayDate(seg.date)}</div>${subtitle?`<h2 class="text-sm sm:text-base font-normal text-slate-200 mb-3">${escapeHtml(subtitle)}</h2>`:''}<div class="space-y-3">${body||'<div class="text-xs text-slate-500">这个时间没有附加内容</div>'}</div></section>`;
+                    return `<section class="relative shrink-0 w-[78vw] sm:w-[360px] rounded-2xl border border-slate-700 bg-slate-900/80 p-4 self-start">${window.getMultiSegmentRelationMark?.(event,seg)||''}<div class="text-xs font-mono text-indigo-300 ${subtitle?'mb-1':'mb-3'}">${window.formatDisplayDate(seg.date)}</div>${subtitle?`<h2 class="text-sm sm:text-base font-normal text-slate-200 mb-3">${escapeHtml(subtitle)}</h2>`:''}<div class="space-y-3">${body||'<div class="text-xs text-slate-500">这个时间没有附加内容</div>'}</div></section>`;
                 }).join('');
-                const multiRelationMark=window.getMultiDetailRelationMark?.(event)||'';
-                viewer.innerHTML=`<div data-detail-shell class="multi-detail-shell max-w-6xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-8 shadow-2xl relative">${multiRelationMark}<div class="detail-window-dragbar" data-detail-drag-handle><i class="fa-solid fa-grip-lines"></i><span>点击此处拖动详情页</span></div><button type="button" onclick="window.openEventCommentWindow('${event.id}')" class="detail-window-comments-btn"><i class="fa-regular fa-comments"></i><span>评论区</span></button><button onclick="closeReadOnlyFullscreen('${fromStackDate?fromStackDate.replace(/'/g,"\\'"):''}')" class="absolute top-3 right-4 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full"><i class="fa-solid fa-xmark"></i></button><h1 class="text-xl sm:text-2xl font-bold mb-5 pr-12">${escapeHtml(event.title)}</h1><div id="multiDetailScroller" class="flex gap-4 overflow-x-auto overflow-y-visible pb-3 cursor-grab select-none" style="touch-action:pan-x pan-y;overscroll-behavior-x:contain;scroll-snap-type:none;scroll-behavior:auto;">${cols}</div></div>`;
+                viewer.innerHTML=`<div data-detail-shell class="multi-detail-shell max-w-6xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-8 shadow-2xl relative"><div class="detail-window-dragbar" data-detail-drag-handle><i class="fa-solid fa-grip-lines"></i><span>点击此处拖动详情页</span></div><button type="button" onclick="window.openEventCommentWindow('${event.id}')" class="detail-window-comments-btn"><i class="fa-regular fa-comments"></i><span>评论区</span></button><button onclick="closeReadOnlyFullscreen('${fromStackDate?fromStackDate.replace(/'/g,"\\'"):''}')" class="absolute top-3 right-4 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full"><i class="fa-solid fa-xmark"></i></button><h1 class="text-xl sm:text-2xl font-bold mb-5 pr-12">${escapeHtml(event.title)}</h1><div id="multiDetailScroller" class="flex gap-4 overflow-x-auto overflow-y-visible pb-3 cursor-grab select-none" style="touch-action:pan-x pan-y;overscroll-behavior-x:contain;scroll-snap-type:none;scroll-behavior:auto;">${cols}</div></div>`;
                 viewer.classList.remove('hidden');window.bindDetailVideoBehavior(viewer,event.id);window.initMultiDetailScroller?.();window.initFloatingDetailWindow(viewer);return;
             }
             const detailHasImages=Array.isArray(event.images)&&event.images.length>0,detailHasVideos=Array.isArray(event.videos)&&event.videos.length>0,detailDescriptionText=String(event.description||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/gi,' ').trim(),detailHasDescription=!!detailDescriptionText;
@@ -16087,6 +16086,41 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
  const chip=(current,conn)=>{const cur=String(current.id||''),isSource=String(conn.sourceId)===cur,otherId=String(isSource?conn.targetId:conn.sourceId),other=window.findEventById?.(otherId)||(window.events||[]).find(e=>String(e.id)===otherId);let out=false,inn=false;if(conn.dir==='both'){out=inn=true;}else if(conn.dir==='backward'){out=!isSource;inn=isSource;}else{out=isSource;inn=!isSource;}const rel=out&&inn?'↔':out?'→':'←',curSeg=segName(current,isSource?conn.sourceSegmentId:conn.targetSegmentId),otherSeg=segName(other,isSource?conn.targetSegmentId:conn.sourceSegmentId),left=`${current.title||'当前事件'}${curSeg?' · '+curSeg:''}`,right=`${other?.title||otherId}${otherSeg?' · '+otherSeg:''}`,title=`${left} ${rel} ${right}`,label=String(conn.label||'').trim();return `<span class="compact-link-chip"><svg viewBox="0 0 32 12" aria-hidden="true"><line x1="5" y1="6" x2="27" y2="6" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 3"/>${inn?'<path d="M7 3 L3 6 L7 9" fill="none" stroke="currentColor" stroke-width="1.4"/>':''}${out?'<path d="M25 3 L29 6 L25 9" fill="none" stroke="currentColor" stroke-width="1.4"/>':''}<circle cx="5" cy="6" r="1.8" fill="currentColor"/><circle cx="27" cy="6" r="1.8" fill="currentColor"/></svg><span class="compact-tip"><b>${esc(title)}</b>${label?`<br>${esc(label)}`:''}</span></span>`;};
  window.getMultiDetailRelationMark=function(ev){const cs=(window.connections||[]).filter(c=>String(c.sourceId)===String(ev.id)||String(c.targetId)===String(ev.id));if(!cs.length)return '';return `<div class="detail-external-link-mark compact-link-mark">${cs.slice(0,8).map(c=>chip(ev,c)).join('')}${cs.length>8?`<span class="text-[9px] text-indigo-300">+${cs.length-8}</span>`:''}</div>`;};
  window.getStackCollectionRelationMark=function(items){const ids=new Set((items||[]).map(e=>String(e.id))),rows=[];(items||[]).forEach(ev=>(window.connections||[]).forEach(c=>{if((String(c.sourceId)===String(ev.id)||String(c.targetId)===String(ev.id))&&!(ids.has(String(c.sourceId))&&ids.has(String(c.targetId))))rows.push([ev,c]);}));const seen=new Set(),unique=rows.filter(([ev,c])=>{const k=String(c.id||`${c.sourceId}|${c.targetId}|${c.sourceSegmentId||''}|${c.targetSegmentId||''}|${c.label||''}`);if(seen.has(k))return false;seen.add(k);return true;});if(!unique.length)return '';return `<div class="detail-external-link-mark compact-link-mark stack-collection-link-mark">${unique.slice(0,8).map(([ev,c])=>chip(ev,c)).join('')}${unique.length>8?`<span class="text-[9px] text-indigo-300">+${unique.length-8}</span>`:''}</div>`;};
+})();
+</script>
+
+
+<style id="timeline-0930-relation-sticky-correction">
+/* The editor header and tabs stay visually solid while scrolling; normal, non-stuck spacing remains unchanged. */
+#editModal>div>div:first-child,#multiTimeEventModal>div>div:first-child{top:0!important;box-shadow:0 -28px 0 #fff!important}
+#editModal>div>form>div:first-child,#multiTimeEventModal #multiPageTabs{top:59px!important}
+#editModal>div.editor-stuck>div:first-child,#multiTimeEventModal>div.editor-stuck>div:first-child{padding-bottom:8px!important}
+#editModal>div.editor-stuck>form>div:first-child,#multiTimeEventModal>div.editor-stuck #multiPageTabs{box-shadow:0 -10px 0 #fff,0 8px 12px rgba(15,23,42,.05)!important}
+/* Deep-description font preset: only trim the selector itself. */
+#deepFontSize{width:96px!important;min-width:96px!important;max-width:96px!important}
+.web-select-wrap:has(#deepFontSize){width:96px!important;min-width:96px!important;flex:0 0 96px!important}
+/* Miniature relation mark: a curved, dashed version of the outside timeline connection. */
+.relation-curve-mark{position:absolute;z-index:38;width:48px;height:30px;pointer-events:auto;color:#818cf8}
+.relation-curve-mark.multi-seg{right:10px;top:54px}
+.relation-curve-mark.stack-card-mark{right:10px;bottom:10px}
+.relation-curve-mark svg{display:block;width:48px;height:30px;overflow:visible}
+.relation-curve-mark .relation-tip{display:none;position:absolute;right:0;top:calc(100% + 5px);width:max-content;max-width:300px;padding:7px 9px;border-radius:8px;background:#0f172a;border:1px solid #334155;color:#e2e8f0;font-size:10px;line-height:1.45;text-align:left;box-shadow:0 10px 25px rgba(0,0,0,.3);z-index:120;white-space:nowrap}
+.relation-curve-mark:hover .relation-tip{display:block}
+</style>
+<script id="timeline-0930-relation-sticky-correction-js">
+(()=>{
+ const esc=v=>window.escapeHtml?.(String(v??''))??String(v??'');
+ const segKey=s=>String(s?.id??s?.segmentId??s?.date??'');
+ const segmentMatch=(conn,event,seg)=>{
+   const eid=String(event.id), sid=segKey(seg);
+   if(String(conn.sourceId)===eid){const cs=String(conn.sourceSegmentId??'');return cs && (cs===sid || cs===String(seg.id??'') || cs===String(seg.date??''));}
+   if(String(conn.targetId)===eid){const cs=String(conn.targetSegmentId??'');return cs && (cs===sid || cs===String(seg.id??'') || cs===String(seg.date??''));}
+   return false;
+ };
+ const direction=(current,conn)=>{const src=String(conn.sourceId)===String(current.id);if(conn.dir==='both')return {out:true,inn:true,rel:'↔'};if(conn.dir==='backward')return src?{out:false,inn:true,rel:'←'}:{out:true,inn:false,rel:'→'};return src?{out:true,inn:false,rel:'→'}:{out:false,inn:true,rel:'←'};};
+ const curve=(current,conn,cls)=>{const d=direction(current,conn),otherId=String(String(conn.sourceId)===String(current.id)?conn.targetId:conn.sourceId),other=window.findEventById?.(otherId)||(window.events||[]).find(e=>String(e.id)===otherId),title=`${current.title||'当前事件'} ${d.rel} ${other?.title||otherId}`,label=String(conn.label||'').trim();return `<span class="relation-curve-mark ${cls}"><svg viewBox="0 0 48 30" aria-hidden="true"><path d="M4 25 C12 25 12 7 27 7 C35 7 39 11 44 15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-dasharray="4 3" stroke-linecap="round"/>${d.inn?'<path d="M8 21 L3 25 L9 28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>':''}${d.out?'<path d="M39 11 L45 15 L40 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>':''}</svg><span class="relation-tip"><b>${esc(title)}</b>${label?`<br>${esc(label)}`:''}</span></span>`;};
+ window.getMultiSegmentRelationMark=(event,seg)=>{const cs=(window.connections||[]).filter(c=>segmentMatch(c,event,seg));return cs.map(c=>curve(event,c,'multi-seg')).join('');};
+ window.getStackCardRelationMark=(event,items)=>{const ids=new Set((items||[]).map(x=>String(x.id)));const cs=(window.connections||[]).filter(c=>{const involved=String(c.sourceId)===String(event.id)||String(c.targetId)===String(event.id);if(!involved)return false;/* show the mark on the concrete card whether the other end is inside or outside the collection */return true;});return cs.map(c=>curve(event,c,'stack-card-mark')).join('');};
 })();
 </script>
 
