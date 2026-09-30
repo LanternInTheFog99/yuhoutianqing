@@ -11346,8 +11346,9 @@ viewer.style.visibility='';
             window.editingConnectionDraftEventId = event.id;
 
             modal.innerHTML = `
-                <div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full p-4 sm:p-5 my-3 sm:my-5 max-h-[92vh] overflow-y-auto custom-scrollbar">
-                    <div class="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-200 mb-4 sm:mb-5">
+                <div class="event-editor-shell bg-white rounded-2xl shadow-2xl max-w-xl w-full p-4 sm:p-5 my-3 sm:my-5 max-h-[92vh]">
+                    <div class="event-editor-fixed-head">
+                    <div class="flex items-center justify-between pb-3 sm:pb-4">
                         <h3 class="font-bold text-slate-800 text-base sm:text-lg flex items-center gap-2">
                             <i class="fa-solid fa-pen-to-square text-indigo-600"></i>
                             <span>${isEdit ? '编辑事件' : '新建事件'}</span>
@@ -11356,14 +11357,14 @@ viewer.style.visibility='';
                             <i class="fa-solid fa-xmark"></i>
                         </button>
                     </div>
-
-                    <form onsubmit="handlePreSaveEvent(event, '${event.id}', ${isEdit})" novalidate class="space-y-3.5">
-                        <div class="flex items-center gap-2 p-1 bg-slate-100 rounded-xl border border-slate-200">
+                    <div class="flex items-center gap-2 p-1 bg-slate-100 rounded-xl border border-slate-200">
                             <button type="button" id="editPageTab1" onclick="switchEditPage(1)" class="flex-1 px-3 py-2 rounded-lg text-xs font-semibold bg-white text-indigo-700 shadow-sm border border-indigo-100">1. 基础信息</button>
                             <button type="button" id="editPageTab2" onclick="switchEditPage(2)" class="flex-1 px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-700">2. 插入信息</button>
                             <button type="button" id="editPageTab3" ${window.canOpenEventPermissionSettings?.(event,!isEdit)?'onclick="switchEditPage(3)"':'disabled aria-disabled="true" title="仅事件创建者可查看和设置权限"'} class="flex-1 px-3 py-2 rounded-lg text-xs font-semibold ${window.canOpenEventPermissionSettings?.(event,!isEdit)?'text-slate-500 hover:text-slate-700':'text-slate-300 cursor-not-allowed'}">3. 权限设置</button>
                         </div>
+                    </div>
 
+                    <form onsubmit="handlePreSaveEvent(event, '${event.id}', ${isEdit})" novalidate class="event-editor-scroll custom-scrollbar space-y-3.5">
                         <div id="editPage1" class="space-y-3.5">
                             <div><label class="block text-xs font-bold text-slate-700 mb-1">事件名称 *</label><input type="text" id="editTitle" value="${event.title}" required placeholder="输入事件标题" oninput="updateEventTitleDuplicateHint(this,'editTitleDuplicateHint',window.editingEventId)" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"><p id="editTitleDuplicateHint" class="hidden mt-1 text-[11px] text-rose-600">该名称已存在</p></div>
                             <div class="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
@@ -15038,13 +15039,15 @@ viewer.style.visibility='';
         window.multiRenderCurrentPage=function(){const b=document.getElementById('multiPageBody');if(!b)return;window.richResetOpacitySelection?.();window.richSelectionRange=null;window.richOpacitySpan=null;const page=window.multiTimePage;b.innerHTML=page===0?window.multiGeneralPageHtml(window.multiTimeGeneralDraft):page===1?window.eventPermissionSettingsHtml(window.multiTimePermissionDraft||{},!window.multiTimeIsEdit):window.multiSegmentPageHtml(page-2);const lbl=document.getElementById('multiPageTitle');if(lbl)lbl.textContent=page===0?'总设置':page===1?'权限设置':`时间 ${page-1}`;window.multiRenderPageTabs();if(page===0){window.multiRenderConnections();}else if(page===1){window.initPermissionPage?.();}else{window.richResetOpacitySelection?.();const ed=document.getElementById('editDescription');if(ed)ed.addEventListener('input',window.richEditorInput);window.richSyncDecorationGeometry?.();}window.multiBindDrag();window.enhanceWebSelects?.(b);};
         window.multiRenderEditorShell=function(){
             const modal=document.getElementById('multiTimeEventModal');if(!modal)return;const isEdit=window.multiTimeIsEdit;
-            modal.innerHTML=`<div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full p-4 sm:p-5 my-3 sm:my-5 max-h-[92vh] overflow-y-auto custom-scrollbar">
-                <div class="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-200 mb-4 sm:mb-5">
+            modal.innerHTML=`<div class="event-editor-shell bg-white rounded-2xl shadow-2xl max-w-xl w-full p-4 sm:p-5 my-3 sm:my-5 max-h-[92vh]">
+                <div class="event-editor-fixed-head">
+                <div class="flex items-center justify-between pb-3 sm:pb-4">
                     <h3 class="font-bold text-slate-800 text-base sm:text-lg flex items-center gap-2"><i class="fa-solid fa-pen-to-square text-indigo-600"></i><span>${isEdit?'编辑事件':'新建事件'}</span></h3>
                     <button type="button" onclick="closeMultiTimeEventModal()" class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
                 </div>
-                <div class="space-y-3.5">
                     <div id="multiPageTabs" class="flex items-center gap-2 p-1 bg-slate-100 rounded-xl border border-slate-200 overflow-x-auto"></div>
+                </div>
+                <div class="event-editor-scroll custom-scrollbar space-y-3.5">
                     <div id="multiPageTitle" class="hidden"></div>
                     <div id="multiPageBody"></div>
                     <div class="flex items-center justify-between pt-3 border-t border-slate-200 gap-3">
@@ -16080,7 +16083,7 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
  if(oldRestore)window.deepRestoreState=function(){const v=oldRestore.apply(this,arguments);syncDeepHistoryButtons();return v;};
  if(oldOpen)window.openDeepDescriptionEditor=async function(){const v=await oldOpen.apply(this,arguments);syncDeepHistoryButtons();return v;};
  const bindSticky=modalId=>{const modal=document.getElementById(modalId);if(!modal)return;const box=modal.firstElementChild;if(!box||box.dataset.stickyStateBound)return;box.dataset.stickyStateBound='1';const sync=()=>box.classList.toggle('editor-stuck',box.scrollTop>12);box.addEventListener('scroll',sync,{passive:true});sync();};
- const bindAll=()=>{bindSticky('editModal');bindSticky('multiTimeEventModal');};bindAll();new MutationObserver(bindAll).observe(document.body,{childList:true,subtree:true});
+ /* fixed editor header: no scroll-state/sticky binding needed */
  const esc=v=>window.escapeHtml?.(String(v??''))??String(v??'');
  const segName=(ev,id)=>{if(!id)return '';const seg=(ev?.timeSegments||[]).find(x=>String(x.id||'')===String(id));if(!seg)return '';const name=String(seg.subtitle||'').trim(),date=window.formatDisplayDate?.(seg.date)||seg.date||'';return name?`${name}（${date}）`:date;};
  const chip=(current,conn)=>{const cur=String(current.id||''),isSource=String(conn.sourceId)===cur,otherId=String(isSource?conn.targetId:conn.sourceId),other=window.findEventById?.(otherId)||(window.events||[]).find(e=>String(e.id)===otherId);let out=false,inn=false;if(conn.dir==='both'){out=inn=true;}else if(conn.dir==='backward'){out=!isSource;inn=isSource;}else{out=isSource;inn=!isSource;}const rel=out&&inn?'↔':out?'→':'←',curSeg=segName(current,isSource?conn.sourceSegmentId:conn.targetSegmentId),otherSeg=segName(other,isSource?conn.targetSegmentId:conn.sourceSegmentId),left=`${current.title||'当前事件'}${curSeg?' · '+curSeg:''}`,right=`${other?.title||otherId}${otherSeg?' · '+otherSeg:''}`,title=`${left} ${rel} ${right}`,label=String(conn.label||'').trim();return `<span class="compact-link-chip"><svg viewBox="0 0 32 12" aria-hidden="true"><line x1="5" y1="6" x2="27" y2="6" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 3"/>${inn?'<path d="M7 3 L3 6 L7 9" fill="none" stroke="currentColor" stroke-width="1.4"/>':''}${out?'<path d="M25 3 L29 6 L25 9" fill="none" stroke="currentColor" stroke-width="1.4"/>':''}<circle cx="5" cy="6" r="1.8" fill="currentColor"/><circle cx="27" cy="6" r="1.8" fill="currentColor"/></svg><span class="compact-tip"><b>${esc(title)}</b>${label?`<br>${esc(label)}`:''}</span></span>`;};
@@ -16123,6 +16126,30 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
  const curve=(current,conn,cls)=>{const d=direction(current,conn),otherId=String(String(conn.sourceId)===String(current.id)?conn.targetId:conn.sourceId),other=window.findEventById?.(otherId)||(window.events||[]).find(e=>String(e.id)===otherId),title=`${current.title||'当前事件'} ${d.rel} ${other?.title||otherId}`,label=String(conn.label||'').trim();const arrows=d.out&&d.inn?'<polygon points="-5,-3.5 5,0 -5,3.5" transform="translate(34,5) rotate(0)" fill="currentColor"/><polygon points="-5,-3.5 5,0 -5,3.5" transform="translate(24,5) rotate(180)" fill="currentColor"/>':d.out?'<polygon points="-5,-3.5 5,0 -5,3.5" transform="translate(29,5) rotate(0)" fill="currentColor"/>':'<polygon points="-5,-3.5 5,0 -5,3.5" transform="translate(29,5) rotate(180)" fill="currentColor"/>';return `<span class="relation-curve-mark ${cls}"><svg viewBox="0 0 58 30" aria-hidden="true"><path d="M4 25 Q29 -15 54 25" fill="none" stroke="currentColor" stroke-width="2.5" stroke-dasharray="6 4" stroke-linecap="butt" stroke-linejoin="round"/>${arrows}</svg><span class="relation-tip"><b>${esc(title)}</b>${label?`<br>${esc(label)}`:''}</span></span>`;};
  window.getMultiSegmentRelationMark=(event,seg)=>{const cs=(window.connections||[]).filter(c=>segmentMatch(c,event,seg));return cs.map(c=>curve(event,c,'multi-seg')).join('');};
  window.getStackCardRelationMark=(event,items)=>{const ids=new Set((items||[]).map(x=>String(x.id)));const cs=(window.connections||[]).filter(c=>{const involved=String(c.sourceId)===String(event.id)||String(c.targetId)===String(event.id);if(!involved)return false;/* show the mark on the concrete card whether the other end is inside or outside the collection */return true;});return cs.map(c=>curve(event,c,'stack-card-mark')).join('');};
+})();
+</script>
+
+<style id="timeline-0930-fixed-editor-final">
+/* One fixed editor header (title + tabs); only the content below it scrolls. */
+#editModal .event-editor-shell,#multiTimeEventModal .event-editor-shell{display:flex;flex-direction:column;overflow:hidden!important}
+#editModal .event-editor-fixed-head,#multiTimeEventModal .event-editor-fixed-head{position:relative!important;top:auto!important;z-index:2;flex:0 0 auto;background:#fff;margin:0;padding:0 0 10px;box-shadow:none!important;border:0!important}
+#editModal .event-editor-scroll,#multiTimeEventModal .event-editor-scroll{position:relative;flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding-top:10px}
+#editModal .event-editor-fixed-head>div:first-child,#multiTimeEventModal .event-editor-fixed-head>div:first-child{position:relative!important;top:auto!important;margin:0!important;border:0!important;box-shadow:none!important;background:#fff!important}
+#editModal .event-editor-fixed-head>div:last-child,#multiTimeEventModal #multiPageTabs{position:relative!important;top:auto!important;margin:0!important;box-shadow:none!important}
+#editModal>div>form>div:first-child{position:relative!important;top:auto!important;z-index:auto!important;background:transparent!important;padding-top:0!important;padding-bottom:0!important;box-shadow:none!important}
+#editModal .editor-stuck,#multiTimeEventModal .editor-stuck{box-shadow:none!important}
+/* The miniature curve uses the same centered triangle geometry as the outside timeline connection. */
+.relation-curve-mark .relation-arrow{transform-box:fill-box;transform-origin:center}
+</style>
+<script id="timeline-0930-centered-relation-arrow">
+(()=>{
+ const oldMulti=window.getMultiSegmentRelationMark,oldStack=window.getStackCardRelationMark;
+ const patch=html=>String(html||'').replace(/<polygon points="-5,-3\.5 5,0 -5,3\.5" transform="translate\((34|24|29),5\) rotate\((0|180)\)" fill="currentColor"\/>/g,(m,x,a)=>{
+   const cx=Number(x),ang=Number(a);
+   return `<polygon class="relation-arrow" points="-6,-4.5 6,0 -6,4.5" transform="translate(${cx},5) rotate(${ang})" fill="currentColor"/>`;
+ });
+ if(oldMulti)window.getMultiSegmentRelationMark=function(){return patch(oldMulti.apply(this,arguments));};
+ if(oldStack)window.getStackCardRelationMark=function(){return patch(oldStack.apply(this,arguments));};
 })();
 </script>
 
