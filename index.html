@@ -16094,16 +16094,18 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
 /* The editor header and tabs stay visually solid while scrolling; normal, non-stuck spacing remains unchanged. */
 #editModal>div>div:first-child,#multiTimeEventModal>div>div:first-child{top:0!important;box-shadow:0 -28px 0 #fff!important}
 #editModal>div>form>div:first-child,#multiTimeEventModal #multiPageTabs{top:59px!important}
-#editModal>div.editor-stuck>div:first-child,#multiTimeEventModal>div.editor-stuck>div:first-child{padding-bottom:8px!important}
-#editModal>div.editor-stuck>form>div:first-child,#multiTimeEventModal>div.editor-stuck #multiPageTabs{box-shadow:0 -10px 0 #fff,0 8px 12px rgba(15,23,42,.05)!important}
+/* Only after the header actually sticks: join title + tabs into one solid block. */
+#editModal>div.editor-stuck>div:first-child,#multiTimeEventModal>div.editor-stuck>div:first-child{margin-bottom:0!important;padding-bottom:8px!important;border-bottom-color:transparent!important;box-shadow:0 -32px 0 #fff!important}
+#editModal>div.editor-stuck>form>div:first-child,#multiTimeEventModal>div.editor-stuck #multiPageTabs{top:51px!important;margin-top:0!important;box-shadow:0 -8px 0 #fff,0 8px 12px rgba(15,23,42,.05)!important}
 /* Deep-description font preset: only trim the selector itself. */
 #deepFontSize{width:96px!important;min-width:96px!important;max-width:96px!important}
 .web-select-wrap:has(#deepFontSize){width:96px!important;min-width:96px!important;flex:0 0 96px!important}
 /* Miniature relation mark: a curved, dashed version of the outside timeline connection. */
-.relation-curve-mark{position:absolute;z-index:38;width:48px;height:30px;pointer-events:auto;color:#818cf8}
-.relation-curve-mark.multi-seg{right:10px;top:54px}
-.relation-curve-mark.stack-card-mark{right:10px;bottom:10px}
-.relation-curve-mark svg{display:block;width:48px;height:30px;overflow:visible}
+.relation-curve-mark{position:absolute;z-index:38;width:58px;height:30px;pointer-events:auto;color:#6366f1}
+.relation-curve-mark.multi-seg{right:12px;top:14px}
+/* Sit just above the faint footer divider, not on the card bottom edge. */
+.relation-curve-mark.stack-card-mark{right:10px;bottom:31px}
+.relation-curve-mark svg{display:block;width:58px;height:30px;overflow:visible}
 .relation-curve-mark .relation-tip{display:none;position:absolute;right:0;top:calc(100% + 5px);width:max-content;max-width:300px;padding:7px 9px;border-radius:8px;background:#0f172a;border:1px solid #334155;color:#e2e8f0;font-size:10px;line-height:1.45;text-align:left;box-shadow:0 10px 25px rgba(0,0,0,.3);z-index:120;white-space:nowrap}
 .relation-curve-mark:hover .relation-tip{display:block}
 </style>
@@ -16118,7 +16120,7 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
    return false;
  };
  const direction=(current,conn)=>{const src=String(conn.sourceId)===String(current.id);if(conn.dir==='both')return {out:true,inn:true,rel:'↔'};if(conn.dir==='backward')return src?{out:false,inn:true,rel:'←'}:{out:true,inn:false,rel:'→'};return src?{out:true,inn:false,rel:'→'}:{out:false,inn:true,rel:'←'};};
- const curve=(current,conn,cls)=>{const d=direction(current,conn),otherId=String(String(conn.sourceId)===String(current.id)?conn.targetId:conn.sourceId),other=window.findEventById?.(otherId)||(window.events||[]).find(e=>String(e.id)===otherId),title=`${current.title||'当前事件'} ${d.rel} ${other?.title||otherId}`,label=String(conn.label||'').trim();return `<span class="relation-curve-mark ${cls}"><svg viewBox="0 0 48 30" aria-hidden="true"><path d="M4 25 C12 25 12 7 27 7 C35 7 39 11 44 15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-dasharray="4 3" stroke-linecap="round"/>${d.inn?'<path d="M8 21 L3 25 L9 28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>':''}${d.out?'<path d="M39 11 L45 15 L40 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>':''}</svg><span class="relation-tip"><b>${esc(title)}</b>${label?`<br>${esc(label)}`:''}</span></span>`;};
+ const curve=(current,conn,cls)=>{const d=direction(current,conn),otherId=String(String(conn.sourceId)===String(current.id)?conn.targetId:conn.sourceId),other=window.findEventById?.(otherId)||(window.events||[]).find(e=>String(e.id)===otherId),title=`${current.title||'当前事件'} ${d.rel} ${other?.title||otherId}`,label=String(conn.label||'').trim();const arrows=d.out&&d.inn?'<polygon points="-5,-3.5 5,0 -5,3.5" transform="translate(34,5) rotate(0)" fill="currentColor"/><polygon points="-5,-3.5 5,0 -5,3.5" transform="translate(24,5) rotate(180)" fill="currentColor"/>':d.out?'<polygon points="-5,-3.5 5,0 -5,3.5" transform="translate(29,5) rotate(0)" fill="currentColor"/>':'<polygon points="-5,-3.5 5,0 -5,3.5" transform="translate(29,5) rotate(180)" fill="currentColor"/>';return `<span class="relation-curve-mark ${cls}"><svg viewBox="0 0 58 30" aria-hidden="true"><path d="M4 25 Q29 -15 54 25" fill="none" stroke="currentColor" stroke-width="2.5" stroke-dasharray="6 4" stroke-linecap="butt" stroke-linejoin="round"/>${arrows}</svg><span class="relation-tip"><b>${esc(title)}</b>${label?`<br>${esc(label)}`:''}</span></span>`;};
  window.getMultiSegmentRelationMark=(event,seg)=>{const cs=(window.connections||[]).filter(c=>segmentMatch(c,event,seg));return cs.map(c=>curve(event,c,'multi-seg')).join('');};
  window.getStackCardRelationMark=(event,items)=>{const ids=new Set((items||[]).map(x=>String(x.id)));const cs=(window.connections||[]).filter(c=>{const involved=String(c.sourceId)===String(event.id)||String(c.targetId)===String(event.id);if(!involved)return false;/* show the mark on the concrete card whether the other end is inside or outside the collection */return true;});return cs.map(c=>curve(event,c,'stack-card-mark')).join('');};
 })();
