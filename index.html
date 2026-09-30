@@ -1311,6 +1311,15 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 .connection-summary-time { width: 100%; max-width: 100%; min-height: 13px; }
 .connection-summary-card.no-segment-info .connection-summary-time { display: none; }
 .connection-summary-arrow { margin-top: 0; }
+/* 关系区占主要空间；连线文字为较短的独立居中区域，操作区前保留明显安全距离。 */
+.connection-summary-main { flex: 1 1 auto; min-width: 0; }
+.connection-summary-flow { max-width: 100%; }
+.connection-summary-self { max-width: 34%; }
+.connection-summary-other { max-width: 52%; }
+.connection-summary-label { width: clamp(72px, 18%, 132px); max-width: 132px; margin-left: 18px; }
+.connection-summary-actions { margin-left: 24px; }
+.connection-summary-card.no-segment-info .connection-summary-label { align-self: center; }
+.connection-summary-card.has-segment-info .connection-summary-label { align-self: center; }
 </style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
@@ -6697,37 +6706,23 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 const midX = (sourceCx + targetCx) / 2;
                 const midY = Math.min(sourceCy, targetCy) - arcHeight;
 
-                // Intersect the curve's outgoing direction with the visual node boundary,
-                // so the connection begins/ends on the border instead of running into the fill.
-                function ellipseBoundaryPoint(cx, cy, rect, towardX, towardY) {
-                    const rx = Math.max(2, rect.width / 2);
-                    const ry = Math.max(2, rect.height / 2);
-                    const dx = towardX - cx;
-                    const dy = towardY - cy;
-                    const denom = Math.sqrt((dx * dx) / (rx * rx) + (dy * dy) / (ry * ry));
-                    if (!Number.isFinite(denom) || denom <= 0.0001) return { x: cx, y: cy };
-                    const t = 1 / denom;
-                    return { x: cx + dx * t, y: cy + dy * t };
+                // Keep the established endpoint behaviour for normal dots / merged nodes.
+                // Only multi-time capsules use the middle of the OUTER side edge, so the line
+                // meets the capsule at mid-height without extending into it.
+                function connectionEndpoint(point, otherPoint, ev) {
+                    if (ev?.timeMode === 'multi') {
+                        const visual = point.rect;
+                        const left = visual.left - containerRect.left + container.scrollLeft;
+                        const right = visual.right - containerRect.left + container.scrollLeft;
+                        return { x: otherPoint.cx >= point.cx ? right : left, y: point.cy };
+                    }
+                    return { x: point.cx, y: point.cy };
                 }
-
-                // Anchor at the middle of the OUTER edge facing the other node.
-                // "Middle" here means the edge midpoint at the node's vertical center, not its geometric center,
-                // so the connection never extends into the dot / capsule / merged node.
-                function sideMiddleBoundaryPoint(point, otherPoint) {
-                    const r = point.rect;
-                    const left = r.left - containerRect.left + container.scrollLeft;
-                    const right = r.right - containerRect.left + container.scrollLeft;
-                    return {
-                        x: otherPoint.cx >= point.cx ? right : left,
-                        y: point.cy
-                    };
-                }
-                const sourceEdge = sideMiddleBoundaryPoint(sourcePoint, targetPoint);
-                const targetEdge = sideMiddleBoundaryPoint(targetPoint, sourcePoint);
+                const sourceEdge = connectionEndpoint(sourcePoint, targetPoint, sEvent);
+                const targetEdge = connectionEndpoint(targetPoint, sourcePoint, tEvent);
                 const x1 = sourceEdge.x, y1 = sourceEdge.y;
                 const x2 = targetEdge.x, y2 = targetEdge.y;
 
-                // Recalculate the control point from the visible edge endpoints so the curve remains balanced.
                 const edgeDistance = Math.abs(x2 - x1);
                 const edgeArcHeight = Math.min(140, Math.max(45, edgeDistance * 0.25));
                 const edgeMidX = (x1 + x2) / 2;
@@ -11218,15 +11213,18 @@ viewer.style.visibility='';
                 const connLabel=String(conn.label||'').trim();
                 const hasSegInfo=!!(selfSegText||otherSegText);
                 const stateClass=hasSegInfo?' has-segment-info':' no-segment-info';
-                return `<div class="connection-summary-card${stateClass} flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-xs overflow-hidden">
-                    <div class="connection-summary-main min-w-0 flex-1 overflow-hidden" title="${connLabel?escapeHtml(connLabel):''}">
+                return `<div class="connection-summary-card${stateClass} flex items-center bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-xs overflow-hidden">
+                    <div class="connection-summary-main min-w-0 flex-1 overflow-hidden">
                         <div class="connection-summary-flow min-w-0 flex items-start justify-start gap-1.5 overflow-hidden">
-                            <div class="connection-summary-event min-w-0 max-w-[42%] shrink"><div class="connection-summary-title font-semibold text-slate-700 truncate leading-[16px]">${escapeHtml(selfTitle)}</div><div class="connection-summary-time text-[10px] text-slate-400 truncate leading-[13px]">${selfSegText?escapeHtml(selfSegText):''}</div></div>
-                            <span class="connection-summary-arrow shrink-0 text-slate-400 font-normal leading-[16px]">${dirIcon}</span>
-                            <div class="connection-summary-event min-w-0 max-w-[48%] shrink"><div class="connection-summary-title font-semibold text-slate-700 truncate leading-[16px]">${escapeHtml(otherTitle)}</div><div class="connection-summary-time text-[10px] text-slate-400 truncate leading-[13px]">${otherSegText?escapeHtml(otherSegText):''}</div></div>
+                            <div class="connection-summary-event connection-summary-self min-w-0 shrink"><div class="connection-summary-title font-semibold text-slate-700 truncate leading-[16px]">${escapeHtml(selfTitle)}</div><div class="connection-summary-time text-[10px] text-slate-400 truncate leading-[13px]"${selfSegText?` title="${escapeHtml(selfSegText)}"`:''}>${selfSegText?escapeHtml(selfSegText):''}</div></div>
+                            <span class="connection-summary-arrow shrink-0 text-slate-400 font-normal leading-[16px]" title="${dirText}">${dirIcon}</span>
+                            <div class="connection-summary-event connection-summary-other min-w-0 shrink"><div class="connection-summary-title font-semibold text-slate-700 truncate leading-[16px]" title="${escapeHtml(otherTitle)}">${escapeHtml(otherTitle)}</div><div class="connection-summary-time text-[10px] text-slate-400 truncate leading-[13px]"${otherSegText?` title="${escapeHtml(otherSegText)}"`:''}>${otherSegText?escapeHtml(otherSegText):''}</div></div>
                         </div>
                     </div>
-                    <button type="button" onclick="event.stopPropagation();openConnectionEditModal('${String(conn.id).replace(/'/g, "\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 flex items-center justify-center shrink-0" title="编辑${connLabel?' · '+escapeHtml(connLabel):''}"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="event.stopPropagation();removeEditingConnection('${String(conn.id).replace(/'/g, "\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center shrink-0" title="删除"><i class="fa-solid fa-xmark"></i></button>
+                    <div class="connection-summary-label shrink-0 truncate italic text-slate-500 text-center"${connLabel?` title="${escapeHtml(connLabel)}"`:''}>${connLabel?escapeHtml(connLabel):''}</div>
+                    <div class="connection-summary-actions shrink-0 flex items-center gap-1">
+                    <button type="button" onclick="event.stopPropagation();openConnectionEditModal('${String(conn.id).replace(/'/g, "\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 flex items-center justify-center shrink-0" title="编辑"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="event.stopPropagation();removeEditingConnection('${String(conn.id).replace(/'/g, "\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center shrink-0" title="删除"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
                 </div>`;
             }).join('');
             window.enhanceWebSelects?.(document.getElementById('editModal')||document);
@@ -15045,7 +15043,7 @@ viewer.style.visibility='';
                 const connLabel=String(c.label||'').trim();
                 const hasSegInfo=!!(selfSegText||otherSegText);
                 const stateClass=hasSegInfo?' has-segment-info':' no-segment-info';
-                return `<div class="connection-summary-card${stateClass} flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-xs overflow-hidden"><div class="connection-summary-main min-w-0 flex-1 overflow-hidden" title="${connLabel?window.multiEsc(connLabel):''}"><div class="connection-summary-flow min-w-0 flex items-start justify-start gap-1.5 overflow-hidden"><div class="connection-summary-event min-w-0 max-w-[42%] shrink"><div class="connection-summary-title font-semibold text-slate-700 truncate leading-[16px]">${window.multiEsc(selfTitle)}</div><div class="connection-summary-time text-[10px] text-slate-400 truncate leading-[13px]">${selfSegText?window.multiEsc(selfSegText):''}</div></div><span class="connection-summary-arrow shrink-0 text-slate-400 font-normal leading-[16px]">${dirIcon}</span><div class="connection-summary-event min-w-0 max-w-[48%] shrink"><div class="connection-summary-title font-semibold text-slate-700 truncate leading-[16px]">${window.multiEsc(otherTitle)}</div><div class="connection-summary-time text-[10px] text-slate-400 truncate leading-[13px]">${otherSegText?window.multiEsc(otherSegText):''}</div></div></div></div><button type="button" onclick="event.stopPropagation();multiOpenConnectionEdit('${String(c.id).replace(/'/g,"\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 flex items-center justify-center shrink-0" title="编辑${connLabel?' · '+window.multiEsc(connLabel):''}"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="event.stopPropagation();multiRemoveConnection('${String(c.id).replace(/'/g,"\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center shrink-0" title="删除"><i class="fa-solid fa-xmark"></i></button></div>`;
+                return `<div class="connection-summary-card${stateClass} flex items-center bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-xs overflow-hidden"><div class="connection-summary-main min-w-0 flex-1 overflow-hidden"><div class="connection-summary-flow min-w-0 flex items-start justify-start gap-1.5 overflow-hidden"><div class="connection-summary-event connection-summary-self min-w-0 shrink"><div class="connection-summary-title font-semibold text-slate-700 truncate leading-[16px]">${window.multiEsc(selfTitle)}</div><div class="connection-summary-time text-[10px] text-slate-400 truncate leading-[13px]"${selfSegText?` title="${window.multiEsc(selfSegText)}"`:''}>${selfSegText?window.multiEsc(selfSegText):''}</div></div><span class="connection-summary-arrow shrink-0 text-slate-400 font-normal leading-[16px]" title="${dirText}">${dirIcon}</span><div class="connection-summary-event connection-summary-other min-w-0 shrink"><div class="connection-summary-title font-semibold text-slate-700 truncate leading-[16px]" title="${window.multiEsc(otherTitle)}">${window.multiEsc(otherTitle)}</div><div class="connection-summary-time text-[10px] text-slate-400 truncate leading-[13px]"${otherSegText?` title="${window.multiEsc(otherSegText)}"`:''}>${otherSegText?window.multiEsc(otherSegText):''}</div></div></div></div><div class="connection-summary-label shrink-0 truncate italic text-slate-500 text-center"${connLabel?` title="${window.multiEsc(connLabel)}"`:''}>${connLabel?window.multiEsc(connLabel):''}</div><div class="connection-summary-actions shrink-0 flex items-center gap-1"><button type="button" onclick="event.stopPropagation();multiOpenConnectionEdit('${String(c.id).replace(/'/g,"\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 flex items-center justify-center shrink-0" title="编辑"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="event.stopPropagation();multiRemoveConnection('${String(c.id).replace(/'/g,"\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center shrink-0" title="删除"><i class="fa-solid fa-xmark"></i></button></div></div>`;
             }).join('');
         };
         window.multiAddConnection=function(){const target=document.getElementById('multiConnTarget')?.value,dir=document.querySelector('input[name="multiConnDir"]:checked')?.value||'forward',label=document.getElementById('multiConnLabel')?.value.trim()||'';if(!target){window.showToast('请选择要连接的事件','error');return;}const selfSeg=String(document.getElementById('multiConnSelfSegment')?.value||''),otherSeg=String(document.getElementById('multiConnTargetSegment')?.value||'');let source=window.multiTimeEditingId,t=target,d=dir;if(dir==='backward'){source=target;t=window.multiTimeEditingId;d='forward';}const c={id:'draft_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),sourceId:isNaN(Number(source))?source:Number(source),targetId:isNaN(Number(t))?t:Number(t),dir:d==='both'?'both':'forward',label};if(dir==='backward'){if(otherSeg)c.sourceSegmentId=otherSeg;if(selfSeg)c.targetSegmentId=selfSeg;}else{if(selfSeg)c.sourceSegmentId=selfSeg;if(otherSeg)c.targetSegmentId=otherSeg;}window.multiTimeConnections.push(c);window.resetNewConnectionFields?.('multi');window.multiRenderConnections();};
