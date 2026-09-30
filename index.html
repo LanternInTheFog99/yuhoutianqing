@@ -1297,6 +1297,21 @@ html.invalid-room-access [id*="xiaoqinger" i],
 html.invalid-room-access [class*="xiaoqinger" i],
 html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility:hidden !important;opacity:0 !important}
 </style>
+
+<style id="connection-summary-layout-fix">
+/* 已有连线卡片恢复原来的 py-2 自然高度；具体时间只占用原有第二行空间。 */
+.connection-summary-card { min-height: 0; }
+.connection-summary-direction, .connection-summary-main { transition: none; }
+.connection-summary-card.no-segment-info .connection-summary-direction,
+.connection-summary-card.no-segment-info .connection-summary-main { transform: translateY(2px); }
+.connection-summary-card.has-segment-info .connection-summary-direction,
+.connection-summary-card.has-segment-info .connection-summary-main { transform: translateY(0); }
+.connection-summary-flow { align-items: flex-start; }
+.connection-summary-event { width: fit-content; }
+.connection-summary-time { width: 100%; max-width: 100%; min-height: 13px; }
+.connection-summary-card.no-segment-info .connection-summary-time { display: none; }
+.connection-summary-arrow { margin-top: 0; }
+</style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
 <div id="invalidRoomAccessOverlay" aria-live="assertive" aria-label="此链接无效"><div class="invalid-room-card">此链接无效</div></div>
@@ -11182,19 +11197,14 @@ viewer.style.visibility='';
                 const targetSegText=window.getConnectionSegmentShortLabel(target,conn.targetSegmentId);
                 const connLabel=String(conn.label||'').trim();
                 const hasSegInfo=!!(sourceSegText||targetSegText);
-                const verticalShift=hasSegInfo?'':' translate-y-[3px]';
-                return `<div class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-2.5 h-[52px] text-xs overflow-hidden">
-                    <div class="w-7 h-[30px] shrink-0 grid grid-rows-[16px_13px] content-center leading-none${verticalShift}"><span class="text-indigo-600 font-bold text-sm flex items-center justify-center">${dirIcon}</span><span class="text-[9px] text-slate-400 whitespace-nowrap flex items-center justify-center">${dirText}</span></div>
-                    <div class="min-w-0 flex-1 h-[30px] grid grid-rows-[16px_13px] content-center overflow-hidden${verticalShift}" title="${connLabel?escapeHtml(connLabel):''}">
-                        <div class="min-w-0 flex items-center justify-start gap-1.5 overflow-hidden">
-                            <div class="min-w-0 max-w-[42%] shrink font-semibold text-slate-700 truncate leading-[16px]">${escapeHtml(sourceTitle)}</div>
-                            <span class="shrink-0 text-slate-400 font-normal leading-[16px]">→</span>
-                            <div class="min-w-0 max-w-[48%] shrink font-semibold text-slate-700 truncate leading-[16px]">${escapeHtml(targetTitle)}</div>
-                        </div>
-                        <div class="min-w-0 flex items-center justify-start gap-1.5 overflow-hidden">
-                            <div class="min-w-0 max-w-[42%] shrink text-[10px] text-slate-400 truncate leading-[13px]">${sourceSegText?escapeHtml(sourceSegText):'&nbsp;'}</div>
-                            <span class="shrink-0 invisible">→</span>
-                            <div class="min-w-0 max-w-[48%] shrink text-[10px] text-slate-400 truncate leading-[13px]">${targetSegText?escapeHtml(targetSegText):'&nbsp;'}</div>
+                const stateClass=hasSegInfo?' has-segment-info':' no-segment-info';
+                return `<div class="connection-summary-card${stateClass} flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-xs overflow-hidden">
+                    <div class="connection-summary-direction w-7 shrink-0 leading-none"><span class="text-indigo-600 font-bold text-sm flex items-center justify-center">${dirIcon}</span><span class="text-[9px] text-slate-400 whitespace-nowrap flex items-center justify-center mt-0.5">${dirText}</span></div>
+                    <div class="connection-summary-main min-w-0 flex-1 overflow-hidden" title="${connLabel?escapeHtml(connLabel):''}">
+                        <div class="connection-summary-flow min-w-0 flex items-start justify-start gap-1.5 overflow-hidden">
+                            <div class="connection-summary-event min-w-0 max-w-[42%] shrink"><div class="connection-summary-title font-semibold text-slate-700 truncate leading-[16px]">${escapeHtml(sourceTitle)}</div><div class="connection-summary-time text-[10px] text-slate-400 truncate leading-[13px]">${sourceSegText?escapeHtml(sourceSegText):''}</div></div>
+                            <span class="connection-summary-arrow shrink-0 text-slate-400 font-normal leading-[16px]">→</span>
+                            <div class="connection-summary-event min-w-0 max-w-[48%] shrink"><div class="connection-summary-title font-semibold text-slate-700 truncate leading-[16px]">${escapeHtml(targetTitle)}</div><div class="connection-summary-time text-[10px] text-slate-400 truncate leading-[13px]">${targetSegText?escapeHtml(targetSegText):''}</div></div>
                         </div>
                     </div>
                     <button type="button" onclick="event.stopPropagation();openConnectionEditModal('${String(conn.id).replace(/'/g, "\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 flex items-center justify-center shrink-0" title="编辑${connLabel?' · '+escapeHtml(connLabel):''}"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="event.stopPropagation();removeEditingConnection('${String(conn.id).replace(/'/g, "\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center shrink-0" title="删除"><i class="fa-solid fa-xmark"></i></button>
@@ -15007,12 +15017,16 @@ viewer.style.visibility='';
                 const selfIsSource=String(c.sourceId)===String(self);
                 const dirText=c.dir==='both'?'双向':(selfIsSource?'指向':'被指向');
                 const dirIcon=c.dir==='both'?'↔':(selfIsSource?'→':'←');
-                const sourceSegText=window.getConnectionSegmentShortLabel(source,c.sourceSegmentId);
-                const targetSegText=window.getConnectionSegmentShortLabel(target,c.targetSegmentId);
+                // 当前正在编辑的多时间事件要使用草稿中的 timeSegments，避免保存前的 segmentId 无法解析。
+                const currentDisplayEvent={...(window.findEventById(self)||{}),id:self,timeMode:'multi',timeSegments:window.multiTimeDraft||[]};
+                const sourceDisplay=String(c.sourceId)===String(self)?currentDisplayEvent:source;
+                const targetDisplay=String(c.targetId)===String(self)?currentDisplayEvent:target;
+                const sourceSegText=window.getConnectionSegmentShortLabel(sourceDisplay,c.sourceSegmentId);
+                const targetSegText=window.getConnectionSegmentShortLabel(targetDisplay,c.targetSegmentId);
                 const connLabel=String(c.label||'').trim();
                 const hasSegInfo=!!(sourceSegText||targetSegText);
-                const verticalShift=hasSegInfo?'':' translate-y-[3px]';
-                return `<div class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-2.5 h-[52px] text-xs overflow-hidden"><div class="w-7 h-[30px] shrink-0 grid grid-rows-[16px_13px] content-center leading-none${verticalShift}"><span class="text-indigo-600 font-bold text-sm flex items-center justify-center">${dirIcon}</span><span class="text-[9px] text-slate-400 whitespace-nowrap flex items-center justify-center">${dirText}</span></div><div class="min-w-0 flex-1 h-[30px] grid grid-rows-[16px_13px] content-center overflow-hidden${verticalShift}" title="${connLabel?window.multiEsc(connLabel):''}"><div class="min-w-0 flex items-center justify-start gap-1.5 overflow-hidden"><div class="min-w-0 max-w-[42%] shrink font-semibold text-slate-700 truncate leading-[16px]">${window.multiEsc(sourceTitle)}</div><span class="shrink-0 text-slate-400 font-normal leading-[16px]">→</span><div class="min-w-0 max-w-[48%] shrink font-semibold text-slate-700 truncate leading-[16px]">${window.multiEsc(targetTitle)}</div></div><div class="min-w-0 flex items-center justify-start gap-1.5 overflow-hidden"><div class="min-w-0 max-w-[42%] shrink text-[10px] text-slate-400 truncate leading-[13px]">${sourceSegText?window.multiEsc(sourceSegText):'&nbsp;'}</div><span class="shrink-0 invisible">→</span><div class="min-w-0 max-w-[48%] shrink text-[10px] text-slate-400 truncate leading-[13px]">${targetSegText?window.multiEsc(targetSegText):'&nbsp;'}</div></div></div><button type="button" onclick="event.stopPropagation();multiOpenConnectionEdit('${String(c.id).replace(/'/g,"\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 flex items-center justify-center shrink-0" title="编辑${connLabel?' · '+window.multiEsc(connLabel):''}"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="event.stopPropagation();multiRemoveConnection('${String(c.id).replace(/'/g,"\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center shrink-0" title="删除"><i class="fa-solid fa-xmark"></i></button></div>`;
+                const stateClass=hasSegInfo?' has-segment-info':' no-segment-info';
+                return `<div class="connection-summary-card${stateClass} flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-xs overflow-hidden"><div class="connection-summary-direction w-7 shrink-0 leading-none"><span class="text-indigo-600 font-bold text-sm flex items-center justify-center">${dirIcon}</span><span class="text-[9px] text-slate-400 whitespace-nowrap flex items-center justify-center mt-0.5">${dirText}</span></div><div class="connection-summary-main min-w-0 flex-1 overflow-hidden" title="${connLabel?window.multiEsc(connLabel):''}"><div class="connection-summary-flow min-w-0 flex items-start justify-start gap-1.5 overflow-hidden"><div class="connection-summary-event min-w-0 max-w-[42%] shrink"><div class="connection-summary-title font-semibold text-slate-700 truncate leading-[16px]">${window.multiEsc(sourceTitle)}</div><div class="connection-summary-time text-[10px] text-slate-400 truncate leading-[13px]">${sourceSegText?window.multiEsc(sourceSegText):''}</div></div><span class="connection-summary-arrow shrink-0 text-slate-400 font-normal leading-[16px]">→</span><div class="connection-summary-event min-w-0 max-w-[48%] shrink"><div class="connection-summary-title font-semibold text-slate-700 truncate leading-[16px]">${window.multiEsc(targetTitle)}</div><div class="connection-summary-time text-[10px] text-slate-400 truncate leading-[13px]">${targetSegText?window.multiEsc(targetSegText):''}</div></div></div></div><button type="button" onclick="event.stopPropagation();multiOpenConnectionEdit('${String(c.id).replace(/'/g,"\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 flex items-center justify-center shrink-0" title="编辑${connLabel?' · '+window.multiEsc(connLabel):''}"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="event.stopPropagation();multiRemoveConnection('${String(c.id).replace(/'/g,"\\'")}')" class="w-7 h-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center shrink-0" title="删除"><i class="fa-solid fa-xmark"></i></button></div>`;
             }).join('');
         };
         window.multiAddConnection=function(){const target=document.getElementById('multiConnTarget')?.value,dir=document.querySelector('input[name="multiConnDir"]:checked')?.value||'forward',label=document.getElementById('multiConnLabel')?.value.trim()||'';if(!target){window.showToast('请选择要连接的事件','error');return;}const selfSeg=String(document.getElementById('multiConnSelfSegment')?.value||''),otherSeg=String(document.getElementById('multiConnTargetSegment')?.value||'');let source=window.multiTimeEditingId,t=target,d=dir;if(dir==='backward'){source=target;t=window.multiTimeEditingId;d='forward';}const c={id:'draft_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),sourceId:isNaN(Number(source))?source:Number(source),targetId:isNaN(Number(t))?t:Number(t),dir:d==='both'?'both':'forward',label};if(dir==='backward'){if(otherSeg)c.sourceSegmentId=otherSeg;if(selfSeg)c.targetSegmentId=selfSeg;}else{if(selfSeg)c.sourceSegmentId=selfSeg;if(otherSeg)c.targetSegmentId=otherSeg;}window.multiTimeConnections.push(c);window.resetNewConnectionFields?.('multi');window.multiRenderConnections();};
