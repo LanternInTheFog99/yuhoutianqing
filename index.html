@@ -16065,8 +16065,8 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
 
 /* Same-time collection relation miniature. Its location stays where the card design puts it; arrowheads sit on the curve itself. */
 .relation-curve-mark{position:absolute;z-index:38;width:58px;height:22px;pointer-events:auto;color:#6366f1;background:transparent;border:0}
-.stack-relation-marks{position:absolute;right:2px;top:4px;display:flex;align-items:flex-end;justify-content:flex-end;gap:var(--relation-gap,3px);height:22px;z-index:38;max-width:58%;width:max-content;overflow:visible}
-.relation-curve-mark.stack-card-mark{position:relative;right:auto;top:auto;width:var(--relation-mark-w,34px);height:22px;flex:0 1 var(--relation-mark-w,34px);min-width:14px}
+.stack-relation-marks{position:absolute;right:2px;top:4px;display:flex;align-items:flex-end;justify-content:flex-end;gap:3px;height:22px;z-index:38;max-width:58%;width:max-content;overflow:visible}
+.relation-curve-mark.stack-card-mark{position:relative;right:auto;top:auto;width:58px;height:22px;flex:0 1 58px;min-width:18px}
 .relation-curve-mark.stack-card-mark svg{width:100%;height:22px}
 .relation-curve-mark svg{display:block;width:58px;height:22px;overflow:visible}
 .relation-curve-mark .relation-tip{display:none;position:absolute;right:0;top:calc(100% + 5px);width:max-content;max-width:340px;padding:8px 10px;border-radius:8px;background:#0f172a;border:1px solid #334155;color:#e2e8f0;font-size:10px;line-height:1.45;text-align:center;box-shadow:0 10px 25px rgba(0,0,0,.3);z-index:120;white-space:nowrap}
@@ -16079,12 +16079,10 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
 .relation-tip-arrow-line.is-backward::after{content:'';position:absolute;left:0;top:50%;width:6px;height:6px;border-left:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:translateY(-50%) rotate(45deg)}
 .relation-tip-arrow-line.is-both::after{content:'‹                                      ›';position:absolute;inset:-5px -2px auto -2px;font-size:16px;line-height:10px;display:flex;justify-content:space-between;color:currentColor;letter-spacing:0;overflow:hidden}
 
-.multi-segment-relations{position:absolute;right:14px;top:14px;display:flex;align-items:center;justify-content:flex-end;gap:var(--multi-rel-gap,8px);max-width:62%;width:max-content;z-index:5;overflow:visible}
-.multi-segment-relation-text{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:2px;color:#a5b4fc;font-size:var(--multi-rel-font,11px);line-height:1.15;cursor:default;white-space:nowrap;min-width:0;flex:0 1 auto}
-.multi-segment-relation-text .mini-dir{font-size:1.05em;line-height:1;font-weight:700;flex:0 0 auto}
-.multi-segment-relation-text:hover{color:#c7d2fe}
-.multi-segment-relation-text .relation-tip{display:none;position:absolute;right:0;top:calc(100% + 6px);width:max-content;max-width:340px;padding:8px 10px;border-radius:8px;background:#0f172a;border:1px solid #334155;color:#e2e8f0;font-size:10px;line-height:1.45;box-shadow:0 10px 25px rgba(0,0,0,.3);z-index:140;white-space:nowrap;grid-template-columns:max-content var(--relation-arrow-width,72px) max-content;align-items:center;column-gap:7px;row-gap:5px}
-.multi-segment-relation-text:hover .relation-tip{display:grid}
+.multi-segment-relations{position:absolute;right:14px;top:10px;display:flex;align-items:flex-end;justify-content:flex-end;gap:3px;height:22px;max-width:56%;width:max-content;z-index:5;overflow:visible}
+.multi-segment-relations .relation-curve-mark{position:relative;right:auto;top:auto;width:58px;height:22px;flex:0 1 58px;min-width:18px}
+.multi-segment-relations .relation-curve-mark svg{width:100%;height:22px}
+.multi-segment-relations .relation-tip{z-index:140}
 </style>
 <script id="timeline-0930-consolidated-behavior">
 (()=>{
@@ -16111,9 +16109,8 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
    const dirClass=d.rel==='both'?'is-both':d.rel==='backward'?'is-backward':'is-forward';
    return `<span class="relation-curve-mark stack-card-mark"><svg viewBox="0 0 58 22" aria-hidden="true">${defs}${visible}${out}${inn}</svg><span class="relation-tip" style="--relation-arrow-width:${arrowWidth}px">${label?`<div class="relation-tip-label">${esc(label)}</div>`:''}<div class="relation-tip-row"><span>该事件</span><span class="relation-tip-arrow-line ${dirClass}"></span><span>${esc(other?.title||otherId)}</span></div></span></span>`;
  };
- window.getStackCardRelationMark=(event)=>{const cs=(window.connections||[]).filter(c=>String(c.sourceId)===String(event.id)||String(c.targetId)===String(event.id));if(!cs.length)return '';const n=cs.length, markW=n<=2?34:n<=3?28:n<=4?23:n<=5?19:Math.max(14,Math.floor(104/n)), gap=n<=3?3:n<=5?2:1;return `<span class="stack-relation-marks" style="--relation-mark-w:${markW}px;--relation-gap:${gap}px" data-relation-count="${n}">${cs.map(c=>curve(event,c)).join('')}</span>`;};
- const relationTip=(current,c)=>{const d=direction(current,c),otherId=String(String(c.sourceId)===String(current.id)?c.targetId:c.sourceId),other=window.findEventById?.(otherId)||(window.events||[]).find(e=>String(e.id)===otherId),label=String(c.label||'').trim(),arrowWidth=Math.max(44,Math.min(150,36+Array.from(label).length*8)),dirClass=d.rel==='both'?'is-both':d.rel==='backward'?'is-backward':'is-forward';return `<span class="relation-tip" style="--relation-arrow-width:${arrowWidth}px">${label?`<div class="relation-tip-label">${esc(label)}</div>`:''}<div class="relation-tip-row"><span>该事件</span><span class="relation-tip-arrow-line ${dirClass}"></span><span>${esc(other?.title||otherId)}</span></div></span>`;};
- window.getMultiSegmentRelationMarks=(event,segmentId)=>{const sid=String(segmentId||'');if(!sid)return '';const cs=(window.connections||[]).filter(c=>{if(String(c.sourceId)===String(event.id))return String(c.sourceSegmentId||'')===sid;if(String(c.targetId)===String(event.id))return String(c.targetSegmentId||'')===sid;return false;});if(!cs.length)return '';const n=cs.length,font=n<=2?11:n<=3?10:n<=4?9:n<=5?8:7,gap=n<=2?8:n<=4?5:3;const mark=c=>{const d=direction(event,c),sym=d.rel==='both'?'↔':d.rel==='backward'?'←':'→';return `<span class="multi-segment-relation-text"><span>存在连线</span><span class="mini-dir">${sym}</span>${relationTip(event,c)}</span>`};return `<span class="multi-segment-relations" style="--multi-rel-font:${font}px;--multi-rel-gap:${gap}px" data-relation-count="${n}">${cs.map(mark).join('')}</span>`;};
+ window.getStackCardRelationMark=(event)=>{const cs=(window.connections||[]).filter(c=>String(c.sourceId)===String(event.id)||String(c.targetId)===String(event.id));if(!cs.length)return '';return `<span class="stack-relation-marks" data-relation-count="${cs.length}">${cs.map(c=>curve(event,c)).join('')}</span>`;};
+ window.getMultiSegmentRelationMarks=(event,segmentId)=>{const sid=String(segmentId||'');if(!sid)return '';const cs=(window.connections||[]).filter(c=>{if(String(c.sourceId)===String(event.id))return !!c.sourceSegmentId&&String(c.sourceSegmentId)===sid;if(String(c.targetId)===String(event.id))return !!c.targetSegmentId&&String(c.targetSegmentId)===sid;return false;});if(!cs.length)return '';return `<span class="multi-segment-relations" data-relation-count="${cs.length}">${cs.map(c=>curve(event,c)).join('')}</span>`;};
  try{delete window.getMultiSegmentRelationMark;}catch(_){window.getMultiSegmentRelationMark=undefined;}
 
 })();
