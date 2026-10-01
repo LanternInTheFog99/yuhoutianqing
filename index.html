@@ -13769,6 +13769,10 @@ viewer.style.visibility='';
                     window._identityReservationValid = false;
                     return { ok:false, reason:'taken', message:String(e?.message||'') };
                 }
+                if (e?.code === 'moderation_rejected') {
+                    window._identityReservationValid = false;
+                    return { ok:false, reason:'unavailable', message:String(e?.message||'该ID暂时无法使用，请更换后重试') };
+                }
                 if (e?.code === 'identity_not_owned') {
                     window._identityReservationValid = false;
                     return { ok:false, reason:'sync', message:String(e?.message||'当前ID状态与云端记录不一致，请重新确认') };
@@ -13882,9 +13886,11 @@ viewer.style.visibility='';
                 if (err) {
                     err.textContent = claim.reason === 'taken'
                         ? (claim.message || '该ID已被其他用户占用')
-                        : claim.reason === 'sync'
-                            ? (claim.message || '当前ID状态与云端记录不一致，请重新确认')
-                            : 'ID保存失败，请确认云端连接后重试';
+                        : claim.reason === 'unavailable'
+                            ? (claim.message || '该ID暂时无法使用，请更换后重试')
+                            : claim.reason === 'sync'
+                                ? (claim.message || '当前ID状态与云端记录不一致，请重新确认')
+                                : 'ID保存失败，请确认云端连接后重试';
                     err.classList.remove('hidden');
                 }
                 input?.focus();
@@ -15298,6 +15304,7 @@ viewer.style.visibility='';
                 identity_required: '请先在右上角“用户设置”填写ID',
                 identity_mismatch: '当前用户ID同步状态异常，请重新保存一次用户设置',
                 invalid_content: '留言不能为空，且最多 500 个字符。',
+                moderation_rejected: '该内容暂时无法发布，请修改后重试',
                 invalid_event_id: '当前事件无法建立评论区。',
                 parent_not_found: '要回复的评论已经不存在。',
                 parent_event_mismatch: '回复目标不属于当前事件。',
