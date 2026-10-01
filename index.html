@@ -15821,7 +15821,7 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
             }
 
             window.commentBoardError(board,'');
-            const oldBtnText=btn?.textContent||'';if(btn)btn.textContent='正在发送...';
+            const oldBtnHtml=btn?.innerHTML||'';if(btn){btn.disabled=true;btn.textContent='正在发送...';}
             try{
                 const data=await window.timelineApiCloudWritePost('commentAdd',{
                     eventId:String(board.dataset.eventId||''),
@@ -15840,7 +15840,7 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
                 await window.commentLoadMessages(board);
                 window.commentSetComposeOpen(board,false,false);
             }catch(e){window.commentBoardError(board,window.commentHumanError(e));}
-            finally{if(btn)btn.disabled=false;}
+            finally{if(btn){btn.disabled=false;btn.innerHTML=oldBtnHtml;}}
         };
 
         window.commentDelete = async function(board,id){
