@@ -12837,9 +12837,16 @@ viewer.style.visibility='';
                 if(!img)return;
                 paused=true;playToken++;stopTimer();removeLayer();
                 const token=playToken,layer=makePlaybackLayer(img);
-                if(layer)waitLayerReady(layer,token).then(ok=>{
-                    if(ok&&paused&&token===playToken&&activeLayer===layer)layer.style.opacity='1';
-                });
+                if(layer){
+                    // 独立 GIF 播放层也要继承详情图片原本的悬停轻微放大效果；
+                    // 否则播放层盖住正在 group-hover 缩放的封面后，视觉上只剩边框变化。
+                    layer.style.transformOrigin='center center';
+                    layer.style.transition='transform 300ms ease, opacity 0ms';
+                    layer.style.transform='scale(1.02)';
+                    waitLayerReady(layer,token).then(ok=>{
+                        if(ok&&paused&&token===playToken&&activeLayer===layer)layer.style.opacity='1';
+                    });
+                }
             };
             const resumeAfterGifHover=()=>{
                 if(disposed||window.isPhoneLikeDevice?.())return;
