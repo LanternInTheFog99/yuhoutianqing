@@ -12825,22 +12825,29 @@ viewer.style.visibility='';
                 index=(current+1)%gifs.length;
                 if(token===playToken&&!disposed&&!paused)playCurrent();
             };
-            const pauseForHover=(card)=>{
+            // 桌面端悬停某张 GIF 时，由它临时接管播放：先撤掉自动轮播层，
+            // 其余 GIF 始终保留各自封面，只为当前悬停 GIF 创建独立播放层。
+            // 普通图片不参与这套悬停逻辑。
+            const hoverGifCards=[...viewer.querySelectorAll('[data-detail-image-card]')].filter(card=>
+                card.querySelector('[data-detail-image][data-gif-src][data-gif-cover]')
+            );
+            const pauseForGifHover=(card)=>{
                 if(disposed||window.isPhoneLikeDevice?.())return;
-                paused=true;playToken++;stopTimer();removeLayer();
                 const img=card?.querySelector?.('[data-detail-image][data-gif-src][data-gif-cover]');
-                if(img){
-                    const token=playToken,layer=makePlaybackLayer(img);
-                    if(layer)waitLayerReady(layer,token).then(ok=>{if(ok)layer.style.opacity='1';});
-                }
+                if(!img)return;
+                paused=true;playToken++;stopTimer();removeLayer();
+                const token=playToken,layer=makePlaybackLayer(img);
+                if(layer)waitLayerReady(layer,token).then(ok=>{
+                    if(ok&&paused&&token===playToken&&activeLayer===layer)layer.style.opacity='1';
+                });
             };
-            const resumeAfterHover=()=>{
+            const resumeAfterGifHover=()=>{
                 if(disposed||window.isPhoneLikeDevice?.())return;
                 removeLayer();paused=false;playCurrent();
             };
-            [...viewer.querySelectorAll('[data-detail-image-card]')].forEach(card=>{
-                card.addEventListener('mouseenter',()=>pauseForHover(card));
-                card.addEventListener('mouseleave',resumeAfterHover);
+            hoverGifCards.forEach(card=>{
+                card.addEventListener('mouseenter',()=>pauseForGifHover(card));
+                card.addEventListener('mouseleave',resumeAfterGifHover);
             });
             viewer._detailGifSequenceCleanup=()=>{disposed=true;paused=true;playToken++;stopTimer();removeLayer();viewer._detailGifSequenceCleanup=null;};
             playCurrent();
