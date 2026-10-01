@@ -961,8 +961,36 @@
         }
         #eventCommentWindow .event-comment-char{color:#94a3b8}
         #eventCommentWindow .event-comment-empty{color:#94a3b8;border-color:#cbd5e1}
-        #eventCommentWindow .event-comment-item{border-color:#e2e8f0;background:#fff}
-        #eventCommentWindow .event-comment-item.is-reply{border-left-color:#6366f1}
+        /* 评论采用扁平列表：独立评论组之间用细线，不再使用气泡卡片。 */
+        #eventCommentWindow .event-comment-item{border:0;border-bottom:1px solid #e2e8f0;border-radius:0;background:transparent;padding:10px 2px 12px}
+        #eventCommentWindow .event-comment-item.is-reply{border-left:0}
+        #eventCommentWindow .event-comment-list{gap:0}
+
+        /* 外部回复预览属于主评论本身：只缩进，不用分隔线。入口与预览左边界一致。 */
+        #eventCommentWindow .event-comment-reply-preview{margin-top:7px;padding-top:2px;border:0}
+        #eventCommentWindow .event-comment-reply-preview > .event-comment-item{margin-left:18px;padding:7px 0 2px;border-bottom:0}
+        #eventCommentWindow .event-comment-item > .event-comment-replies-toggle{margin-left:18px}
+
+        /* 回复详情：主楼本身不画普通细线；用整宽灰色分隔带与真正的回复区分开。 */
+        #eventCommentWindow .event-comment-thread-root{border-bottom:0;padding-bottom:12px}
+        #eventCommentWindow .event-comment-thread-separator{height:14px;margin:0 -14px 8px;background:#f1f5f9;border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb}
+        #eventCommentWindow .event-comment-thread-sort-row{display:flex;justify-content:flex-end;align-items:center;min-height:30px;margin:0 0 3px}
+        #eventCommentWindow .event-comment-thread-sort{border:0;background:transparent;color:#64748b;font-size:10px;font-weight:700;cursor:pointer;padding:4px 2px}
+        #eventCommentWindow .event-comment-thread-sort:hover{color:#4f46e5}
+
+        /* 每个直接回复及其后续对话是一组：组与组之间细线，组内只靠固定一级缩进区分。 */
+        #eventCommentWindow .event-comment-thread-group{gap:0;border-bottom:1px solid #e2e8f0;padding-bottom:8px}
+        #eventCommentWindow .event-comment-thread-group > .event-comment-item{border-bottom:0}
+        #eventCommentWindow .event-comment-thread-children{gap:0;margin-left:18px}
+        #eventCommentWindow .event-comment-thread-children > .event-comment-item{margin-left:0;border-bottom:0;padding-top:7px;padding-bottom:7px}
+        #eventCommentWindow .event-comment-thread-more{margin-left:18px;margin-top:3px;margin-bottom:2px}
+        #eventCommentWindow .event-comment-board.is-thread-view .event-comment-head .event-comment-sort-toggle{display:none}
+        @media(max-width:639px){
+            #eventCommentWindow .event-comment-reply-preview > .event-comment-item{margin-left:12px}
+            #eventCommentWindow .event-comment-item > .event-comment-replies-toggle{margin-left:12px}
+            #eventCommentWindow .event-comment-thread-children{margin-left:12px}
+            #eventCommentWindow .event-comment-thread-more{margin-left:12px}
+        }
         #eventCommentWindow .event-comment-author{color:#334155}
         #eventCommentWindow .event-comment-author.is-profile{color:#4f46e5}
         #eventCommentWindow .event-comment-time,
@@ -15674,12 +15702,14 @@ viewer.style.visibility='';
             if(count) count.textContent=String(rows.length);
             list.innerHTML='';
             if(!rows.length){
+                board.classList.remove('is-thread-view');
                 const empty=document.createElement('div'); empty.className='event-comment-empty'; empty.textContent='还没有评论，来留下第一条吧。'; list.appendChild(empty); return;
             }
             const mode=window.commentGetSortMode(board); const dir=window.commentGetSortDirection(board);
             window.commentSyncSortUi(board);
             board._commentExpandedGroups=board._commentExpandedGroups instanceof Set?board._commentExpandedGroups:new Set();
             const threadRootId=String(board._commentThreadRootId||'');
+            board.classList.toggle('is-thread-view',!!(threadRootId && byId.has(threadRootId)));
 
             if(threadRootId && byId.has(threadRootId)){
                 const root=byId.get(threadRootId);
@@ -15688,7 +15718,17 @@ viewer.style.visibility='';
                 const title=document.createElement('div'); title.className='event-comment-thread-title';
                 const total=window.commentCollectDescendants(threadRootId,children).length; title.textContent=`${total} 条回复`;
                 head.append(back,title); list.appendChild(head);
-                list.appendChild(window.commentCreateMessageNode(board,root,false));
+                const rootNode=window.commentCreateMessageNode(board,root,false);
+                rootNode.classList.add('event-comment-thread-root');
+                list.appendChild(rootNode);
+
+                const separator=document.createElement('div'); separator.className='event-comment-thread-separator'; list.appendChild(separator);
+                const sortRow=document.createElement('div'); sortRow.className='event-comment-thread-sort-row';
+                const threadSort=document.createElement('button'); threadSort.type='button'; threadSort.className='event-comment-thread-sort';
+                threadSort.textContent=mode==='hot'?'按热度':'按时间';
+                threadSort.title=mode==='hot'?'当前按热度，点击切换为按时间':'当前按时间，点击切换为按热度';
+                threadSort.onclick=()=>window.commentSetSortMode(board,mode==='hot'?'time':'hot');
+                sortRow.appendChild(threadSort); list.appendChild(sortRow);
 
                 const direct=[...(children.get(threadRootId)||[])];
                 direct.sort((a,b)=>window.commentCompareMessages(a,b,mode,dir));
