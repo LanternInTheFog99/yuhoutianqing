@@ -962,7 +962,7 @@
         #eventCommentWindow .event-comment-char{color:#94a3b8}
         #eventCommentWindow .event-comment-empty{color:#94a3b8;border-color:#cbd5e1}
         /* 评论采用扁平列表：独立评论组之间用细线，不再使用气泡卡片。 */
-        #eventCommentWindow .event-comment-item{border:0;border-bottom:1px solid #e2e8f0;border-radius:0;background:transparent;padding:10px 2px 12px}
+        #eventCommentWindow .event-comment-item{border:0;border-bottom:1px solid #cbd5e1;border-radius:0;background:transparent;padding:10px 2px 12px}
         #eventCommentWindow .event-comment-item.is-reply{border-left:0}
         #eventCommentWindow .event-comment-list{gap:0}
 
@@ -975,11 +975,11 @@
         #eventCommentWindow .event-comment-thread-root{border-bottom:0;padding-bottom:12px}
         #eventCommentWindow .event-comment-thread-separator{height:14px;margin:0 -14px 8px;background:#f1f5f9;border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb}
         #eventCommentWindow .event-comment-thread-sort-row{display:flex;justify-content:flex-end;align-items:center;min-height:30px;margin:0 0 3px}
-        #eventCommentWindow .event-comment-thread-sort{border:0;background:transparent;color:#64748b;font-size:10px;font-weight:700;cursor:pointer;padding:4px 2px}
-        #eventCommentWindow .event-comment-thread-sort:hover{color:#4f46e5}
+        #eventCommentWindow .event-comment-thread-sort{margin-left:auto}
+        #eventCommentWindow .event-comment-thread-sort.event-comment-sort-toggle{display:inline-flex}
 
         /* 每个直接回复及其后续对话是一组：组与组之间细线，组内只靠固定一级缩进区分。 */
-        #eventCommentWindow .event-comment-thread-group{gap:0;border-bottom:1px solid #e2e8f0;padding-bottom:8px}
+        #eventCommentWindow .event-comment-thread-group{gap:0;border-bottom:1px solid #cbd5e1;padding-bottom:8px}
         #eventCommentWindow .event-comment-thread-group > .event-comment-item{border-bottom:0}
         #eventCommentWindow .event-comment-thread-children{gap:0;margin-left:18px}
         #eventCommentWindow .event-comment-thread-children > .event-comment-item{margin-left:0;border-bottom:0;padding-top:7px;padding-bottom:7px}
@@ -15724,11 +15724,14 @@ viewer.style.visibility='';
 
                 const separator=document.createElement('div'); separator.className='event-comment-thread-separator'; list.appendChild(separator);
                 const sortRow=document.createElement('div'); sortRow.className='event-comment-thread-sort-row';
-                const threadSort=document.createElement('button'); threadSort.type='button'; threadSort.className='event-comment-thread-sort';
-                threadSort.textContent=mode==='hot'?'按热度':'按时间';
-                threadSort.title=mode==='hot'?'当前按热度，点击切换为按时间':'当前按时间，点击切换为按热度';
-                threadSort.onclick=()=>window.commentSetSortMode(board,mode==='hot'?'time':'hot');
-                sortRow.appendChild(threadSort); list.appendChild(sortRow);
+                const threadSort=document.createElement('div'); threadSort.className='event-comment-thread-sort event-comment-sort-toggle'; threadSort.setAttribute('role','group'); threadSort.setAttribute('aria-label','回复排序');
+                const dirBtn=document.createElement('button'); dirBtn.type='button'; dirBtn.setAttribute('aria-label','切换回复升序或降序'); dirBtn.title='切换升序或降序'; dirBtn.style.cssText='border:0;background:transparent;padding:0 3px 0 0;color:#6366f1;cursor:pointer';
+                dirBtn.innerHTML=`<i class="fa-solid ${dir==='desc'?'fa-arrow-down-wide-short':'fa-arrow-up-wide-short'}"></i>`;
+                dirBtn.onclick=()=>window.commentSetSortDirection(board,dir==='desc'?'asc':'desc');
+                const modeBtn=document.createElement('button'); modeBtn.type='button'; modeBtn.setAttribute('aria-label','切换回复排序依据'); modeBtn.title='切换排序依据'; modeBtn.style.cssText='border:0;background:transparent;padding:0;color:inherit;font:inherit;font-weight:inherit;cursor:pointer';
+                modeBtn.textContent=mode==='hot'?'按热度':'按时间';
+                modeBtn.onclick=()=>window.commentSetSortMode(board,mode==='hot'?'time':'hot');
+                threadSort.append(dirBtn,modeBtn); sortRow.appendChild(threadSort); list.appendChild(sortRow);
 
                 const direct=[...(children.get(threadRootId)||[])];
                 direct.sort((a,b)=>window.commentCompareMessages(a,b,mode,dir));
