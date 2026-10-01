@@ -6185,17 +6185,17 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if (!wrapper) return;
             const cards = Array.from(wrapper.querySelectorAll('.stack-card'));
             if (!cards.length) return;
-            // 当前页保持原尺寸。后排只保留原第三、第四页的两档露出位置：
-            // 窄屏手机只显示当前页 + 1 个后层（使用原第四页位置）；其它端显示当前页 + 2 个后层（使用原第三、第四页位置）。
+            // 原四层横向中心偏移是 0 / 30 / 46 / 53，因此三层“新增露出宽度”实际是 30 / 16 / 7px。
+            // 现在去掉原第二层的 30px 档，只保留后两档的露出量：
+            // 窄屏手机：当前页 + 7px 后层；其它端：当前页 + 16px + 再 7px（累计 23px）两层。
             const isNarrowPhone = window.matchMedia?.('(max-width:639px)').matches;
             const visibleBackLayers = isNarrowPhone ? 1 : 2;
-            const backCenters = isNarrowPhone ? [53] : [46, 53];
+            const compressedCenters = isNarrowPhone ? [0, 7] : [0, 16, 23];
             cards.forEach((card, idx) => {
                 const offset = idx - activeIndex;
                 const distance = Math.abs(offset);
                 const dir = offset >= 0 ? 1 : -1;
-                const backIndex = Math.max(0, Math.min(distance - 1, backCenters.length - 1));
-                const translateX = distance === 0 ? 0 : dir * backCenters[backIndex];
+                const translateX = dir * compressedCenters[Math.min(distance, compressedCenters.length - 1)];
                 const visibleDistance = distance <= visibleBackLayers;
                 card.style.zIndex = idx === activeIndex ? 30 : Math.max(1, 25 - distance);
                 card.style.transformOrigin = 'center center';
@@ -10949,7 +10949,7 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
             }
             const detailHasImages=Array.isArray(event.images)&&event.images.length>0,detailHasVideos=Array.isArray(event.videos)&&event.videos.length>0,detailDescriptionText=String(event.description||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/gi,' ').trim(),detailHasDescription=!!detailDescriptionText;
             let viewer=document.getElementById('fullscreenViewer');if(!viewer){viewer=document.createElement('div');viewer.id='fullscreenViewer';viewer.className='fixed inset-0 bg-slate-950/90 text-white z-50 overflow-y-auto backdrop-blur-md p-3 sm:p-8 flex flex-col items-center';viewer.addEventListener('click',e=>{if(e.target===viewer)window.closeReadOnlyFullscreen(viewer.dataset.fromStackDate||'');});document.body.appendChild(viewer);}viewer.dataset.fromStackDate=fromStackDate||'';viewer.dataset.eventId=String(event.id||'');
-            let imagesHtml='';if(detailHasImages){const fullSrcList=event.images.map(imgObj=>typeof imgObj==='string'?imgObj:(imgObj.originalFull||imgObj.original||imgObj.outer||imgObj.inner||imgObj.collection||''));imagesHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">事件配图</h4><div data-detail-images>${event.images.map((imgObj,idx)=>{const thumbSrc=typeof imgObj==='string'?imgObj:(imgObj.inner||imgObj.outer||imgObj.original||imgObj.originalFull||imgObj.collection);const listStr=JSON.stringify(fullSrcList).replace(/"/g,'&quot;');const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(imgObj?.deepDescription);return `<div data-detail-image-card onpointerdown="if(window.isPhoneLikeDevice?.()){mobileDetailTapStart(event,this)}else if(event.isPrimary&&event.button===0){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openLightbox(${listStr},${idx},'${event.id}','image'),this._mobileOpenedAt=performance.now())}" onpointermove="if(window.isPhoneLikeDevice?.())mobileDetailTapMove(event,this)" onpointerup="if(window.isPhoneLikeDevice?.()&&mobileDetailTapEnd(event,this)){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openLightbox(${listStr},${idx},'${event.id}','image'))}" onclick="if(window.isPhoneLikeDevice?.()){event.preventDefault();event.stopPropagation();mobileDetailTapOpen(this,()=>{window.suspendMobileDetailVideosForOverlay?.();openLightbox(${listStr},${idx},'${event.id}','image')})}" class="group relative bg-transparent rounded-xl overflow-hidden border border-slate-800 cursor-pointer shadow-md hover:border-indigo-500 transition-colors">${(()=>{const gif=window.isAnimatedImageSource(thumbSrc,imgObj),cover=typeof imgObj==='object'?(imgObj.gifCover||''):'';const staticCover=(!gif&&typeof imgObj==='object'&&imgObj&&imgObj.outer&&imgObj.originalFull&&imgObj.outer!==imgObj.originalFull)?imgObj.outer:'';const shown=gif&&cover?cover:(staticCover||thumbSrc);const attrs=`data-detail-image data-full-src="${fullSrcList[idx]||thumbSrc}" ${gif&&cover?`data-gif-src="${fullSrcList[idx]||thumbSrc}" data-gif-cover="${cover}" data-gif-duration="${imgObj?.gifDurationSource==='gce'?Math.max(50,Number(imgObj?.gifDurationMs)||5000):5000}"`:''} loading="lazy" decoding="async"`;const boundCrop=(gif&&cover)||staticCover?null:(imgObj?.gifCrop||imgObj?.gifCoverCrop||imgObj?.crop);return boundCrop?window.getDetailCroppedImageHtml(imgObj,shown,attrs,'block group-hover:scale-[1.02] transition-all duration-300',boundCrop):`<img ${attrs} src="${shown}" class="block group-hover:scale-[1.02] transition-all duration-300">`;})()}${hasDeep?'<span class="absolute right-1.5 bottom-1.5 z-10 text-[13px] sm:text-sm opacity-0 group-hover:opacity-45 transition-opacity pointer-events-none select-none drop-shadow" aria-hidden="true">🐢✌🏻</span>':''}</div>`;}).join('')}</div></div>`;}
+            let imagesHtml='';if(detailHasImages){const fullSrcList=event.images.map(imgObj=>typeof imgObj==='string'?imgObj:(imgObj.originalFull||imgObj.original||imgObj.outer||imgObj.inner||imgObj.collection||''));imagesHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">事件配图</h4><div data-detail-images>${event.images.map((imgObj,idx)=>{const thumbSrc=typeof imgObj==='string'?imgObj:(imgObj.inner||imgObj.outer||imgObj.original||imgObj.originalFull||imgObj.collection);const listStr=JSON.stringify(fullSrcList).replace(/"/g,'&quot;');const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(imgObj?.deepDescription);return `<div data-detail-image-card onpointerdown="if(window.isPhoneLikeDevice?.()){mobileDetailTapStart(event,this)}else if(event.isPrimary&&event.button===0){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openLightbox(${listStr},${idx},'${event.id}','image'),this._mobileOpenedAt=performance.now())}" onpointermove="if(window.isPhoneLikeDevice?.())mobileDetailTapMove(event,this)" onpointerup="if(window.isPhoneLikeDevice?.()&&mobileDetailTapEnd(event,this)){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openLightbox(${listStr},${idx},'${event.id}','image'))}" onclick="if(window.isPhoneLikeDevice?.()){event.preventDefault();event.stopPropagation();mobileDetailTapOpen(this,()=>{window.suspendMobileDetailVideosForOverlay?.();openLightbox(${listStr},${idx},'${event.id}','image')})}" class="group relative bg-transparent rounded-xl overflow-hidden border border-slate-800 cursor-pointer shadow-md hover:border-indigo-500 transition-colors">${(()=>{const gif=window.isAnimatedImageSource(thumbSrc,imgObj),cover=typeof imgObj==='object'?(imgObj.gifCover||''):'';const staticCover=(!gif&&typeof imgObj==='object'&&imgObj&&imgObj.outer&&imgObj.originalFull&&imgObj.outer!==imgObj.originalFull)?imgObj.outer:'';const shown=gif&&cover?cover:(staticCover||thumbSrc);const attrs=`data-detail-image data-full-src="${fullSrcList[idx]||thumbSrc}" ${gif&&cover?`data-gif-src="${fullSrcList[idx]||thumbSrc}" data-gif-cover="${cover}" data-gif-duration="${imgObj?.gifDurationSource==='gce'?Math.max(50,Number(imgObj?.gifDurationMs)||5000):5000}" data-gif-duration-source="${imgObj?.gifDurationSource||''}"`:''} loading="lazy" decoding="async"`;const boundCrop=(gif&&cover)||staticCover?null:(imgObj?.gifCrop||imgObj?.gifCoverCrop||imgObj?.crop);return boundCrop?window.getDetailCroppedImageHtml(imgObj,shown,attrs,'block group-hover:scale-[1.02] transition-all duration-300',boundCrop):`<img ${attrs} src="${shown}" class="block group-hover:scale-[1.02] transition-all duration-300">`;})()}${hasDeep?'<span class="absolute right-1.5 bottom-1.5 z-10 text-[13px] sm:text-sm opacity-0 group-hover:opacity-45 transition-opacity pointer-events-none select-none drop-shadow" aria-hidden="true">🐢✌🏻</span>':''}</div>`;}).join('')}</div></div>`;}
             let videosHtml='';if(detailHasVideos){videosHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-video mr-1"></i>事件视频</h4><div data-detail-videos>${event.videos.map((v,vidx)=>{const vUrl=typeof v==='object'?(v.blobUrl||v.url):v,vCover=typeof v==='object'?(v.cover||''):'',vTitle=typeof v==='object'?(v.title||''):'',vType=typeof v==='object'&&v.mime?`type="${v.mime}"`:'';const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(v?.deepDescription);return `<div data-detail-video-card data-detail-video-index="${vidx}" data-detail-video-deep="${hasDeep?'1':'0'}" class="bg-black rounded-xl overflow-hidden border border-slate-800 ${hasDeep?'cursor-pointer':''}">${vTitle?`<div data-detail-video-title class="px-3 py-2 bg-slate-900 text-xs font-semibold text-slate-200 border-b border-slate-800">${escapeHtml(vTitle)}</div>`:''}<div data-detail-video-stage class="relative bg-black overflow-hidden"><video ${vCover?`poster="${vCover}"`:''} playsinline webkit-playsinline preload="none" class="block bg-black object-contain"><source src="${vUrl}" ${vType}></video>${hasDeep?'<span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">🐢</span><span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">✌🏻</span>':''}</div></div>`;}).join('')}</div></div>`;}
             let linksHtml='';if(event.links&&event.links.length>0){linksHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-link mr-1"></i>跳转网址</h4><div class="flex flex-wrap gap-2">${event.links.map(l=>`<a href="${l.url}" target="_blank" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-indigo-300 hover:text-indigo-200 px-3 py-2 rounded-xl text-xs transition-colors"><i class="fa-solid fa-globe"></i><span class="font-medium">${l.title||l.url}</span></a>`).join('')}</div></div>`;}
             const descriptionHtml=detailHasDescription?`<div data-detail-description class="border-t border-slate-800 pt-6 mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">事件经过与描述</h4><div class="event-description-html text-sm sm:text-base leading-relaxed whitespace-pre-wrap">${window.prepareDescriptionForView?window.prepareDescriptionForView(event.description):event.description}</div></div>`:'';
@@ -12737,15 +12737,15 @@ viewer.style.visibility='';
             const cover=img.dataset.gifCover||''; if(!cover)return;
             if(img.src!==cover)img.src=cover;
         };
-        // 详情 GIF 自动轮播：直接切换详情页当前媒体源，避免额外克隆播放层在详情布局中不可见。
-        // 裁切媒体同步更新 SVG <image>；手机与桌面共用同一套轮播逻辑。
+        // 详情 GIF 自动轮播：手机与桌面共用同一条严格串行的播放链。
+        // 每张 GIF 完整播放一轮后才回封面并进入下一张；旧数据没有精确时长时，优先读取 GIF 本体解析时长。
         window.initDetailGifSequence=function(viewer){
             viewer?._detailGifSequenceCleanup?.();
             if(!viewer)return;
             const gifs=[...viewer.querySelectorAll('[data-detail-image][data-gif-src][data-gif-cover]')];
             if(!gifs.length)return;
-            let index=0,timer=0,paused=false,disposed=false,playToken=0;
-            const PRE_COVER_MS=300,POST_COVER_MS=120,GIF_END_GUARD_MS=300;
+            let index=0,timer=0,paused=false,disposed=false,token=0,hovering=false;
+            const PRE_COVER_MS=300,POST_COVER_MS=160,FALLBACK_MS=5000;
             const stopTimer=()=>{if(timer){clearTimeout(timer);timer=0;}};
             const setShownSource=(img,src)=>{
                 if(!img||!src)return;
@@ -12756,43 +12756,66 @@ viewer.style.visibility='';
             };
             const showCover=img=>setShownSource(img,img?.dataset?.gifCover||'');
             const showGif=img=>setShownSource(img,img?.dataset?.gifSrc||'');
-            const showBaseCovers=()=>gifs.forEach(showCover);
-            const nextCycle=()=>{if(disposed||paused)return;index=(index+1)%gifs.length;playCurrent();};
-            const playCurrent=()=>{
-                stopTimer();showBaseCovers();
-                const token=++playToken;
-                if(disposed||paused||viewer.classList.contains('hidden'))return;
-                const base=gifs[index%gifs.length];
-                if(!base?.dataset?.gifSrc)return;
-                const duration=Math.max(600,Number(base.dataset.gifDuration)||5000);
-                timer=setTimeout(()=>{
-                    if(token!==playToken||disposed||paused)return;
-                    showGif(base);
-                    timer=setTimeout(()=>{
-                        if(token!==playToken||disposed||paused)return;
-                        showCover(base);
-                        timer=setTimeout(()=>{if(token===playToken&&!disposed&&!paused)nextCycle();},POST_COVER_MS);
-                    },Math.max(320,duration-GIF_END_GUARD_MS));
-                },PRE_COVER_MS);
+            const showAllCovers=()=>gifs.forEach(showCover);
+            const wait=(ms,myToken)=>new Promise(resolve=>{
+                stopTimer();
+                timer=setTimeout(()=>{timer=0;resolve(myToken===token&&!disposed&&!paused);},Math.max(0,ms));
+            });
+            const resolveDuration=async(img)=>{
+                const declared=Math.max(0,Number(img?.dataset?.gifDuration)||0);
+                if(img?.dataset?.gifDurationSource==='gce'&&declared>0)return declared;
+                const src=img?.dataset?.gifSrc||'';
+                if(src&&window.parseGifDurationMs){
+                    try{
+                        const res=await fetch(src,{cache:'force-cache'});
+                        if(res.ok){
+                            const ms=window.parseGifDurationMs(await res.arrayBuffer());
+                            if(ms>0){img.dataset.gifDuration=String(ms);img.dataset.gifDurationSource='runtime-gce';return ms;}
+                        }
+                    }catch(_){/* 跨域或离线时使用已有/兜底时长 */}
+                }
+                return declared>0?declared:FALLBACK_MS;
             };
-            const resume=()=>{if(disposed)return;paused=false;playCurrent();};
-            const hoverPlay=(card)=>{
+            let durationsPromise=null;
+            const ensureDurations=()=>durationsPromise||(durationsPromise=Promise.all(gifs.map(resolveDuration)));
+            const run=async()=>{
+                const myToken=++token;
+                showAllCovers();
+                const durations=await ensureDurations();
+                if(myToken!==token||disposed||paused||viewer.classList.contains('hidden'))return;
+                while(!disposed&&!paused&&myToken===token){
+                    const current=index%gifs.length;
+                    const img=gifs[current];
+                    if(!(await wait(PRE_COVER_MS,myToken)))return;
+                    // 从封面切到 GIF 会从首帧重新开始；保持完整时长，不再提前 300ms 强制截断。
+                    showGif(img);
+                    if(!(await wait(Math.max(50,Number(durations[current])||FALLBACK_MS),myToken)))return;
+                    showCover(img);
+                    if(!(await wait(POST_COVER_MS,myToken)))return;
+                    index=(current+1)%gifs.length;
+                }
+            };
+            const restart=()=>{if(disposed)return;paused=false;run();};
+            const pauseForHover=(card)=>{
                 if(disposed||window.isPhoneLikeDevice?.())return;
+                hovering=true;paused=true;token++;stopTimer();showAllCovers();
                 const img=card?.querySelector?.('[data-detail-image][data-gif-src][data-gif-cover]');
-                paused=true;playToken++;stopTimer();showBaseCovers();
                 if(img)showGif(img);
             };
-            const hoverStop=(card)=>{
+            const resumeAfterHover=(card)=>{
+                if(disposed||window.isPhoneLikeDevice?.())return;
                 const img=card?.querySelector?.('[data-detail-image][data-gif-src][data-gif-cover]');
                 if(img)showCover(img);
-                resume();
+                hovering=false;
+                // 悬停只是临时预览，不改自动轮播 index；离开后从当前自动项重新完整播放。
+                restart();
             };
             [...viewer.querySelectorAll('[data-detail-image-card]')].forEach(card=>{
-                card.addEventListener('mouseenter',()=>hoverPlay(card));
-                card.addEventListener('mouseleave',()=>hoverStop(card));
+                card.addEventListener('mouseenter',()=>pauseForHover(card));
+                card.addEventListener('mouseleave',()=>resumeAfterHover(card));
             });
-            viewer._detailGifSequenceCleanup=()=>{disposed=true;playToken++;stopTimer();showBaseCovers();viewer._detailGifSequenceCleanup=null;};
-            playCurrent();
+            viewer._detailGifSequenceCleanup=()=>{disposed=true;paused=true;token++;stopTimer();showAllCovers();viewer._detailGifSequenceCleanup=null;};
+            run();
         };
         window.openGifCoverPicker=async function(src,cloudPath,coverCloudPath,onSaved,onCrop,fileID,crop=null,options={}){
             window.beginEditMediaTxn?.();
