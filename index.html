@@ -12825,32 +12825,59 @@ viewer.style.visibility='';
                 index=(current+1)%gifs.length;
                 if(token===playToken&&!disposed&&!paused)playCurrent();
             };
-            // 桌面端悬停某张 GIF 时，由它临时接管播放：先撤掉自动轮播层，
-            // 其余 GIF 始终保留各自封面，只为当前悬停 GIF 创建独立播放层。
-            // 普通图片不参与这套悬停逻辑。
+            // 桌面端 GIF 悬停沿用原本的“当前卡片自身播放”逻辑：
+            // 自动轮播只负责常态播放；悬停时先让所有 GIF 回到封面，再只把当前卡片切到 GIF。
+            // 不复用自动轮播的独立播放层，因此卡片原有的 hover 缩放、裁切与循环播放都保持原状。
             const hoverGifCards=[...viewer.querySelectorAll('[data-detail-image-card]')].filter(card=>
                 card.querySelector('[data-detail-image][data-gif-src][data-gif-cover]')
             );
+            let hoverToken=0,hoveredGif=null;
+            const restoreHoverGif=(img)=>{
+                if(!img)return;
+                const cover=img.dataset.gifCover||'';
+                const cropHost=img.closest?.('[data-detail-crop]');
+                if(cropHost){
+                    const svgImage=cropHost.querySelector('svg image');
+                    if(svgImage&&cover)svgImage.setAttribute('href',cover);
+                    cropHost.style.transform='';
+                    cropHost.style.transformOrigin='';
+                    cropHost.style.transition='';
+                }else if(cover&&img.src!==cover)img.src=cover;
+            };
+            const restoreAllHoverGifs=()=>gifs.forEach(restoreHoverGif);
             const pauseForGifHover=(card)=>{
                 if(disposed||window.isPhoneLikeDevice?.())return;
                 const img=card?.querySelector?.('[data-detail-image][data-gif-src][data-gif-cover]');
                 if(!img)return;
-                paused=true;playToken++;stopTimer();removeLayer();
-                const token=playToken,layer=makePlaybackLayer(img);
-                if(layer){
-                    // 独立 GIF 播放层也要继承详情图片原本的悬停轻微放大效果；
-                    // 否则播放层盖住正在 group-hover 缩放的封面后，视觉上只剩边框变化。
-                    layer.style.transformOrigin='center center';
-                    layer.style.transition='transform 300ms ease, opacity 0ms';
-                    layer.style.transform='scale(1.02)';
-                    waitLayerReady(layer,token).then(ok=>{
-                        if(ok&&paused&&token===playToken&&activeLayer===layer)layer.style.opacity='1';
-                    });
+                const src=img.dataset.gifSrc||'';if(!src)return;
+                paused=true;playToken++;stopTimer();removeLayer();restoreAllHoverGifs();
+                hoveredGif=img;
+                const token=++hoverToken;
+                const cropHost=img.closest?.('[data-detail-crop]');
+                // 裁切封面由 SVG 显示，缩放应作用在可见的裁切容器本身；
+                // 非裁切图片继续使用原 IMG 自带的 group-hover:scale-[1.02]。
+                if(cropHost){
+                    cropHost.style.transformOrigin='center center';
+                    cropHost.style.transition='transform 300ms ease';
+                    cropHost.style.transform='scale(1.02)';
                 }
+                // 先在后台准备 GIF，准备完成前继续显示原封面；切入后由 GIF 自身持续循环，直到鼠标离开。
+                const preload=new Image();preload.decoding='async';preload.src=src;
+                const show=async()=>{
+                    if(preload.decode){try{await preload.decode();}catch(_){}}
+                    if(disposed||!paused||token!==hoverToken||hoveredGif!==img)return;
+                    if(cropHost){
+                        const svgImage=cropHost.querySelector('svg image');
+                        if(svgImage)svgImage.setAttribute('href',src);
+                    }else img.src=src;
+                };
+                if(preload.complete&&preload.naturalWidth>0)show();
+                else preload.addEventListener('load',show,{once:true});
             };
             const resumeAfterGifHover=()=>{
                 if(disposed||window.isPhoneLikeDevice?.())return;
-                removeLayer();paused=false;playCurrent();
+                hoverToken++;restoreHoverGif(hoveredGif);hoveredGif=null;
+                paused=false;playCurrent();
             };
             hoverGifCards.forEach(card=>{
                 card.addEventListener('mouseenter',()=>pauseForGifHover(card));
