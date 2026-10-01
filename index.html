@@ -6187,10 +6187,10 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             if (!cards.length) return;
             // 原四层横向中心偏移是 0 / 30 / 46 / 53，因此三层“新增露出宽度”实际是 30 / 16 / 7px。
             // 现在去掉原第二层的 30px 档，只保留后两档的露出量：
-            // 窄屏手机：当前页 + 7px 后层；其它端：当前页 + 20px + 再 7px（累计 27px）两层。
+            // 窄屏手机：当前页 + 9px 后层；其它端：当前页 + 20px + 再 9px（累计 29px）两层。
             const isNarrowPhone = window.matchMedia?.('(max-width:639px)').matches;
             const visibleBackLayers = isNarrowPhone ? 1 : 2;
-            const compressedCenters = isNarrowPhone ? [0, 7] : [0, 20, 27];
+            const compressedCenters = isNarrowPhone ? [0, 9] : [0, 20, 29];
             cards.forEach((card, idx) => {
                 const offset = idx - activeIndex;
                 const distance = Math.abs(offset);
@@ -6200,8 +6200,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 card.style.zIndex = idx === activeIndex ? 30 : Math.max(1, 25 - distance);
                 card.style.transformOrigin = 'center center';
                 card.style.transform = `translateX(${translateX}px)`;
-                card.style.height = distance === 0 ? '320px' : '308px';
-                card.style.marginTop = distance === 0 ? '-160px' : '-154px';
+                card.style.height = distance === 0 ? '320px' : (!isNarrowPhone && distance >= 2 ? '300px' : '308px');
+                card.style.marginTop = distance === 0 ? '-160px' : (!isNarrowPhone && distance >= 2 ? '-150px' : '-154px');
                 card.style.filter = distance === 0 ? 'none' : 'brightness(0.84) saturate(0.72) grayscale(0.12)';
                 card.style.opacity = visibleDistance ? '1' : '0';
                 card.style.visibility = visibleDistance ? 'visible' : 'hidden';
@@ -12783,10 +12783,16 @@ viewer.style.visibility='';
                     const vb=svg?.viewBox?.baseVal;
                     const nw=Number(svgImage?.getAttribute('width'))||0,nh=Number(svgImage?.getAttribute('height'))||0;
                     if(vb&&vb.width>0&&vb.height>0&&nw>0&&nh>0){
-                        layer.style.width=(nw/vb.width*100)+'%';
-                        layer.style.height=(nh/vb.height*100)+'%';
-                        layer.style.left=(-vb.x/vb.width*100)+'%';
-                        layer.style.top=(-vb.y/vb.height*100)+'%';
+                        // SVG 封面使用 preserveAspectRatio="xMidYMid slice"：X/Y 必须共用同一个缩放倍数，
+                        // 并把 viewBox 在宿主中居中。不能分别按宽高百分比缩放，否则播放层会被压扁/拉长。
+                        const rect=host.getBoundingClientRect();
+                        const boxW=Math.max(1,rect.width||host.clientWidth||1),boxH=Math.max(1,rect.height||host.clientHeight||1);
+                        const scale=Math.max(boxW/vb.width,boxH/vb.height);
+                        const drawnVbW=vb.width*scale,drawnVbH=vb.height*scale;
+                        layer.style.width=(nw*scale)+'px';
+                        layer.style.height=(nh*scale)+'px';
+                        layer.style.left=((boxW-drawnVbW)/2-vb.x*scale)+'px';
+                        layer.style.top=((boxH-drawnVbH)/2-vb.y*scale)+'px';
                     }else Object.assign(layer.style,{inset:'0',width:'100%',height:'100%',objectFit:'cover'});
                 }else{
                     Object.assign(layer.style,{inset:'0',width:'100%',height:'100%',objectFit:getComputedStyle(base).objectFit||'cover'});
