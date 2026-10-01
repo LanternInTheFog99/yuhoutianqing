@@ -798,6 +798,8 @@
         .event-comment-empty{padding:22px 10px;text-align:center;color:#64748b;font-size:11px;border:1px dashed #334155;border-radius:12px}
         .event-comment-item{border:1px solid #334155;background:rgba(15,23,42,.42);border-radius:13px;padding:10px 11px}
         .event-comment-item.is-reply{margin-left:24px;border-left:2px solid #4f46e5}
+        .event-comment-replies-toggle{margin:6px 0 1px 24px;border:0;background:transparent;color:#818cf8;font-size:10px;font-weight:700;cursor:pointer;padding:2px 4px;display:inline-flex;align-items:center;gap:5px}
+        .event-comment-replies-toggle:hover{color:#c7d2fe}
         .event-comment-meta{display:flex;align-items:center;gap:7px;min-width:0}
         .event-comment-author{font-size:11px;font-weight:800;color:#e2e8f0;cursor:default;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
         .event-comment-author.is-profile{cursor:pointer;color:#c7d2fe}
@@ -4439,6 +4441,11 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         };
 
         window.openMusicModal = function() {
+            window.bgmManageCategory='all';
+            const nameInput=document.getElementById('bgmNameInput'); if(nameInput) nameInput.value='';
+            const fileInput=document.getElementById('bgmFileInput'); if(fileInput) fileInput.value='';
+            document.getElementById('bgmNameDuplicateHint')?.classList.add('hidden');
+            document.getElementById('bgmCategoryMenu')?.classList.add('hidden');
             window.renderBgmPlaylist();
             const shell=document.getElementById('musicModalShell');
             if(shell) shell.onclick=e=>{if(!e.target.closest('#bgmManageCategoryWrap'))document.getElementById('bgmCategoryMenu')?.classList.add('hidden');};
@@ -5147,6 +5154,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         };
 
         window.openTagModal = function() {
+            window.tagManageCategory='all';
+            document.getElementById('tagManageCategoryMenu')?.classList.add('hidden');
+            const tagInput=document.getElementById('tagInput'); if(tagInput) tagInput.value='';
             const shell=document.getElementById('tagModalShell');
             if(shell) shell.onclick=e=>{if(!e.target.closest('#tagManageControls'))document.getElementById('tagManageCategoryMenu')?.classList.add('hidden');};
             const inputContainer = document.getElementById('tagInputContainer');
@@ -11453,8 +11463,8 @@ viewer.style.visibility='';
             window.editingConnectionDraftEventId = event.id;
 
             modal.innerHTML = `
-                <div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full p-4 sm:p-5 my-3 sm:my-5 max-h-[92vh] overflow-y-auto custom-scrollbar">
-                    <div class="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-200 mb-4 sm:mb-5">
+                <div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full p-4 sm:p-5 my-3 sm:my-5 max-h-[92vh] overflow-hidden flex flex-col">
+                    <div class="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-200 mb-4 sm:mb-5 shrink-0">
                         <h3 class="font-bold text-slate-800 text-base sm:text-lg flex items-center gap-2">
                             <i class="fa-solid fa-pen-to-square text-indigo-600"></i>
                             <span>${isEdit ? '编辑事件' : '新建事件'}</span>
@@ -11464,13 +11474,14 @@ viewer.style.visibility='';
                         </button>
                     </div>
 
-                    <form onsubmit="handlePreSaveEvent(event, '${event.id}', ${isEdit})" novalidate class="space-y-3.5">
-                        <div class="flex items-center gap-2 p-1 bg-slate-100 rounded-xl border border-slate-200">
+                    <form onsubmit="handlePreSaveEvent(event, '${event.id}', ${isEdit})" novalidate class="flex flex-col min-h-0 flex-1">
+                        <div class="flex items-center gap-2 p-1 bg-slate-100 rounded-xl border border-slate-200 shrink-0">
                             <button type="button" id="editPageTab1" onclick="switchEditPage(1)" class="flex-1 px-3 py-2 rounded-lg text-xs font-semibold bg-white text-indigo-700 shadow-sm border border-indigo-100">1. 基础信息</button>
                             <button type="button" id="editPageTab2" onclick="switchEditPage(2)" class="flex-1 px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-700">2. 插入信息</button>
                             <button type="button" id="editPageTab3" ${window.canOpenEventPermissionSettings?.(event,!isEdit)?'onclick="switchEditPage(3)"':'disabled aria-disabled="true" title="仅事件创建者可查看和设置权限"'} class="flex-1 px-3 py-2 rounded-lg text-xs font-semibold ${window.canOpenEventPermissionSettings?.(event,!isEdit)?'text-slate-500 hover:text-slate-700':'text-slate-300 cursor-not-allowed'}">3. 权限设置</button>
                         </div>
 
+                        <div class="min-h-0 flex-1 overflow-y-auto custom-scrollbar pt-3.5">
                         <div id="editPage1" class="space-y-3.5">
                             <div><label class="block text-xs font-bold text-slate-700 mb-1">事件名称 *</label><input type="text" id="editTitle" value="${event.title}" required placeholder="输入事件标题" oninput="updateEventTitleDuplicateHint(this,'editTitleDuplicateHint',window.editingEventId)" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"><p id="editTitleDuplicateHint" class="hidden mt-1 text-[11px] text-rose-600">该名称已存在</p></div>
                             <div class="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
@@ -11587,6 +11598,7 @@ viewer.style.visibility='';
                         <div class="flex items-center justify-between pt-3 border-t border-slate-200 gap-3">
                             <div>${isEdit ? `<button type="button" onclick="deleteEvent('${event.id}')" class="px-4 py-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg text-xs font-medium transition-colors">删除事件</button>` : '<div></div>'}</div>
                             <div class="flex items-center gap-2"><button type="button" id="editPrevBtn" onclick="switchEditPage(1)" class="hidden px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">上一步</button><button type="button" id="editNextBtn" onclick="switchEditPage(2)" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium">下一页</button><button type="button" onclick="closeEditModal()" class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button><button type="submit" id="editSaveBtn" class="hidden px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">保存事件</button></div>
+                        </div>
                         </div>
                     </form>
                 </div>
@@ -13845,8 +13857,12 @@ viewer.style.visibility='';
         };
 
         window.closeEditorIdentityEditor = function() {
-            
-            document.getElementById('editorIdentityModal')?.classList.add('hidden');
+            const modal=document.getElementById('editorIdentityModal');
+            modal?.classList.add('hidden');
+            const input=document.getElementById('editorIdentityInput');
+            if(input) input.value=window.getStoredEditorIdentity?.()||'';
+            const err=document.getElementById('editorIdentityError');
+            if(err){err.textContent='';err.classList.add('hidden');}
         };
 
         window.saveEditorIdentity = async function() {
@@ -15207,18 +15223,20 @@ viewer.style.visibility='';
         window.multiRenderCurrentPage=function(){const b=document.getElementById('multiPageBody');if(!b)return;window.richResetOpacitySelection?.();window.richSelectionRange=null;window.richOpacitySpan=null;const page=window.multiTimePage;b.innerHTML=page===0?window.multiGeneralPageHtml(window.multiTimeGeneralDraft):page===1?window.eventPermissionSettingsHtml(window.multiTimePermissionDraft||{},!window.multiTimeIsEdit):window.multiSegmentPageHtml(page-2);const lbl=document.getElementById('multiPageTitle');if(lbl)lbl.textContent=page===0?'总设置':page===1?'权限设置':`时间 ${page-1}`;window.multiRenderPageTabs();const maxPage=(window.multiTimeDraft?.length||0)+1;const prevBtn=document.getElementById('multiPrevPageBtn'),nextBtn=document.getElementById('multiNextPageBtn'),saveBtn=document.getElementById('multiSaveBtn');if(prevBtn)prevBtn.classList.toggle('hidden',page<=0);if(nextBtn)nextBtn.classList.toggle('hidden',page>=maxPage);if(saveBtn)saveBtn.classList.toggle('hidden',page<maxPage);if(page===0){window.multiRenderConnections();}else if(page===1){window.initPermissionPage?.();}else{window.richResetOpacitySelection?.();const ed=document.getElementById('editDescription');if(ed)ed.addEventListener('input',window.richEditorInput);window.richSyncDecorationGeometry?.();}window.multiBindDrag();window.enhanceWebSelects?.(b);};
         window.multiRenderEditorShell=function(){
             const modal=document.getElementById('multiTimeEventModal');if(!modal)return;const isEdit=window.multiTimeIsEdit;
-            modal.innerHTML=`<div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full p-4 sm:p-5 my-3 sm:my-5 max-h-[92vh] overflow-y-auto custom-scrollbar">
-                <div class="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-200 mb-4 sm:mb-5">
+            modal.innerHTML=`<div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full p-4 sm:p-5 my-3 sm:my-5 max-h-[92vh] overflow-hidden flex flex-col">
+                <div class="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-200 mb-4 sm:mb-5 shrink-0">
                     <h3 class="font-bold text-slate-800 text-base sm:text-lg flex items-center gap-2"><i class="fa-solid fa-pen-to-square text-indigo-600"></i><span>${isEdit?'编辑事件':'新建事件'}</span></h3>
                     <button type="button" onclick="closeMultiTimeEventModal()" class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
                 </div>
-                <div class="space-y-3.5">
-                    <div id="multiPageTabs" class="flex items-center gap-2 p-1 bg-slate-100 rounded-xl border border-slate-200 overflow-x-auto"></div>
+                <div class="flex flex-col min-h-0 flex-1">
+                    <div id="multiPageTabs" class="flex items-center gap-2 p-1 bg-slate-100 rounded-xl border border-slate-200 overflow-x-auto shrink-0"></div>
+                    <div class="min-h-0 flex-1 overflow-y-auto custom-scrollbar pt-3.5">
                     <div id="multiPageTitle" class="hidden"></div>
                     <div id="multiPageBody"></div>
                     <div class="flex items-center justify-between pt-3 border-t border-slate-200 gap-3">
                         <div>${isEdit?`<button type="button" onclick="deleteEvent('${window.multiTimeEditingId}')" class="px-4 py-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg text-xs font-medium transition-colors">删除事件</button>`:'<div></div>'}</div>
                         <div class="flex items-center gap-2"><button type="button" id="multiPrevPageBtn" onclick="multiSwitchPage(Math.max(0,multiTimePage-1))" class="hidden px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">上一页</button><button type="button" id="multiNextPageBtn" onclick="multiSwitchPage(Math.min(multiTimeDraft.length+1,multiTimePage+1))" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium">下一页</button><button type="button" onclick="closeMultiTimeEventModal()" class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button><button type="button" id="multiSaveBtn" onclick="saveMultiTimeEvent()" class="hidden px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">保存事件</button></div>
+                    </div>
                     </div>
                 </div>
             </div>`;
@@ -15548,18 +15566,15 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
             return item;
         };
 
-        window.commentSortModeKey = 'yht_comment_sort_mode';
-        window.commentSortDirectionKey = 'yht_comment_sort_direction';
-        window.commentGetSortMode = function(){
-            const mode=localStorage.getItem(window.commentSortModeKey);
-            return mode==='hot'?'hot':'time';
+        window.commentGetSortMode = function(board){
+            return board?._commentSortMode==='time'?'time':'hot';
         };
-        window.commentGetSortDirection = function(){
-            return localStorage.getItem(window.commentSortDirectionKey)==='asc'?'asc':'desc';
+        window.commentGetSortDirection = function(board){
+            return board?._commentSortDirection==='asc'?'asc':'desc';
         };
         window.commentSyncSortUi = function(board){
-            const mode=window.commentGetSortMode();
-            const dir=window.commentGetSortDirection();
+            const mode=window.commentGetSortMode(board);
+            const dir=window.commentGetSortDirection(board);
             const label=board?.querySelector('[data-comment-sort-label]');
             if(label) label.textContent=mode==='hot'?'按热度':'按时间';
             const toggle=board?.querySelector('[data-comment-sort-toggle]');
@@ -15570,12 +15585,12 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
             if(direction) direction.title=dir==='asc'?'当前升序，点击切换为降序':'当前降序，点击切换为升序';
         };
         window.commentSetSortMode = function(board,mode){
-            localStorage.setItem(window.commentSortModeKey,mode==='hot'?'hot':'time');
+            if(board) board._commentSortMode=mode==='time'?'time':'hot';
             window.commentSyncSortUi(board);
             if(board?._commentMessages) window.commentRenderMessages(board,board._commentMessages);
         };
         window.commentSetSortDirection = function(board,dir){
-            localStorage.setItem(window.commentSortDirectionKey,dir==='asc'?'asc':'desc');
+            if(board) board._commentSortDirection=dir==='asc'?'asc':'desc';
             window.commentSyncSortUi(board);
             if(board?._commentMessages) window.commentRenderMessages(board,board._commentMessages);
         };
@@ -15608,20 +15623,36 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
                     children.get(pid).push(m);
                 }else roots.push(m);
             });
-            const mode=window.commentGetSortMode();
-            const dir=window.commentGetSortDirection();
+            const mode=window.commentGetSortMode(board);
+            const dir=window.commentGetSortDirection(board);
             window.commentSyncSortUi(board);
             roots.sort((a,b)=>window.commentCompareMessages(a,b,mode,dir));
             children.forEach(items=>items.sort((a,b)=>window.commentCompareMessages(a,b,'time',dir)));
+            board._commentExpandedReplies = board._commentExpandedReplies instanceof Set ? board._commentExpandedReplies : new Set();
             const rendered=new Set();
             const appendTree=(m,depth=0)=>{
                 if(!m || rendered.has(String(m.id)))return;
-                rendered.add(String(m.id));
+                const id=String(m.id);
+                rendered.add(id);
                 list.appendChild(window.commentCreateMessageNode(board,m,depth>0));
-                (children.get(String(m.id))||[]).forEach(ch=>appendTree(ch,depth+1));
+                const childRows=children.get(id)||[];
+                if(childRows.length){
+                    const expanded=board._commentExpandedReplies.has(id);
+                    const toggle=document.createElement('button');
+                    toggle.type='button';
+                    toggle.className='event-comment-replies-toggle';
+                    toggle.innerHTML=`<i class="fa-solid ${expanded?'fa-chevron-up':'fa-chevron-down'}"></i><span>${expanded?'收起回复':`共 ${childRows.length} 条回复`}</span>`;
+                    toggle.onclick=()=>{
+                        if(board._commentExpandedReplies.has(id)) board._commentExpandedReplies.delete(id);
+                        else board._commentExpandedReplies.add(id);
+                        window.commentRenderMessages(board,board._commentMessages||[]);
+                    };
+                    list.appendChild(toggle);
+                    if(expanded) childRows.forEach(ch=>appendTree(ch,depth+1));
+                }
             };
             roots.forEach(m=>appendTree(m,0));
-            rows.forEach(m=>{if(!rendered.has(String(m.id)))appendTree(m,m.parentId?1:0);});
+            rows.forEach(m=>{if(!rendered.has(String(m.id)) && !m.parentId)appendTree(m,0);});
         };
 
 
@@ -15648,7 +15679,7 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
                     button.innerHTML=`<i class="${message.likedByMe?'fa-solid':'fa-regular'} fa-heart"></i> <span>${message.likeCount}</span>`;
                     button.title=message.likedByMe?'取消点赞':'点赞';
                 }
-                if(window.commentGetSortMode()==='hot') window.commentRenderMessages(board,board._commentMessages||[]);
+                if(window.commentGetSortMode(board)==='hot') window.commentRenderMessages(board,board._commentMessages||[]);
                 window.refreshNotificationBadge?.();
             }catch(e){ window.commentBoardError(board,window.commentHumanError(e)); }
             finally{if(button)button.disabled=false;}
@@ -15961,6 +15992,15 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
             if(returnToInteraction)window._notificationReturnToHelp=false;
             const win=document.getElementById('eventCommentWindow');
             if(win){
+                const board=win.querySelector('[data-comment-board]');
+                if(board){
+                    const text=board.querySelector('[data-comment-text]'); if(text) text.value='';
+                    const char=board.querySelector('[data-comment-char]'); if(char) char.textContent='0 / 500';
+                    board._commentReplyId=null; board._commentReplyName='';
+                    board._commentExpandedReplies=new Set();
+                    board._commentSortMode='hot'; board._commentSortDirection='desc';
+                    board.querySelector('[data-comment-replying]')?.classList.remove('is-visible');
+                }
                 win.classList.remove('mobile-compose-open');
                 win.classList.add('hidden');
             }
@@ -16129,12 +16169,15 @@ const reply=document.createElement('button'); reply.type='button'; reply.classNa
                 text?.addEventListener('input',()=>{if(char)char.textContent=`${text.value.length} / 500`;});
                 board.querySelector('[data-comment-send]')?.addEventListener('click',()=>window.commentSend(board));
                 board.querySelector('[data-comment-refresh]')?.addEventListener('click',()=>window.commentLoadMessages(board));
+                board._commentSortMode='hot';
+                board._commentSortDirection='desc';
+                board._commentExpandedReplies=new Set();
             board.querySelector('[data-comment-sort-toggle]')?.addEventListener('click',()=>{
-                const current=window.commentGetSortMode();
+                const current=window.commentGetSortMode(board);
                 window.commentSetSortMode(board,current==='hot'?'time':'hot');
             });
             board.querySelector('[data-comment-sort-direction]')?.addEventListener('click',()=>{
-                const current=window.commentGetSortDirection();
+                const current=window.commentGetSortDirection(board);
                 window.commentSetSortDirection(board,current==='asc'?'desc':'asc');
             });
             window.commentSyncSortUi(board);
