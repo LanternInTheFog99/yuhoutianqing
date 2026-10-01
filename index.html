@@ -12745,7 +12745,7 @@ viewer.style.visibility='';
             const gifs=[...viewer.querySelectorAll('[data-detail-image][data-gif-src][data-gif-cover]')];
             if(!gifs.length)return;
             let index=0,timer=0,paused=false,disposed=false,playToken=0,activeLayer=null;
-            const PRE_COVER_MS=0,POST_COVER_MS=120,FALLBACK_MS=5000;
+            const PRE_COVER_MS=300,POST_COVER_MS=120,FALLBACK_MS=5000;
             const stopTimer=()=>{if(timer){clearTimeout(timer);timer=0;}};
             const removeLayer=()=>{if(activeLayer){try{activeLayer.remove();}catch(_){}activeLayer=null;}};
             const wait=(ms,token)=>new Promise(resolve=>{
@@ -12776,7 +12776,7 @@ viewer.style.visibility='';
                 if(getComputedStyle(host).position==='static')host.style.position='relative';
                 const layer=document.createElement('img');
                 layer.alt='';layer.draggable=false;layer.decoding='async';layer.src=src;
-                Object.assign(layer.style,{position:'absolute',zIndex:'2',pointerEvents:'none',maxWidth:'none',maxHeight:'none',display:'block'});
+                Object.assign(layer.style,{position:'absolute',zIndex:'2',pointerEvents:'none',maxWidth:'none',maxHeight:'none',display:'block',opacity:'0'});
                 if(cropHost){
                     const svg=cropHost.querySelector('svg');
                     const svgImage=svg?.querySelector('image');
@@ -12799,6 +12799,22 @@ viewer.style.visibility='';
                 }
                 host.appendChild(layer);activeLayer=layer;return layer;
             };
+            const waitLayerReady=async(layer,token)=>{
+                if(!layer)return false;
+                try{
+                    if(!layer.complete){
+                        const ok=await new Promise(resolve=>{
+                            const done=value=>{layer.removeEventListener('load',onLoad);layer.removeEventListener('error',onError);resolve(value);};
+                            const onLoad=()=>done(true),onError=()=>done(false);
+                            layer.addEventListener('load',onLoad,{once:true});
+                            layer.addEventListener('error',onError,{once:true});
+                        });
+                        if(!ok)return false;
+                    }
+                    if(layer.decode){try{await layer.decode();}catch(_){}}
+                }catch(_){return false;}
+                return token===playToken&&!disposed&&!paused&&activeLayer===layer;
+            };
             const playCurrent=async()=>{
                 const token=++playToken;
                 removeLayer();
@@ -12808,7 +12824,10 @@ viewer.style.visibility='';
                 const current=index%gifs.length,base=gifs[current];
                 if(!(await wait(PRE_COVER_MS,token)))return;
                 const layer=makePlaybackLayer(base);if(!layer)return;
-                // src 在新建 IMG 时重新赋值，因此每一轮都从 GIF 首帧开始。
+                // 播放层先完全隐藏，等资源加载/解码完成后再一次性显示；加载期间始终由封面兜底，避免渐进解码像“从上往下刷”出来。
+                if(!(await waitLayerReady(layer,token))){removeLayer();return;}
+                layer.style.opacity='1';
+                // 可见后才开始计算这一轮播放时间，避免网络/解码耗时吞掉实际观看时长。
                 if(!(await wait(Math.max(50,Number(durations[current])||FALLBACK_MS),token)))return;
                 removeLayer();
                 if(!(await wait(POST_COVER_MS,token)))return;
@@ -12819,7 +12838,10 @@ viewer.style.visibility='';
                 if(disposed||window.isPhoneLikeDevice?.())return;
                 paused=true;playToken++;stopTimer();removeLayer();
                 const img=card?.querySelector?.('[data-detail-image][data-gif-src][data-gif-cover]');
-                if(img)makePlaybackLayer(img);
+                if(img){
+                    const token=playToken,layer=makePlaybackLayer(img);
+                    if(layer)waitLayerReady(layer,token).then(ok=>{if(ok)layer.style.opacity='1';});
+                }
             };
             const resumeAfterHover=()=>{
                 if(disposed||window.isPhoneLikeDevice?.())return;
