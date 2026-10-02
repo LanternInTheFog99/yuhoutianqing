@@ -16727,6 +16727,16 @@ function updateHud(){state.base=baseOf(state.hunger);document.getElementById('qi
 function positionHud(){if(!pet)return;const r=pet.getBoundingClientRect();const h=document.getElementById('qingerPetHud');h.style.left=Math.max(6,Math.min(innerWidth-h.offsetWidth-6,r.left+r.width/2-h.offsetWidth/2))+'px';h.style.top=Math.max(66,r.top-30)+'px';const i=document.getElementById('qingerInventory');i.style.left=Math.max(8,Math.min(innerWidth-228,r.left+r.width-210))+'px';i.style.top=Math.max(70,Math.min(innerHeight-i.offsetHeight-8,r.top-180))+'px';const z=document.getElementById('qingerZzz');z.style.left=(r.right-24)+'px';z.style.top=(r.top+18)+'px';const b=document.getElementById('qingerBang');b.style.left=(r.right-18)+'px';b.style.top=(r.top-12)+'px';}
 function showZzz(on){const z=document.getElementById('qingerZzz');if(z)z.style.display=on?'block':'none';positionHud()}
 function bang(){const b=document.getElementById('qingerBang');positionHud();b.style.display='block';setTimeout(()=>b.style.display='none',650)}
+function ensurePetChrome(){
+ const defs=[
+  ['qingerRain',()=>{const n=document.createElement('div');n.id='qingerRain';return n}],
+  ['qingerPetHud',()=>{const n=document.createElement('div');n.id='qingerPetHud';n.innerHTML='<span>饱食度</span><span class="bar"><span id="qingerHungerFill" class="fill" style="display:block;width:0%"></span></span><b id="qingerHungerText">--/100</b><button id="qingerBagBtn" type="button" title="糖果库存">🍬</button>';return n}],
+  ['qingerInventory',()=>{const n=document.createElement('div');n.id='qingerInventory';n.innerHTML='<b>小晴儿的糖果</b><div class="qinger-food" data-food="gui"><img id="qingerGuiImg" alt="龟糖"><span><b>龟糖 × <span id="qingerGuiCount">0</span></b><small>拖给小晴儿 · +20</small></span></div><div class="qinger-food" data-food="zhi"><img id="qingerZhiImg" alt="直给"><span><b>直给 × <span id="qingerZhiCount">0</span></b><small>拖给小晴儿 · +80</small></span></div>';return n}],
+  ['qingerZzz',()=>{const n=document.createElement('div');n.id='qingerZzz';n.textContent='Zzz';return n}],
+  ['qingerBang',()=>{const n=document.createElement('div');n.id='qingerBang';n.textContent='!';return n}]
+ ];
+ for(const [id,make] of defs) if(!document.getElementById(id)) document.body.appendChild(make());
+}
 function setupRain(){const rain=document.getElementById('qingerRain');rain.innerHTML='';for(let i=0;i<45;i++){const d=document.createElement('i');d.className='qinger-drop';d.style.left=(Math.random()*105)+'vw';d.style.animationDelay=(-Math.random()*1.1)+'s';d.style.animationDuration=(.75+Math.random()*.75)+'s';rain.appendChild(d)}}
 function syncRain(){document.getElementById('qingerRain')?.classList.toggle('on',state.base==='很饿')}
 async function cloudRead(){try{const u='/timeline?type=xiaoqingerPet&ownerToken='+encodeURIComponent(owner());const d=await window.timelineApiFetch?.(u,12000);if(!d?.ok)return;state.hunger=Number(d.hunger??state.hunger);state.gui=Number(d.inventory?.gui||0);state.zhi=Number(d.inventory?.zhi||0);state.lastSettledAt=Number(d.lastSettledAt||Date.now());state.cloud=true;updateHud();syncRain();render();}catch(e){console.warn('小晴儿状态同步失败',e)}}
@@ -16785,7 +16795,7 @@ function bindPet(){qdiagUpdate('bind-start');const old=document.getElementById('
  pet.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();if(Date.now()<suppressClickUntil)return;if(wake())return;touch();window.xiaoqingerSayRandom?.()});}
 async function boot(){
  qdiagUpdate('boot-start');
- hud=document.getElementById('qingerPetHud');inv=document.getElementById('qingerInventory');setupRain();setupFood();bindPet();updateHud();
+ ensurePetChrome();qdiag.notes='pet UI DOM ensured';qdiagUpdate('ui-created');hud=document.getElementById('qingerPetHud');inv=document.getElementById('qingerInventory');setupRain();setupFood();bindPet();updateHud();
  let ready=false;try{ready=await preloadPetLayers();}catch(e){qdiag.error='preload exception: '+(e?.stack||e?.message||e);qdiagUpdate('preload-exception');console.error(e)}
  if(ready){try{render();qdiag.lastRender='initial render ok';scheduleBlink();positionHud();qdiagUpdate('boot-ready')}catch(e){qdiag.error='render exception: '+(e?.stack||e?.message||e);qdiagUpdate('render-exception');console.error(e)}}else qdiagUpdate('boot-not-ready');
  cloudRead();clearInterval(behaviorTimer);behaviorTimer=setInterval(behaviorTick,15000);clearInterval(syncTimer);syncTimer=setInterval(cloudRead,3*60*1000);addEventListener('resize',positionHud);setInterval(scheduleBlink,7000)
