@@ -1784,6 +1784,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
 <style id="qinger-v48-floor-walk-rain">#xiaoqingerSimplePet>#qingerRain{top:-42px!important;height:262px!important}#xiaoqingerSimplePet::after{content:"";position:absolute;left:24%;right:24%;bottom:2px;height:2px;border-radius:999px;background:rgba(17,24,39,.82);opacity:.88;pointer-events:none;transition:opacity .12s ease}#xiaoqingerSimplePet.pet-grabbed::after,#xiaoqingerSimplePet.pet-fainted::after,#xiaoqingerSimplePet.pet-hungry-walking::after{display:none!important}.qinger-walk-floor-seg{position:fixed;z-index:78;height:2px;border-radius:999px;pointer-events:none;background:rgba(17,24,39,.72);transform-origin:0 50%;animation:qingerWalkFloorFade .92s linear forwards}@keyframes qingerWalkFloorFade{0%{opacity:0}12%{opacity:.82}68%{opacity:.68}100%{opacity:0}}</style>
 \n<style id="qinger-v49-night-sleep-curl">\n/* v49 夜间睡眠试作：打瞌睡仍站立；真正 night sleep 后慢慢沉到地面、略微蜷缩。 */\n#xiaoqingerSimplePet.pet-night-sleep{\n  animation:qingerNightCurlSleep 5.4s cubic-bezier(.42,0,.32,1) infinite!important;\n  transform-origin:50% 94%!important;\n}\n@keyframes qingerNightCurlSleep{\n  0%{transform:translateY(0) scale(1,1)}\n  18%{transform:translateY(24px) scale(.925,.91)}\n  42%{transform:translateY(25px) scale(.929,.905)}\n  68%{transform:translateY(24.2px) scale(.924,.912)}\n  100%{transform:translateY(24px) scale(.925,.91)}\n}\n/* 睡着时地板线仍保留，但贴近“缩下来”后的身体底部，强化坐/蜷在地上的感觉。 */\n#xiaoqingerSimplePet.pet-night-sleep::after{bottom:-20px!important;left:29%!important;right:29%!important;opacity:.72!important}\n/* 被喊醒/自然醒：先从蜷缩位置抬起，再交给原来的惊醒反馈。 */\n#xiaoqingerSimplePet.pet-night-rise{\n  animation:qingerNightRise .72s cubic-bezier(.18,.82,.24,1) 1!important;\n  transform-origin:50% 94%!important;\n}\n@keyframes qingerNightRise{\n  0%{transform:translateY(24px) scale(.925,.91)}\n  58%{transform:translateY(5px) scale(.985,.98)}\n  100%{transform:translateY(0) scale(1)}\n}\n</style>\n
+\n<style id="qinger-v50-visual-fixes">\n/* 雨区整体再上移，不改雨滴数量/速度。 */\n#xiaoqingerSimplePet>#qingerRain{top:-52px!important}\n\n/* v48 之前有 display:none!important 残留：这里明确恢复站立地板线。 */\n#xiaoqingerSimplePet::after{display:block!important}\n#xiaoqingerSimplePet.pet-grabbed::after,\n#xiaoqingerSimplePet.pet-dragging::after,\n#xiaoqingerSimplePet.pet-fainted::after,\n#xiaoqingerSimplePet.pet-hungry-walking::after{display:none!important}\n\n/* 很饿走路：前方已有短短几段“地面”，脚经过后后方逐段淡掉。 */\n.qinger-walk-floor-seg{height:2px!important;background:rgba(17,24,39,.76)!important}\n.qinger-walk-floor-seg.is-ahead{animation:qingerWalkAheadLife .52s ease-out forwards!important}\n.qinger-walk-floor-seg.is-behind{animation:qingerWalkBehindLife .72s ease-out forwards!important}\n@keyframes qingerWalkAheadLife{0%{opacity:0;transform:var(--seg-rot) scaleX(.25)}35%,100%{opacity:.82;transform:var(--seg-rot) scaleX(1)}}\n@keyframes qingerWalkBehindLife{0%{opacity:.76;transform:var(--seg-rot) scaleX(1)}100%{opacity:0;transform:var(--seg-rot) scaleX(.35)}}\n\n/* 夜间真正睡着：不用根节点 transform 动画互相覆盖，直接用独立 translate/scale。 */\n#xiaoqingerSimplePet.pet-night-sleep{\n  animation:none!important;\n  translate:0 31px!important;\n  scale:.88 .84!important;\n  transform-origin:50% 94%!important;\n  transition:translate 1.15s cubic-bezier(.22,.72,.25,1),scale 1.15s cubic-bezier(.22,.72,.25,1)!important;\n}\n#xiaoqingerSimplePet.pet-night-sleep .qpet-layer.on{animation:qingerNightSleepBreath 4.2s ease-in-out infinite!important}\n@keyframes qingerNightSleepBreath{0%,100%{translate:0 0}50%{translate:0 1.4px}}\n#xiaoqingerSimplePet.pet-night-sleep::after{bottom:-27px!important;left:27%!important;right:27%!important;display:block!important}\n</style>\n
 </head>
 <!-- v35: head-motion branch from v32 -->
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
@@ -16822,7 +16823,17 @@ function updateHud(){
  if(g)g.textContent=state.gui;if(z)z.textContent=state.zhi;
  const hr=document.getElementById('qingerTestHunger'),hn=document.getElementById('qingerTestHungerNumber'),bs=document.getElementById('qingerTestBase'),bh=document.getElementById('qingerTestBehavior');if(hr&&document.activeElement!==hr)hr.value=String(Math.max(0,Math.min(100,state.hunger)));if(hn&&document.activeElement!==hn)hn.value=String(Math.max(0,Math.min(100,Math.round(state.hunger))));if(bs)bs.value=state.base;if(bh)bh.value=state.behavior;positionHud();
 }
-function positionHud(){if(!pet)return;const r=pet.getBoundingClientRect();const i=document.getElementById('qingerInventory');if(i&&i.classList.contains('open')){i.style.left='auto';i.style.top='auto';i.style.right='18px';i.style.bottom='58px'}const z=document.getElementById('qingerZzz');if(z){z.style.left=(r.right-32)+'px';z.style.top=(r.top-12)+'px'}const b=document.getElementById('qingerBang');if(b){b.style.left=(r.right-25)+'px';b.style.top=(r.top-5)+'px'}}
+function positionHud(){
+ if(!pet)return;const r=pet.getBoundingClientRect();const i=document.getElementById('qingerInventory');
+ if(i&&i.classList.contains('open')){
+  i.style.top='auto';i.style.bottom='58px';
+  const lowerRight=(r.left+r.width*.5)>innerWidth*.68&&(r.top+r.height*.5)>innerHeight*.62;
+  if(lowerRight){i.style.right='auto';i.style.left='18px'}
+  else{i.style.left='auto';i.style.right='18px'}
+ }
+ const z=document.getElementById('qingerZzz');if(z){z.style.left=(r.right-32)+'px';z.style.top=(r.top-12)+'px'}
+ const b=document.getElementById('qingerBang');if(b){b.style.left=(r.right-25)+'px';b.style.top=(r.top-5)+'px'}
+}
 function showZzz(on){const z=document.getElementById('qingerZzz');if(z)z.style.display=on?'block':'none';if(z)positionHud()}
 function bang(strength=1){const b=document.getElementById('qingerBang');if(!b)return;positionHud();b.style.transform=`scale(${Math.max(.68,Math.min(1,Number(strength)||1))})`;b.style.transformOrigin='50% 100%';b.style.display='block';setTimeout(()=>{if(b){b.style.display='none';b.style.transform=''}},strength<.7?430:650)}
 let actionTipTimer=0;function showActionTip(text){const n=document.getElementById('qingerActionTip');if(!n||!pet)return;n.textContent=String(text||'');n.classList.remove('on');n.style.left='0px';n.style.top='0px';n.style.maxWidth=Math.min(260,innerWidth-24)+'px';void n.offsetWidth;const r=pet.getBoundingClientRect(),w=Math.max(150,Math.min(260,n.offsetWidth||220)),h=n.offsetHeight||36;let x=r.left+r.width/2,y=r.top-h-12;if(y<56)y=r.bottom+12;x=Math.max(12+w/2,Math.min(innerWidth-12-w/2,x));y=Math.max(52,Math.min(innerHeight-h-12,y));n.style.left=x+'px';n.style.top=y+'px';n.classList.add('on');clearTimeout(actionTipTimer);actionTipTimer=setTimeout(()=>n.classList.remove('on'),1900)}
@@ -16932,12 +16943,40 @@ function renderDozeStage(){
 }
 function userWakeFromNap(){if(!['doze1','doze2','doze3','daynap'].includes(state.behavior))return false;clearBehaviorTimeouts();clearDozeVisualTimers();state.behavior='wake';dozeMark('idle');render();bodyWakeJolt();later(()=>{state.behavior='idle';render();scheduleBlink()},760);state.lastInteraction=Date.now();return true}
 function naturalWakeFromNap(){if(state.behavior!=='daynap')return false;clearBehaviorTimeouts();clearDozeVisualTimers();state.behavior='wake';dozeMark('idle');render();bodyWakeJolt();const stillSleepy=Math.random()<.68;later(()=>{if(stillSleepy&&['轻微饥饿','普通','较饱'].includes(state.base)&&!isNight()){state.behavior=Math.random()<.58?'doze3':'doze2';render();renderDozeStage()}else{state.behavior='idle';render();scheduleBlink()}},900);return true}
-function nightSleepRise(){if(!pet)return;pet.classList.remove('pet-night-sleep','pet-sleeping');pet.classList.remove('pet-night-rise');void pet.offsetWidth;pet.classList.add('pet-night-rise');setTimeout(()=>pet?.classList.remove('pet-night-rise'),760)}
+function nightSleepRise(){if(!pet)return;pet.classList.remove('pet-night-sleep','pet-sleeping');pet.style.removeProperty('translate');pet.style.removeProperty('scale');pet.classList.remove('pet-night-rise');void pet.offsetWidth;pet.classList.add('pet-night-rise');setTimeout(()=>pet?.classList.remove('pet-night-rise'),760)}
 function wakeNight(){clearBehaviorTimeouts();clearDozeVisualTimers();nightSleepRise();state.behavior='wake';dozeMark('idle');render();setTimeout(()=>bodyWakeJolt(),430);nightAwakeUntil=Date.now()+C.nightWakeIdle;state.lastInteraction=Date.now();later(()=>{if(!isNight()||Date.now()<nightAwakeUntil)return;state.behavior='doze1';render();renderDozeStage();later(()=>{if(!isNight()||Date.now()<nightAwakeUntil)return;state.behavior='doze2';renderDozeStage()},2200);later(()=>{if(!isNight()||Date.now()<nightAwakeUntil)return;state.behavior='doze3';renderDozeStage()},4300);later(()=>{if(!isNight()||Date.now()<nightAwakeUntil)return;clearDozeVisualTimers();state.behavior='sleep';dozeMark('sleep');render()},7000)},C.nightWakeIdle)}
 function sleepClick(){const now=Date.now();nightWakeClicks=nightWakeClicks.filter(t=>now-t<=3000);nightWakeClicks.push(now);pet?.classList.add('pet-click-feedback');setTimeout(()=>pet?.classList.remove('pet-click-feedback'),180);if(nightWakeClicks.length>=4){nightWakeClicks=[];wakeNight();return true}return false}
 let veryHungryMoveRaf=0,veryHungryMoveAnim=null,veryHungryHeadTimer=0,veryHungryShadeTimer=0,veryHungryTrailTimer=0,veryHungryTrailLast=null;
-function clearVeryHungryTrail(){clearInterval(veryHungryTrailTimer);veryHungryTrailTimer=0;veryHungryTrailLast=null;document.querySelectorAll('.qinger-walk-floor-seg').forEach(n=>n.remove())}
-function startVeryHungryTrail(){clearVeryHungryTrail();const sample=()=>{if(!pet||!veryHungryWalking)return;const r=pet.getBoundingClientRect(),p={x:r.left+r.width*.5,y:r.bottom-3};if(veryHungryTrailLast){const a=veryHungryTrailLast,dx=p.x-a.x,dy=p.y-a.y,len=Math.hypot(dx,dy);if(len>1.2){const seg=document.createElement('i');seg.className='qinger-walk-floor-seg';seg.style.left=a.x+'px';seg.style.top=a.y+'px';seg.style.width=Math.min(24,len+4)+'px';seg.style.transform='rotate('+Math.atan2(dy,dx)+'rad)';document.body.appendChild(seg);setTimeout(()=>seg.remove(),960)}}veryHungryTrailLast=p};sample();veryHungryTrailTimer=setInterval(sample,115)}
+function clearVeryHungryTrail(){
+ clearInterval(veryHungryTrailTimer);veryHungryTrailTimer=0;veryHungryTrailLast=null;
+ document.querySelectorAll('.qinger-walk-floor-seg').forEach(n=>n.remove())
+}
+function addWalkFloorSeg(x,y,len,angle,kind,life){
+ const seg=document.createElement('i');seg.className='qinger-walk-floor-seg '+kind;
+ seg.style.left=x+'px';seg.style.top=y+'px';seg.style.width=len+'px';
+ seg.style.setProperty('--seg-rot','rotate('+angle+'rad)');seg.style.transform='rotate('+angle+'rad)';
+ document.body.appendChild(seg);setTimeout(()=>seg.remove(),life)
+}
+function startVeryHungryTrail(targetX,targetY){
+ clearVeryHungryTrail();
+ const sample=()=>{
+  if(!pet||!veryHungryWalking)return;
+  const r=pet.getBoundingClientRect(),cx=r.left+r.width*.5,cy=r.bottom-3;
+  const vx=targetX-cx,vy=targetY-cy,dist=Math.hypot(vx,vy)||1,ux=vx/dist,uy=vy/dist,ang=Math.atan2(vy,vx);
+  /* 前方始终预留约 70px 的“路”，不是人物走过才画出来。 */
+  for(let k=0;k<3;k++){
+   const d=18+k*24;
+   addWalkFloorSeg(cx+ux*d,cy+uy*d,16,ang,'is-ahead',560);
+  }
+  /* 脚后只留两小段，并更快淡掉。 */
+  for(let k=0;k<2;k++){
+   const d=10+k*21;
+   addWalkFloorSeg(cx-ux*d,cy-uy*d,14,ang,'is-behind',760);
+  }
+  veryHungryTrailLast={x:cx,y:cy};
+ };
+ sample();veryHungryTrailTimer=setInterval(sample,360)
+}
 function cancelVeryHungryMove(){
  if(veryHungryMoveAnim){try{veryHungryMoveAnim.cancel()}catch(_){}veryHungryMoveAnim=null}
  cancelAnimationFrame(veryHungryMoveRaf);veryHungryMoveRaf=0;clearVeryHungryTrail();
@@ -16962,7 +17001,7 @@ function moveToCorner(){
   [{translate:'0px 0px'},{translate:dx+'px '+dy+'px'}],
   {duration,easing:'cubic-bezier(.42,0,.22,1)',fill:'forwards'}
  );
- startVeryHungryTrail();
+ startVeryHungryTrail(leftTarget+r.width*.5,topTarget+r.height-3);
  veryHungryMoveAnim.onfinish=()=>{
   if(!pet||!veryHungryWalking)return;
   pet.style.left=leftTarget+'px';pet.style.top=topTarget+'px';
