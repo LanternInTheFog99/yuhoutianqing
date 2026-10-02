@@ -1760,6 +1760,48 @@ to{transform:translateY(3px) rotate(-1.15deg)}}
 \n
 \n
 
+
+<style id="qinger-night-theme-v68">
+/* Night theme foundation: palette only; layout, media and Qinger artwork are untouched. */
+body.qinger-night-mode{background:#0f172a!important;color:#dbe4f0!important;color-scheme:dark}
+body.qinger-night-mode,
+body.qinger-night-mode header,
+body.qinger-night-mode main,
+body.qinger-night-mode aside,
+body.qinger-night-mode section,
+body.qinger-night-mode footer,
+body.qinger-night-mode nav,
+body.qinger-night-mode div,
+body.qinger-night-mode button,
+body.qinger-night-mode input,
+body.qinger-night-mode textarea,
+body.qinger-night-mode select{transition:background-color 1.35s ease,color 1.35s ease,border-color 1.35s ease,box-shadow 1.35s ease}
+body.qinger-night-mode .bg-white{background-color:#172033!important}
+body.qinger-night-mode .bg-slate-50{background-color:#182235!important}
+body.qinger-night-mode .bg-slate-100{background-color:#111b2d!important}
+body.qinger-night-mode .bg-slate-200{background-color:#243149!important}
+body.qinger-night-mode .bg-slate-300{background-color:#334155!important}
+body.qinger-night-mode .bg-white\/95{background-color:rgba(23,32,51,.95)!important}
+body.qinger-night-mode .bg-white\/90{background-color:rgba(23,32,51,.90)!important}
+body.qinger-night-mode .bg-white\/80{background-color:rgba(23,32,51,.80)!important}
+body.qinger-night-mode .text-slate-900{color:#f1f5f9!important}
+body.qinger-night-mode .text-slate-800{color:#e2e8f0!important}
+body.qinger-night-mode .text-slate-700{color:#d4dce8!important}
+body.qinger-night-mode .text-slate-600{color:#b7c2d2!important}
+body.qinger-night-mode .text-slate-500{color:#94a3b8!important}
+body.qinger-night-mode .text-slate-400{color:#7f8da3!important}
+body.qinger-night-mode .border-slate-100{border-color:#25324a!important}
+body.qinger-night-mode .border-slate-200{border-color:#2d3a52!important}
+body.qinger-night-mode .border-slate-300{border-color:#3b4a63!important}
+body.qinger-night-mode input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+body.qinger-night-mode textarea,
+body.qinger-night-mode select{background-color:#111b2d!important;color:#e2e8f0!important;border-color:#3b4a63!important}
+body.qinger-night-mode input::placeholder,body.qinger-night-mode textarea::placeholder{color:#718096!important}
+body.qinger-night-mode .shadow-sm,body.qinger-night-mode .shadow,body.qinger-night-mode .shadow-md,body.qinger-night-mode .shadow-lg,body.qinger-night-mode .shadow-xl{--tw-shadow-color:rgba(2,6,23,.42)!important}
+/* Keep uploaded media, icons and Qinger's raster layers at their original colors. */
+body.qinger-night-mode img,body.qinger-night-mode video,body.qinger-night-mode canvas,#xiaoqingerSimplePet,#qingerVisualStage{filter:none!important}
+</style>
+
 </head>
 <!-- v35: head-motion branch from v32 -->
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
@@ -16743,6 +16785,19 @@ let pet=null, speech=null, hud=null, inv=null, drag=null, suppressClickUntil=0, 
 const baseOf=h=>h<=0?'饿晕':h<10?'很饿':h<40?'轻微饥饿':h<70?'普通':h<90?'较饱':'最饱';
 const owner=()=>String(window.getEditorOwnerToken?.()||'').slice(0,200);
 const isNight=()=>{const h=new Date().getHours();return h>=23||h<8};
+let qingerNightThemeOverride='auto';
+function applyQingerNightTheme(){
+ const active=qingerNightThemeOverride==='on'||(qingerNightThemeOverride==='auto'&&isNight());
+ document.body?.classList.toggle('qinger-night-mode',active);
+ document.documentElement?.classList.toggle('qinger-night-mode',active);
+ const sel=document.getElementById('qingerNightThemeMode');if(sel&&sel.value!==qingerNightThemeOverride)sel.value=qingerNightThemeOverride;
+}
+function setQingerNightThemeMode(mode){
+ qingerNightThemeOverride=['auto','on','off'].includes(mode)?mode:'auto';
+ applyQingerNightTheme();
+}
+window.setQingerNightThemeMode=setQingerNightThemeMode;
+
 function clearBehaviorTimeouts(){behaviorTimeouts.forEach(clearTimeout);behaviorTimeouts=[]}function later(fn,ms){const id=setTimeout(fn,ms);behaviorTimeouts.push(id);return id}function touch(){state.lastInteraction=Date.now();if(['doze1','doze2','doze3','daynap'].includes(state.behavior)){state.behavior='wake';clearBehaviorTimeouts();setDozeZCount(0);render();bang();later(()=>{state.behavior='idle';render();scheduleBlink()},700)}}
 function layers(form,name){return (form==='grabbed'?GRABBED:NORMAL)[name]||NORMAL['普通'];}
 function baseLayers(form){return form==='grabbed'?GRABBED_BASE:NORMAL_BASE;}
@@ -16797,7 +16852,7 @@ let actionTipTimer=0;function showActionTip(text){const n=document.getElementByI
 function ensurePetChrome(){
  const defs=[
   ['qingerRain',()=>{const n=document.createElement('div');n.id='qingerRain';return n}],
-  ['qingerInventory',()=>{const n=document.createElement('div');n.id='qingerInventory';n.innerHTML='<div class="qinger-inv-head"><b>小晴儿物品栏</b><button id="qingerInvClose" class="qinger-inv-close" type="button" aria-label="关闭">×</button></div><div class="qinger-inv-grid"><div class="qinger-slot qinger-food" data-food="gui" title="龟糖"><img id="qingerGuiImg" alt="龟糖"><b id="qingerGuiCount" class="qinger-slot-count">0</b></div><div class="qinger-slot qinger-food" data-food="zhi" title="直给"><img id="qingerZhiImg" alt="直给"><b id="qingerZhiCount" class="qinger-slot-count">0</b></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div></div><div class="qinger-test-panel"><div class="qinger-test-title"><b>测试模式</b><label class="qinger-test-toggle"><input id="qingerTestMode" type="checkbox"><span>仅本机预览</span></label></div><div class="qinger-test-row"><label>饱食度 <b id="qingerHungerText">--/100</b></label><div class="qinger-test-control-line"><input id="qingerTestHunger" type="range" min="0" max="100" step="1" value="80"><input id="qingerTestHungerNumber" class="qinger-test-number" type="number" min="0" max="100" step="1" value="80"></div><span class="qinger-hunger-bar"><span id="qingerHungerFill" class="qinger-hunger-fill" style="width:80%"></span></span></div><div class="qinger-test-selects"><label>饱食状态<select id="qingerTestBase"><option>饿晕</option><option>很饿</option><option>轻微饥饿</option><option>普通</option><option>较饱</option><option>最饱</option></select></label><label>行为阶段<select id="qingerTestBehavior"><option value="idle">清醒</option><option value="doze1">初困</option><option value="doze2">明显打瞌睡</option><option value="doze3">快睡着</option><option value="daynap">白天短暂睡着</option><option value="sleep">夜间睡眠</option><option value="withdrawn">很饿 · 角落自闭</option></select></label></div><div class="qinger-test-actions"><button id="qingerTestWake" class="qinger-test-action" type="button">测试惊醒</button><button id="qingerTestDaynap" class="qinger-test-action" type="button">进入白天打盹</button><button id="qingerTestSleep" class="qinger-test-action" type="button">进入夜间睡眠</button></div><label class="qinger-test-toggle" style="margin-top:8px;display:flex"><input id="qingerUnlimitedItems" type="checkbox"><span>无限物品（测试，不扣库存）</span></label><small class="qinger-test-note">测试模式只改变当前浏览器显示，不写入共享饱食度。</small></div>';return n}],
+  ['qingerInventory',()=>{const n=document.createElement('div');n.id='qingerInventory';n.innerHTML='<div class="qinger-inv-head"><b>小晴儿物品栏</b><button id="qingerInvClose" class="qinger-inv-close" type="button" aria-label="关闭">×</button></div><div class="qinger-inv-grid"><div class="qinger-slot qinger-food" data-food="gui" title="龟糖"><img id="qingerGuiImg" alt="龟糖"><b id="qingerGuiCount" class="qinger-slot-count">0</b></div><div class="qinger-slot qinger-food" data-food="zhi" title="直给"><img id="qingerZhiImg" alt="直给"><b id="qingerZhiCount" class="qinger-slot-count">0</b></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div></div><div class="qinger-test-panel"><div class="qinger-test-title"><b>测试模式</b><label class="qinger-test-toggle"><input id="qingerTestMode" type="checkbox"><span>仅本机预览</span></label></div><div class="qinger-test-row"><label>饱食度 <b id="qingerHungerText">--/100</b></label><div class="qinger-test-control-line"><input id="qingerTestHunger" type="range" min="0" max="100" step="1" value="80"><input id="qingerTestHungerNumber" class="qinger-test-number" type="number" min="0" max="100" step="1" value="80"></div><span class="qinger-hunger-bar"><span id="qingerHungerFill" class="qinger-hunger-fill" style="width:80%"></span></span></div><div class="qinger-test-selects"><label>饱食状态<select id="qingerTestBase"><option>饿晕</option><option>很饿</option><option>轻微饥饿</option><option>普通</option><option>较饱</option><option>最饱</option></select></label><label>行为阶段<select id="qingerTestBehavior"><option value="idle">清醒</option><option value="doze1">初困</option><option value="doze2">明显打瞌睡</option><option value="doze3">快睡着</option><option value="daynap">白天短暂睡着</option><option value="sleep">夜间睡眠</option><option value="withdrawn">很饿 · 角落自闭</option></select></label></div><div class="qinger-test-actions"><button id="qingerTestWake" class="qinger-test-action" type="button">测试惊醒</button><button id="qingerTestDaynap" class="qinger-test-action" type="button">进入白天打盹</button><button id="qingerTestSleep" class="qinger-test-action" type="button">进入夜间睡眠</button></div><label class="qinger-test-toggle" style="margin-top:8px;display:flex"><input id="qingerUnlimitedItems" type="checkbox"><span>无限物品（测试，不扣库存）</span></label><label class="qinger-test-night" style="margin-top:8px;display:flex;align-items:center;gap:8px"><span>夜间模式</span><select id="qingerNightThemeMode" class="qinger-test-number" style="width:auto;min-width:92px"><option value="auto">自动</option><option value="on">强制开</option><option value="off">强制关</option></select></label><small class="qinger-test-note">测试模式只改变当前浏览器显示，不写入共享饱食度。</small></div>';return n}],
   ['qingerInventoryBtn',()=>{const n=document.createElement('button');n.id='qingerInventoryBtn';n.type='button';n.title='物品栏';n.setAttribute('aria-label','小晴儿物品栏');n.innerHTML='<i class="fa-solid fa-box-open"></i>';return n}],
   ['qingerZzz',()=>{const n=document.createElement('div');n.id='qingerZzz';n.textContent='';return n}],
   ['qingerBang',()=>{const n=document.createElement('div');n.id='qingerBang';n.textContent='!';return n}],
@@ -16831,7 +16886,6 @@ const FOOD_WAKE={
 let foodSleepTipAt=0,foodWakeSensor=null,foodWakePending=null;
 function isQingerSleeping(){return state.behavior==='sleep'||state.behavior==='daynap'}
 function isFoodWakePending(){return !!foodWakePending}
-function cancelFoodWakePending(){if(!foodWakePending)return;clearTimeout(foodWakePending.timer);foodWakePending=null}
 function playFoodSniff(power=.35){const stage=document.getElementById('qingerVisualStage');if(!stage)return;power=Math.max(0,Math.min(1,Number(power)||0));const x=1+2.6*power,r=.18+.9*power;stage.style.setProperty('--qinger-food-sniff-ms',Math.round(330+170*power)+'ms');stage.style.setProperty('--qinger-sniff-left',(-x)+'px');stage.style.setProperty('--qinger-sniff-right',(x*1.08)+'px');stage.style.setProperty('--qinger-sniff-settle',(-x*.45)+'px');stage.style.setProperty('--qinger-sniff-rot-left',(-r)+'deg');stage.style.setProperty('--qinger-sniff-rot-right',(r*1.06)+'deg');stage.style.setProperty('--qinger-sniff-rot-settle',(-r*.42)+'deg');stage.classList.remove('qinger-food-sniff');void stage.offsetWidth;stage.classList.add('qinger-food-sniff');setTimeout(()=>stage?.classList.remove('qinger-food-sniff'),560)}
 function playFeedReaction(base,kind){const power=FOOD_REACTION[base]?.[kind]??.5;if(power<=0)return;const stage=document.getElementById('qingerVisualStage');if(!stage)return;const p=Math.max(0,Math.min(1.2,Number(power)||0));stage.style.setProperty('--qinger-feed-ms',Math.round(430+190*p)+'ms');stage.style.setProperty('--qinger-feed-lift',(-5*p)+'px');stage.style.setProperty('--qinger-feed-settle',(1*p)+'px');stage.style.setProperty('--qinger-feed-upscale',String(1+.025*p));stage.style.setProperty('--qinger-feed-downscale',String(1-.008*p));stage.style.setProperty('--qinger-feed-rot',(-1*p)+'deg');stage.style.setProperty('--qinger-feed-backrot',(.55*p)+'deg');stage.classList.remove('qinger-feed-react');void stage.offsetWidth;stage.classList.add('qinger-feed-react');setTimeout(()=>stage?.classList.remove('qinger-feed-react'),720)}
 function stopFoodWakeSensor(){if(!foodWakeSensor)return;clearTimeout(foodWakeSensor.dwell);clearInterval(foodWakeSensor.interval);foodWakeSensor=null}
@@ -16900,7 +16954,7 @@ function setupFood(){
  const gi=document.getElementById('qingerGuiImg'),zi=document.getElementById('qingerZhiImg');if(gi)gi.src=FOOD_GUI;if(zi)zi.src=FOOD_ZHI;
  document.getElementById('qingerInvClose')?.addEventListener('click',e=>{e.stopPropagation();toggleInventory(false)});
  document.getElementById('qingerInventoryBtn')?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();toggleInventory()});
- const tm=document.getElementById('qingerTestMode'),hr=document.getElementById('qingerTestHunger'),hn=document.getElementById('qingerTestHungerNumber'),bs=document.getElementById('qingerTestBase'),bh=document.getElementById('qingerTestBehavior'),ui=document.getElementById('qingerUnlimitedItems');state.unlimitedItems=!!state.unlimitedItems;if(ui){ui.checked=state.unlimitedItems;ui.addEventListener('change',()=>{state.unlimitedItems=ui.checked;updateHud()})}
+ const tm=document.getElementById('qingerTestMode'),hr=document.getElementById('qingerTestHunger'),hn=document.getElementById('qingerTestHungerNumber'),bs=document.getElementById('qingerTestBase'),bh=document.getElementById('qingerTestBehavior'),ui=document.getElementById('qingerUnlimitedItems');state.unlimitedItems=!!state.unlimitedItems;if(ui){ui.checked=state.unlimitedItems;ui.addEventListener('change',()=>{state.unlimitedItems=ui.checked;updateHud()})} const nt=document.getElementById('qingerNightThemeMode');if(nt){nt.value=qingerNightThemeOverride;nt.addEventListener('change',()=>setQingerNightThemeMode(nt.value));applyQingerNightTheme()}
  const reps={'饿晕':0,'很饿':5,'轻微饥饿':25,'普通':55,'较饱':80,'最饱':100};
  const applyTest=()=>{state.base=baseOf(state.hunger);updateHud();syncRain();render();};
  if(tm)tm.addEventListener('change',()=>{state.testMode=tm.checked;if(!state.testMode){testBehaviorForced=false;cloudRead()}else{testBehaviorForced=false;applyTest();behaviorTick()}});
@@ -17266,5 +17320,6 @@ async function boot(){
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,1700),{once:true});else setTimeout(boot,1700);
 })();
 </script>
+<script>document.addEventListener('DOMContentLoaded',()=>{window.setQingerNightThemeMode?.('auto')});</script>
 </body>
 </html>
