@@ -14706,7 +14706,11 @@ viewer.style.visibility='';
             toastIcon.className = type === "success" ? "fa-solid fa-circle-check text-emerald-400 text-lg" : (type === "error" ? "fa-solid fa-circle-exclamation text-rose-400 text-lg" : "fa-solid fa-circle-info text-indigo-400 text-lg");
 
             toastBox.classList.remove('hidden');
-            setTimeout(() => { toastBox.classList.add('hidden'); }, 3000);
+            if (window._toastHideTimer) clearTimeout(window._toastHideTimer);
+            window._toastHideTimer = setTimeout(() => {
+                toastBox.classList.add('hidden');
+                window._toastHideTimer = null;
+            }, 3000);
         };
 
         window.onresize = () => {
@@ -16824,19 +16828,67 @@ const FOOD_WAKE={
  '轻微饥饿':{gui:{p:.35,w:.30,j:.46},zhi:{p:.75,w:.62,j:.88}},
  '很饿':{gui:{p:.02,w:.08,j:.24},zhi:{p:.85,w:.72,j:.96}}
 };
-let foodSleepTipAt=0,foodWakeSensor=null;
+let foodSleepTipAt=0,foodWakeSensor=null,foodWakePending=null;
 function isQingerSleeping(){return state.behavior==='sleep'||state.behavior==='daynap'}
+function isFoodWakePending(){return !!foodWakePending}
+function cancelFoodWakePending(){if(!foodWakePending)return;clearTimeout(foodWakePending.timer);foodWakePending=null}
 function playFoodSniff(power=.35){const stage=document.getElementById('qingerVisualStage');if(!stage)return;power=Math.max(0,Math.min(1,Number(power)||0));const x=1+2.6*power,r=.18+.9*power;stage.style.setProperty('--qinger-food-sniff-ms',Math.round(330+170*power)+'ms');stage.style.setProperty('--qinger-sniff-left',(-x)+'px');stage.style.setProperty('--qinger-sniff-right',(x*1.08)+'px');stage.style.setProperty('--qinger-sniff-settle',(-x*.45)+'px');stage.style.setProperty('--qinger-sniff-rot-left',(-r)+'deg');stage.style.setProperty('--qinger-sniff-rot-right',(r*1.06)+'deg');stage.style.setProperty('--qinger-sniff-rot-settle',(-r*.42)+'deg');stage.classList.remove('qinger-food-sniff');void stage.offsetWidth;stage.classList.add('qinger-food-sniff');setTimeout(()=>stage?.classList.remove('qinger-food-sniff'),560)}
 function playFeedReaction(base,kind){const power=FOOD_REACTION[base]?.[kind]??.5;if(power<=0)return;const stage=document.getElementById('qingerVisualStage');if(!stage)return;const p=Math.max(0,Math.min(1.2,Number(power)||0));stage.style.setProperty('--qinger-feed-ms',Math.round(430+190*p)+'ms');stage.style.setProperty('--qinger-feed-lift',(-5*p)+'px');stage.style.setProperty('--qinger-feed-settle',(1*p)+'px');stage.style.setProperty('--qinger-feed-upscale',String(1+.025*p));stage.style.setProperty('--qinger-feed-downscale',String(1-.008*p));stage.style.setProperty('--qinger-feed-rot',(-1*p)+'deg');stage.style.setProperty('--qinger-feed-backrot',(.55*p)+'deg');stage.classList.remove('qinger-feed-react');void stage.offsetWidth;stage.classList.add('qinger-feed-react');setTimeout(()=>stage?.classList.remove('qinger-feed-react'),720)}
 function stopFoodWakeSensor(){if(!foodWakeSensor)return;clearTimeout(foodWakeSensor.dwell);clearInterval(foodWakeSensor.interval);foodWakeSensor=null}
-function wakeByFood(kind,profile){if(!isQingerSleeping())return;stopFoodWakeSensor();const wakeDelay=kind==='gui'?900:800;setTimeout(()=>{if(!isQingerSleeping())return;window.showToast?.(`小晴儿被${kind==='gui'?'龟糖':'直给糖'}的香味唤醒了`,'info');clearBehaviorTimeouts();clearDozeVisualTimers();dozeMark('idle');bodyWakeJolt(profile.j);later(()=>{if(!isQingerSleeping())return;nightSleepRise();state.behavior='wake';render();later(()=>{if(state.behavior!=='wake')return;state.behavior='idle';state.lastInteraction=Date.now();render();scheduleBlink();if(isNight()){const np=nightWakeProfileFor(baseOf(state.hunger));if(!np.noResleep)scheduleNightResleep(np)}},560)},180)},wakeDelay)}
-function foodWakeRoll(kind){if(!isQingerSleeping())return stopFoodWakeSensor();const base=baseOf(state.hunger);if(base==='饿晕')return;const p=FOOD_WAKE[base]?.[kind];if(!p)return;playFoodSniff(p.w);if(Math.random()<p.p)wakeByFood(kind,p)}
-function updateFoodWakeSensor(kind,x,y){if(!isQingerSleeping()||state.base==='饿晕'){stopFoodWakeSensor();return}const r=pet?.getBoundingClientRect();if(!r)return;const pad=Math.max(42,Math.min(64,r.width*.45));const near=x>=r.left-pad&&x<=r.right+pad&&y>=r.top-pad&&y<=r.bottom+pad;if(!near){stopFoodWakeSensor();return}if(foodWakeSensor?.kind===kind)return;stopFoodWakeSensor();const sensor={kind,dwell:0,interval:0};foodWakeSensor=sensor;sensor.dwell=setTimeout(()=>{if(foodWakeSensor!==sensor||!isQingerSleeping())return;foodWakeRoll(kind);sensor.interval=setInterval(()=>{if(foodWakeSensor===sensor)foodWakeRoll(kind)},2000)},1000)}
+function wakeByFood(kind,profile){
+ if(!isQingerSleeping()||foodWakePending)return false;
+ stopFoodWakeSensor();
+ const pending={kind,profile,timer:0};
+ foodWakePending=pending;
+ const wakeDelay=kind==='gui'?900:800;
+ pending.timer=setTimeout(()=>{
+  if(foodWakePending!==pending)return;
+  if(!isQingerSleeping()){foodWakePending=null;return}
+  foodWakePending=null;
+  clearBehaviorTimeouts();clearDozeVisualTimers();dozeMark('idle');
+  bodyWakeJolt(profile.j);
+  window.showToast?.(`小晴儿被${kind==='gui'?'龟糖':'直给糖'}的香味唤醒了`,'info');
+  later(()=>{
+   if(!isQingerSleeping())return;
+   nightSleepRise();state.behavior='wake';render();
+   later(()=>{if(state.behavior!=='wake')return;state.behavior='idle';state.lastInteraction=Date.now();render();scheduleBlink();if(isNight()){const np=nightWakeProfileFor(baseOf(state.hunger));if(!np.noResleep)scheduleNightResleep(np)}},560)
+  },180)
+ },wakeDelay);
+ return true
+}
+function foodWakeRoll(kind){
+ if(foodWakePending)return true;
+ if(!isQingerSleeping()){stopFoodWakeSensor();return false}
+ const base=baseOf(state.hunger);if(base==='饿晕')return false;
+ const p=FOOD_WAKE[base]?.[kind];if(!p)return false;
+ playFoodSniff(p.w);
+ return Math.random()<p.p?wakeByFood(kind,p):false
+}
+function updateFoodWakeSensor(kind,x,y){
+ if(foodWakePending){stopFoodWakeSensor();return}
+ if(!isQingerSleeping()||state.base==='饿晕'){stopFoodWakeSensor();return}
+ const r=pet?.getBoundingClientRect();if(!r)return;
+ const pad=Math.max(42,Math.min(64,r.width*.45));
+ const near=x>=r.left-pad&&x<=r.right+pad&&y>=r.top-pad&&y<=r.bottom+pad;
+ if(!near){stopFoodWakeSensor();return}
+ if(foodWakeSensor?.kind===kind)return;
+ stopFoodWakeSensor();
+ const sensor={kind,dwell:0,interval:0};foodWakeSensor=sensor;
+ sensor.dwell=setTimeout(()=>{
+  if(foodWakeSensor!==sensor||!isQingerSleeping()||foodWakePending)return;
+  if(foodWakeRoll(kind)||foodWakeSensor!==sensor)return;
+  sensor.interval=setInterval(()=>{
+   if(foodWakeSensor!==sensor||foodWakePending)return;
+   if(foodWakeRoll(kind))stopFoodWakeSensor()
+  },2000)
+ },1000)
+}
 function sleepingFeedTip(){const now=Date.now();if(now-foodSleepTipAt<1500)return;foodSleepTipAt=now;window.showToast?.('嘘，小晴儿现在正在睡觉呢','info')}
 function showFoodDialogue(kind){window.showXiaoqingerSimpleSpeech?.(kind==='gui'?'好龟啊，但是好好吃啊...':'震撼美味！')}
 async function feed(kind){
  try{
   const beforeBase=baseOf(state.hunger);
+  if(isFoodWakePending())return;
   if(isQingerSleeping()){sleepingFeedTip();return}
   if(beforeBase==='饿晕'&&kind!=='zhi'){window.showToast?.('小晴儿已经饿晕了，龟糖好像帮不上忙……','info');return}
   if(state.unlimitedItems){state.testMode=true;const tm=document.getElementById('qingerTestMode');if(tm)tm.checked=true;state.hunger=Math.min(100,state.hunger+(kind==='zhi'?80:20));state.base=baseOf(state.hunger);state.behavior='idle';touch();updateHud();syncRain();render();requestAnimationFrame(()=>playFeedReaction(beforeBase,kind));later(()=>showFoodDialogue(kind),180);window.showToast?.(kind==='zhi'?'测试投喂：直给糖':'测试投喂：龟糖','success');return}
@@ -16860,7 +16912,7 @@ function setupFood(){
  document.getElementById('qingerTestDaynap')?.addEventListener('click',()=>{testModeOn();clearBehaviorTimeouts();clearDozeVisualTimers();state.behavior='daynap';dayNapUntil=Date.now()+45000;render();dozeMark('daynap');if(bh)bh.value='daynap';updateHud()});
  document.getElementById('qingerTestSleep')?.addEventListener('click',()=>{testModeOn();clearBehaviorTimeouts();clearDozeVisualTimers();state.behavior='sleep';render();dozeMark('sleep');if(bh)bh.value='sleep';updateHud()});
  inv?.addEventListener('pointerdown',e=>e.stopPropagation());inv?.addEventListener('click',e=>e.stopPropagation());document.addEventListener('pointerdown',e=>{if(inv?.classList.contains('open')&&!inv.contains(e.target)&&!pet?.contains(e.target))toggleInventory(false)});
- document.querySelectorAll('.qinger-food').forEach(row=>row.addEventListener('pointerdown',e=>{const kind=row.dataset.food,count=kind==='gui'?state.gui:state.zhi;if(count<=0&&!state.unlimitedItems)return;stopFoodWakeSensor();const ghost=document.createElement('img');ghost.className='qinger-food-ghost';ghost.src=kind==='gui'?FOOD_GUI:FOOD_ZHI;document.body.appendChild(ghost);const move=ev=>{ghost.style.left=ev.clientX+'px';ghost.style.top=ev.clientY+'px';ghost.style.transform='translate(-50%,-50%)';updateFoodWakeSensor(kind,ev.clientX,ev.clientY)};move(e);const mm=ev=>move(ev);const up=ev=>{removeEventListener('pointermove',mm);stopFoodWakeSensor();const r=pet.getBoundingClientRect(),hit=ev.clientX>=r.left&&ev.clientX<=r.right&&ev.clientY>=r.top&&ev.clientY<=r.bottom;ghost.remove();if(hit){if(isQingerSleeping())sleepingFeedTip();else feed(kind)}};addEventListener('pointermove',mm);addEventListener('pointerup',up,{once:true});e.preventDefault();e.stopPropagation()}));
+ document.querySelectorAll('.qinger-food').forEach(row=>row.addEventListener('pointerdown',e=>{const kind=row.dataset.food,count=kind==='gui'?state.gui:state.zhi;if(count<=0&&!state.unlimitedItems)return;stopFoodWakeSensor();const ghost=document.createElement('img');ghost.className='qinger-food-ghost';ghost.src=kind==='gui'?FOOD_GUI:FOOD_ZHI;document.body.appendChild(ghost);const move=ev=>{ghost.style.left=ev.clientX+'px';ghost.style.top=ev.clientY+'px';ghost.style.transform='translate(-50%,-50%)';updateFoodWakeSensor(kind,ev.clientX,ev.clientY)};move(e);const mm=ev=>move(ev);const up=ev=>{removeEventListener('pointermove',mm);stopFoodWakeSensor();const r=pet.getBoundingClientRect(),hit=ev.clientX>=r.left&&ev.clientX<=r.right&&ev.clientY>=r.top&&ev.clientY<=r.bottom;ghost.remove();if(hit){if(isFoodWakePending()){}else if(isQingerSleeping())sleepingFeedTip();else feed(kind)}};addEventListener('pointermove',mm);addEventListener('pointerup',up,{once:true});e.preventDefault();e.stopPropagation()}));
 }
 function closedLayersFor(base){const closed=(NORMAL[base]||NORMAL['普通']).filter(x=>![15,16,18,19].includes(x));if(!closed.includes(21))closed.push(21);return closed}
 let dozeVisualTimer=0,dozeNodTimer=0,dozeNaturalWakeTimer=0,zCycleTimer=0;
