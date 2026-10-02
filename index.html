@@ -1672,27 +1672,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
 
 <style id="qinger-v40-state-lifecycle">
-/* Walking owns only outer left/top. Head/expression must remain one rigid composite until arrival. */
-#xiaoqingerSimplePet.pet-hungry-walking.pet-sad .qpet-layer[data-layer="2"],
-#xiaoqingerSimplePet.pet-hungry-walking.pet-sad .qpet-layer[data-layer="9"],
-#xiaoqingerSimplePet.pet-hungry-walking.pet-sad .qpet-layer[data-layer="10"],
-#xiaoqingerSimplePet.pet-hungry-walking.pet-sad .qpet-layer[data-layer="11"],
-#xiaoqingerSimplePet.pet-hungry-walking.pet-sad .qpet-layer[data-layer="12"],
-#xiaoqingerSimplePet.pet-hungry-walking.pet-sad .qpet-layer[data-layer="13"],
-#xiaoqingerSimplePet.pet-hungry-walking.pet-sad .qpet-layer[data-layer="14"],
-#xiaoqingerSimplePet.pet-hungry-walking.pet-sad .qpet-layer[data-layer="15"],
-#xiaoqingerSimplePet.pet-hungry-walking.pet-sad .qpet-layer[data-layer="16"],
-#xiaoqingerSimplePet.pet-hungry-walking.pet-sad .qpet-layer[data-layer="17"],
-#xiaoqingerSimplePet.pet-hungry-walking.pet-sad .qpet-layer[data-layer="18"],
-#xiaoqingerSimplePet.pet-hungry-walking.pet-sad .qpet-layer[data-layer="19"],
-#xiaoqingerSimplePet.pet-hungry-walking.pet-sad .qpet-layer[data-layer="20"],
-#xiaoqingerSimplePet.pet-hungry-walking.pet-sad .qpet-layer[data-layer="21"],
-#xiaoqingerSimplePet.pet-hungry-walking.pet-sad .qpet-layer[data-layer="22"],
-#xiaoqingerSimplePet.pet-hungry-walking.pet-sad .qpet-layer[data-layer="23"],
-#xiaoqingerSimplePet.pet-hungry-walking.pet-sad .qpet-layer[data-layer="24"],
-#xiaoqingerSimplePet.pet-hungry-walking.pet-sad .qpet-layer[data-layer="25"],
-#xiaoqingerSimplePet.pet-hungry-walking.pet-sad .qpet-layer[data-layer="26"],
-#xiaoqingerSimplePet.pet-hungry-walking.pet-sad .qpet-layer[data-layer="27"]{transform:none!important;transition:none!important;animation:none!important}
 /* Gloom is an overhead shadow, not a filter on Qing'er. */
 #xiaoqingerSimplePet.pet-withdrawn-gray .qpet-layer.on{filter:drop-shadow(0 7px 9px rgba(15,23,42,.18))!important;transition:none!important}
 #xiaoqingerSimplePet.pet-hungry-arrived::before{content:"";position:absolute;z-index:86;pointer-events:none;left:24%;top:-5%;width:54%;height:25%;border-radius:50%;background:radial-gradient(ellipse at center,rgba(51,65,85,.30) 0%,rgba(71,85,105,.18) 46%,rgba(71,85,105,0) 76%);filter:blur(5px)}
@@ -1724,6 +1703,32 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 /* Faint transition gets one neutral frame so old head motion cannot leak into the faint face. */
 #xiaoqingerSimplePet.qinger-head-reset .qpet-layer{transition:none!important;animation:none!important}
 </style>
+
+<style id="qinger-v44-targeted-fixes">
+/* v44 movement: root position is animated by the independent translate property. */
+#xiaoqingerSimplePet.pet-hungry-walking{will-change:translate}
+
+/* Rain remains local to Qing'er; only visibility is strengthened. */
+#xiaoqingerSimplePet>#qingerRain{
+ display:none;position:absolute!important;inset:auto!important;
+ left:50%!important;top:-22px!important;width:198px!important;height:246px!important;
+ transform:translateX(-50%)!important;z-index:84!important;pointer-events:none!important;
+ overflow:hidden!important;opacity:1!important;background:none!important;
+}
+#xiaoqingerSimplePet>#qingerRain.on{display:block!important}
+#xiaoqingerSimplePet>#qingerRain .qinger-drop{
+ width:1.55px!important;height:22px!important;
+ background:rgba(71,85,105,.72)!important;
+ box-shadow:0 0 1px rgba(255,255,255,.42)!important;
+}
+
+/* Restore the older flash-afterimage appearance; later speed-line experiment is disabled. */
+.qinger-dodge-afterimage{position:fixed!important;z-index:89!important;pointer-events:none!important;overflow:visible!important;filter:blur(.35px)!important;will-change:opacity,transform}
+.qinger-dodge-afterimage .qpet-layer{display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none}
+.qinger-dodge-afterimage .qpet-layer.on{display:block}
+.qinger-dodge-speedline{display:none!important}
+</style>
+
 </head>
 <!-- v35: head-motion branch from v32 -->
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
@@ -16742,7 +16747,7 @@ function showLayers(form,name,override=null){
  pet.querySelectorAll('.qpet-layer').forEach(x=>x.classList.toggle('on',x.dataset.form===form&&wanted.has(Number(x.dataset.layer))));
 }
 function render(name=state.base,form='normal'){
- state.base=baseOf(state.hunger); if(state.base!=='很饿'){veryHungryAtCorner=false;veryHungryWalking=false;clearVeryHungryVisuals()} pet?.classList.remove('pet-fainted','pet-sleeping','pet-excited','pet-sad');
+ state.base=baseOf(state.hunger); if(state.base!=='很饿'){cancelVeryHungryMove();veryHungryAtCorner=false;veryHungryMoved=false;clearVeryHungryVisuals()} pet?.classList.remove('pet-fainted','pet-sleeping','pet-excited','pet-sad');
  // Dragging owns the visual form until pointerup/cancel. Background sync, blink and behavior ticks may not steal it.
  if(drag?.moved&&GRABBED[state.base]){setZzzVisible(false);showLayers('grabbed',state.base);return}
  if(state.behavior==='sleep'||state.behavior==='daynap'){showLayers('normal','睡觉');pet.classList.add('pet-sleeping');setZzzVisible(true);return}if(['doze1','doze2','doze3'].includes(state.behavior)){if(dozeVisualOwnerStage===state.behavior&&dozeVisualPhase==='closed')showLayers('normal',state.base,closedLayersFor(state.base));else{setZzzVisible(false);showLayers('normal',state.base)}return}
@@ -16779,9 +16784,14 @@ function ensurePetChrome(){
  const rain=document.getElementById('qingerRain');if(rain&&pet&&rain.parentElement!==pet)pet.insertBefore(rain,pet.firstChild);
 }
 function ensureVeryHungryShade(){if(!pet)return null;let shade=document.getElementById('qingerSadShade');if(!shade){shade=document.createElement('i');shade.id='qingerSadShade';shade.setAttribute('aria-hidden','true');pet.appendChild(shade)}return shade}
-function setupRain(){ensureVeryHungryShade();const rain=document.getElementById('qingerRain');if(!rain)return;rain.innerHTML='';for(let i=0;i<22;i++){const d=document.createElement('i');d.className='qinger-drop';d.style.left=(Math.random()*105)+'%';d.style.animationDelay=(-Math.random()*1.1)+'s';d.style.animationDuration=(.75+Math.random()*.75)+'s';rain.appendChild(d)}}
+function setupRain(){ensureVeryHungryShade();const rain=document.getElementById('qingerRain');if(!rain)return;rain.innerHTML='';for(let i=0;i<28;i++){const d=document.createElement('i');d.className='qinger-drop';d.style.left=(Math.random()*105)+'%';d.style.animationDelay=(-Math.random()*1.1)+'s';d.style.animationDuration=(.75+Math.random()*.75)+'s';rain.appendChild(d)}}
 function clearVeryHungryVisuals(){document.getElementById('qingerRain')?.classList.remove('on');document.getElementById('qingerSadShade')?.classList.remove('on');pet?.classList.remove('pet-hungry-arrived','pet-withdrawn-gray')}
-function syncRain(){const on=state.base==='很饿'&&veryHungryAtCorner;document.getElementById('qingerRain')?.classList.toggle('on',on);ensureVeryHungryShade()?.classList.toggle('on',on);if(state.base!=='很饿')clearVeryHungryVisuals()}
+function syncRain(){
+ const hungry=state.base==='很饿',withdrawn=hungry&&veryHungryAtCorner;
+ document.getElementById('qingerRain')?.classList.toggle('on',hungry);
+ ensureVeryHungryShade()?.classList.toggle('on',withdrawn);
+ if(!hungry)clearVeryHungryVisuals();
+}
 async function cloudRead(){try{const u='/timeline?type=xiaoqingerPet&ownerToken='+encodeURIComponent(owner());const d=await window.timelineApiFetch?.(u,12000);if(!d?.ok)return;if(!state.testMode)state.hunger=Number(d.hunger??state.hunger);state.gui=Number(d.inventory?.gui||0);state.zhi=Number(d.inventory?.zhi||0);state.lastSettledAt=Number(d.lastSettledAt||Date.now());state.cloud=true;updateHud();syncRain();render();}catch(e){console.warn('小晴儿状态同步失败',e)}}
 async function post(action,payload={}){return await window.timelineApiCloudWritePost?.(action,{ownerToken:owner(),...payload},{auth:false,timeoutMs:12000})}
 window.xiaoqingerClaimSaveReward=async eventData=>{if(!eventData?.id)return;try{const d=await post('xiaoqingerClaimReward',{eventId:String(eventData.id),revision:Number(eventData.revision)||0});if(d?.ok){state.gui=Number(d.inventory?.gui||state.gui);state.zhi=Number(d.inventory?.zhi||state.zhi);updateHud();if(d.reward==='gui')window.showToast?.('小晴儿捡到了一颗龟糖','success');else if(d.reward==='zhi')window.showToast?.('小晴儿捡到了舒心的直给糖','success');}}catch(e){console.warn(e)}};
@@ -16870,8 +16880,39 @@ function userWakeFromNap(){if(!['doze1','doze2','doze3','daynap'].includes(state
 function naturalWakeFromNap(){if(state.behavior!=='daynap')return false;clearBehaviorTimeouts();clearDozeVisualTimers();state.behavior='wake';dozeMark('idle');render();bodyWakeJolt();const stillSleepy=Math.random()<.68;later(()=>{if(stillSleepy&&['轻微饥饿','普通','较饱'].includes(state.base)&&!isNight()){state.behavior=Math.random()<.58?'doze3':'doze2';render();renderDozeStage()}else{state.behavior='idle';render();scheduleBlink()}},900);return true}
 function wakeNight(){clearBehaviorTimeouts();clearDozeVisualTimers();state.behavior='wake';dozeMark('idle');render();bodyWakeJolt();nightAwakeUntil=Date.now()+C.nightWakeIdle;state.lastInteraction=Date.now();later(()=>{if(!isNight()||Date.now()<nightAwakeUntil)return;state.behavior='doze1';render();renderDozeStage();later(()=>{if(!isNight()||Date.now()<nightAwakeUntil)return;state.behavior='doze2';renderDozeStage()},2200);later(()=>{if(!isNight()||Date.now()<nightAwakeUntil)return;state.behavior='doze3';renderDozeStage()},4300);later(()=>{if(!isNight()||Date.now()<nightAwakeUntil)return;clearDozeVisualTimers();state.behavior='sleep';dozeMark('sleep');render()},7000)},C.nightWakeIdle)}
 function sleepClick(){const now=Date.now();nightWakeClicks=nightWakeClicks.filter(t=>now-t<=3000);nightWakeClicks.push(now);pet?.classList.add('pet-click-feedback');setTimeout(()=>pet?.classList.remove('pet-click-feedback'),180);if(nightWakeClicks.length>=4){nightWakeClicks=[];wakeNight();return true}return false}
-let veryHungryMoveRaf=0;
-function moveToCorner(){if(!pet||veryHungryMoved)return;veryHungryMoved=true;veryHungryWalking=true;veryHungryAtCorner=false;pet.classList.remove('pet-withdrawn-gray','pet-hungry-arrived');pet.classList.add('pet-hungry-walking');cancelAnimationFrame(veryHungryMoveRaf);const r=pet.getBoundingClientRect(),sx=r.left,sy=r.top,leftTarget=sx<innerWidth/2?12:Math.max(12,innerWidth-r.width-12),topTarget=Math.max(72,innerHeight-r.height-18),duration=12500,start=performance.now();pet.style.transition='none';pet.style.right='auto';pet.style.bottom='auto';pet.style.left=sx+'px';pet.style.top=sy+'px';const step=now=>{if(!pet)return;const t=Math.min(1,(now-start)/duration);/* keep the existing v38 corner movement unchanged */const e=t*t*(3-2*t);pet.style.left=(sx+(leftTarget-sx)*e)+'px';pet.style.top=(sy+(topTarget-sy)*e)+'px';positionHud();if(t<1){veryHungryMoveRaf=requestAnimationFrame(step)}else{veryHungryMoveRaf=0;pet.style.left=leftTarget+'px';pet.style.top=topTarget+'px';veryHungryWalking=false;veryHungryAtCorner=true;pet.classList.remove('pet-hungry-walking');pet.classList.add('pet-hungry-arrived');positionHud()}};veryHungryMoveRaf=requestAnimationFrame(step)}
+let veryHungryMoveRaf=0,veryHungryMoveAnim=null;
+function cancelVeryHungryMove(){
+ if(veryHungryMoveAnim){try{veryHungryMoveAnim.cancel()}catch(_){}veryHungryMoveAnim=null}
+ cancelAnimationFrame(veryHungryMoveRaf);veryHungryMoveRaf=0;
+ if(pet){pet.style.removeProperty('translate');pet.classList.remove('pet-hungry-walking')}
+ veryHungryWalking=false;
+}
+function moveToCorner(){
+ if(!pet||veryHungryMoved)return;
+ veryHungryMoved=true;veryHungryWalking=true;veryHungryAtCorner=false;
+ pet.classList.remove('pet-withdrawn-gray','pet-hungry-arrived');
+ pet.classList.add('pet-hungry-walking');
+ const r=pet.getBoundingClientRect(),sx=r.left,sy=r.top;
+ const leftTarget=sx<innerWidth/2?12:Math.max(12,innerWidth-r.width-12);
+ const topTarget=Math.max(72,innerHeight-r.height-18);
+ const dx=leftTarget-sx,dy=topTarget-sy,duration=12500;
+ pet.style.transition='none';pet.style.right='auto';pet.style.bottom='auto';
+ pet.style.left=sx+'px';pet.style.top=sy+'px';pet.style.removeProperty('translate');
+ if(veryHungryMoveAnim){try{veryHungryMoveAnim.cancel()}catch(_){}}
+ veryHungryMoveAnim=pet.animate(
+  [{translate:'0px 0px'},{translate:dx+'px '+dy+'px'}],
+  {duration,easing:'cubic-bezier(.42,0,.22,1)',fill:'forwards'}
+ );
+ veryHungryMoveAnim.onfinish=()=>{
+  if(!pet||!veryHungryWalking)return;
+  pet.style.left=leftTarget+'px';pet.style.top=topTarget+'px';
+  try{veryHungryMoveAnim?.cancel()}catch(_){}veryHungryMoveAnim=null;
+  pet.style.removeProperty('translate');pet.classList.remove('pet-hungry-walking');
+  veryHungryWalking=false;veryHungryAtCorner=true;
+  pet.classList.add('pet-hungry-arrived');
+  syncRain();positionHud();
+ };
+}
 function maybeVeryHungryWhisper(){const now=Date.now();if(state.base!=='很饿'||now-lastWhisperCheck<8*60e3)return;lastWhisperCheck=now;if(Math.random()>.25)return;const cfg=window.normalizeXiaoqingerStoredConfig?.(window.xiaoqingerDialogueConfig)||window.loadXiaoqingerDialogues?.();const arr=cfg?.dialogues?.veryHungryWhisper||[];if(arr.length)window.showXiaoqingerSimpleSpeech?.(arr[Math.floor(Math.random()*arr.length)])}
 function behaviorTick(){state.base=baseOf(state.hunger);syncRain();if(state.testMode){if(state.behavior==='withdrawn')moveToCorner();return render()}const now=Date.now(),idle=now-state.lastInteraction;if(state.base==='饿晕'){clearBehaviorTimeouts();clearDozeVisualTimers();state.behavior='idle';dozeMark('idle');return render()}if(state.base==='很饿'){clearTimeout(blinkTimer);clearDozeVisualTimers();if(!veryHungrySince)veryHungrySince=now;if(now-veryHungrySince>=C.veryHungryCorner)moveToCorner();maybeVeryHungryWhisper();return render()}else{veryHungrySince=0;veryHungryMoved=false;veryHungryWalking=false;veryHungryAtCorner=false;pet?.classList.remove('pet-withdrawn-gray','pet-hungry-walking','pet-hungry-arrived')}if(state.base==='最饱'){if(!isNight()){clearBehaviorTimeouts();clearDozeVisualTimers();state.behavior='idle';dozeMark('idle');render();return}}if(isNight()){if(state.behavior==='sleep')return;if(state.behavior==='wake'||['doze1','doze2','doze3'].includes(state.behavior))return;if(now<nightAwakeUntil)return;clearBehaviorTimeouts();clearDozeVisualTimers();state.behavior='doze1';render();renderDozeStage();later(()=>{if(isNight()){state.behavior='doze2';renderDozeStage()}},6500);later(()=>{if(isNight()){clearDozeVisualTimers();state.behavior='sleep';dozeMark('sleep');render()}},20000);return}if(state.behavior==='sleep'){state.behavior='wake';dozeMark('idle');render();bodyWakeJolt();later(()=>{state.behavior='idle';render();scheduleBlink()},700);return}if(state.behavior==='daynap'&&now>=dayNapUntil){naturalWakeFromNap();return}if(['doze1','doze2','doze3','daynap','wake'].includes(state.behavior))return;const cfg=C.doze[state.base];if(!cfg)return;if(idle<cfg.wait)return;if(!lastDozeRoll)lastDozeRoll=now-cfg.every;if(now-lastDozeRoll>=cfg.every){lastDozeRoll=now;if(Math.random()<cfg.p)startDoze()}}
 function scheduleBlink(){clearTimeout(blinkTimer);if(['sleep','doze1','doze2','doze3','daynap','wake'].includes(state.behavior)||['饿晕','很饿'].includes(state.base))return;blinkTimer=setTimeout(()=>{if(!pet||drag||['sleep','doze1','doze2','doze3','daynap','wake'].includes(state.behavior)||['饿晕','很饿'].includes(state.base))return scheduleBlink();const cur=state.base;showLayers('normal',cur,closedLayersFor(cur));blinkTimer=setTimeout(()=>{render();scheduleBlink()},120+Math.random()*60)},4000+Math.random()*4000)}
@@ -16926,10 +16967,9 @@ let dragLeanRaf=0,dragLeanCurrent=0;
 function dragLeanProfile(base){if(base==='轻微饥饿')return{max:4.2,gain:8.5,follow:.075};if(base==='较饱')return{max:15,gain:25,follow:.095};return{max:9,gain:17,follow:.105}}
 function startDragLeanLoop(){if(dragLeanRaf)return;const step=()=>{if(!pet){dragLeanRaf=0;return}const active=!!(drag&&drag.moved&&['轻微饥饿','普通','较饱'].includes(state.base)),profile=dragLeanProfile(state.base),target=active?(Number(drag.leanTarget)||0):0;dragLeanCurrent+=(target-dragLeanCurrent)*(active?profile.follow:.18);pet.style.setProperty('--qinger-drag-lean',dragLeanCurrent.toFixed(3)+'deg');if(active||Math.abs(dragLeanCurrent)>.04)dragLeanRaf=requestAnimationFrame(step);else{pet.style.removeProperty('--qinger-drag-lean');dragLeanCurrent=0;dragLeanRaf=0}};dragLeanRaf=requestAnimationFrame(step)}
 function spawnDodgeAfterimages(r,delta){
- if(!pet)return;const dir=Math.sign(delta)||1;
- const make=(offset,delay,opacity,blur)=>{setTimeout(()=>{if(!pet)return;const g=document.createElement('div');g.className='qinger-dodge-afterimage';g.style.left=(r.left+offset)+'px';g.style.top=r.top+'px';g.style.width=r.width+'px';g.style.height=r.height+'px';g.style.opacity=String(opacity);g.style.filter=`blur(${blur}px)`;pet.querySelectorAll('.qpet-layer.on').forEach(src=>{const img=src.cloneNode(false);img.removeAttribute('id');g.appendChild(img)});document.body.appendChild(g);const a=g.animate([{opacity,transform:'translateX(0) scaleX(1.045)'},{opacity:0,transform:`translateX(${-dir*18}px) scaleX(1.09)`}],{duration:165,easing:'cubic-bezier(.1,.8,.2,1)',fill:'forwards'});setTimeout(()=>{try{a.cancel()}catch(_){}g.remove()},190)},delay)};
- make(0,0,.30,.45);make(delta*.18,34,.18,1.05);
- for(let i=0;i<3;i++){const line=document.createElement('i');line.className='qinger-dodge-speedline';line.style.left=(r.left+r.width*(dir>0?.18:.54))+'px';line.style.top=(r.top+r.height*(.38+i*.12))+'px';line.style.width=(28+i*10)+'px';document.body.appendChild(line);const a=line.animate([{opacity:.58,transform:'translateX(0) scaleX(.7)'},{opacity:0,transform:`translateX(${-dir*34}px) scaleX(1.35)`}],{duration:145,easing:'ease-out',fill:'forwards'});setTimeout(()=>{try{a.cancel()}catch(_){}line.remove()},170)}
+ if(!pet)return;
+ const make=(offset,delay,opacity)=>{setTimeout(()=>{if(!pet)return;const g=document.createElement('div');g.className='qinger-dodge-afterimage';g.style.left=(r.left+offset)+'px';g.style.top=r.top+'px';g.style.width=r.width+'px';g.style.height=r.height+'px';g.style.opacity=String(opacity);pet.querySelectorAll('.qpet-layer.on').forEach(src=>{const img=src.cloneNode(false);img.removeAttribute('id');g.appendChild(img)});document.body.appendChild(g);const drift=delta===0?0:-Math.sign(delta)*8;const a=g.animate([{opacity,transform:'translate(0,0)'},{opacity:0,transform:`translate(${drift}px,1px)`}],{duration:190,easing:'ease-out',fill:'forwards'});setTimeout(()=>{try{a.cancel()}catch(_){}g.remove()},210)},delay)};
+ make(0,0,.25);make(delta*.22,55,.14);
 }
 function bindPetInteractions(){
  if(!pet||pet.dataset.interactionsBound==='1')return;
