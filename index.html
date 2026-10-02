@@ -1376,9 +1376,10 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
 <style id="xiaoqinger-pet-v11-style">
 #qingerDevToggle,#qingerDevPanel{display:none!important}
-#xiaoqingerSimplePet{width:170px!important;height:214px!important;transform-origin:50% 88%;}
+#xiaoqingerSimplePet{width:170px!important;height:214px!important;transform-origin:50% 88%;visibility:hidden!important;opacity:0!important}
+#xiaoqingerSimplePet.qinger-assets-ready{visibility:visible!important;opacity:1!important}
 #xiaoqingerSimplePet::after{display:none!important}
-#xiaoqingerPetVisual{opacity:0!important;visibility:hidden!important}
+#xiaoqingerPetVisual{display:none!important;visibility:hidden!important;opacity:0!important}
 #xiaoqingerSimplePet .qdev-overlay{display:none!important;position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:contain!important;pointer-events:none!important;filter:drop-shadow(0 7px 9px rgba(15,23,42,.18))!important}
 #xiaoqingerSimplePet .qdev-overlay.on{display:block!important}
 #xiaoqingerSimplePet.pet-grabbed{cursor:grabbing!important;transition:none!important}
@@ -16652,6 +16653,10 @@ const GRABBED={
  '轻微饥饿':[2,3,4,5,6,7,8,9,23,24,25,26,27,18,19,22,10],
  '较饱':[2,3,4,5,6,7,8,9,23,24,25,26,27,15,16,17,12]
 };
+// Normal / grabbed are separate PSDs. Their layer numbers happen to share the same common set,
+// but they are never treated as the same image resources.
+const NORMAL_BASE=[2,3,4,5,6,7,8,9,23,24,25,26,27];
+const GRABBED_BASE=[2,3,4,5,6,7,8,9,23,24,25,26,27];
 const C={decayMs:45*60*1000,idle1:5*60*1000,idle2:10*60*1000,idle3:15*60*1000,sleepHour:23,wakeHour:8};
 let state={hunger:80,gui:0,zhi:0,lastSettledAt:Date.now(),base:'较饱',behavior:'idle',lastInteraction:Date.now(),cloud:false};
 let pet=null, speech=null, hud=null, inv=null, drag=null, suppressClickUntil=0, blinkTimer=0, behaviorTimer=0, syncTimer=0, stroke=null;
@@ -16660,7 +16665,18 @@ const owner=()=>String(window.getEditorOwnerToken?.()||'').slice(0,200);
 const isNight=()=>{const h=new Date().getHours();return h>=23||h<8};
 function touch(){state.lastInteraction=Date.now();if(state.behavior==='doze')state.behavior='idle';}
 function layers(form,name){return (form==='grabbed'?GRABBED:NORMAL)[name]||NORMAL['普通'];}
-function showLayers(form,name,override=null){if(!pet)return;const wanted=new Set(override||layers(form,name));pet.querySelectorAll('.qdev-overlay').forEach(x=>x.classList.toggle('on',x.dataset.form===form&&wanted.has(Number(x.dataset.layer))));}
+function baseLayers(form){return form==='grabbed'?GRABBED_BASE:NORMAL_BASE;}
+function diffLayers(form,name){const base=new Set(baseLayers(form));return layers(form,name).filter(id=>!base.has(id));}
+function wantedLayers(form,name,override=null){
+ if(override)return [...new Set(override)];
+ return [...baseLayers(form),...diffLayers(form,name)];
+}
+function showLayers(form,name,override=null){
+ if(!pet||!pet.classList.contains('qinger-assets-ready'))return;
+ const wanted=new Set(wantedLayers(form,name,override));
+ // All resources are already decoded. Toggle in one synchronous pass so no half-built frame is exposed.
+ pet.querySelectorAll('.qdev-overlay').forEach(x=>x.classList.toggle('on',x.dataset.form===form&&wanted.has(Number(x.dataset.layer))));
+}
 function render(name=state.base,form='normal'){
  state.base=baseOf(state.hunger); pet?.classList.remove('pet-fainted','pet-sleeping','pet-excited','pet-sad');
  if(state.behavior==='sleep'){showLayers('normal','睡觉');pet.classList.add('pet-sleeping');showZzz(true);return}
@@ -16686,14 +16702,37 @@ function behaviorTick(){state.base=baseOf(state.hunger);syncRain();const idle=Da
 function scheduleDoze(){clearTimeout(blinkTimer);if(state.behavior!=='doze')return;const closed=NORMAL[state.base].filter(x=>![10,11,12,13,15,16,17,18,19,20,22].includes(x));closed.push(21);showLayers('normal',state.base,closed);blinkTimer=setTimeout(()=>{if(state.behavior!=='doze')return;showLayers('normal',state.base);blinkTimer=setTimeout(scheduleDoze,1300+Math.random()*1800)},650+Math.random()*900)}
 function scheduleBlink(){clearTimeout(blinkTimer);if(['sleep','doze','wake'].includes(state.behavior)||state.base==='饿晕')return;blinkTimer=setTimeout(()=>{if(!pet||drag||['sleep','doze','wake'].includes(state.behavior))return scheduleBlink();const cur=state.base;const closed=NORMAL[cur].filter(x=>![10,11,12,13,15,16,17,18,19,20,22].includes(x));closed.push(21);showLayers('normal',cur,closed);setTimeout(()=>{render();scheduleBlink()},120)},2200+Math.random()*3800)}
 function strokeFeedback(){touch();if(state.base==='饿晕')return;if(state.base==='很饿'){pet.classList.add('pet-struggle');setTimeout(()=>pet.classList.remove('pet-struggle'),450);window.showXiaoqingerSimpleSpeech?.('……呜。');return}const map={'轻微饥饿':'普通','普通':'较饱','较饱':'最饱','最饱':'普通'};const v=map[state.base];if(v){showLayers('normal',v);const r=pet.getBoundingClientRect();const h=document.createElement('span');h.className='xiaoqinger-pet-heart';h.textContent='♥';h.style.left=(r.left+r.width*.5)+'px';h.style.top=(r.top+r.height*.18)+'px';document.body.appendChild(h);setTimeout(()=>h.remove(),760);setTimeout(()=>render(),950)}}
+async function preloadPetLayers(){
+ if(!pet)return false;
+ // Preload every layer used by any runtime state, including blink/sleep/wake and all grabbed states.
+ const need=new Set();
+ Object.values(NORMAL).forEach(a=>a.forEach(id=>need.add('normal:'+id)));
+ Object.values(GRABBED).forEach(a=>a.forEach(id=>need.add('grabbed:'+id)));
+ need.add('normal:21');
+ const imgs=[...pet.querySelectorAll('.qdev-overlay')].filter(img=>need.has(img.dataset.form+':'+img.dataset.layer));
+ if(!imgs.length)return false;
+ const jobs=imgs.map(img=>new Promise(resolve=>{
+   const done=async()=>{try{if(img.decode)await img.decode()}catch(_){} resolve(img.naturalWidth>0||img.src.startsWith('data:image/'));};
+   if(img.complete)done(); else {img.addEventListener('load',done,{once:true});img.addEventListener('error',()=>resolve(false),{once:true});}
+ }));
+ const ok=(await Promise.all(jobs)).every(Boolean);
+ if(ok){pet.classList.add('qinger-assets-ready');return true;}
+ console.warn('小晴儿分层素材未完整加载，本次保持隐藏');
+ return false;
+}
 function bindPet(){const old=document.getElementById('xiaoqingerSimplePet');if(!old)return;pet=old.cloneNode(true);old.replaceWith(pet);speech=pet.querySelector('#xiaoqingerSimpleSpeech');pet.dataset.bound='v11';window.ensureXiaoqingerVisible?.();window.restoreXiaoqingerPosition?.();
  let st={lastX:null,lastDir:0,path:0,rev:0,entered:0,active:false,timer:0};
  pet.addEventListener('pointermove',e=>{if(drag||e.buttons)return;const r=pet.getBoundingClientRect(),rx=(e.clientX-r.left)/r.width,ry=(e.clientY-r.top)/r.height;if(ry<.03||ry>.43||rx<.14||rx>.86){st.lastX=null;st.path=st.rev=st.entered=0;return}const now=performance.now();if(!st.entered)st.entered=now;if(st.lastX==null){st.lastX=e.clientX;return}const dx=e.clientX-st.lastX;st.lastX=e.clientX;if(Math.abs(dx)>=1){const d=Math.sign(dx);st.path+=Math.abs(dx);if(st.lastDir&&d!==st.lastDir)st.rev++;st.lastDir=d}if(!st.active&&(now-st.entered)>85&&st.path>17&&st.rev>=1)st.active=true;if(st.active){clearTimeout(st.timer);st.timer=setTimeout(()=>{st.active=false;st.lastX=null;st.path=st.rev=st.entered=0;strokeFeedback()},160)}});
  pet.addEventListener('pointerdown',e=>{if(e.button!=null&&e.button!==0)return;if(wake())return;touch();const r=pet.getBoundingClientRect();drag={id:e.pointerId,sx:e.clientX,sy:e.clientY,ox:e.clientX-r.left,oy:e.clientY-r.top,moved:false};pet.setPointerCapture?.(e.pointerId)});
  pet.addEventListener('pointermove',e=>{if(!drag||drag.id!==e.pointerId)return;const dx=e.clientX-drag.sx,dy=e.clientY-drag.sy;if(!drag.moved){if(Math.hypot(dx,dy)<5)return;if(state.base==='最饱'){pet.classList.add('pet-struggle');window.showXiaoqingerSimpleSpeech?.('她现在太兴奋了，控制不住');setTimeout(()=>pet.classList.remove('pet-struggle'),450);drag=null;return}if(state.base==='很饿'||state.base==='饿晕'){drag=null;return}if(!GRABBED[state.base]){drag=null;return}drag.moved=true;pet.classList.add('pet-grabbed');showLayers('grabbed',state.base);speech?.classList.remove('is-visible','speech-pop')}const ml=Math.max(0,innerWidth-pet.offsetWidth),mt=Math.max(64,innerHeight-pet.offsetHeight);pet.style.right='auto';pet.style.bottom='auto';pet.style.left=Math.max(0,Math.min(ml,e.clientX-drag.ox))+'px';pet.style.top=Math.max(64,Math.min(mt,e.clientY-drag.oy))+'px';positionHud();e.preventDefault()});
  const end=e=>{if(!drag||drag.id!==e.pointerId)return;if(drag.moved){suppressClickUntil=Date.now()+260;window.saveXiaoqingerPosition?.()}pet.classList.remove('pet-grabbed');drag=null;render();positionHud()};pet.addEventListener('pointerup',end);pet.addEventListener('pointercancel',end);
- pet.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();if(Date.now()<suppressClickUntil)return;if(wake())return;touch();window.xiaoqingerSayRandom?.()});render();scheduleBlink();positionHud();}
-function boot(){hud=document.getElementById('qingerPetHud');inv=document.getElementById('qingerInventory');setupRain();setupFood();bindPet();updateHud();cloudRead();clearInterval(behaviorTimer);behaviorTimer=setInterval(behaviorTick,15000);clearInterval(syncTimer);syncTimer=setInterval(cloudRead,3*60*1000);addEventListener('resize',positionHud);setInterval(scheduleBlink,7000)}
+ pet.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();if(Date.now()<suppressClickUntil)return;if(wake())return;touch();window.xiaoqingerSayRandom?.()});}
+async function boot(){
+ hud=document.getElementById('qingerPetHud');inv=document.getElementById('qingerInventory');setupRain();setupFood();bindPet();updateHud();
+ const ready=await preloadPetLayers();
+ if(ready){render();scheduleBlink();positionHud();}
+ cloudRead();clearInterval(behaviorTimer);behaviorTimer=setInterval(behaviorTick,15000);clearInterval(syncTimer);syncTimer=setInterval(cloudRead,3*60*1000);addEventListener('resize',positionHud);setInterval(scheduleBlink,7000)
+}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,1700),{once:true});else setTimeout(boot,1700);
 })();
 </script>
