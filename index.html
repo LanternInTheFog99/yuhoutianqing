@@ -1809,6 +1809,16 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 #xiaoqingerSimplePet.pet-night-sleep #qingerVisualStage{transform:none!important}
 #xiaoqingerSimplePet.pet-night-sleep{translate:none!important;scale:none!important}
 </style>
+
+<style id="qinger-v55-sleep-wake-attempt">
+/* 夜间试图喊醒：只扰动人物视觉层，不碰 sleep/ZZZ 状态机。 */
+#qingerVisualStage.qinger-sleep-attempt{animation:qingerSleepAttempt .18s ease-out}
+@keyframes qingerSleepAttempt{
+  0%{translate:0 0;rotate:0deg}
+  42%{translate:0 1.2px;rotate:-.18deg}
+  100%{translate:0 0;rotate:0deg}
+}
+</style>
 </head>
 <!-- v35: head-motion branch from v32 -->
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
@@ -16810,7 +16820,7 @@ const C={decayMs:45*60*1000,sleepHour:23,wakeHour:8,doze:{'轻微饥饿':{wait:7
 let state={hunger:80,gui:0,zhi:0,lastSettledAt:Date.now(),base:'较饱',behavior:'idle',lastInteraction:Date.now(),cloud:false,testMode:false};
 let testBehaviorForced=false;
 let veryHungryWakeDrainUntil=0,veryHungryWakeDrainLast=0;
-let pet=null, speech=null, hud=null, inv=null, drag=null, suppressClickUntil=0, blinkTimer=0, behaviorTimer=0, syncTimer=0, stroke=null, behaviorTimeouts=[],dozeStartedAt=0,dozeStage=0,dayNapUntil=0,nightWakeClicks=[],nightWakeProfile=null,nightAwakeUntil=0,veryHungrySince=0,veryHungryMoved=false,veryHungryWalking=false,veryHungryAtCorner=false,lastWhisperCheck=0,lastDozeRoll=0;
+let pet=null, speech=null, hud=null, inv=null, drag=null, suppressClickUntil=0, blinkTimer=0, behaviorTimer=0, syncTimer=0, stroke=null, behaviorTimeouts=[],dozeStartedAt=0,dozeStage=0,dayNapUntil=0,nightWakeClicks=[],nightWakeProfile=null,nightAwakeUntil=0,nightWakePending=false,veryHungrySince=0,veryHungryMoved=false,veryHungryWalking=false,veryHungryAtCorner=false,lastWhisperCheck=0,lastDozeRoll=0;
 const baseOf=h=>h<=0?'饿晕':h<10?'很饿':h<40?'轻微饥饿':h<70?'普通':h<90?'较饱':'最饱';
 const owner=()=>String(window.getEditorOwnerToken?.()||'').slice(0,200);
 const isNight=()=>{const h=new Date().getHours();return h>=23||h<8};
@@ -17004,8 +17014,20 @@ function scheduleNightResleep(profile){
   later(()=>{if(!isNight()||Date.now()<nightAwakeUntil)return;clearDozeVisualTimers();state.behavior='sleep';dozeMark('sleep');render()},7000)
  },wait)
 }
+function nightWakeAttemptFeedback(){
+ const stage=document.getElementById('qingerVisualStage');if(!stage)return;
+ stage.classList.remove('qinger-sleep-attempt');void stage.offsetWidth;stage.classList.add('qinger-sleep-attempt');
+ setTimeout(()=>stage?.classList.remove('qinger-sleep-attempt'),190);
+}
+function queueNightWake(profile){
+ if(nightWakePending||state.behavior!=='sleep')return true;
+ nightWakePending=true;
+ /* 最后一击也先完成轻微“喊她”反馈，再进入正式惊醒。 */
+ setTimeout(()=>{if(state.behavior==='sleep')wakeNight(profile);else nightWakePending=false},205);
+ return true;
+}
 function wakeNight(profile=nightWakeProfile||nightWakeProfileFor(baseOf(state.hunger))){
- clearBehaviorTimeouts();clearDozeVisualTimers();dozeMark('idle');nightWakeClicks=[];nightWakeProfile=null;
+ nightWakePending=false;clearBehaviorTimeouts();clearDozeVisualTimers();dozeMark('idle');nightWakeClicks=[];nightWakeProfile=null;
  /* 先给惊醒反馈，睡脸保留一小拍，再切惊醒表情。 */
  bodyWakeJolt(profile.jolt);
  later(()=>{
@@ -17030,20 +17052,22 @@ function wakeNight(profile=nightWakeProfile||nightWakeProfileFor(baseOf(state.hu
 }
 function sleepClick(){
  const now=Date.now(),currentBase=baseOf(state.hunger);
+ if(nightWakePending)return true;
  if(!nightWakeProfile)nightWakeProfile=nightWakeProfileFor(currentBase);
  const p=nightWakeProfile;
- pet?.classList.add('pet-click-feedback');setTimeout(()=>pet?.classList.remove('pet-click-feedback'),180);
+ /* 每一下都先给和白天点击同类、但更弱的受扰反馈；不 render、不 reset Z、不切表情。 */
+ nightWakeAttemptFeedback();
  if(p.base==='很饿'){
-  /* 很饿：每次点击都是独立同概率判定，不累计保底。 */
-  if(Math.random()<p.chance){wakeNight(p);return true}
-  bodyWakeJolt(.12,false);return false;
+  /* 很饿：每次点击独立 1%，命中也先播完轻反馈再正式惊醒。 */
+  if(Math.random()<p.chance)return queueNightWake(p);
+  return false;
  }
- /* 真正的连续呼喊链：只要求相邻两下不超过 0.6 秒；一旦断开就从这一下重新开始。 */
+ /* 连续呼喊链：相邻两下不超过 0.6 秒；断开就从当前这一下重新开始。 */
  const last=nightWakeClicks.length?nightWakeClicks[nightWakeClicks.length-1]:0;
  if(last&&now-last>p.gap)nightWakeClicks=[];
  nightWakeClicks.push(now);
- if(nightWakeClicks.length>=p.clicks){wakeNight(p);return true}
- return false
+ if(nightWakeClicks.length>=p.clicks)return queueNightWake(p);
+ return false;
 }
 let veryHungryMoveRaf=0,veryHungryMoveAnim=null,veryHungryHeadTimer=0,veryHungryShadeTimer=0,veryHungryTrailTimer=0,veryHungryTrailLast=null,veryHungryTrailRoute=null,veryHungryCornerTimer=0;
 function clearVeryHungryTrail(){
