@@ -16808,6 +16808,7 @@ const NORMAL_BASE=[2,3,4,5,6,7,8,9,23,24,25,26,27];
 const GRABBED_BASE=[2,3,4,5,6,7,8,9,23,24,25,26,27];
 const C={decayMs:45*60*1000,sleepHour:23,wakeHour:8,doze:{'轻微饥饿':{wait:7*60e3,every:3*60e3,p:.50},'普通':{wait:12*60e3,every:4*60e3,p:.35},'较饱':{wait:20*60e3,every:5*60e3,p:.20}},nightWakeIdle:12e3,veryHungryCorner:8e3};
 let state={hunger:80,gui:0,zhi:0,lastSettledAt:Date.now(),base:'较饱',behavior:'idle',lastInteraction:Date.now(),cloud:false,testMode:false};
+let testBehaviorForced=false;
 let pet=null, speech=null, hud=null, inv=null, drag=null, suppressClickUntil=0, blinkTimer=0, behaviorTimer=0, syncTimer=0, stroke=null, behaviorTimeouts=[],dozeStartedAt=0,dozeStage=0,dayNapUntil=0,nightWakeClicks=[],nightWakeProfile=null,nightAwakeUntil=0,veryHungrySince=0,veryHungryMoved=false,veryHungryWalking=false,veryHungryAtCorner=false,lastWhisperCheck=0,lastDozeRoll=0;
 const baseOf=h=>h<=0?'饿晕':h<10?'很饿':h<40?'轻微饥饿':h<70?'普通':h<90?'较饱':'最饱';
 const owner=()=>String(window.getEditorOwnerToken?.()||'').slice(0,200);
@@ -16898,10 +16899,10 @@ function setupFood(){
  const tm=document.getElementById('qingerTestMode'),hr=document.getElementById('qingerTestHunger'),hn=document.getElementById('qingerTestHungerNumber'),bs=document.getElementById('qingerTestBase'),bh=document.getElementById('qingerTestBehavior'),ui=document.getElementById('qingerUnlimitedItems');state.unlimitedItems=!!state.unlimitedItems;if(ui){ui.checked=state.unlimitedItems;ui.addEventListener('change',()=>{state.unlimitedItems=ui.checked;updateHud()})}
  const reps={'饿晕':0,'很饿':5,'轻微饥饿':25,'普通':55,'较饱':80,'最饱':100};
  const applyTest=()=>{state.base=baseOf(state.hunger);updateHud();syncRain();render();};
- if(tm)tm.addEventListener('change',()=>{state.testMode=tm.checked;if(!state.testMode)cloudRead();else applyTest()});
- const setTestHunger=v=>{if(!state.testMode){state.testMode=true;if(tm)tm.checked=true}state.hunger=Math.max(0,Math.min(100,Number(v)||0));state.behavior='idle';clearBehaviorTimeouts();applyTest()};if(hr){hr.addEventListener('pointerdown',e=>e.stopPropagation());hr.addEventListener('input',()=>setTestHunger(hr.value))}if(hn){hn.addEventListener('pointerdown',e=>e.stopPropagation());hn.addEventListener('input',()=>setTestHunger(hn.value))}
- if(bs)bs.addEventListener('change',()=>{if(!state.testMode){state.testMode=true;if(tm)tm.checked=true}if(Object.prototype.hasOwnProperty.call(reps,bs.value))state.hunger=reps[bs.value];state.behavior='idle';applyTest()});
- if(bh)bh.addEventListener('change',()=>{if(!state.testMode){state.testMode=true;if(tm)tm.checked=true}clearBehaviorTimeouts();clearDozeVisualTimers();state.behavior=bh.value;if(state.behavior==='withdrawn'){veryHungrySince=Date.now()-C.veryHungryCorner;veryHungryMoved=false;moveToCorner()}render();if(['doze1','doze2','doze3'].includes(state.behavior))renderDozeStage();updateHud()});
+ if(tm)tm.addEventListener('change',()=>{state.testMode=tm.checked;if(!state.testMode){testBehaviorForced=false;cloudRead()}else{testBehaviorForced=false;applyTest();behaviorTick()}});
+ const setTestHunger=v=>{if(!state.testMode){state.testMode=true;if(tm)tm.checked=true}testBehaviorForced=false;state.hunger=Math.max(0,Math.min(100,Number(v)||0));state.behavior='idle';clearBehaviorTimeouts();applyTest();behaviorTick()};if(hr){hr.addEventListener('pointerdown',e=>e.stopPropagation());hr.addEventListener('input',()=>setTestHunger(hr.value))}if(hn){hn.addEventListener('pointerdown',e=>e.stopPropagation());hn.addEventListener('input',()=>setTestHunger(hn.value))}
+ if(bs)bs.addEventListener('change',()=>{if(!state.testMode){state.testMode=true;if(tm)tm.checked=true}testBehaviorForced=false;if(Object.prototype.hasOwnProperty.call(reps,bs.value))state.hunger=reps[bs.value];state.behavior='idle';clearBehaviorTimeouts();applyTest();behaviorTick()});
+ if(bh)bh.addEventListener('change',()=>{if(!state.testMode){state.testMode=true;if(tm)tm.checked=true}testBehaviorForced=true;clearBehaviorTimeouts();clearDozeVisualTimers();state.behavior=bh.value;if(state.behavior==='withdrawn'){veryHungrySince=Date.now()-C.veryHungryCorner;veryHungryMoved=false;moveToCorner()}render();if(['doze1','doze2','doze3'].includes(state.behavior))renderDozeStage();updateHud()});
  const testModeOn=()=>{if(!state.testMode){state.testMode=true;if(tm)tm.checked=true}};
  document.getElementById('qingerTestWake')?.addEventListener('click',()=>{testModeOn();const back=['doze1','doze2','doze3'].includes(state.behavior)?state.behavior:'idle';clearBehaviorTimeouts();clearDozeVisualTimers();state.behavior='wake';resetDozeVisualState();render();bodyWakeJolt(back==='doze1'?.38:back==='doze2'?.62:back==='doze3'?.82:1);setTimeout(()=>{state.behavior=back;render();if(['doze1','doze2','doze3'].includes(back))renderDozeStage();else scheduleBlink();if(bh)bh.value=back;updateHud()},720)});
  document.getElementById('qingerTestDaynap')?.addEventListener('click',()=>{testModeOn();clearBehaviorTimeouts();clearDozeVisualTimers();state.behavior='daynap';dayNapUntil=Date.now()+45000;render();dozeMark('daynap');if(bh)bh.value='daynap';updateHud()});
@@ -16924,7 +16925,7 @@ function clearDozeVisualTimers(){clearTimeout(dozeVisualTimer);clearTimeout(doze
 function setDozeZCount(count){const z=document.getElementById('qingerZzz');if(!z)return;count=Math.max(0,Math.min(3,Number(count)||0));z.innerHTML='';for(let i=0;i<count;i++){const n=document.createElement('span');n.className='qz';n.textContent='z';z.appendChild(n)}z.style.display=count?'block':'none';if(count)positionHud()}
 function dozeMark(stage){clearTimeout(zCycleTimer);if(stage==='daynap'||stage==='sleep'){let n=0;const tick=()=>{if(!['daynap','sleep'].includes(state.behavior)){setDozeZCount(0);return}setDozeZCount(n);n=(n+1)%4;zCycleTimer=setTimeout(tick,n===0?1550:1750)};tick()}else setDozeZCount(0)}
 function showClosedDozeMark(stage){setDozeZCount(stage==='doze1'?1:stage==='doze2'?2:3)}
-function bodyWakeJolt(strength=1){if(!pet)return;resetDozeVisualState();pet.classList.remove('pet-wake-jolt','pet-wake-jolt-soft','pet-wake-jolt-mid');void pet.offsetWidth;const cls=strength<.55?'pet-wake-jolt-soft':strength<.82?'pet-wake-jolt-mid':'pet-wake-jolt';pet.classList.add(cls);setTimeout(()=>pet?.classList.remove(cls),460);bang(strength)}
+function bodyWakeJolt(strength=1,withBang=true){if(!pet)return;resetDozeVisualState();pet.classList.remove('pet-wake-jolt','pet-wake-jolt-soft','pet-wake-jolt-mid');void pet.offsetWidth;const cls=strength<.55?'pet-wake-jolt-soft':strength<.82?'pet-wake-jolt-mid':'pet-wake-jolt';pet.classList.add(cls);setTimeout(()=>pet?.classList.remove(cls),460);if(withBang)bang(strength)}
 function nodOnce(stage){if(!pet||state.behavior!==stage)return;pet.classList.remove('pet-doze-nod1','pet-doze-nod2','pet-doze-nod3');void pet.offsetWidth;pet.classList.add(stage==='doze1'?'pet-doze-nod1':stage==='doze2'?'pet-doze-nod2':'pet-doze-nod3')}
 function naturalDozeJolt(stage){
  if(state.behavior!==stage)return;
@@ -17031,13 +17032,13 @@ function sleepClick(){
  if(p.base==='很饿'){
   /* 很饿：每次点击都是独立同概率判定，不累计保底。 */
   if(Math.random()<p.chance){wakeNight(p);return true}
-  bodyWakeJolt(.12);return false;
+  bodyWakeJolt(.12,false);return false;
  }
  nightWakeClicks=nightWakeClicks.filter(t=>now-t<=p.window);nightWakeClicks.push(now);
  if(nightWakeClicks.length>=p.clicks){wakeNight(p);return true}
  return false
 }
-let veryHungryMoveRaf=0,veryHungryMoveAnim=null,veryHungryHeadTimer=0,veryHungryShadeTimer=0,veryHungryTrailTimer=0,veryHungryTrailLast=null,veryHungryTrailRoute=null;
+let veryHungryMoveRaf=0,veryHungryMoveAnim=null,veryHungryHeadTimer=0,veryHungryShadeTimer=0,veryHungryTrailTimer=0,veryHungryTrailLast=null,veryHungryTrailRoute=null,veryHungryCornerTimer=0;
 function clearVeryHungryTrail(){
  clearInterval(veryHungryTrailTimer);veryHungryTrailTimer=0;veryHungryTrailLast=null;
  if(veryHungryTrailRoute){veryHungryTrailRoute.remove();veryHungryTrailRoute=null}
@@ -17109,20 +17110,31 @@ function moveToCorner(){
  };
 }
 function maybeVeryHungryWhisper(){const now=Date.now();if(state.base!=='很饿'||now-lastWhisperCheck<8*60e3)return;lastWhisperCheck=now;if(Math.random()>.25)return;const cfg=window.normalizeXiaoqingerStoredConfig?.(window.xiaoqingerDialogueConfig)||window.loadXiaoqingerDialogues?.();const arr=cfg?.dialogues?.veryHungryWhisper||[];if(arr.length)window.showXiaoqingerSimpleSpeech?.(arr[Math.floor(Math.random()*arr.length)])}
+function scheduleVeryHungryCorner(){
+ if(state.base!=='很饿'||state.behavior==='sleep'||veryHungryAtCorner||veryHungryWalking)return;
+ if(!veryHungrySince)veryHungrySince=Date.now();
+ clearTimeout(veryHungryCornerTimer);
+ const wait=Math.max(0,C.veryHungryCorner-(Date.now()-veryHungrySince));
+ veryHungryCornerTimer=setTimeout(()=>{
+  veryHungryCornerTimer=0;
+  state.base=baseOf(state.hunger);
+  if(state.base==='很饿'&&state.behavior!=='sleep'&&!veryHungryAtCorner&&!veryHungryWalking)moveToCorner();
+ },wait);
+}
 function behaviorTick(){
  state.base=baseOf(state.hunger);syncRain();
- if(state.testMode){if(state.behavior==='withdrawn')moveToCorner();return render()}
+ if(state.testMode&&testBehaviorForced){if(state.behavior==='withdrawn')moveToCorner();return render()}
  const now=Date.now(),idle=now-state.lastInteraction;
  if(state.base==='饿晕'){clearBehaviorTimeouts();clearDozeVisualTimers();state.behavior='idle';dozeMark('idle');return render()}
  if(state.base==='很饿'){
   clearTimeout(blinkTimer);
   /* 睡着期间即使饱食掉进“很饿”，也不凭空下雨/遮罩/走角落。先保持这次睡眠。 */
-  if(state.behavior==='sleep'&&!veryHungryAtCorner){return render()}
+  if(state.behavior==='sleep'&&!veryHungryAtCorner){clearTimeout(veryHungryCornerTimer);veryHungryCornerTimer=0;return render()}
   if(veryHungryAtCorner&&state.behavior==='sleep'){syncRain();return render()}
   clearDozeVisualTimers();if(!veryHungrySince)veryHungrySince=now;
-  if(now-veryHungrySince>=C.veryHungryCorner)moveToCorner();maybeVeryHungryWhisper();return render()
+  if(now-veryHungrySince>=C.veryHungryCorner)moveToCorner();else scheduleVeryHungryCorner();maybeVeryHungryWhisper();return render()
  }else{
-  veryHungrySince=0;veryHungryMoved=false;veryHungryWalking=false;veryHungryAtCorner=false;clearVeryHungryVisuals();pet?.classList.remove('pet-withdrawn-gray','pet-hungry-walking','pet-hungry-arrived')
+  clearTimeout(veryHungryCornerTimer);veryHungryCornerTimer=0;veryHungrySince=0;veryHungryMoved=false;veryHungryWalking=false;veryHungryAtCorner=false;clearVeryHungryVisuals();pet?.classList.remove('pet-withdrawn-gray','pet-hungry-walking','pet-hungry-arrived')
  }
  if(state.base==='最饱'&&!isNight()){clearBehaviorTimeouts();clearDozeVisualTimers();state.behavior='idle';dozeMark('idle');render();return}
  if(isNight()){
