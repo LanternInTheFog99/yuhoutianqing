@@ -1803,8 +1803,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 /* v52：不再显示脚下黑线/步行路线。 */
 #xiaoqingerSimplePet::after,#qingerWalkFloorRoute,.qinger-walk-floor-seg{display:none!important}
 /* 晴儿本体整体略缩小，保持原比例。 */
-#xiaoqingerSimplePet{width:116px!important;height:144px!important}
-@media(max-width:639px){#xiaoqingerSimplePet{width:92px!important;height:116px!important}}
+#xiaoqingerSimplePet{width:122px!important;height:153px!important}
+@media(max-width:639px){#xiaoqingerSimplePet{width:97px!important;height:122px!important}}
 /* 撤销“整个人缩小=睡姿”的试作；夜间睡眠回到正常体型，由睡眠表情/Z/呼吸表达。 */
 #xiaoqingerSimplePet.pet-night-sleep #qingerVisualStage{transform:none!important}
 #xiaoqingerSimplePet.pet-night-sleep{translate:none!important;scale:none!important}
@@ -16809,6 +16809,7 @@ const GRABBED_BASE=[2,3,4,5,6,7,8,9,23,24,25,26,27];
 const C={decayMs:45*60*1000,sleepHour:23,wakeHour:8,doze:{'轻微饥饿':{wait:7*60e3,every:3*60e3,p:.50},'普通':{wait:12*60e3,every:4*60e3,p:.35},'较饱':{wait:20*60e3,every:5*60e3,p:.20}},nightWakeIdle:12e3,veryHungryCorner:8e3};
 let state={hunger:80,gui:0,zhi:0,lastSettledAt:Date.now(),base:'较饱',behavior:'idle',lastInteraction:Date.now(),cloud:false,testMode:false};
 let testBehaviorForced=false;
+let veryHungryWakeDrainUntil=0,veryHungryWakeDrainLast=0;
 let pet=null, speech=null, hud=null, inv=null, drag=null, suppressClickUntil=0, blinkTimer=0, behaviorTimer=0, syncTimer=0, stroke=null, behaviorTimeouts=[],dozeStartedAt=0,dozeStage=0,dayNapUntil=0,nightWakeClicks=[],nightWakeProfile=null,nightAwakeUntil=0,veryHungrySince=0,veryHungryMoved=false,veryHungryWalking=false,veryHungryAtCorner=false,lastWhisperCheck=0,lastDozeRoll=0;
 const baseOf=h=>h<=0?'饿晕':h<10?'很饿':h<40?'轻微饥饿':h<70?'普通':h<90?'较饱':'最饱';
 const owner=()=>String(window.getEditorOwnerToken?.()||'').slice(0,200);
@@ -16980,12 +16981,12 @@ function nightSleepRise(){
  if(stage)stage.getAnimations().forEach(a=>{try{a.cancel()}catch(_){}});
 }
 function nightWakeProfileFor(base){
- /* 唤醒规则按“用户开始喊她的那一刻”的当前饱食状态锁定本轮。 */
- if(base==='最饱')return{base,clicks:1,idle:38e3,jolt:.55,window:3200};
- if(base==='较饱')return{base,clicks:3,idle:20e3,jolt:1,window:3200};
- if(base==='轻微饥饿')return{base,clicks:5,idle:8e3,jolt:1,window:3400};
- if(base==='很饿')return{base,chance:.12,idle:6e3,jolt:.38,window:0};
- return{base:'普通',clicks:4,idle:C.nightWakeIdle,jolt:1,window:3200};
+ /* 本轮唤醒难度按用户开始喊她时的当前饱食状态锁定；普通档必须连续喊，每一下间隔不超过 0.6 秒。 */
+ if(base==='最饱')return{base,clicks:1,idle:38e3,jolt:.55,gap:600};
+ if(base==='较饱')return{base,clicks:3,idle:20e3,jolt:1,gap:600};
+ if(base==='轻微饥饿')return{base,clicks:5,idle:8e3,jolt:1,gap:600};
+ if(base==='很饿')return{base,chance:.01,idle:0,jolt:.38,gap:0,noResleep:true};
+ return{base:'普通',clicks:4,idle:C.nightWakeIdle,jolt:1,gap:600};
 }
 function scheduleNightResleep(profile){
  const wait=profile?.idle??C.nightWakeIdle;
@@ -17016,11 +17017,14 @@ function wakeNight(profile=nightWakeProfile||nightWakeProfileFor(baseOf(state.hu
    /* 真正喊醒后才让“当前的新饱食状态”接管后续行为。 */
    const currentBase=baseOf(state.hunger);
    if(currentBase==='很饿'){
-    /* 很饿被勉强喊醒会额外消耗少量饱食；测试态可直接观察。 */
-    state.hunger=Math.max(0,state.hunger-2);veryHungrySince=Date.now();
+    /* 很饿被勉强喊醒后不再自动睡回去；改为一段持续的额外饱食消耗。 */
+    veryHungryWakeDrainUntil=Date.now()+6*60e3;
+    veryHungryWakeDrainLast=Date.now();
+    veryHungrySince=Date.now();
    }
    updateHud();syncRain();render();scheduleBlink();
-   scheduleNightResleep(nightWakeProfileFor(baseOf(state.hunger)));
+   const nextProfile=nightWakeProfileFor(baseOf(state.hunger));
+   if(!nextProfile.noResleep)scheduleNightResleep(nextProfile);
   },620);
  },110)
 }
@@ -17034,7 +17038,10 @@ function sleepClick(){
   if(Math.random()<p.chance){wakeNight(p);return true}
   bodyWakeJolt(.12,false);return false;
  }
- nightWakeClicks=nightWakeClicks.filter(t=>now-t<=p.window);nightWakeClicks.push(now);
+ /* 真正的连续呼喊链：只要求相邻两下不超过 0.6 秒；一旦断开就从这一下重新开始。 */
+ const last=nightWakeClicks.length?nightWakeClicks[nightWakeClicks.length-1]:0;
+ if(last&&now-last>p.gap)nightWakeClicks=[];
+ nightWakeClicks.push(now);
  if(nightWakeClicks.length>=p.clicks){wakeNight(p);return true}
  return false
 }
@@ -17067,16 +17074,41 @@ function cancelVeryHungryMove(){
  if(pet){pet.style.removeProperty('translate');pet.classList.remove('pet-hungry-walking')}
  veryHungryWalking=false;
 }
+function veryHungryCornerTarget(){
+ if(!pet)return null;const r=pet.getBoundingClientRect();
+ const left=r.left<innerWidth/2?12:Math.max(12,innerWidth-r.width-12);
+ const top=Math.max(72,innerHeight-r.height-18);return{r,left,top};
+}
+function isAlreadyAtVeryHungryCorner(){
+ const t=veryHungryCornerTarget();if(!t)return false;
+ return Math.abs(t.r.left-t.left)<=18&&Math.abs(t.r.top-t.top)<=22;
+}
+function settleVeryHungryCorner(left=null,top=null){
+ if(!pet)return;
+ if(left!=null&&top!=null){pet.style.right='auto';pet.style.bottom='auto';pet.style.left=left+'px';pet.style.top=top+'px'}
+ pet.style.removeProperty('translate');pet.classList.remove('pet-hungry-walking');clearVeryHungryTrail();
+ veryHungryWalking=false;veryHungryMoved=true;veryHungryAtCorner=true;pet.classList.add('pet-hungry-arrived');
+ syncRain();positionHud();clearTimeout(veryHungryHeadTimer);clearTimeout(veryHungryShadeTimer);
+ veryHungryHeadTimer=setTimeout(()=>{
+  if(state.base!=='很饿'||!veryHungryAtCorner)return;
+  pet.classList.add('pet-hungry-head-down');
+  veryHungryShadeTimer=setTimeout(()=>{
+   if(state.base!=='很饿'||!veryHungryAtCorner)return;
+   ensureVeryHungryShade()?.classList.add('on');
+   if(isNight()&&state.behavior==='idle'&&!veryHungryWakeDrainUntil)later(()=>{if(isNight()&&state.base==='很饿'&&veryHungryAtCorner&&state.behavior==='idle'&&!veryHungryWakeDrainUntil){state.behavior='sleep';dozeMark('sleep');render()}},1400);
+  },820);
+ },400);
+}
 function moveToCorner(){
  if(!pet||veryHungryMoved)return;
+ if(isAlreadyAtVeryHungryCorner()){settleVeryHungryCorner();return;}
  veryHungryMoved=true;veryHungryWalking=true;veryHungryAtCorner=false;
  pet.classList.remove('pet-withdrawn-gray','pet-hungry-arrived','pet-hungry-head-down');
  document.getElementById('qingerSadShade')?.classList.remove('on');
  pet.classList.add('pet-hungry-walking');
  syncRain();
- const r=pet.getBoundingClientRect(),sx=r.left,sy=r.top;
- const leftTarget=sx<innerWidth/2?12:Math.max(12,innerWidth-r.width-12);
- const topTarget=Math.max(72,innerHeight-r.height-18);
+ const target=veryHungryCornerTarget(),r=target.r,sx=r.left,sy=r.top;
+ const leftTarget=target.left,topTarget=target.top;
  const dx=leftTarget-sx,dy=topTarget-sy,duration=12500;
  pet.style.transition='none';pet.style.right='auto';pet.style.bottom='auto';
  pet.style.left=sx+'px';pet.style.top=sy+'px';pet.style.removeProperty('translate');
@@ -17088,25 +17120,8 @@ function moveToCorner(){
  clearVeryHungryTrail();
  veryHungryMoveAnim.onfinish=()=>{
   if(!pet||!veryHungryWalking)return;
-  pet.style.left=leftTarget+'px';pet.style.top=topTarget+'px';
   try{veryHungryMoveAnim?.cancel()}catch(_){}veryHungryMoveAnim=null;
-  pet.style.removeProperty('translate');pet.classList.remove('pet-hungry-walking');
-  clearVeryHungryTrail();
-  veryHungryWalking=false;veryHungryAtCorner=true;
-  pet.classList.add('pet-hungry-arrived');
-  syncRain();positionHud();
-  clearTimeout(veryHungryHeadTimer);clearTimeout(veryHungryShadeTimer);
-  veryHungryHeadTimer=setTimeout(()=>{
-   if(state.base!=='很饿'||!veryHungryAtCorner)return;
-   /* 顺序：先下雨，再低头，最后遮罩。 */
-   pet.classList.add('pet-hungry-head-down');
-   veryHungryShadeTimer=setTimeout(()=>{
-    if(state.base!=='很饿'||!veryHungryAtCorner)return;
-    ensureVeryHungryShade()?.classList.add('on');
-    /* 很饿场景建立完成后，夜间才允许在雨和遮罩下重新睡着。 */
-    if(isNight()&&state.behavior==='idle')later(()=>{if(isNight()&&state.base==='很饿'&&veryHungryAtCorner&&state.behavior==='idle'){state.behavior='sleep';dozeMark('sleep');render()}},1400);
-   },820);
-  },400);
+  settleVeryHungryCorner(leftTarget,topTarget);
  };
 }
 function maybeVeryHungryWhisper(){const now=Date.now();if(state.base!=='很饿'||now-lastWhisperCheck<8*60e3)return;lastWhisperCheck=now;if(Math.random()>.25)return;const cfg=window.normalizeXiaoqingerStoredConfig?.(window.xiaoqingerDialogueConfig)||window.loadXiaoqingerDialogues?.();const arr=cfg?.dialogues?.veryHungryWhisper||[];if(arr.length)window.showXiaoqingerSimpleSpeech?.(arr[Math.floor(Math.random()*arr.length)])}
@@ -17118,10 +17133,19 @@ function scheduleVeryHungryCorner(){
  veryHungryCornerTimer=setTimeout(()=>{
   veryHungryCornerTimer=0;
   state.base=baseOf(state.hunger);
-  if(state.base==='很饿'&&state.behavior!=='sleep'&&!veryHungryAtCorner&&!veryHungryWalking)moveToCorner();
+  if(state.base==='很饿'&&state.behavior!=='sleep'&&!veryHungryAtCorner&&!veryHungryWalking){if(isAlreadyAtVeryHungryCorner())settleVeryHungryCorner();else moveToCorner();}
  },wait);
 }
+function applyVeryHungryWakeDrain(now=Date.now()){
+ if(!veryHungryWakeDrainUntil||now>=veryHungryWakeDrainUntil){veryHungryWakeDrainUntil=0;veryHungryWakeDrainLast=0;return}
+ if(baseOf(state.hunger)!=='很饿'||state.behavior==='sleep'){veryHungryWakeDrainUntil=0;veryHungryWakeDrainLast=0;return}
+ if(!veryHungryWakeDrainLast)veryHungryWakeDrainLast=now;
+ const elapsed=Math.max(0,now-veryHungryWakeDrainLast);veryHungryWakeDrainLast=now;
+ /* 额外消耗：约每分钟 0.5 点；按真实经过时间结算，不依赖 tick 次数。 */
+ if(elapsed>0){state.hunger=Math.max(0,state.hunger-elapsed/120000);updateHud()}
+}
 function behaviorTick(){
+ applyVeryHungryWakeDrain();
  state.base=baseOf(state.hunger);syncRain();
  if(state.testMode&&testBehaviorForced){if(state.behavior==='withdrawn')moveToCorner();return render()}
  const now=Date.now(),idle=now-state.lastInteraction;
@@ -17132,7 +17156,7 @@ function behaviorTick(){
   if(state.behavior==='sleep'&&!veryHungryAtCorner){clearTimeout(veryHungryCornerTimer);veryHungryCornerTimer=0;return render()}
   if(veryHungryAtCorner&&state.behavior==='sleep'){syncRain();return render()}
   clearDozeVisualTimers();if(!veryHungrySince)veryHungrySince=now;
-  if(now-veryHungrySince>=C.veryHungryCorner)moveToCorner();else scheduleVeryHungryCorner();maybeVeryHungryWhisper();return render()
+  if(now-veryHungrySince>=C.veryHungryCorner){if(isAlreadyAtVeryHungryCorner())settleVeryHungryCorner();else moveToCorner()}else scheduleVeryHungryCorner();maybeVeryHungryWhisper();return render()
  }else{
   clearTimeout(veryHungryCornerTimer);veryHungryCornerTimer=0;veryHungrySince=0;veryHungryMoved=false;veryHungryWalking=false;veryHungryAtCorner=false;clearVeryHungryVisuals();pet?.classList.remove('pet-withdrawn-gray','pet-hungry-walking','pet-hungry-arrived')
  }
