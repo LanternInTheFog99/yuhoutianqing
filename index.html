@@ -1785,7 +1785,20 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 <style id="qinger-v48-floor-walk-rain">#xiaoqingerSimplePet>#qingerRain{top:-42px!important;height:262px!important}#xiaoqingerSimplePet::after{content:"";position:absolute;left:24%;right:24%;bottom:2px;height:2px;border-radius:999px;background:rgba(17,24,39,.82);opacity:.88;pointer-events:none;transition:opacity .12s ease}#xiaoqingerSimplePet.pet-grabbed::after,#xiaoqingerSimplePet.pet-fainted::after,#xiaoqingerSimplePet.pet-hungry-walking::after{display:none!important}.qinger-walk-floor-seg{position:fixed;z-index:78;height:2px;border-radius:999px;pointer-events:none;background:rgba(17,24,39,.72);transform-origin:0 50%;animation:qingerWalkFloorFade .92s linear forwards}@keyframes qingerWalkFloorFade{0%{opacity:0}12%{opacity:.82}68%{opacity:.68}100%{opacity:0}}</style>
 \n<style id="qinger-v49-night-sleep-curl">\n/* v49 夜间睡眠试作：打瞌睡仍站立；真正 night sleep 后慢慢沉到地面、略微蜷缩。 */\n#xiaoqingerSimplePet.pet-night-sleep{\n  animation:qingerNightCurlSleep 5.4s cubic-bezier(.42,0,.32,1) infinite!important;\n  transform-origin:50% 94%!important;\n}\n@keyframes qingerNightCurlSleep{\n  0%{transform:translateY(0) scale(1,1)}\n  18%{transform:translateY(24px) scale(.925,.91)}\n  42%{transform:translateY(25px) scale(.929,.905)}\n  68%{transform:translateY(24.2px) scale(.924,.912)}\n  100%{transform:translateY(24px) scale(.925,.91)}\n}\n/* 睡着时地板线仍保留，但贴近“缩下来”后的身体底部，强化坐/蜷在地上的感觉。 */\n#xiaoqingerSimplePet.pet-night-sleep::after{bottom:-20px!important;left:29%!important;right:29%!important;opacity:.72!important}\n/* 被喊醒/自然醒：先从蜷缩位置抬起，再交给原来的惊醒反馈。 */\n#xiaoqingerSimplePet.pet-night-rise{\n  animation:qingerNightRise .72s cubic-bezier(.18,.82,.24,1) 1!important;\n  transform-origin:50% 94%!important;\n}\n@keyframes qingerNightRise{\n  0%{transform:translateY(24px) scale(.925,.91)}\n  58%{transform:translateY(5px) scale(.985,.98)}\n  100%{transform:translateY(0) scale(1)}\n}\n</style>\n
 \n<style id="qinger-v50-visual-fixes">\n/* 雨区整体再上移，不改雨滴数量/速度。 */\n#xiaoqingerSimplePet>#qingerRain{top:-52px!important}\n\n/* v48 之前有 display:none!important 残留：这里明确恢复站立地板线。 */\n#xiaoqingerSimplePet::after{display:block!important}\n#xiaoqingerSimplePet.pet-grabbed::after,\n#xiaoqingerSimplePet.pet-dragging::after,\n#xiaoqingerSimplePet.pet-fainted::after,\n#xiaoqingerSimplePet.pet-hungry-walking::after{display:none!important}\n\n/* 很饿走路：前方已有短短几段“地面”，脚经过后后方逐段淡掉。 */\n.qinger-walk-floor-seg{height:2px!important;background:rgba(17,24,39,.76)!important}\n.qinger-walk-floor-seg.is-ahead{animation:qingerWalkAheadLife .52s ease-out forwards!important}\n.qinger-walk-floor-seg.is-behind{animation:qingerWalkBehindLife .72s ease-out forwards!important}\n@keyframes qingerWalkAheadLife{0%{opacity:0;transform:var(--seg-rot) scaleX(.25)}35%,100%{opacity:.82;transform:var(--seg-rot) scaleX(1)}}\n@keyframes qingerWalkBehindLife{0%{opacity:.76;transform:var(--seg-rot) scaleX(1)}100%{opacity:0;transform:var(--seg-rot) scaleX(.35)}}\n\n/* 夜间真正睡着：不用根节点 transform 动画互相覆盖，直接用独立 translate/scale。 */\n#xiaoqingerSimplePet.pet-night-sleep{\n  animation:none!important;\n  translate:0 31px!important;\n  scale:.88 .84!important;\n  transform-origin:50% 94%!important;\n  transition:translate 1.15s cubic-bezier(.22,.72,.25,1),scale 1.15s cubic-bezier(.22,.72,.25,1)!important;\n}\n#xiaoqingerSimplePet.pet-night-sleep .qpet-layer.on{animation:qingerNightSleepBreath 4.2s ease-in-out infinite!important}\n@keyframes qingerNightSleepBreath{0%,100%{translate:0 0}50%{translate:0 1.4px}}\n#xiaoqingerSimplePet.pet-night-sleep::after{bottom:-27px!important;left:27%!important;right:27%!important;display:block!important}\n</style>\n
-</head>
+\n<style id="qinger-v51-structure-fixes">
+/* 老版本原版脚下黑线：完全恢复原始尺寸/位置/颜色。 */
+#xiaoqingerSimplePet::after{content:""!important;position:absolute!important;left:20%!important;right:20%!important;bottom:3px!important;height:2px!important;background:#111827!important;border-radius:9999px!important;opacity:.95!important;pointer-events:none!important;display:block!important}
+#xiaoqingerSimplePet.pet-grabbed::after,#xiaoqingerSimplePet.pet-dragging::after,#xiaoqingerSimplePet.pet-fainted::after,#xiaoqingerSimplePet.pet-hungry-walking::after{display:none!important}
+/* 人物图层独立舞台：位置/拖动留给 pet，睡姿只作用舞台。 */
+#qingerVisualStage{position:absolute;inset:0;pointer-events:none;transform-origin:50% 94%;transition:transform 1.15s cubic-bezier(.22,.72,.25,1)}
+#xiaoqingerSimplePet.pet-night-sleep{animation:none!important;translate:none!important;scale:none!important}
+#xiaoqingerSimplePet.pet-night-sleep #qingerVisualStage{transform:translateY(31px) scale(.88,.84)}
+#xiaoqingerSimplePet.pet-night-sleep #qingerVisualStage .qpet-layer.on{animation:qingerNightSleepBreathV51 4.2s ease-in-out infinite!important}
+@keyframes qingerNightSleepBreathV51{0%,100%{translate:0 0}50%{translate:0 1.4px}}
+#xiaoqingerSimplePet.pet-night-sleep::after{bottom:3px!important;left:20%!important;right:20%!important;opacity:.95!important}
+/* 很饿走路只使用一条连续路线，通过裁切窗口表现前方出现、后方消失。 */
+#qingerWalkFloorRoute{position:fixed;z-index:78;height:2px;background:#111827;border-radius:9999px;opacity:.95;pointer-events:none;transform-origin:0 50%;display:none}
+</style>\n</head>
 <!-- v35: head-motion branch from v32 -->
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
 <div id="invalidRoomAccessOverlay" aria-live="assertive" aria-label="此链接无效"><div class="invalid-room-card">此链接无效</div></div>
@@ -16826,10 +16839,15 @@ function updateHud(){
 function positionHud(){
  if(!pet)return;const r=pet.getBoundingClientRect();const i=document.getElementById('qingerInventory');
  if(i&&i.classList.contains('open')){
-  i.style.top='auto';i.style.bottom='58px';
-  const lowerRight=(r.left+r.width*.5)>innerWidth*.68&&(r.top+r.height*.5)>innerHeight*.62;
-  if(lowerRight){i.style.right='auto';i.style.left='18px'}
-  else{i.style.left='auto';i.style.right='18px'}
+  const set=(k,v)=>i.style.setProperty(k,v,'important');
+  set('top','auto');set('bottom',innerWidth<=639?'56px':'58px');set('left','auto');set('right',innerWidth<=639?'10px':'14px');
+  /* 先保留原版右侧位置；只有实际遮住晴儿时才换到左侧。CSS 里有 !important，所以这里也必须用 important。 */
+  requestAnimationFrame(()=>{
+   if(!i.classList.contains('open')||!pet)return;
+   const pr=pet.getBoundingClientRect(),ir=i.getBoundingClientRect(),m=12;
+   const overlap=!(ir.right<pr.left-m||ir.left>pr.right+m||ir.bottom<pr.top-m||ir.top>pr.bottom+m);
+   if(overlap){set('right','auto');set('left',innerWidth<=639?'10px':'18px')}
+  })
  }
  const z=document.getElementById('qingerZzz');if(z){z.style.left=(r.right-32)+'px';z.style.top=(r.top-12)+'px'}
  const b=document.getElementById('qingerBang');if(b){b.style.left=(r.right-25)+'px';b.style.top=(r.top-5)+'px'}
@@ -16943,39 +16961,47 @@ function renderDozeStage(){
 }
 function userWakeFromNap(){if(!['doze1','doze2','doze3','daynap'].includes(state.behavior))return false;clearBehaviorTimeouts();clearDozeVisualTimers();state.behavior='wake';dozeMark('idle');render();bodyWakeJolt();later(()=>{state.behavior='idle';render();scheduleBlink()},760);state.lastInteraction=Date.now();return true}
 function naturalWakeFromNap(){if(state.behavior!=='daynap')return false;clearBehaviorTimeouts();clearDozeVisualTimers();state.behavior='wake';dozeMark('idle');render();bodyWakeJolt();const stillSleepy=Math.random()<.68;later(()=>{if(stillSleepy&&['轻微饥饿','普通','较饱'].includes(state.base)&&!isNight()){state.behavior=Math.random()<.58?'doze3':'doze2';render();renderDozeStage()}else{state.behavior='idle';render();scheduleBlink()}},900);return true}
-function nightSleepRise(){if(!pet)return;pet.classList.remove('pet-night-sleep','pet-sleeping');pet.style.removeProperty('translate');pet.style.removeProperty('scale');pet.classList.remove('pet-night-rise');void pet.offsetWidth;pet.classList.add('pet-night-rise');setTimeout(()=>pet?.classList.remove('pet-night-rise'),760)}
-function wakeNight(){clearBehaviorTimeouts();clearDozeVisualTimers();nightSleepRise();state.behavior='wake';dozeMark('idle');render();setTimeout(()=>bodyWakeJolt(),430);nightAwakeUntil=Date.now()+C.nightWakeIdle;state.lastInteraction=Date.now();later(()=>{if(!isNight()||Date.now()<nightAwakeUntil)return;state.behavior='doze1';render();renderDozeStage();later(()=>{if(!isNight()||Date.now()<nightAwakeUntil)return;state.behavior='doze2';renderDozeStage()},2200);later(()=>{if(!isNight()||Date.now()<nightAwakeUntil)return;state.behavior='doze3';renderDozeStage()},4300);later(()=>{if(!isNight()||Date.now()<nightAwakeUntil)return;clearDozeVisualTimers();state.behavior='sleep';dozeMark('sleep');render()},7000)},C.nightWakeIdle)}
-function sleepClick(){const now=Date.now();nightWakeClicks=nightWakeClicks.filter(t=>now-t<=3000);nightWakeClicks.push(now);pet?.classList.add('pet-click-feedback');setTimeout(()=>pet?.classList.remove('pet-click-feedback'),180);if(nightWakeClicks.length>=4){nightWakeClicks=[];wakeNight();return true}return false}
-let veryHungryMoveRaf=0,veryHungryMoveAnim=null,veryHungryHeadTimer=0,veryHungryShadeTimer=0,veryHungryTrailTimer=0,veryHungryTrailLast=null;
+function nightSleepRise(){
+ if(!pet)return;
+ const stage=document.getElementById('qingerVisualStage');
+ pet.classList.remove('pet-night-sleep','pet-sleeping');
+ if(stage){stage.getAnimations().forEach(a=>{try{a.cancel()}catch(_){}});stage.animate([{transform:'translateY(31px) scale(.88,.84)'},{transform:'translateY(0) scale(1)'}],{duration:720,easing:'cubic-bezier(.18,.82,.24,1)',fill:'none'})}
+}
+function wakeNight(){
+ clearBehaviorTimeouts();clearDozeVisualTimers();dozeMark('idle');nightWakeClicks=[];
+ /* 达到唤醒阈值时先给“被吓醒”的身体/感叹号反馈，睡脸先保留一小拍。 */
+ bodyWakeJolt(1);
+ later(()=>{
+  if(state.behavior!=='sleep')return;
+  nightSleepRise();state.behavior='wake';render();
+  later(()=>{if(state.behavior!=='wake')return;state.behavior='idle';render();scheduleBlink()},620);
+ },110);
+ nightAwakeUntil=Date.now()+C.nightWakeIdle;state.lastInteraction=Date.now();
+ later(()=>{if(!isNight()||Date.now()<nightAwakeUntil||state.behavior!=='idle')return;state.behavior='doze1';render();renderDozeStage();later(()=>{if(!isNight()||Date.now()<nightAwakeUntil)return;state.behavior='doze2';renderDozeStage()},2200);later(()=>{if(!isNight()||Date.now()<nightAwakeUntil)return;state.behavior='doze3';renderDozeStage()},4300);later(()=>{if(!isNight()||Date.now()<nightAwakeUntil)return;clearDozeVisualTimers();state.behavior='sleep';dozeMark('sleep');render()},7000)},C.nightWakeIdle)
+}
+function sleepClick(){const now=Date.now();nightWakeClicks=nightWakeClicks.filter(t=>now-t<=3000);nightWakeClicks.push(now);pet?.classList.add('pet-click-feedback');setTimeout(()=>pet?.classList.remove('pet-click-feedback'),180);if(nightWakeClicks.length>=4){wakeNight();return true}return false}
+let veryHungryMoveRaf=0,veryHungryMoveAnim=null,veryHungryHeadTimer=0,veryHungryShadeTimer=0,veryHungryTrailTimer=0,veryHungryTrailLast=null,veryHungryTrailRoute=null;
 function clearVeryHungryTrail(){
  clearInterval(veryHungryTrailTimer);veryHungryTrailTimer=0;veryHungryTrailLast=null;
- document.querySelectorAll('.qinger-walk-floor-seg').forEach(n=>n.remove())
-}
-function addWalkFloorSeg(x,y,len,angle,kind,life){
- const seg=document.createElement('i');seg.className='qinger-walk-floor-seg '+kind;
- seg.style.left=x+'px';seg.style.top=y+'px';seg.style.width=len+'px';
- seg.style.setProperty('--seg-rot','rotate('+angle+'rad)');seg.style.transform='rotate('+angle+'rad)';
- document.body.appendChild(seg);setTimeout(()=>seg.remove(),life)
+ if(veryHungryTrailRoute){veryHungryTrailRoute.remove();veryHungryTrailRoute=null}
+ document.querySelectorAll('.qinger-walk-floor-seg,#qingerWalkFloorRoute').forEach(n=>n.remove())
 }
 function startVeryHungryTrail(targetX,targetY){
- clearVeryHungryTrail();
- const sample=()=>{
-  if(!pet||!veryHungryWalking)return;
-  const r=pet.getBoundingClientRect(),cx=r.left+r.width*.5,cy=r.bottom-3;
-  const vx=targetX-cx,vy=targetY-cy,dist=Math.hypot(vx,vy)||1,ux=vx/dist,uy=vy/dist,ang=Math.atan2(vy,vx);
-  /* 前方始终预留约 70px 的“路”，不是人物走过才画出来。 */
-  for(let k=0;k<3;k++){
-   const d=18+k*24;
-   addWalkFloorSeg(cx+ux*d,cy+uy*d,16,ang,'is-ahead',560);
-  }
-  /* 脚后只留两小段，并更快淡掉。 */
-  for(let k=0;k<2;k++){
-   const d=10+k*21;
-   addWalkFloorSeg(cx-ux*d,cy-uy*d,14,ang,'is-behind',760);
-  }
-  veryHungryTrailLast={x:cx,y:cy};
+ clearVeryHungryTrail();if(!pet)return;
+ const r=pet.getBoundingClientRect(),sx=r.left+r.width*.5,sy=r.bottom-3;
+ const dx=targetX-sx,dy=targetY-sy,len=Math.max(1,Math.hypot(dx,dy)),ang=Math.atan2(dy,dx);
+ const route=document.createElement('i');route.id='qingerWalkFloorRoute';route.style.left=sx+'px';route.style.top=sy+'px';route.style.width=len+'px';route.style.transform='rotate('+ang+'rad)';route.style.display='block';route.style.clipPath='inset(0 100% 0 0)';document.body.appendChild(route);veryHungryTrailRoute=route;
+ const started=performance.now(),duration=12500;
+ const frame=now=>{
+  if(!veryHungryWalking||!veryHungryTrailRoute)return;
+  const p=Math.max(0,Math.min(1,(now-started)/duration));
+  /* 可见窗口：脚前约 74px 已经存在，脚后约 38px 逐渐被吃掉。 */
+  const head=Math.min(len,p*len+74),tail=Math.max(0,p*len-38);
+  const leftPct=tail/len*100,rightPct=Math.max(0,100-head/len*100);
+  route.style.clipPath=`inset(0 ${rightPct}% 0 ${leftPct}%)`;
+  veryHungryMoveRaf=requestAnimationFrame(frame)
  };
- sample();veryHungryTrailTimer=setInterval(sample,360)
+ veryHungryMoveRaf=requestAnimationFrame(frame)
 }
 function cancelVeryHungryMove(){
  if(veryHungryMoveAnim){try{veryHungryMoveAnim.cancel()}catch(_){}veryHungryMoveAnim=null}
@@ -17007,7 +17033,7 @@ function moveToCorner(){
   pet.style.left=leftTarget+'px';pet.style.top=topTarget+'px';
   try{veryHungryMoveAnim?.cancel()}catch(_){}veryHungryMoveAnim=null;
   pet.style.removeProperty('translate');pet.classList.remove('pet-hungry-walking');
-  clearInterval(veryHungryTrailTimer);veryHungryTrailTimer=0;veryHungryTrailLast=null;
+  clearVeryHungryTrail();
   veryHungryWalking=false;veryHungryAtCorner=true;
   pet.classList.add('pet-hungry-arrived');
   syncRain();positionHud();
@@ -17061,11 +17087,14 @@ function createPetLayers(){
  speech=pet.querySelector('#xiaoqingerSimpleSpeech');
  pet.dataset.bound='layers-v20';
  pet.querySelectorAll('.qpet-layer').forEach(n=>n.remove());
+ let visualStage=document.getElementById('qingerVisualStage');
+ if(!visualStage){visualStage=document.createElement('div');visualStage.id='qingerVisualStage';pet.insertBefore(visualStage,speech||null)}
+ else visualStage.replaceChildren();
  const assets=window.XIAOQINGER_LAYER_ASSETS||{};
  qdiag.createdNormal=0;qdiag.createdGrabbed=0;
  for(const form of ['normal','grabbed']) for(const item of (assets[form]||[])){
    const img=document.createElement('img');img.className='qpet-layer';img.alt='';img.dataset.form=form;img.dataset.layer=String(item.id);img.src=item.src;
-   pet.insertBefore(img,speech||null); if(form==='normal')qdiag.createdNormal++;else qdiag.createdGrabbed++;
+   visualStage.appendChild(img); if(form==='normal')qdiag.createdNormal++;else qdiag.createdGrabbed++;
  }
  pet.style.setProperty('display','block','important');
  pet.style.setProperty('visibility','hidden','important');
