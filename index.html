@@ -1747,10 +1747,6 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 /* 很饿走路：原画方向用于向左；向右时只水平翻转人物视觉层。 */
 #xiaoqingerSimplePet.pet-hungry-walking.qinger-walk-right #qingerVisualStage{scale:-1 1}
 </style>
-\n\n\n\n
-\n
-\n
-
 </head>
 <!-- v35: head-motion branch from v32 -->
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
@@ -16736,6 +16732,9 @@ let pet=null, speech=null, hud=null, inv=null, drag=null, suppressClickUntil=0, 
 const baseOf=h=>h<=0?'饿晕':h<10?'很饿':h<40?'轻微饥饿':h<70?'普通':h<90?'较饱':'最饱';
 const owner=()=>String(window.getEditorOwnerToken?.()||'').slice(0,200);
 const isNight=()=>{const h=new Date().getHours();return h>=23||h<8};
+/* Only pages opened during 23:00-08:00 start visually asleep before the first cloud sync.
+   A page that stays open across 23:00 still follows the normal gradual bedtime flow. */
+const openedDuringNight=isNight();
 function clearBehaviorTimeouts(){behaviorTimeouts.forEach(clearTimeout);behaviorTimeouts=[]}function later(fn,ms){const id=setTimeout(fn,ms);behaviorTimeouts.push(id);return id}function touch(){state.lastInteraction=Date.now();if(['doze1','doze2','doze3','daynap'].includes(state.behavior)){state.behavior='wake';clearBehaviorTimeouts();setDozeZCount(0);render();bang();later(()=>{state.behavior='idle';render();scheduleBlink()},700)}}
 function layers(form,name){return (form==='grabbed'?GRABBED:NORMAL)[name]||NORMAL['普通'];}
 function baseLayers(form){return form==='grabbed'?GRABBED_BASE:NORMAL_BASE;}
@@ -17237,6 +17236,8 @@ async function boot(){
  if(!created)return;
  let ready=false;try{ready=await preloadPetLayers();}catch(e){console.error(e);return;}
  if(!ready)return;
+ /* Avoid a daytime-looking flash while waiting for the first cloud state read at night. */
+ if(openedDuringNight){state.behavior='sleep';dozeMark('sleep');}
  try{render();window.restoreXiaoqingerPosition?.();positionHud();}catch(e){console.error(e);return;}
  try{bindPetInteractions();scheduleBlink();}catch(e){console.warn(e)}
  try{ensurePetChrome();inv=document.getElementById('qingerInventory');setupRain();setupFood();updateHud();positionHud()}catch(e){console.warn(e)}
