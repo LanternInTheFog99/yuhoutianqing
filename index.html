@@ -1769,6 +1769,19 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 #xiaoqingerSimplePet>#qingerRain .qinger-drop{background:rgba(74,144,214,.68)!important;box-shadow:0 0 1px rgba(123,181,235,.25)!important;}
 </style>
 
+
+<style id="qinger-v47-hungry-arrival">
+/* 很饿进入与走路：彻底停掉旧的整身 qingerHungryLower；移动由独立 translate 动画负责。 */
+#xiaoqingerSimplePet.pet-sad:not(.pet-hungry-head-down){animation:none!important;}
+/* 抵达后才让完整头部组明显但克制地低下。 */
+#xiaoqingerSimplePet.pet-hungry-head-down .qpet-layer[data-head="1"],
+#xiaoqingerSimplePet.pet-hungry-head-down .qpet-head-layer{
+ translate:0 4.5px!important;rotate:.85deg!important;
+ transition:translate .82s cubic-bezier(.22,.7,.25,1),rotate .82s cubic-bezier(.22,.7,.25,1)!important;
+ transform-origin:50% 72%!important;
+}
+</style>
+
 </head>
 <!-- v35: head-motion branch from v32 -->
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
@@ -16955,11 +16968,9 @@ function moveToCorner(){
   clearTimeout(veryHungryHeadTimer);clearTimeout(veryHungryShadeTimer);
   veryHungryHeadTimer=setTimeout(()=>{
    if(state.base!=='很饿'||!veryHungryAtCorner)return;
+   /* 同一帧开始：低头 + 环境遮罩淡入。雨已在抵达时先开启。 */
    pet.classList.add('pet-hungry-head-down');
-   veryHungryShadeTimer=setTimeout(()=>{
-    if(state.base!=='很饿'||!veryHungryAtCorner)return;
-    ensureVeryHungryShade()?.classList.add('on');
-   },900);
+   ensureVeryHungryShade()?.classList.add('on');
   },400);
  };
 }
