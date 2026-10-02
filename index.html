@@ -2158,7 +2158,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 <button id="qingerDevToggle" type="button">小晴儿全图层配置</button>
 <div id="qingerDevPanel" aria-label="小晴儿 PSD 全图层配置台">
   <div class="qdev-title">小晴儿 PSD 全图层配置台</div>
-  <div class="qdev-note">这里不再预筛选：正常形态和被拎起形态各列出 PSD 的全部 28 个图层（Layer 0–27）。透明/空白图层也保留并标记。点击可组合预览；双击图层可独显。“隐藏默认本体”打开后，默认整图会完全消失，画面里只显示你当前勾选的 PSD 图层。</div>
+  <div class="qdev-note">这里不再预筛选：正常形态和被拎起形态各列出 PSD 的全部 28 个图层（Layer 0–27）。透明/空白图层也保留并标记。点击可开关图层并组合预览。“隐藏默认本体”打开后，默认整图会完全消失，画面里只显示你当前勾选的 PSD 图层。</div>
   <div class="qdev-tabs"><button class="qdev-tab active" data-form="normal">正常形态 · 28层</button><button class="qdev-tab" data-form="grabbed">被拎起形态 · 28层</button></div>
   <div id="qdevSelected" style="font-weight:700;margin:6px 0">已选：无</div>
   <div id="qdevGrid" class="qdev-grid"></div>
@@ -2178,7 +2178,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
  for(const f of ['normal','grabbed']) FORMS[f].forEach(item=>{const ov=document.createElement('img');ov.className='qdev-overlay';ov.alt='';ov.dataset.form=f;ov.dataset.layer=String(item.id);ov.src=item.src;pet.insertBefore(ov,document.getElementById('xiaoqingerSimpleSpeech'));overlays[f].set(item.id,ov)});
  function syncOverlays(){for(const f of ['normal','grabbed']) overlays[f].forEach((ov,id)=>ov.classList.toggle('on',f===form&&selected[f].has(id)));}
  function sync(){selectedText.textContent=(form==='normal'?'正常形态':'被拎起形态')+' 已选：'+(selected[form].size?[...selected[form]].map(x=>'L'+x).join(', '):'无');syncOverlays();}
- function renderGrid(){grid.innerHTML='';FORMS[form].forEach(item=>{const wrap=document.createElement('div');wrap.className='qdev-layer'+(selected[form].has(item.id)?' active':'')+(item.empty?' empty':'');wrap.dataset.layer=item.id;wrap.innerHTML='<img alt="图层 '+item.id+'" src="'+item.src+'"><span>Layer '+item.id+'</span><small>'+(item.empty?'透明/空白':'有像素')+'</small>';wrap.onclick=()=>{const s=selected[form];s.has(item.id)?s.delete(item.id):s.add(item.id);renderGrid();sync()};wrap.ondblclick=e=>{e.preventDefault();selected[form].clear();selected[form].add(item.id);renderGrid();sync()};grid.appendChild(wrap)});sync();}
+ function renderGrid(){grid.innerHTML='';FORMS[form].forEach(item=>{const wrap=document.createElement('div');wrap.className='qdev-layer'+(selected[form].has(item.id)?' active':'')+(item.empty?' empty':'');wrap.dataset.layer=item.id;wrap.innerHTML='<img alt="图层 '+item.id+'" src="'+item.src+'"><span>Layer '+item.id+'</span><small>'+(item.empty?'透明/空白':'有像素')+'</small>';wrap.onclick=()=>{const s=selected[form];s.has(item.id)?s.delete(item.id):s.add(item.id);renderGrid();sync()};grid.appendChild(wrap)});sync();}
  function setForm(f){form=f;document.querySelectorAll('.qdev-tab').forEach(b=>b.classList.toggle('active',b.dataset.form===f));renderGrid();}
  function clearCurrent(){selected[form].clear();renderGrid();}
  function loadCfg(){try{return JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){return {}}}
