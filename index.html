@@ -1762,6 +1762,13 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 #qingerSadShade.on{display:block;opacity:1}
 </style>
 
+
+<style id="qinger-v46-targeted">
+#xiaoqingerSimplePet.pet-sad:not(.pet-hungry-head-down),
+#xiaoqingerSimplePet.pet-sad.pet-hungry-walking{rotate:0deg!important;}
+#xiaoqingerSimplePet>#qingerRain .qinger-drop{background:rgba(74,144,214,.68)!important;box-shadow:0 0 1px rgba(123,181,235,.25)!important;}
+</style>
+
 </head>
 <!-- v35: head-motion branch from v32 -->
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
@@ -16820,9 +16827,9 @@ function ensureVeryHungryShade(){if(!pet)return null;let shade=document.getEleme
 function setupRain(){ensureVeryHungryShade();const rain=document.getElementById('qingerRain');if(!rain)return;rain.innerHTML='';for(let i=0;i<22;i++){const d=document.createElement('i');d.className='qinger-drop';d.style.left=(Math.random()*105)+'%';d.style.animationDelay=(-Math.random()*1.1)+'s';d.style.animationDuration=(.75+Math.random()*.75)+'s';rain.appendChild(d)}}
 function clearVeryHungryVisuals(){clearTimeout(veryHungryHeadTimer);clearTimeout(veryHungryShadeTimer);veryHungryHeadTimer=veryHungryShadeTimer=0;document.getElementById('qingerRain')?.classList.remove('on');document.getElementById('qingerSadShade')?.classList.remove('on');pet?.classList.remove('pet-hungry-arrived','pet-hungry-head-down','pet-withdrawn-gray')}
 function syncRain(){
- const hungry=state.base==='很饿';
- document.getElementById('qingerRain')?.classList.toggle('on',hungry);
- if(!hungry)clearVeryHungryVisuals();
+ const on=state.base==='很饿'&&veryHungryAtCorner;
+ document.getElementById('qingerRain')?.classList.toggle('on',on);
+ if(state.base!=='很饿')clearVeryHungryVisuals();
 }
 async function cloudRead(){try{const u='/timeline?type=xiaoqingerPet&ownerToken='+encodeURIComponent(owner());const d=await window.timelineApiFetch?.(u,12000);if(!d?.ok)return;if(!state.testMode)state.hunger=Number(d.hunger??state.hunger);state.gui=Number(d.inventory?.gui||0);state.zhi=Number(d.inventory?.zhi||0);state.lastSettledAt=Number(d.lastSettledAt||Date.now());state.cloud=true;updateHud();syncRain();render();}catch(e){console.warn('小晴儿状态同步失败',e)}}
 async function post(action,payload={}){return await window.timelineApiCloudWritePost?.(action,{ownerToken:owner(),...payload},{auth:false,timeoutMs:12000})}
