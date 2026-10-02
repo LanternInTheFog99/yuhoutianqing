@@ -1734,9 +1734,9 @@ to{transform:translateY(3px) rotate(-1.15deg)}}
 #qingerVisualStage{position:absolute;inset:0;pointer-events:none;transform-origin:50% 94%}
 
 #xiaoqingerSimplePet::after{display:none!important}
-/* 晴儿本体整体略缩小，保持原比例。 */
-#xiaoqingerSimplePet{width:127px!important;height:159px!important}
-@media(max-width:639px){#xiaoqingerSimplePet{width:101px!important;height:127px!important}}
+/* 晴儿本体尺寸：在 v61 基准上约放大 10%，保持原比例。 */
+#xiaoqingerSimplePet{width:134px!important;height:168px!important}
+@media(max-width:639px){#xiaoqingerSimplePet{width:107px!important;height:134px!important}}
 /* 撤销“整个人缩小=睡姿”的试作；夜间睡眠回到正常体型，由睡眠表情/Z/呼吸表达。 */
 
 /* 夜间试图喊醒：只扰动人物视觉层，不碰 sleep/ZZZ 状态机。 */
@@ -16830,17 +16830,18 @@ function foodProfileBase(){return baseOf(state.hunger)}
 function playFoodSniff(power=.35){const stage=document.getElementById('qingerVisualStage');if(!stage)return;power=Math.max(0,Math.min(1,Number(power)||0));const x=1+2.6*power,r=.18+.9*power;stage.style.setProperty('--qinger-food-sniff-ms',Math.round(330+170*power)+'ms');stage.style.setProperty('--qinger-sniff-left',(-x)+'px');stage.style.setProperty('--qinger-sniff-right',(x*1.08)+'px');stage.style.setProperty('--qinger-sniff-settle',(-x*.45)+'px');stage.style.setProperty('--qinger-sniff-rot-left',(-r)+'deg');stage.style.setProperty('--qinger-sniff-rot-right',(r*1.06)+'deg');stage.style.setProperty('--qinger-sniff-rot-settle',(-r*.42)+'deg');stage.classList.remove('qinger-food-sniff');void stage.offsetWidth;stage.classList.add('qinger-food-sniff');setTimeout(()=>stage?.classList.remove('qinger-food-sniff'),560)}
 function playFeedReaction(base,kind){const power=FOOD_REACTION[base]?.[kind]??.5;if(power<=0)return;const stage=document.getElementById('qingerVisualStage');if(!stage)return;const p=Math.max(0,Math.min(1.2,Number(power)||0));stage.style.setProperty('--qinger-feed-ms',Math.round(430+190*p)+'ms');stage.style.setProperty('--qinger-feed-lift',(-5*p)+'px');stage.style.setProperty('--qinger-feed-settle',(1*p)+'px');stage.style.setProperty('--qinger-feed-upscale',String(1+.025*p));stage.style.setProperty('--qinger-feed-downscale',String(1-.008*p));stage.style.setProperty('--qinger-feed-rot',(-1*p)+'deg');stage.style.setProperty('--qinger-feed-backrot',(.55*p)+'deg');stage.classList.remove('qinger-feed-react');void stage.offsetWidth;stage.classList.add('qinger-feed-react');setTimeout(()=>stage?.classList.remove('qinger-feed-react'),720)}
 function stopFoodWakeSensor(){if(!foodWakeSensor)return;clearTimeout(foodWakeSensor.dwell);clearInterval(foodWakeSensor.interval);foodWakeSensor=null}
-function wakeByFood(kind,base,profile){if(!isQingerSleeping())return;stopFoodWakeSensor();clearBehaviorTimeouts();clearDozeVisualTimers();dozeMark('idle');bodyWakeJolt(profile.j);later(()=>{if(!isQingerSleeping())return;nightSleepRise();state.behavior='wake';render();later(()=>{if(state.behavior!=='wake')return;state.behavior='idle';state.lastInteraction=Date.now();render();scheduleBlink();if(isNight()){const np=nightWakeProfileFor(baseOf(state.hunger));if(!np.noResleep)scheduleNightResleep(np)}},560)},100)}
+function wakeByFood(kind,base,profile){if(!isQingerSleeping())return;stopFoodWakeSensor();window.showToast?.(`小晴儿被${kind==='gui'?'龟糖':'直给糖'}的香味唤醒了`,'info');clearBehaviorTimeouts();clearDozeVisualTimers();dozeMark('idle');bodyWakeJolt(profile.j);later(()=>{if(!isQingerSleeping())return;nightSleepRise();state.behavior='wake';render();later(()=>{if(state.behavior!=='wake')return;state.behavior='idle';state.lastInteraction=Date.now();render();scheduleBlink();if(isNight()){const np=nightWakeProfileFor(baseOf(state.hunger));if(!np.noResleep)scheduleNightResleep(np)}},560)},100)}
 function foodWakeRoll(kind){if(!isQingerSleeping())return stopFoodWakeSensor();const base=foodProfileBase();if(base==='饿晕')return;const p=FOOD_WAKE[base]?.[kind];if(!p)return;playFoodSniff(p.w);if(Math.random()<p.p)wakeByFood(kind,base,p)}
 function updateFoodWakeSensor(kind,x,y){if(!isQingerSleeping()||state.base==='饿晕'){stopFoodWakeSensor();return}const r=pet?.getBoundingClientRect();if(!r)return;const pad=Math.max(42,Math.min(64,r.width*.45));const near=x>=r.left-pad&&x<=r.right+pad&&y>=r.top-pad&&y<=r.bottom+pad;if(!near){stopFoodWakeSensor();return}if(foodWakeSensor?.kind===kind)return;stopFoodWakeSensor();const sensor={kind,dwell:0,interval:0};foodWakeSensor=sensor;sensor.dwell=setTimeout(()=>{if(foodWakeSensor!==sensor||!isQingerSleeping())return;foodWakeRoll(kind);sensor.interval=setInterval(()=>{if(foodWakeSensor===sensor)foodWakeRoll(kind)},1350)},650)}
 function sleepingFeedTip(){const now=Date.now();if(now-foodSleepTipAt<1500)return;foodSleepTipAt=now;window.showToast?.('嘘，小晴儿现在正在睡觉呢','info')}
+function showFoodDialogue(kind){window.showXiaoqingerSimpleSpeech?.(kind==='gui'?'好龟啊，但是好好吃啊...':'震撼美味！')}
 async function feed(kind){
  try{
   const beforeBase=baseOf(state.hunger);
   if(isQingerSleeping()){sleepingFeedTip();return}
   if(beforeBase==='饿晕'&&kind!=='zhi'){window.showToast?.('小晴儿已经饿晕了，龟糖好像帮不上忙……','info');return}
-  if(state.unlimitedItems){state.testMode=true;const tm=document.getElementById('qingerTestMode');if(tm)tm.checked=true;state.hunger=Math.min(100,state.hunger+(kind==='zhi'?80:20));state.base=baseOf(state.hunger);state.behavior='idle';touch();updateHud();syncRain();render();requestAnimationFrame(()=>playFeedReaction(beforeBase,kind));window.showToast?.(kind==='zhi'?'测试投喂：直给糖':'测试投喂：龟糖','success');return}
-  const d=await post('xiaoqingerFeed',{food:kind});if(!d?.ok)throw new Error(d?.message||'喂食失败');state.hunger=Number(d.hunger);state.gui=Number(d.inventory?.gui||0);state.zhi=Number(d.inventory?.zhi||0);state.behavior='idle';touch();updateHud();syncRain();render();requestAnimationFrame(()=>playFeedReaction(beforeBase,kind));window.showToast?.(kind==='zhi'?'小晴儿吃下了舒心的直给糖':'小晴儿吃下了龟糖','success');
+  if(state.unlimitedItems){state.testMode=true;const tm=document.getElementById('qingerTestMode');if(tm)tm.checked=true;state.hunger=Math.min(100,state.hunger+(kind==='zhi'?80:20));state.base=baseOf(state.hunger);state.behavior='idle';touch();updateHud();syncRain();render();requestAnimationFrame(()=>playFeedReaction(beforeBase,kind));later(()=>showFoodDialogue(kind),180);window.showToast?.(kind==='zhi'?'测试投喂：直给糖':'测试投喂：龟糖','success');return}
+  const d=await post('xiaoqingerFeed',{food:kind});if(!d?.ok)throw new Error(d?.message||'喂食失败');state.hunger=Number(d.hunger);state.gui=Number(d.inventory?.gui||0);state.zhi=Number(d.inventory?.zhi||0);state.behavior='idle';touch();updateHud();syncRain();render();requestAnimationFrame(()=>playFeedReaction(beforeBase,kind));later(()=>showFoodDialogue(kind),180);window.showToast?.(kind==='zhi'?'小晴儿吃下了舒心的直给糖':'小晴儿吃下了龟糖','success');
  }catch(e){window.showToast?.(String(e?.message||e),'error')}
 }
 function toggleInventory(force){if(!inv)return;const open=typeof force==='boolean'?force:!inv.classList.contains('open');inv.classList.toggle('open',open);if(open){updateHud();positionHud()}}
