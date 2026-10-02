@@ -1398,6 +1398,22 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 <style id="qinger-render-diagnostic-style">
 </style>
 </style>
+
+<style id="qinger-ui-v27">
+#xiaoqingerSimplePet{width:146px!important;height:184px!important}
+#xiaoqingerSimpleSpeech{left:50%!important;right:auto!important;bottom:calc(100% + 3px)!important;transform:translate(-50%,3px) scale(.985)!important;transform-origin:50% 100%!important}
+#xiaoqingerSimpleSpeech.is-visible{transform:translate(-50%,0) scale(1)!important}
+#xiaoqingerSimpleSpeech::after{left:50%!important;right:auto!important;margin-left:-5px!important}
+#xiaoqingerDialogueEditorBtn{display:flex!important;left:14px!important;right:auto!important;bottom:14px!important;opacity:.72!important;width:34px!important;height:34px!important;background:rgba(255,255,255,.9)!important;border:1px solid #e2e8f0!important;color:#64748b!important;box-shadow:0 6px 18px rgba(15,23,42,.08)!important}
+#qingerInventoryBtn{position:fixed;right:14px;bottom:14px;z-index:146;width:38px;height:38px;border:1px solid #cbd5e1;border-radius:12px;background:rgba(255,255,255,.94);color:#64748b;box-shadow:0 8px 22px rgba(15,23,42,.12);cursor:pointer}
+#qingerInventory{right:14px!important;bottom:60px!important;left:auto!important;top:auto!important;width:300px;padding:13px;border-radius:16px}
+.qinger-inv-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;padding:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px}
+.qinger-slot{position:relative;aspect-ratio:1;border:1px solid #cbd5e1;border-radius:8px;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;min-width:0}
+.qinger-slot-empty{background:rgba(241,245,249,.75)}
+.qinger-food{margin:0;padding:3px;display:flex;cursor:grab;touch-action:none}.qinger-food img{width:90%;height:90%;object-fit:contain}.qinger-slot-count{position:absolute;right:4px;bottom:2px;font-size:11px;line-height:1;color:#334155;text-shadow:0 1px 2px #fff}
+.qinger-test-panel{margin-top:10px;padding:9px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px}.qinger-test-title{display:flex;align-items:center;justify-content:space-between;gap:8px}.qinger-test-toggle{display:flex;align-items:center;gap:5px;font-size:10px;color:#64748b}.qinger-test-row{margin-top:8px}.qinger-test-row label{display:flex;justify-content:space-between;margin-bottom:5px}.qinger-test-row input[type=range]{width:100%}.qinger-test-row .qinger-hunger-bar{display:block;margin-top:4px}.qinger-test-selects{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px}.qinger-test-selects label{font-size:10px;color:#64748b}.qinger-test-selects select{display:block;width:100%;margin-top:3px;padding:5px 6px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;color:#334155;font-size:11px}.qinger-test-note{display:block;margin-top:7px;color:#94a3b8;line-height:1.4}
+@media(max-width:639px){#xiaoqingerSimplePet{width:118px!important;height:149px!important}#qingerInventory{width:min(292px,calc(100vw - 20px))!important;right:10px!important;bottom:56px!important}#xiaoqingerDialogueEditorBtn{left:10px!important;bottom:10px!important}#qingerInventoryBtn{right:10px;bottom:10px}}
+</style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
 <div id="invalidRoomAccessOverlay" aria-live="assertive" aria-label="此链接无效"><div class="invalid-room-card">此链接无效</div></div>
@@ -16393,7 +16409,7 @@ const GRABBED={
 const NORMAL_BASE=[2,3,4,5,6,7,8,9,23,24,25,26,27];
 const GRABBED_BASE=[2,3,4,5,6,7,8,9,23,24,25,26,27];
 const C={decayMs:45*60*1000,idle1:5*60*1000,idle2:10*60*1000,idle3:15*60*1000,sleepHour:23,wakeHour:8};
-let state={hunger:80,gui:0,zhi:0,lastSettledAt:Date.now(),base:'较饱',behavior:'idle',lastInteraction:Date.now(),cloud:false};
+let state={hunger:80,gui:0,zhi:0,lastSettledAt:Date.now(),base:'较饱',behavior:'idle',lastInteraction:Date.now(),cloud:false,testMode:false};
 let pet=null, speech=null, hud=null, inv=null, drag=null, suppressClickUntil=0, blinkTimer=0, behaviorTimer=0, syncTimer=0, stroke=null;
 const baseOf=h=>h<=0?'饿晕':h<10?'很饿':h<40?'轻微饥饿':h<70?'普通':h<90?'较饱':'最饱';
 const owner=()=>String(window.getEditorOwnerToken?.()||'').slice(0,200);
@@ -16430,15 +16446,17 @@ function updateHud(){
  if(t)t.textContent=`${Math.max(0,Math.min(100,Math.floor(state.hunger)))}/100`;
  if(f)f.style.width=Math.max(0,Math.min(100,state.hunger))+'%';
  if(status)status.textContent=state.base;
- if(g)g.textContent=state.gui;if(z)z.textContent=state.zhi;positionHud();
+ if(g)g.textContent=state.gui;if(z)z.textContent=state.zhi;
+ const hr=document.getElementById('qingerTestHunger'),bs=document.getElementById('qingerTestBase'),bh=document.getElementById('qingerTestBehavior');if(hr&&document.activeElement!==hr)hr.value=String(Math.max(0,Math.min(100,state.hunger)));if(bs)bs.value=state.base;if(bh)bh.value=state.behavior;positionHud();
 }
-function positionHud(){if(!pet)return;const r=pet.getBoundingClientRect();const i=document.getElementById('qingerInventory');if(i&&i.classList.contains('open')){const w=i.offsetWidth||260,h=i.offsetHeight||220;let left=r.left+r.width/2-w/2,top=r.top-h-12;if(top<70)top=Math.min(innerHeight-h-10,r.bottom+12);i.style.left=Math.max(8,Math.min(innerWidth-w-8,left))+'px';i.style.top=Math.max(70,Math.min(innerHeight-h-8,top))+'px'}const z=document.getElementById('qingerZzz');if(z){z.style.left=(r.right-24)+'px';z.style.top=(r.top+18)+'px'}const b=document.getElementById('qingerBang');if(b){b.style.left=(r.right-18)+'px';b.style.top=(r.top-12)+'px'}}
+function positionHud(){if(!pet)return;const r=pet.getBoundingClientRect();const i=document.getElementById('qingerInventory');if(i&&i.classList.contains('open')){i.style.left='auto';i.style.top='auto';i.style.right='18px';i.style.bottom='58px'}const z=document.getElementById('qingerZzz');if(z){z.style.left=(r.right-24)+'px';z.style.top=(r.top+18)+'px'}const b=document.getElementById('qingerBang');if(b){b.style.left=(r.right-18)+'px';b.style.top=(r.top-12)+'px'}}
 function showZzz(on){const z=document.getElementById('qingerZzz');if(z)z.style.display=on?'block':'none';if(z)positionHud()}
 function bang(){const b=document.getElementById('qingerBang');if(!b)return;positionHud();b.style.display='block';setTimeout(()=>{if(b)b.style.display='none'},650)}
 function ensurePetChrome(){
  const defs=[
   ['qingerRain',()=>{const n=document.createElement('div');n.id='qingerRain';return n}],
-  ['qingerInventory',()=>{const n=document.createElement('div');n.id='qingerInventory';n.innerHTML='<div class="qinger-inv-head"><b>小晴儿</b><button id="qingerInvClose" class="qinger-inv-close" type="button" aria-label="关闭">×</button></div><div class="qinger-hunger-row"><span id="qingerHungerState">—</span><span class="qinger-hunger-bar"><span id="qingerHungerFill" class="qinger-hunger-fill" style="width:0%"></span></span><b id="qingerHungerText">--/100</b></div><b>物品栏</b><div class="qinger-food" data-food="gui"><img id="qingerGuiImg" alt="龟糖"><span><b>龟糖 × <span id="qingerGuiCount">0</span></b><small>拖给小晴儿 · +20</small></span></div><div class="qinger-food" data-food="zhi"><img id="qingerZhiImg" alt="直给"><span><b>直给 × <span id="qingerZhiCount">0</span></b><small>拖给小晴儿 · +80</small></span></div>';return n}],
+  ['qingerInventory',()=>{const n=document.createElement('div');n.id='qingerInventory';n.innerHTML='<div class="qinger-inv-head"><b>小晴儿物品栏</b><button id="qingerInvClose" class="qinger-inv-close" type="button" aria-label="关闭">×</button></div><div class="qinger-inv-grid"><div class="qinger-slot qinger-food" data-food="gui" title="龟糖"><img id="qingerGuiImg" alt="龟糖"><b id="qingerGuiCount" class="qinger-slot-count">0</b></div><div class="qinger-slot qinger-food" data-food="zhi" title="直给"><img id="qingerZhiImg" alt="直给"><b id="qingerZhiCount" class="qinger-slot-count">0</b></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div></div><div class="qinger-test-panel"><div class="qinger-test-title"><b>测试模式</b><label class="qinger-test-toggle"><input id="qingerTestMode" type="checkbox"><span>仅本机预览</span></label></div><div class="qinger-test-row"><label>饱食度 <b id="qingerHungerText">--/100</b></label><input id="qingerTestHunger" type="range" min="0" max="100" step="1" value="80"><span class="qinger-hunger-bar"><span id="qingerHungerFill" class="qinger-hunger-fill" style="width:80%"></span></span></div><div class="qinger-test-selects"><label>饱食状态<select id="qingerTestBase"><option>饿晕</option><option>很饿</option><option>轻微饥饿</option><option>普通</option><option>较饱</option><option>最饱</option></select></label><label>行为状态<select id="qingerTestBehavior"><option value="idle">普通</option><option value="doze">打瞌睡</option><option value="sleep">睡觉</option><option value="wake">惊醒</option></select></label></div><small class="qinger-test-note">测试模式只改变当前浏览器显示，不写入共享饱食度。</small></div>';return n}],
+  ['qingerInventoryBtn',()=>{const n=document.createElement('button');n.id='qingerInventoryBtn';n.type='button';n.title='物品栏';n.setAttribute('aria-label','小晴儿物品栏');n.innerHTML='<i class="fa-solid fa-box-open"></i>';return n}],
   ['qingerZzz',()=>{const n=document.createElement('div');n.id='qingerZzz';n.textContent='Zzz';return n}],
   ['qingerBang',()=>{const n=document.createElement('div');n.id='qingerBang';n.textContent='!';return n}]
  ];
@@ -16446,7 +16464,7 @@ function ensurePetChrome(){
 }
 function setupRain(){const rain=document.getElementById('qingerRain');if(!rain)return;rain.innerHTML='';for(let i=0;i<45;i++){const d=document.createElement('i');d.className='qinger-drop';d.style.left=(Math.random()*105)+'vw';d.style.animationDelay=(-Math.random()*1.1)+'s';d.style.animationDuration=(.75+Math.random()*.75)+'s';rain.appendChild(d)}}
 function syncRain(){document.getElementById('qingerRain')?.classList.toggle('on',state.base==='很饿')}
-async function cloudRead(){try{const u='/timeline?type=xiaoqingerPet&ownerToken='+encodeURIComponent(owner());const d=await window.timelineApiFetch?.(u,12000);if(!d?.ok)return;state.hunger=Number(d.hunger??state.hunger);state.gui=Number(d.inventory?.gui||0);state.zhi=Number(d.inventory?.zhi||0);state.lastSettledAt=Number(d.lastSettledAt||Date.now());state.cloud=true;updateHud();syncRain();render();}catch(e){console.warn('小晴儿状态同步失败',e)}}
+async function cloudRead(){try{const u='/timeline?type=xiaoqingerPet&ownerToken='+encodeURIComponent(owner());const d=await window.timelineApiFetch?.(u,12000);if(!d?.ok)return;if(!state.testMode)state.hunger=Number(d.hunger??state.hunger);state.gui=Number(d.inventory?.gui||0);state.zhi=Number(d.inventory?.zhi||0);state.lastSettledAt=Number(d.lastSettledAt||Date.now());state.cloud=true;updateHud();syncRain();render();}catch(e){console.warn('小晴儿状态同步失败',e)}}
 async function post(action,payload={}){return await window.timelineApiCloudWritePost?.(action,{ownerToken:owner(),...payload},{auth:false,timeoutMs:12000})}
 window.xiaoqingerClaimSaveReward=async eventData=>{if(!eventData?.id)return;try{const d=await post('xiaoqingerClaimReward',{eventId:String(eventData.id),revision:Number(eventData.revision)||0});if(d?.ok){state.gui=Number(d.inventory?.gui||state.gui);state.zhi=Number(d.inventory?.zhi||state.zhi);updateHud();if(d.reward==='gui')window.showToast?.('小晴儿捡到了一颗龟糖','success');else if(d.reward==='zhi')window.showToast?.('小晴儿捡到了舒心的直给糖','success');}}catch(e){console.warn(e)}};
 async function feed(kind){try{const d=await post('xiaoqingerFeed',{food:kind});if(!d?.ok)throw new Error(d?.message||'喂食失败');state.hunger=Number(d.hunger);state.gui=Number(d.inventory?.gui||0);state.zhi=Number(d.inventory?.zhi||0);state.behavior='idle';touch();updateHud();syncRain();render();window.showToast?.(kind==='zhi'?'小晴儿吃下了舒心的直给糖':'小晴儿吃下了龟糖','success');}catch(e){window.showToast?.(String(e?.message||e),'error')}}
@@ -16454,6 +16472,14 @@ function toggleInventory(force){if(!inv)return;const open=typeof force==='boolea
 function setupFood(){
  const gi=document.getElementById('qingerGuiImg'),zi=document.getElementById('qingerZhiImg');if(gi)gi.src=FOOD_GUI;if(zi)zi.src=FOOD_ZHI;
  document.getElementById('qingerInvClose')?.addEventListener('click',e=>{e.stopPropagation();toggleInventory(false)});
+ document.getElementById('qingerInventoryBtn')?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();toggleInventory()});
+ const tm=document.getElementById('qingerTestMode'),hr=document.getElementById('qingerTestHunger'),bs=document.getElementById('qingerTestBase'),bh=document.getElementById('qingerTestBehavior');
+ const reps={'饿晕':0,'很饿':5,'轻微饥饿':25,'普通':55,'较饱':80,'最饱':100};
+ const applyTest=()=>{state.base=baseOf(state.hunger);updateHud();syncRain();render();};
+ if(tm)tm.addEventListener('change',()=>{state.testMode=tm.checked;if(!state.testMode)cloudRead();else applyTest()});
+ if(hr)hr.addEventListener('input',()=>{if(!state.testMode){state.testMode=true;if(tm)tm.checked=true}state.hunger=Number(hr.value);state.behavior='idle';applyTest()});
+ if(bs)bs.addEventListener('change',()=>{if(!state.testMode){state.testMode=true;if(tm)tm.checked=true}if(Object.prototype.hasOwnProperty.call(reps,bs.value))state.hunger=reps[bs.value];state.behavior='idle';applyTest()});
+ if(bh)bh.addEventListener('change',()=>{if(!state.testMode){state.testMode=true;if(tm)tm.checked=true}state.behavior=bh.value;showZzz(state.behavior==='sleep'||state.behavior==='doze');if(state.behavior==='wake')bang();render();updateHud()});
  document.addEventListener('pointerdown',e=>{if(inv?.classList.contains('open')&&!inv.contains(e.target)&&!pet?.contains(e.target))toggleInventory(false)});
  document.querySelectorAll('.qinger-food').forEach(row=>row.addEventListener('pointerdown',e=>{const kind=row.dataset.food,count=kind==='gui'?state.gui:state.zhi;if(count<=0)return;const ghost=document.createElement('img');ghost.className='qinger-food-ghost';ghost.src=kind==='gui'?FOOD_GUI:FOOD_ZHI;document.body.appendChild(ghost);const move=ev=>{ghost.style.left=(ev.clientX-45)+'px';ghost.style.top=(ev.clientY-26)+'px'};move(e);const mm=ev=>move(ev);const up=ev=>{removeEventListener('pointermove',mm);removeEventListener('pointerup',up);const r=pet.getBoundingClientRect(),hit=ev.clientX>=r.left&&ev.clientX<=r.right&&ev.clientY>=r.top&&ev.clientY<=r.bottom;ghost.remove();if(hit)feed(kind)};addEventListener('pointermove',mm);addEventListener('pointerup',up,{once:true});e.preventDefault();e.stopPropagation()}));
 }
@@ -16533,7 +16559,7 @@ function bindPetInteractions(){
  pet.addEventListener('pointerdown',e=>{if(e.button!=null&&e.button!==0)return;if(wake())return;clearTimeout(clickTimer);resetStroke();touch();const r=pet.getBoundingClientRect();drag={id:e.pointerId,sx:e.clientX,sy:e.clientY,ox:e.clientX-r.left,oy:e.clientY-r.top,moved:false};pet.setPointerCapture?.(e.pointerId)});
  pet.addEventListener('pointermove',e=>{if(!drag||drag.id!==e.pointerId)return;const dx=e.clientX-drag.sx,dy=e.clientY-drag.sy;if(!drag.moved){if(Math.hypot(dx,dy)<5)return;resetStroke();if(state.base==='最饱'){pet.classList.add('pet-struggle');window.showXiaoqingerSimpleSpeech?.('她现在太兴奋了，控制不住');setTimeout(()=>pet.classList.remove('pet-struggle'),450);drag=null;return}if(state.base==='很饿'||state.base==='饿晕'||!GRABBED[state.base]){drag=null;return}drag.moved=true;pet.classList.add('pet-grabbed');render(state.base,'grabbed');speech?.classList.remove('is-visible','speech-pop')}const ml=Math.max(0,innerWidth-pet.offsetWidth),mt=Math.max(64,innerHeight-pet.offsetHeight);pet.style.right='auto';pet.style.bottom='auto';pet.style.left=Math.max(0,Math.min(ml,e.clientX-drag.ox))+'px';pet.style.top=Math.max(64,Math.min(mt,e.clientY-drag.oy))+'px';positionHud();e.preventDefault()});
  const end=e=>{if(!drag||drag.id!==e.pointerId)return;const moved=drag.moved;if(moved){suppressClickUntil=Date.now()+320;window.saveXiaoqingerPosition?.()}try{pet.releasePointerCapture?.(e.pointerId)}catch(_){}pet.classList.remove('pet-grabbed');drag=null;if(moved)render();positionHud()};pet.addEventListener('pointerup',end);pet.addEventListener('pointercancel',end);
- pet.addEventListener('dblclick',e=>{e.preventDefault();e.stopPropagation();clearTimeout(clickTimer);suppressClickUntil=Date.now()+360;if(drag?.moved)return;touch();toggleInventory()});
+ 
  pet.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();if(Date.now()<suppressClickUntil||drag?.moved)return;clearTimeout(clickTimer);clickTimer=setTimeout(()=>{if(Date.now()<suppressClickUntil)return;if(wake())return;touch();window.xiaoqingerSayRandom?.()},260)});
  qdiagUpdate('interactions-bound');
 }
