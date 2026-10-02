@@ -1403,7 +1403,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 </style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
-<div id="qingerRenderDiag"><div class="diag-title"><span>小晴儿显示诊断 v20</span><span><button id="qingerDiagCopy" type="button">复制</button> <button id="qingerDiagRefresh" type="button">刷新</button></span></div><div id="qingerRenderDiagText">等待初始化…</div></div>
+<div id="qingerRenderDiag"><div class="diag-title"><span>小晴儿显示诊断 v21</span><span><button id="qingerDiagCopy" type="button">复制</button> <button id="qingerDiagRefresh" type="button">刷新</button></span></div><div id="qingerRenderDiagText">等待初始化…</div></div>
 <div id="invalidRoomAccessOverlay" aria-live="assertive" aria-label="此链接无效"><div class="invalid-room-card">此链接无效</div></div>
 
 <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm relative">
@@ -16419,17 +16419,18 @@ function showLayers(form,name,override=null){
 }
 function render(name=state.base,form='normal'){
  state.base=baseOf(state.hunger); pet?.classList.remove('pet-fainted','pet-sleeping','pet-excited','pet-sad');
- if(state.behavior==='sleep'){showLayers('normal','睡觉');pet.classList.add('pet-sleeping');showZzz(true);return}
- showZzz(false);
+ if(state.behavior==='sleep'){showLayers('normal','睡觉');pet.classList.add('pet-sleeping');setZzzVisible(true);return}
+ setZzzVisible(false);
  if(state.behavior==='wake'){showLayers('normal','惊醒');return}
  if(state.base==='饿晕'){showLayers('normal','饿晕');pet.classList.add('pet-fainted');return}
  if(state.base==='很饿'){showLayers('normal','很饿');pet.classList.add('pet-sad');return}
  showLayers(form,name||state.base); if(state.base==='最饱'&&form==='normal')pet.classList.add('pet-excited');
 }
-function updateHud(){state.base=baseOf(state.hunger);document.getElementById('qingerHungerText').textContent=`${Math.max(0,Math.min(100,Math.floor(state.hunger)))}/100`;document.getElementById('qingerHungerFill').style.width=Math.max(0,Math.min(100,state.hunger))+'%';document.getElementById('qingerGuiCount').textContent=state.gui;document.getElementById('qingerZhiCount').textContent=state.zhi;positionHud();}
-function positionHud(){if(!pet)return;const r=pet.getBoundingClientRect();const h=document.getElementById('qingerPetHud');h.style.left=Math.max(6,Math.min(innerWidth-h.offsetWidth-6,r.left+r.width/2-h.offsetWidth/2))+'px';h.style.top=Math.max(66,r.top-30)+'px';const i=document.getElementById('qingerInventory');i.style.left=Math.max(8,Math.min(innerWidth-228,r.left+r.width-210))+'px';i.style.top=Math.max(70,Math.min(innerHeight-i.offsetHeight-8,r.top-180))+'px';const z=document.getElementById('qingerZzz');z.style.left=(r.right-24)+'px';z.style.top=(r.top+18)+'px';const b=document.getElementById('qingerBang');b.style.left=(r.right-18)+'px';b.style.top=(r.top-12)+'px';}
-function showZzz(on){const z=document.getElementById('qingerZzz');if(z)z.style.display=on?'block':'none';positionHud()}
-function bang(){const b=document.getElementById('qingerBang');positionHud();b.style.display='block';setTimeout(()=>b.style.display='none',650)}
+function setZzzVisible(on){const z=document.getElementById('qingerZzz');if(z)z.style.display=on?'block':'none'}
+function updateHud(){state.base=baseOf(state.hunger);const t=document.getElementById('qingerHungerText'),f=document.getElementById('qingerHungerFill'),g=document.getElementById('qingerGuiCount'),z=document.getElementById('qingerZhiCount');if(t)t.textContent=`${Math.max(0,Math.min(100,Math.floor(state.hunger)))}/100`;if(f)f.style.width=Math.max(0,Math.min(100,state.hunger))+'%';if(g)g.textContent=state.gui;if(z)z.textContent=state.zhi;positionHud();}
+function positionHud(){if(!pet)return;const r=pet.getBoundingClientRect();const h=document.getElementById('qingerPetHud');if(h){h.style.left=Math.max(6,Math.min(innerWidth-h.offsetWidth-6,r.left+r.width/2-h.offsetWidth/2))+'px';h.style.top=Math.max(66,r.top-30)+'px'}const i=document.getElementById('qingerInventory');if(i){i.style.left=Math.max(8,Math.min(innerWidth-228,r.left+r.width-210))+'px';i.style.top=Math.max(70,Math.min(innerHeight-i.offsetHeight-8,r.top-180))+'px'}const z=document.getElementById('qingerZzz');if(z){z.style.left=(r.right-24)+'px';z.style.top=(r.top+18)+'px'}const b=document.getElementById('qingerBang');if(b){b.style.left=(r.right-18)+'px';b.style.top=(r.top-12)+'px'}}
+function showZzz(on){const z=document.getElementById('qingerZzz');if(z)z.style.display=on?'block':'none';if(z)positionHud()}
+function bang(){const b=document.getElementById('qingerBang');if(!b)return;positionHud();b.style.display='block';setTimeout(()=>{if(b)b.style.display='none'},650)}
 function ensurePetChrome(){
  const defs=[
   ['qingerRain',()=>{const n=document.createElement('div');n.id='qingerRain';return n}],
