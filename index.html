@@ -6007,12 +6007,23 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         };
 
         window._connectionListFingerprint=function(list){
-            return JSON.stringify((Array.isArray(list)?list:[]).map(c=>({
-                id:String(c?.id??''),sourceId:String(c?.sourceId??''),targetId:String(c?.targetId??''),
-                type:String(c?.type??''),label:String(c?.label??''),color:String(c?.color??''),
-                style:String(c?.style??''),dir:String(c?.dir??''),
-                sourceSegmentId:String(c?.sourceSegmentId??''),targetSegmentId:String(c?.targetSegmentId??'')
-            })).sort((a,b)=>a.id.localeCompare(b.id)));
+            const normalize=value=>{
+                if(Array.isArray(value)) return value.map(normalize);
+                if(value&&typeof value==='object'){
+                    const out={};
+                    Object.keys(value).sort().forEach(key=>{
+                        const v=value[key];
+                        if(v===undefined||typeof v==='function')return;
+                        out[key]=normalize(v);
+                    });
+                    return out;
+                }
+                return value;
+            };
+            const connections=(Array.isArray(list)?list:[])
+                .map(c=>normalize(c))
+                .sort((a,b)=>String(a?.id??'').localeCompare(String(b?.id??'')));
+            return JSON.stringify(connections);
         };
         window._hasPendingTempUploads=function(){return !!window._editMediaTxn?.tempUploads?.length;};
 
