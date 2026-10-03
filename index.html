@@ -1730,15 +1730,41 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 @media(max-width:639px){#xiaoqingerSimplePet{width:107px!important;height:134px!important}}
 /* 撤销“整个人缩小=睡姿”的试作；夜间睡眠回到正常体型，由睡眠表情/Z/呼吸表达。 */
 
+/* 夜间正式睡眠专属真实低头：只移动头/表情图层，不缩放、不移动身体；与很饿自闭、白天打瞌睡完全分离。 */
+#xiaoqingerSimplePet.qinger-night-sleep-head-down .qpet-layer[data-layer="2"],
+#xiaoqingerSimplePet.qinger-night-sleep-head-down .qpet-layer[data-layer="9"],
+#xiaoqingerSimplePet.qinger-night-sleep-head-down .qpet-layer[data-layer="10"],
+#xiaoqingerSimplePet.qinger-night-sleep-head-down .qpet-layer[data-layer="11"],
+#xiaoqingerSimplePet.qinger-night-sleep-head-down .qpet-layer[data-layer="12"],
+#xiaoqingerSimplePet.qinger-night-sleep-head-down .qpet-layer[data-layer="13"],
+#xiaoqingerSimplePet.qinger-night-sleep-head-down .qpet-layer[data-layer="14"],
+#xiaoqingerSimplePet.qinger-night-sleep-head-down .qpet-layer[data-layer="15"],
+#xiaoqingerSimplePet.qinger-night-sleep-head-down .qpet-layer[data-layer="16"],
+#xiaoqingerSimplePet.qinger-night-sleep-head-down .qpet-layer[data-layer="17"],
+#xiaoqingerSimplePet.qinger-night-sleep-head-down .qpet-layer[data-layer="18"],
+#xiaoqingerSimplePet.qinger-night-sleep-head-down .qpet-layer[data-layer="19"],
+#xiaoqingerSimplePet.qinger-night-sleep-head-down .qpet-layer[data-layer="20"],
+#xiaoqingerSimplePet.qinger-night-sleep-head-down .qpet-layer[data-layer="21"],
+#xiaoqingerSimplePet.qinger-night-sleep-head-down .qpet-layer[data-layer="22"],
+#xiaoqingerSimplePet.qinger-night-sleep-head-down .qpet-layer[data-layer="23"],
+#xiaoqingerSimplePet.qinger-night-sleep-head-down .qpet-layer[data-layer="24"],
+#xiaoqingerSimplePet.qinger-night-sleep-head-down .qpet-layer[data-layer="25"],
+#xiaoqingerSimplePet.qinger-night-sleep-head-down .qpet-layer[data-layer="26"],
+#xiaoqingerSimplePet.qinger-night-sleep-head-down .qpet-layer[data-layer="27"]{transform:translateY(3.2px) rotate(1.15deg)!important;transform-origin:50% 88%!important;transition:transform 1.45s cubic-bezier(.32,.02,.22,1)!important}
+/* 入睡过程中头逐渐低下；睡醒过程中由同一组头部图层缓慢抬回。 */
+#xiaoqingerSimplePet.qinger-night-bedtime-1.qinger-night-sleep-head-down .qpet-layer{transition-duration:1.7s!important}
+#xiaoqingerSimplePet.qinger-night-bedtime-2.qinger-night-sleep-head-down .qpet-layer{transition-duration:2.2s!important}
+#xiaoqingerSimplePet.qinger-night-waking.qinger-night-sleep-head-down .qpet-layer{transition-duration:2.15s!important}
+
 /* 夜间试图喊醒：只扰动人物视觉层，不碰 sleep/ZZZ 状态机。 */
 #qingerVisualStage.qinger-sleep-attempt{animation:qingerSleepAttempt .18s ease-out}
 /* 夜间入睡/自然醒使用独立的缓慢过渡，不复用白天 doze / 惊醒动画。 */
 #xiaoqingerSimplePet.qinger-night-bedtime-1 #qingerVisualStage{animation:qingerNightBedtime1 1.7s cubic-bezier(.32,.02,.24,1) both}
 #xiaoqingerSimplePet.qinger-night-bedtime-2 #qingerVisualStage{animation:qingerNightBedtime2 2.2s cubic-bezier(.3,.02,.2,1) both}
 #xiaoqingerSimplePet.qinger-night-waking #qingerVisualStage{animation:qingerNightWakeNatural 2.15s cubic-bezier(.2,.65,.25,1) both}
-@keyframes qingerNightBedtime1{0%{transform:translateY(0) scale(1)}55%{transform:translateY(1px) scale(.995)}100%{transform:translateY(2.2px) scale(.985)}}
-@keyframes qingerNightBedtime2{0%{transform:translateY(2px) scale(.985)}55%{transform:translateY(4px) scale(.965)}100%{transform:translateY(6px) scale(.94)}}
-@keyframes qingerNightWakeNatural{0%{transform:translateY(6px) scale(.94)}55%{transform:translateY(2px) scale(.982)}100%{transform:translateY(0) scale(1)}}
+@keyframes qingerNightBedtime1{0%,100%{transform:translateY(0) rotate(0deg)}}
+@keyframes qingerNightBedtime2{0%,100%{transform:translateY(0) rotate(0deg)}}
+@keyframes qingerNightWakeNatural{0%,100%{transform:translateY(0) rotate(0deg)}}
 @keyframes qingerSleepAttempt{
   0%{translate:0 0;rotate:0deg}
   42%{translate:0 1.2px;rotate:-.18deg}
@@ -16774,14 +16800,14 @@ function showLayers(form,name,override=null){
  pet.querySelectorAll('.qpet-layer').forEach(x=>x.classList.toggle('on',x.dataset.form===form&&wanted.has(Number(x.dataset.layer))));
 }
 function render(name=state.base,form='normal'){
- state.base=baseOf(state.hunger); if(state.base!=='很饿'){cancelVeryHungryMove();veryHungryAtCorner=false;veryHungryMoved=false;clearVeryHungryVisuals()} pet?.classList.remove('pet-fainted','pet-sleeping','pet-excited','pet-sad');
+ state.base=baseOf(state.hunger); if(state.base!=='很饿'){cancelVeryHungryMove();veryHungryAtCorner=false;veryHungryMoved=false;clearVeryHungryVisuals()} pet?.classList.remove('pet-fainted','pet-sleeping','pet-excited','pet-sad','qinger-night-sleep-head-down');
  // Dragging owns the visual form until pointerup/cancel. Background sync, blink and behavior ticks may not steal it.
  if(drag?.moved){
-  if(state.behavior==='sleep'||state.behavior==='daynap'){showLayers('grabbed','睡觉');pet.classList.add('pet-sleeping');return}
+  if(state.behavior==='sleep'||state.behavior==='daynap'){showLayers('grabbed','睡觉');pet.classList.add('pet-sleeping');if(state.behavior==='sleep')pet.classList.add('qinger-night-sleep-head-down');return}
   if(state.behavior==='wake'){setDozeZCount(0);showLayers('grabbed','惊醒');return}
   setDozeZCount(0);showLayers('grabbed',name||state.base);return
  }
- if(state.behavior==='sleep'||state.behavior==='daynap'){showLayers('normal','睡觉');pet.classList.add('pet-sleeping');return}
+ if(state.behavior==='sleep'||state.behavior==='daynap'){showLayers('normal','睡觉');pet.classList.add('pet-sleeping');if(state.behavior==='sleep')pet.classList.add('qinger-night-sleep-head-down');return}
  if(state.behavior==='nightSleepTransition'||state.behavior==='nightWaking')return;
  if(['doze1','doze2','doze3'].includes(state.behavior)){if(dozeVisualOwnerStage===state.behavior&&dozeVisualPhase==='closed')showLayers('normal',state.base,closedLayersFor(state.base));else{showLayers('normal',state.base)}return}
  setDozeZCount(0);
@@ -17014,14 +17040,14 @@ function slowOpenNightEyes(form='normal',base=state.base,duration=900){
 }
 function startNightSleepTransition({test=false}={}){
  clearBehaviorTimeouts();clearDozeVisualTimers();clearNightTransitionVisuals();const token=nightTransitionToken;dozeMark('idle');state.behavior='nightSleepTransition';render();
- pet?.classList.add('qinger-night-bedtime-1');showLayers('normal',state.base);
+ pet?.classList.add('qinger-night-bedtime-1','qinger-night-sleep-head-down');showLayers('normal',state.base);
  later(()=>{if(token!==nightTransitionToken||state.behavior!=='nightSleepTransition'||(!test&&!isNight()))return;showLayers('normal',state.base,closedLayersFor(state.base));pet?.classList.remove('qinger-night-bedtime-1');pet?.classList.add('qinger-night-bedtime-2')},1700);
  later(()=>{if(token!==nightTransitionToken||state.behavior!=='nightSleepTransition'||(!test&&!isNight()))return;showLayers('normal','睡觉')},3300);
  later(()=>{if(token!==nightTransitionToken||state.behavior!=='nightSleepTransition'||(!test&&!isNight()))return;pet?.classList.remove('qinger-night-bedtime-2');state.behavior='sleep';dozeMark('sleep');render()},5000);return true
 }
 function naturalWakeNight(){
- if(state.behavior!=='sleep')return false;clearBehaviorTimeouts();clearDozeVisualTimers();clearNightTransitionVisuals();const token=nightTransitionToken;dozeMark('idle');veryHungryDeepSleep=false;veryHungryWakeConfirmed=false;nightSleepRise();state.behavior='nightWaking';pet?.classList.add('qinger-night-waking');showLayers('normal','睡觉');
- later(()=>{if(token!==nightTransitionToken||state.behavior!=='nightWaking')return;showLayers('normal',state.base,closedLayersFor(state.base));slowOpenNightEyes('normal',state.base,950)},620);
+ if(state.behavior!=='sleep')return false;clearBehaviorTimeouts();clearDozeVisualTimers();clearNightTransitionVisuals();const token=nightTransitionToken;dozeMark('idle');veryHungryDeepSleep=false;veryHungryWakeConfirmed=false;state.base=baseOf(state.hunger);nightSleepRise();state.behavior='nightWaking';pet?.classList.add('qinger-night-waking','qinger-night-sleep-head-down');showLayers('normal','睡觉');
+ later(()=>{if(token!==nightTransitionToken||state.behavior!=='nightWaking')return;state.base=baseOf(state.hunger);showLayers('normal',state.base,closedLayersFor(state.base));pet?.classList.remove('qinger-night-sleep-head-down');slowOpenNightEyes('normal',state.base,950)},620);
  later(()=>{if(token!==nightTransitionToken||state.behavior!=='nightWaking')return;pet?.classList.remove('qinger-night-waking');state.behavior='idle';state.lastInteraction=Date.now();render();scheduleBlink()},1900);return true
 }
 function testNightSleepProcess(){return startNightSleepTransition({test:true})}
