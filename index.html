@@ -4169,6 +4169,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             ['xiaoqingerDialogueEditorBtn','developerModeBtn','manualBackupBtn'].forEach(id=>document.getElementById(id)?.classList.toggle('hidden',!show));
             const dev=document.getElementById('developerModeBtn');
             if(dev){ dev.classList.toggle('text-indigo-500',show&&window.isDeveloperMode?.()); dev.title=window.isDeveloperMode?.()?'开发者模式已启用':'开发者模式'; }
+            window.updateQingerTestPanelVisibility?.();
         };
         window.requestDeveloperMode = async function(){
             if(!window.canEditNow?.()){ window.showToast?.('请先进入编辑模式','error'); return; }
@@ -7046,7 +7047,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                         </div>
                     </div>
                 </div>
-                <div id="connEditAdaptiveFields">${(()=>{const selfMulti=selfEvent?.timeMode==='multi',otherMulti=otherEvent?.timeMode==='multi';if(!selfMulti&&!otherMulti)return '';const otherVal=selfIsSource?conn.targetSegmentId:conn.sourceSegmentId;if(selfMulti&&otherMulti)return `<div id="connEditTimeRow" class="grid grid-cols-2 gap-2 mt-3"><select id="connEditSelfSegment" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white">${window.getConnectionSegmentOptions(selfEvent,'当前时间')}</select><select id="connEditOtherSegment" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white">${window.getConnectionSegmentOptions(otherEvent,'连线时间')}</select></div>`;const eventForSeg=selfMulti?selfEvent:otherEvent;const id=selfMulti?'connEditSelfSegment':'connEditOtherSegment';const prefix=selfMulti?'当前时间':'连线时间';return `<div id="connEditTimeRow" class="mt-3"><select id="${id}" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white">${window.getConnectionSegmentOptions(eventForSeg,prefix)}</select></div>`;})()}
+                <div id="connEditAdaptiveFields">${(()=>{const selfMulti=selfEvent?.timeMode==='multi',otherMulti=otherEvent?.timeMode==='multi';if(!selfMulti&&!otherMulti)return '';if(selfMulti&&otherMulti)return `<div id="connEditTimeRow" class="grid grid-cols-2 gap-2 mt-3"><select id="connEditSelfSegment" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white">${window.getConnectionSegmentOptions(selfEvent,'当前时间')}</select><select id="connEditOtherSegment" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white">${window.getConnectionSegmentOptions(otherEvent,'连线时间')}</select></div>`;const eventForSeg=selfMulti?selfEvent:otherEvent;const id=selfMulti?'connEditSelfSegment':'connEditOtherSegment';const prefix=selfMulti?'当前时间':'连线时间';return `<div id="connEditTimeRow" class="mt-3"><select id="${id}" class="w-full min-w-0 px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white">${window.getConnectionSegmentOptions(eventForSeg,prefix)}</select></div>`;})()}
                 <label class="block mt-3"><span class="block text-[10px] font-semibold text-slate-500 mb-1">连线文字</span><input id="connEditLabel" maxlength="40" value="${escapeHtml(conn.label||'')}" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs"></label></div>
                 <div class="mt-3"><span class="block text-[10px] font-semibold text-slate-500 mb-1.5">方向</span><div class="grid grid-cols-3 gap-1.5">${[['forward','→ 指向'],['backward','← 被指向'],['both','↔ 双向']].map(([v,t])=>`<label class="cursor-pointer"><input type="radio" name="connEditDirection" value="${v}" ${relativeDir===v?'checked':''} class="sr-only peer"><span class="flex items-center justify-center px-2 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] peer-checked:border-indigo-400 peer-checked:bg-indigo-100 peer-checked:text-indigo-700 font-semibold">${t}</span></label>`).join('')}</div></div>
                 <div class="flex justify-end gap-2 mt-5"><button type="button" onclick="closeConnectionEditModal()" class="px-3 py-2 border border-slate-300 rounded-lg text-xs">取消</button><button type="button" onclick="saveConnectionEdit('${safeConnId}')" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-semibold">保存修改</button></div>
@@ -14765,7 +14766,6 @@ viewer.style.visibility='';
         };
 
         window.onresize = () => {
-            const activeHelpPanel=['helpUsagePanel','helpChangelogPanel','helpActivityPanel','helpThanksPanel'].map(id=>document.getElementById(id)).find(el=>el && !el.classList.contains('hidden'));
             const detailViewer=document.getElementById('fullscreenViewer');
             if(detailViewer && !detailViewer.classList.contains('hidden')){
                 window.syncXiaoqingerForDetail?.(true);
@@ -16796,7 +16796,7 @@ const NORMAL_BASE=[2,3,4,5,6,7,8,9,23,24,25,26,27];
 const GRABBED_BASE=[2,3,4,5,6,7,8,9,23,24,25,26,27];
 const C={decayMs:45*60*1000,sleepHour:23,wakeHour:8,doze:{'轻微饥饿':{wait:7*60e3,every:3*60e3,p:.50},'普通':{wait:12*60e3,every:4*60e3,p:.35},'较饱':{wait:20*60e3,every:5*60e3,p:.20}},nightWakeIdle:12e3,veryHungryCorner:8e3};
 let state={hunger:80,gui:0,zhi:0,lastSettledAt:Date.now(),base:'较饱',behavior:'idle',lastInteraction:Date.now(),cloud:false,testMode:false,unlimitedItems:false};
-let testBehaviorForced=false,hasCloudSnapshot=false,veryHungryWakeConfirmed=false,veryHungryDeepSleep=false,deepSleepTipAt=0;
+let hasCloudSnapshot=false,veryHungryWakeConfirmed=false,veryHungryDeepSleep=false,deepSleepTipAt=0;
 let veryHungryWakeDrainUntil=0,veryHungryWakeDrainLast=0;
 let pet=null, speech=null, hud=null, inv=null, drag=null, suppressClickUntil=0, blinkTimer=0, behaviorTimer=0, syncTimer=0, stroke=null, behaviorTimeouts=[],dayNapUntil=0,nightWakeClicks=[],nightWakeProfile=null,nightAwakeUntil=0,nightWakePending=false,veryHungrySince=0,veryHungryMoved=false,veryHungryWalking=false,veryHungryAtCorner=false,lastWhisperCheck=0,lastDozeRoll=0;
 const baseOf=h=>h<=0?'饿晕':h<10?'很饿':h<40?'轻微饥饿':h<70?'普通':h<90?'较饱':'最饱';
@@ -16854,7 +16854,7 @@ function updateHud(){
  const t=document.getElementById('qingerHungerText'),f=document.getElementById('qingerHungerFill'),g=document.getElementById('qingerGuiCount'),z=document.getElementById('qingerZhiCount');
  if(t)t.textContent=`${Math.max(0,Math.min(100,Math.floor(state.hunger)))}/100`;
  if(f)f.style.width=Math.max(0,Math.min(100,state.hunger))+'%';
- if(g)g.textContent=state.gui;if(z)z.textContent=state.zhi;
+ const infinite=state.testMode&&state.unlimitedItems;if(g)g.textContent=infinite?'∞':state.gui;if(z)z.textContent=infinite?'∞':state.zhi;
  positionHud();
 }
 function positionHud(){
@@ -16870,10 +16870,11 @@ function positionHud(){
    if(overlap){set('right','auto');set('left',innerWidth<=639?'10px':'18px')}
   })
  }
- const z=document.getElementById('qingerZzz');if(z){z.style.left=(r.right-32)+'px';z.style.top=(r.top-12)+'px'}
- const b=document.getElementById('qingerBang');if(b){b.style.left=(r.right-25)+'px';b.style.top=(r.top-5)+'px'}
+ const z=document.getElementById('qingerZzz');if(z){z.style.left=(r.right-32)+'px';z.style.top=(r.top-12)+'px';if(z.style.display!=='none')clampQingerFeedback(z)}
+ const b=document.getElementById('qingerBang');if(b){b.style.left=(r.right-25)+'px';b.style.top=(r.top-5)+'px';if(b.style.display!=='none')clampQingerFeedback(b)}
 }
-function bang(strength=1){const b=document.getElementById('qingerBang');if(!b)return;positionHud();b.style.transform=`scale(${Math.max(.68,Math.min(1,Number(strength)||1))})`;b.style.transformOrigin='50% 100%';b.style.display='block';setTimeout(()=>{if(b){b.style.display='none';b.style.transform=''}},strength<.7?430:650)}
+function clampQingerFeedback(el,pad=3){if(!el||el.style.display==='none')return;const r=el.getBoundingClientRect();let dx=0,dy=0;if(r.left<pad)dx=pad-r.left;else if(r.right>innerWidth-pad)dx=(innerWidth-pad)-r.right;if(r.top<pad)dy=pad-r.top;else if(r.bottom>innerHeight-pad)dy=(innerHeight-pad)-r.bottom;if(dx)el.style.left=(parseFloat(el.style.left||0)+dx)+'px';if(dy)el.style.top=(parseFloat(el.style.top||0)+dy)+'px'}
+function bang(strength=1){const b=document.getElementById('qingerBang');if(!b)return;b.style.transform=`scale(${Math.max(.68,Math.min(1,Number(strength)||1))})`;b.style.transformOrigin='50% 100%';b.style.display='block';positionHud();clampQingerFeedback(b);setTimeout(()=>{if(b){b.style.display='none';b.style.transform=''}},strength<.7?430:650)}
 let actionTipTimer=0;function showActionTip(text){const n=document.getElementById('qingerActionTip');if(!n||!pet)return;n.textContent=String(text||'');n.classList.remove('on');n.style.left='0px';n.style.top='0px';n.style.maxWidth=Math.min(260,innerWidth-24)+'px';void n.offsetWidth;const r=pet.getBoundingClientRect(),w=Math.max(150,Math.min(260,n.offsetWidth||220)),h=n.offsetHeight||36;let x=r.left+r.width/2,y=r.top-h-12;if(y<56)y=r.bottom+12;x=Math.max(12+w/2,Math.min(innerWidth-12-w/2,x));y=Math.max(52,Math.min(innerHeight-h-12,y));n.style.left=x+'px';n.style.top=y+'px';n.classList.add('on');clearTimeout(actionTipTimer);actionTipTimer=setTimeout(()=>n.classList.remove('on'),1900)}
 function ensurePetChrome(){
  const defs=[
@@ -16888,6 +16889,8 @@ function ensurePetChrome(){
  const rain=document.getElementById('qingerRain');if(rain&&pet&&rain.parentElement!==pet)pet.insertBefore(rain,pet.firstChild);
 }
 function ensureVeryHungryShade(){if(!pet)return null;let shade=document.getElementById('qingerSadShade');if(!shade){shade=document.createElement('i');shade.id='qingerSadShade';shade.setAttribute('aria-hidden','true');pet.appendChild(shade)}return shade}
+function updateQingerTestPanelVisibility(){const panel=document.querySelector('#qingerInventory .qinger-test-panel');if(panel)panel.style.display=window.isDeveloperMode?.()?'block':'none'}
+window.updateQingerTestPanelVisibility=updateQingerTestPanelVisibility;
 function setupRain(){ensureVeryHungryShade();const rain=document.getElementById('qingerRain');if(!rain)return;rain.innerHTML='';for(let i=0;i<22;i++){const d=document.createElement('i');d.className='qinger-drop';d.style.left=(Math.random()*105)+'%';d.style.animationDelay=(-Math.random()*1.1)+'s';d.style.animationDuration=(.75+Math.random()*.75)+'s';rain.appendChild(d)}}
 function clearVeryHungryVisuals(){clearTimeout(veryHungryHeadTimer);veryHungryHeadTimer=veryHungryShadeTimer=0;document.getElementById('qingerRain')?.classList.remove('on');document.getElementById('qingerSadShade')?.classList.remove('on');pet?.classList.remove('pet-hungry-arrived','pet-hungry-head-down','pet-withdrawn-gray')}
 function syncRain(){
@@ -16895,7 +16898,7 @@ function syncRain(){
  document.getElementById('qingerRain')?.classList.toggle('on',on);
  if(state.base!=='很饿')clearVeryHungryVisuals();
 }
-function floatHungerChange(amount){if(!pet)return;const value=Number(amount);if(!Number.isFinite(value)||value===0)return;const r=pet.getBoundingClientRect(),n=document.createElement('div'),abs=Math.abs(value);n.className='qinger-float-hunger '+(value>0?'is-gain':'is-loss');n.textContent=(value>0?'+':'-')+(Number.isInteger(abs)?String(abs):String(abs).replace(/0+$/,''));n.style.left=(r.right+1)+'px';n.style.top=(r.top+r.height*.58)+'px';document.body.appendChild(n);setTimeout(()=>n.remove(),1100)}
+function floatHungerChange(amount){if(!pet)return;const value=Number(amount);if(!Number.isFinite(value)||value===0)return;const r=pet.getBoundingClientRect(),n=document.createElement('div'),abs=Math.abs(value);n.className='qinger-float-hunger '+(value>0?'is-gain':'is-loss');n.textContent=(value>0?'+':'-')+(Number.isInteger(abs)?String(abs):String(abs).replace(/0+$/,''));n.style.left=(r.right-3)+'px';n.style.top=(r.top+r.height*.58)+'px';document.body.appendChild(n);clampQingerFeedback(n);setTimeout(()=>n.remove(),1100)}
 function applyQingerPetCloudData(d,{live=false}={}){
  if(!d?.ok)return false;
  if(!state.testMode)state.hunger=Number(d.hunger??state.hunger);
@@ -16934,7 +16937,6 @@ const FOOD_WAKE={
 let foodSleepTipAt=0,foodWakeSensor=null,foodWakePending=null;
 function isQingerSleeping(){return state.behavior==='sleep'||state.behavior==='daynap'}
 function isFoodWakePending(){return !!foodWakePending}
-function cancelFoodWakePending(){if(!foodWakePending)return;clearTimeout(foodWakePending.timer);foodWakePending=null}
 function playFoodSniff(power=.35){const stage=document.getElementById('qingerVisualStage');if(!stage)return;power=Math.max(0,Math.min(1,Number(power)||0));const x=1+2.6*power,r=.18+.9*power;stage.style.setProperty('--qinger-food-sniff-ms',Math.round(330+170*power)+'ms');stage.style.setProperty('--qinger-sniff-left',(-x)+'px');stage.style.setProperty('--qinger-sniff-right',(x*1.08)+'px');stage.style.setProperty('--qinger-sniff-settle',(-x*.45)+'px');stage.style.setProperty('--qinger-sniff-rot-left',(-r)+'deg');stage.style.setProperty('--qinger-sniff-rot-right',(r*1.06)+'deg');stage.style.setProperty('--qinger-sniff-rot-settle',(-r*.42)+'deg');stage.classList.remove('qinger-food-sniff');void stage.offsetWidth;stage.classList.add('qinger-food-sniff');setTimeout(()=>stage?.classList.remove('qinger-food-sniff'),560)}
 function playFeedReaction(base,kind){const power=FOOD_REACTION[base]?.[kind]??.5;if(power<=0)return;const stage=document.getElementById('qingerVisualStage');if(!stage)return;const p=Math.max(0,Math.min(1.2,Number(power)||0));stage.style.setProperty('--qinger-feed-ms',Math.round(430+190*p)+'ms');stage.style.setProperty('--qinger-feed-lift',(-5*p)+'px');stage.style.setProperty('--qinger-feed-settle',(1*p)+'px');stage.style.setProperty('--qinger-feed-upscale',String(1+.025*p));stage.style.setProperty('--qinger-feed-downscale',String(1-.008*p));stage.style.setProperty('--qinger-feed-rot',(-1*p)+'deg');stage.style.setProperty('--qinger-feed-backrot',(.55*p)+'deg');stage.classList.remove('qinger-feed-react');void stage.offsetWidth;stage.classList.add('qinger-feed-react');setTimeout(()=>stage?.classList.remove('qinger-feed-react'),720)}
 function stopFoodWakeSensor(){if(!foodWakeSensor)return;clearTimeout(foodWakeSensor.dwell);clearInterval(foodWakeSensor.interval);foodWakeSensor=null}
@@ -16994,7 +16996,9 @@ async function feed(kind){if(!qingerInteractionReady())return;
   if(isFoodWakePending())return;
   if(isQingerSleeping()){sleepingFeedTip();return}
   if(beforeBase==='饿晕'&&kind!=='zhi'){window.showToast?.('小晴儿已经饿晕了，龟糖好像帮不上忙……','info');return}
-  const beforeHunger=Number(state.hunger)||0,d=await post('xiaoqingerFeed',{food:kind});if(!d?.ok)throw new Error(d?.message||'喂食失败');state.hunger=Number(d.hunger);const gained=Math.max(0,state.hunger-beforeHunger);state.gui=Number(d.inventory?.gui||0);state.zhi=Number(d.inventory?.zhi||0);state.behavior='idle';touch();updateHud();syncRain();render();if(gained>0)requestAnimationFrame(()=>floatHungerChange(gained));requestAnimationFrame(()=>playFeedReaction(beforeBase,kind));later(()=>showFoodDialogue(kind),180);window.showToast?.(kind==='zhi'?'小晴儿吃下了舒心的直给糖':'小晴儿吃下了龟糖','success');
+  const beforeHunger=Number(state.hunger)||0;
+  if(state.testMode&&state.unlimitedItems){const gain=kind==='gui'?20:80;state.hunger=Math.min(100,beforeHunger+gain);const gained=Math.max(0,state.hunger-beforeHunger);state.behavior='idle';touch();updateHud();syncRain();render();if(gained>0)requestAnimationFrame(()=>floatHungerChange(gained));requestAnimationFrame(()=>playFeedReaction(beforeBase,kind));later(()=>showFoodDialogue(kind),180);return}
+  const d=await post('xiaoqingerFeed',{food:kind});if(!d?.ok)throw new Error(d?.message||'喂食失败');state.hunger=Number(d.hunger);const gained=Math.max(0,state.hunger-beforeHunger);state.gui=Number(d.inventory?.gui||0);state.zhi=Number(d.inventory?.zhi||0);state.behavior='idle';touch();updateHud();syncRain();render();if(gained>0)requestAnimationFrame(()=>floatHungerChange(gained));requestAnimationFrame(()=>playFeedReaction(beforeBase,kind));later(()=>showFoodDialogue(kind),180);window.showToast?.(kind==='zhi'?'小晴儿吃下了舒心的直给糖':'小晴儿吃下了龟糖','success');
  }catch(e){window.showToast?.(String(e?.message||e),'error')}
 }
 function toggleInventory(force){if(!inv)return;if(!qingerInteractionReady()){inv.classList.remove('open');return}const open=typeof force==='boolean'?force:!inv.classList.contains('open');inv.classList.toggle('open',open);if(open){updateHud();positionHud()}}
@@ -17002,10 +17006,10 @@ function setupFood(){
  const gi=document.getElementById('qingerGuiImg'),zi=document.getElementById('qingerZhiImg');if(gi)gi.src=FOOD_GUI;if(zi)zi.src=FOOD_ZHI;
  document.getElementById('qingerInvClose')?.addEventListener('click',e=>{e.stopPropagation();toggleInventory(false)});
  document.getElementById('qingerInventoryBtn')?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();toggleInventory()});
- const tm=document.getElementById('qingerTestMode'),hr=document.getElementById('qingerTestHunger'),hn=document.getElementById('qingerTestHungerNumber'),bs=document.getElementById('qingerTestBase'),bh=document.getElementById('qingerTestBehavior'),ui=document.getElementById('qingerUnlimitedItems');const reps={'饿晕':0,'很饿':5,'轻微饥饿':25,'普通':55,'较饱':80,'最饱':100};const testOn=()=>{state.testMode=true;if(tm)tm.checked=true};const testApply=()=>{state.base=baseOf(state.hunger);updateHud();syncRain();render()};if(tm)tm.addEventListener('change',()=>{state.testMode=tm.checked;if(!state.testMode)cloudRead();else testApply()});const setTH=v=>{testOn();state.hunger=Math.max(0,Math.min(100,Number(v)||0));state.behavior='idle';testApply()};hr?.addEventListener('input',()=>setTH(hr.value));hn?.addEventListener('input',()=>setTH(hn.value));bs?.addEventListener('change',()=>{testOn();state.hunger=reps[bs.value]??state.hunger;state.behavior='idle';testApply()});bh?.addEventListener('change',()=>{testOn();clearBehaviorTimeouts();clearDozeVisualTimers();state.behavior=bh.value;if(state.behavior==='sleep')dozeMark('sleep');else if(['doze1','doze2','doze3'].includes(state.behavior))renderDozeStage();render();updateHud()});ui?.addEventListener('change',()=>{testOn();state.unlimitedItems=ui.checked});document.getElementById('qingerTestWake')?.addEventListener('click',()=>{testOn();bodyWakeJolt(1)});document.getElementById('qingerTestDaynap')?.addEventListener('click',()=>{testOn();state.behavior='daynap';dayNapUntil=Date.now()+45000;render();dozeMark('daynap')});document.getElementById('qingerTestSleepProcess')?.addEventListener('click',()=>{testOn();testNightSleepProcess()});document.getElementById('qingerTestWakeProcess')?.addEventListener('click',()=>{testOn();state.behavior='sleep';dozeMark('sleep');render();setTimeout(()=>naturalWakeNight(),650)});document.getElementById('qingerTestLoss1')?.addEventListener('click',()=>{testOn();floatHungerChange(-1)});document.getElementById('qingerTestLoss05')?.addEventListener('click',()=>{testOn();floatHungerChange(-0.5)});
+ const tm=document.getElementById('qingerTestMode'),hr=document.getElementById('qingerTestHunger'),hn=document.getElementById('qingerTestHungerNumber'),bs=document.getElementById('qingerTestBase'),bh=document.getElementById('qingerTestBehavior'),ui=document.getElementById('qingerUnlimitedItems');const reps={'饿晕':0,'很饿':5,'轻微饥饿':25,'普通':55,'较饱':80,'最饱':100};const testOn=()=>{state.testMode=true;if(tm)tm.checked=true};const testApply=()=>{state.base=baseOf(state.hunger);updateHud();syncRain();render()};if(tm)tm.addEventListener('change',()=>{state.testMode=tm.checked;if(!state.testMode)cloudRead();else testApply()});const setTH=v=>{testOn();state.hunger=Math.max(0,Math.min(100,Number(v)||0));state.behavior='idle';testApply()};hr?.addEventListener('input',()=>setTH(hr.value));hn?.addEventListener('input',()=>setTH(hn.value));bs?.addEventListener('change',()=>{testOn();state.hunger=reps[bs.value]??state.hunger;state.behavior='idle';testApply()});bh?.addEventListener('change',()=>{testOn();clearBehaviorTimeouts();clearDozeVisualTimers();state.behavior=bh.value;if(state.behavior==='sleep')dozeMark('sleep');else if(['doze1','doze2','doze3'].includes(state.behavior))renderDozeStage();render();updateHud()});ui?.addEventListener('change',()=>{testOn();state.unlimitedItems=ui.checked;updateHud()});document.getElementById('qingerTestWake')?.addEventListener('click',()=>{testOn();bodyWakeJolt(1)});document.getElementById('qingerTestDaynap')?.addEventListener('click',()=>{testOn();state.behavior='daynap';dayNapUntil=Date.now()+45000;render();dozeMark('daynap')});document.getElementById('qingerTestSleepProcess')?.addEventListener('click',()=>{testOn();testNightSleepProcess()});document.getElementById('qingerTestWakeProcess')?.addEventListener('click',()=>{testOn();state.behavior='sleep';dozeMark('sleep');render();setTimeout(()=>naturalWakeNight(),650)});document.getElementById('qingerTestLoss1')?.addEventListener('click',()=>{testOn();floatHungerChange(-1)});document.getElementById('qingerTestLoss05')?.addEventListener('click',()=>{testOn();floatHungerChange(-0.5)});
 
  inv?.addEventListener('pointerdown',e=>e.stopPropagation());inv?.addEventListener('click',e=>e.stopPropagation());document.addEventListener('pointerdown',e=>{const btn=document.getElementById('qingerInventoryBtn');if(inv?.classList.contains('open')&&!inv.contains(e.target)&&!pet?.contains(e.target)&&!btn?.contains(e.target))toggleInventory(false)});
- document.querySelectorAll('.qinger-food').forEach(row=>row.addEventListener('pointerdown',e=>{if(!qingerInteractionReady()){e.preventDefault();e.stopPropagation();return}const kind=row.dataset.food,count=kind==='gui'?state.gui:state.zhi;if(count<=0)return;stopFoodWakeSensor();const ghost=document.createElement('img');ghost.className='qinger-food-ghost';ghost.src=kind==='gui'?FOOD_GUI:FOOD_ZHI;document.body.appendChild(ghost);const move=ev=>{ghost.style.left=ev.clientX+'px';ghost.style.top=ev.clientY+'px';ghost.style.transform='translate(-50%,-50%)';updateFoodWakeSensor(kind,ev.clientX,ev.clientY)};move(e);const mm=ev=>move(ev);const up=ev=>{removeEventListener('pointermove',mm);stopFoodWakeSensor();const r=pet.getBoundingClientRect(),hit=ev.clientX>=r.left&&ev.clientX<=r.right&&ev.clientY>=r.top&&ev.clientY<=r.bottom;ghost.remove();if(hit){if(isFoodWakePending()){}else if(isQingerSleeping())sleepingFeedTip();else feed(kind)}};addEventListener('pointermove',mm);addEventListener('pointerup',up,{once:true});e.preventDefault();e.stopPropagation()}));
+ document.querySelectorAll('.qinger-food').forEach(row=>row.addEventListener('pointerdown',e=>{if(!qingerInteractionReady()){e.preventDefault();e.stopPropagation();return}const kind=row.dataset.food,count=kind==='gui'?state.gui:state.zhi;if(!(state.testMode&&state.unlimitedItems)&&count<=0)return;stopFoodWakeSensor();const ghost=document.createElement('img');ghost.className='qinger-food-ghost';ghost.src=kind==='gui'?FOOD_GUI:FOOD_ZHI;document.body.appendChild(ghost);const move=ev=>{ghost.style.left=ev.clientX+'px';ghost.style.top=ev.clientY+'px';ghost.style.transform='translate(-50%,-50%)';updateFoodWakeSensor(kind,ev.clientX,ev.clientY)};move(e);const mm=ev=>move(ev);const up=ev=>{removeEventListener('pointermove',mm);stopFoodWakeSensor();const r=pet.getBoundingClientRect(),hit=ev.clientX>=r.left&&ev.clientX<=r.right&&ev.clientY>=r.top&&ev.clientY<=r.bottom;ghost.remove();if(hit){if(isFoodWakePending()){}else if(isQingerSleeping())sleepingFeedTip();else feed(kind)}};addEventListener('pointermove',mm);addEventListener('pointerup',up,{once:true});e.preventDefault();e.stopPropagation()}));
 }
 function closedLayersFor(base,form='normal'){
  const source=form==='grabbed'?(GRABBED[base]||GRABBED['普通']):(NORMAL[base]||NORMAL['普通']);
@@ -17123,7 +17127,7 @@ function scheduleNightResleep(profile){
  const wait=profile?.idle??C.nightWakeIdle;
  nightAwakeUntil=Date.now()+wait;
  later(()=>{
-  if(!isNight()||Date.now()<nightAwakeUntil||state.behavior!=='idle')return;
+  if(!isNight()||Date.now()<nightAwakeUntil||state.behavior!=='idle'||drag?.moved)return;
   /* 很饿且尚未走到角落：先执行很饿场景，不从原地直接睡回去。 */
   if(baseOf(state.hunger)==='很饿'&&!veryHungryAtCorner){
    if(!veryHungrySince)veryHungrySince=Date.now();
@@ -17217,7 +17221,7 @@ function settleVeryHungryCorner(left=null,top=null){
   veryHungryShadeTimer=setTimeout(()=>{
    if(state.base!=='很饿'||!veryHungryAtCorner)return;
    ensureVeryHungryShade()?.classList.add('on');
-   if(isNight()&&state.behavior==='idle'&&!veryHungryWakeDrainUntil)later(()=>{if(isNight()&&state.base==='很饿'&&veryHungryAtCorner&&state.behavior==='idle'&&!veryHungryWakeDrainUntil){state.behavior='sleep';dozeMark('sleep');render()}},1400);
+   if(isNight()&&state.behavior==='idle'&&!veryHungryWakeDrainUntil)later(()=>{if(isNight()&&state.base==='很饿'&&veryHungryAtCorner&&state.behavior==='idle'&&!veryHungryWakeDrainUntil&&!drag?.moved){state.behavior='sleep';dozeMark('sleep');render()}},1400);
   },820);
  },400);
 }
@@ -17270,6 +17274,8 @@ function behaviorTick(){
  applyVeryHungryWakeDrain();
  state.base=baseOf(state.hunger);syncRain();
  const now=Date.now(),idle=now-state.lastInteraction;
+ /* 持续拖动属于互动：拖动期间不推进任何自动入睡/回睡判定。 */
+ if(drag?.moved)return;
  if(state.base==='饿晕'){clearBehaviorTimeouts();clearDozeVisualTimers();state.behavior='idle';dozeMark('idle');return render()}
  if(state.base==='很饿'){
   clearTimeout(blinkTimer);
@@ -17397,7 +17403,7 @@ async function boot(){
  if(openedDuringNight){state.behavior='sleep';dozeMark('sleep');}
  try{render();window.restoreXiaoqingerPosition?.();positionHud();}catch(e){console.error(e);return;}
  try{bindPetInteractions();scheduleBlink();}catch(e){console.warn(e)}
- try{ensurePetChrome();inv=document.getElementById('qingerInventory');setupRain();setupFood();updateHud();positionHud()}catch(e){console.warn(e)}
+ try{ensurePetChrome();inv=document.getElementById('qingerInventory');setupRain();setupFood();updateQingerTestPanelVisibility();updateHud();positionHud()}catch(e){console.warn(e)}
  if(window.__initialQingerPetData)applyQingerPetCloudData(window.__initialQingerPetData,{live:false});clearInterval(behaviorTimer);behaviorTimer=setInterval(behaviorTick,15000);clearInterval(syncTimer);syncTimer=setInterval(()=>{if(window.isCloudSynced)cloudRead()},3*60*1000);addEventListener('resize',positionHud);
  window.__appBootPetReady=true;window.__tryFinishAppBoot?.();
 }
