@@ -1732,6 +1732,13 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
 /* 夜间试图喊醒：只扰动人物视觉层，不碰 sleep/ZZZ 状态机。 */
 #qingerVisualStage.qinger-sleep-attempt{animation:qingerSleepAttempt .18s ease-out}
+/* 夜间入睡/自然醒使用独立的缓慢过渡，不复用白天 doze / 惊醒动画。 */
+#xiaoqingerSimplePet.qinger-night-bedtime-1 #qingerVisualStage{animation:qingerNightBedtime1 1.7s cubic-bezier(.32,.02,.24,1) both}
+#xiaoqingerSimplePet.qinger-night-bedtime-2 #qingerVisualStage{animation:qingerNightBedtime2 2.2s cubic-bezier(.3,.02,.2,1) both}
+#xiaoqingerSimplePet.qinger-night-waking #qingerVisualStage{animation:qingerNightWakeNatural 2.15s cubic-bezier(.2,.65,.25,1) both}
+@keyframes qingerNightBedtime1{0%{transform:translateY(0) scale(1)}55%{transform:translateY(1px) scale(.995)}100%{transform:translateY(2.2px) scale(.985)}}
+@keyframes qingerNightBedtime2{0%{transform:translateY(2px) scale(.985)}55%{transform:translateY(4px) scale(.965)}100%{transform:translateY(6px) scale(.94)}}
+@keyframes qingerNightWakeNatural{0%{transform:translateY(6px) scale(.94)}55%{transform:translateY(2px) scale(.982)}100%{transform:translateY(0) scale(1)}}
 @keyframes qingerSleepAttempt{
   0%{translate:0 0;rotate:0deg}
   42%{translate:0 1.2px;rotate:-.18deg}
@@ -16774,7 +16781,9 @@ function render(name=state.base,form='normal'){
   if(state.behavior==='wake'){setDozeZCount(0);showLayers('grabbed','惊醒');return}
   setDozeZCount(0);showLayers('grabbed',name||state.base);return
  }
- if(state.behavior==='sleep'||state.behavior==='daynap'){showLayers('normal','睡觉');pet.classList.add('pet-sleeping');return}if(['doze1','doze2','doze3'].includes(state.behavior)){if(dozeVisualOwnerStage===state.behavior&&dozeVisualPhase==='closed')showLayers('normal',state.base,closedLayersFor(state.base));else{showLayers('normal',state.base)}return}
+ if(state.behavior==='sleep'||state.behavior==='daynap'){showLayers('normal','睡觉');pet.classList.add('pet-sleeping');return}
+ if(state.behavior==='nightSleepTransition'||state.behavior==='nightWaking')return;
+ if(['doze1','doze2','doze3'].includes(state.behavior)){if(dozeVisualOwnerStage===state.behavior&&dozeVisualPhase==='closed')showLayers('normal',state.base,closedLayersFor(state.base));else{showLayers('normal',state.base)}return}
  setDozeZCount(0);
  if(state.behavior==='wake'){showLayers('normal','惊醒');return}
  if(state.base==='饿晕'){clearDozeVisualTimers();pet.classList.remove('pet-sad','pet-doze-nod1','pet-doze-nod2','pet-doze-nod3');pet.style.removeProperty('--pet-head-sway');pet.classList.add('qinger-head-reset');void pet.offsetWidth;showLayers('normal','饿晕');pet.classList.add('pet-fainted');requestAnimationFrame(()=>pet?.classList.remove('qinger-head-reset'));return}
@@ -16992,8 +17001,30 @@ function nightSleepRise(){
  const stage=document.getElementById('qingerVisualStage');
  if(stage)stage.getAnimations().forEach(a=>{try{a.cancel()}catch(_){}});
 }
-function naturalWakeNight(){if(state.behavior!=='sleep')return false;clearBehaviorTimeouts();clearDozeVisualTimers();dozeMark('idle');veryHungryDeepSleep=false;veryHungryWakeConfirmed=false;nightSleepRise();state.behavior='wake';render();later(()=>{if(state.behavior!=='wake')return;state.behavior='idle';state.lastInteraction=Date.now();render();scheduleBlink()},1150);return true}
-function testNightSleepProcess(){clearBehaviorTimeouts();clearDozeVisualTimers();state.behavior='doze1';render();renderDozeStage();later(()=>{state.behavior='doze2';renderDozeStage()},2200);later(()=>{state.behavior='doze3';renderDozeStage()},4300);later(()=>{clearDozeVisualTimers();state.behavior='sleep';dozeMark('sleep');render()},7000)}
+let nightTransitionToken=0;
+function clearNightTransitionVisuals(){nightTransitionToken++;pet?.classList.remove('qinger-night-bedtime-1','qinger-night-bedtime-2','qinger-night-waking')}
+function slowOpenNightEyes(form='normal',base=state.base,duration=900){
+ if(!pet)return;const token=nightTransitionToken;const open=layers(form,base),closed=closedLayersFor(base,form),eyeIds=new Set([15,16,18,19,21]);
+ showLayers(form,base,closed);
+ const openEyes=open.filter(id=>eyeIds.has(id)&&id!==21),closedEye=21;
+ const nodes=[...pet.querySelectorAll('.qpet-layer')].filter(n=>n.dataset.form===form&&eyeIds.has(Number(n.dataset.layer)));
+ nodes.forEach(n=>{const id=Number(n.dataset.layer);if(id===closedEye||openEyes.includes(id)){n.style.setProperty('display','block','important');n.style.opacity=id===closedEye?'1':'0'}});
+ requestAnimationFrame(()=>requestAnimationFrame(()=>{if(token!==nightTransitionToken)return;nodes.forEach(n=>{const id=Number(n.dataset.layer);if(id===closedEye||openEyes.includes(id))n.animate([{opacity:id===closedEye?1:0},{opacity:id===closedEye?0:1}],{duration,easing:'cubic-bezier(.22,.65,.25,1)',fill:'forwards'})})}));
+ setTimeout(()=>{if(token!==nightTransitionToken)return;nodes.forEach(n=>{n.getAnimations().forEach(a=>{try{a.cancel()}catch(_){}});n.style.removeProperty('display');n.style.removeProperty('opacity')});showLayers(form,base)},duration+40)
+}
+function startNightSleepTransition({test=false}={}){
+ clearBehaviorTimeouts();clearDozeVisualTimers();clearNightTransitionVisuals();const token=nightTransitionToken;dozeMark('idle');state.behavior='nightSleepTransition';render();
+ pet?.classList.add('qinger-night-bedtime-1');showLayers('normal',state.base);
+ later(()=>{if(token!==nightTransitionToken||state.behavior!=='nightSleepTransition'||(!test&&!isNight()))return;showLayers('normal',state.base,closedLayersFor(state.base));pet?.classList.remove('qinger-night-bedtime-1');pet?.classList.add('qinger-night-bedtime-2')},1700);
+ later(()=>{if(token!==nightTransitionToken||state.behavior!=='nightSleepTransition'||(!test&&!isNight()))return;showLayers('normal','睡觉')},3300);
+ later(()=>{if(token!==nightTransitionToken||state.behavior!=='nightSleepTransition'||(!test&&!isNight()))return;pet?.classList.remove('qinger-night-bedtime-2');state.behavior='sleep';dozeMark('sleep');render()},5000);return true
+}
+function naturalWakeNight(){
+ if(state.behavior!=='sleep')return false;clearBehaviorTimeouts();clearDozeVisualTimers();clearNightTransitionVisuals();const token=nightTransitionToken;dozeMark('idle');veryHungryDeepSleep=false;veryHungryWakeConfirmed=false;nightSleepRise();state.behavior='nightWaking';pet?.classList.add('qinger-night-waking');showLayers('normal','睡觉');
+ later(()=>{if(token!==nightTransitionToken||state.behavior!=='nightWaking')return;showLayers('normal',state.base,closedLayersFor(state.base));slowOpenNightEyes('normal',state.base,950)},620);
+ later(()=>{if(token!==nightTransitionToken||state.behavior!=='nightWaking')return;pet?.classList.remove('qinger-night-waking');state.behavior='idle';state.lastInteraction=Date.now();render();scheduleBlink()},1900);return true
+}
+function testNightSleepProcess(){return startNightSleepTransition({test:true})}
 function nightWakeProfileFor(base){
  /* 本轮唤醒难度按用户开始喊她时的当前饱食状态锁定；普通档必须连续喊，每一下间隔不超过 0.6 秒。 */
  if(base==='最饱')return{base,clicks:1,idle:38e3,jolt:.55,gap:600};
@@ -17012,10 +17043,7 @@ function scheduleNightResleep(profile){
    if(!veryHungrySince)veryHungrySince=Date.now();
    behaviorTick();return;
   }
-  state.behavior='doze1';render();renderDozeStage();
-  later(()=>{if(!isNight()||Date.now()<nightAwakeUntil)return;state.behavior='doze2';renderDozeStage()},2200);
-  later(()=>{if(!isNight()||Date.now()<nightAwakeUntil)return;state.behavior='doze3';renderDozeStage()},4300);
-  later(()=>{if(!isNight()||Date.now()<nightAwakeUntil)return;clearDozeVisualTimers();state.behavior='sleep';dozeMark('sleep');render()},7000)
+  startNightSleepTransition()
  },wait)
 }
 function nightWakeAttemptFeedback(){
@@ -17057,8 +17085,8 @@ function wakeNight(profile=nightWakeProfile||nightWakeProfileFor(baseOf(state.hu
 }
 function sleepClick(){
  const now=Date.now(),currentBase=baseOf(state.hunger);
- if(currentBase==='很饿'&&veryHungryDeepSleep){nightWakeAttemptFeedback();if(now-deepSleepTipAt>6000){deepSleepTipAt=now;showActionTip('小晴儿已经累得没有力气回应了，今晚就让她好好睡吧……')}return false}
- if(currentBase==='很饿'&&!veryHungryWakeConfirmed){if(!window.confirm('嘘...小晴儿似乎睡得很沉呢，你确定要叫醒她吗？'))return false;veryHungryWakeConfirmed=true;nightWakeProfile=nightWakeProfileFor(currentBase);return false}
+ if(currentBase==='很饿'&&veryHungryDeepSleep){nightWakeAttemptFeedback();if(now-deepSleepTipAt>6000){deepSleepTipAt=now;window.showToast?.('小晴儿已经累得没有力气回应了，今晚就让她好好睡吧……','info')}return false}
+ if(currentBase==='很饿'&&!veryHungryWakeConfirmed){window.showToast?.('嘘...小晴儿似乎睡得很沉呢，你确定要叫醒她吗？','info');veryHungryWakeConfirmed=true;nightWakeProfile=nightWakeProfileFor(currentBase);return false}
  if(nightWakePending)return true;
  if(!nightWakeProfile)nightWakeProfile=nightWakeProfileFor(currentBase);
  const p=nightWakeProfile;
@@ -17169,12 +17197,10 @@ function behaviorTick(){
  }
  if(state.base==='最饱'&&!isNight()){clearBehaviorTimeouts();clearDozeVisualTimers();state.behavior='idle';dozeMark('idle');render();return}
  if(isNight()){
-  if(state.behavior==='sleep')return;
-  if(state.behavior==='wake'||['doze1','doze2','doze3'].includes(state.behavior))return;
+  if(state.behavior==='sleep'||state.behavior==='nightSleepTransition')return;
+  if(state.behavior==='wake'||state.behavior==='nightWaking'||['doze1','doze2','doze3'].includes(state.behavior))return;
   if(now<nightAwakeUntil)return;
-  clearBehaviorTimeouts();clearDozeVisualTimers();state.behavior='doze1';render();renderDozeStage();
-  later(()=>{if(isNight()){state.behavior='doze2';renderDozeStage()}},6500);
-  later(()=>{if(isNight()){clearDozeVisualTimers();state.behavior='sleep';dozeMark('sleep');render()}},20000);return
+  startNightSleepTransition();return
  }
  if(state.behavior==='sleep'){naturalWakeNight();return}
  if(state.behavior==='daynap'&&now>=dayNapUntil){naturalWakeFromNap();return}
@@ -17184,9 +17210,9 @@ function behaviorTick(){
 }
 function scheduleBlink(){
  clearTimeout(blinkTimer);
- if(['sleep','doze1','doze2','doze3','daynap','wake'].includes(state.behavior)||['饿晕','很饿'].includes(state.base))return;
+ if(['sleep','nightSleepTransition','nightWaking','doze1','doze2','doze3','daynap','wake'].includes(state.behavior)||['饿晕','很饿'].includes(state.base))return;
  blinkTimer=setTimeout(()=>{
-  if(!pet||['sleep','doze1','doze2','doze3','daynap','wake'].includes(state.behavior)||['饿晕','很饿'].includes(state.base))return scheduleBlink();
+  if(!pet||['sleep','nightSleepTransition','nightWaking','doze1','doze2','doze3','daynap','wake'].includes(state.behavior)||['饿晕','很饿'].includes(state.base))return scheduleBlink();
   const cur=state.base,form=(drag?.moved&&GRABBED[cur])?'grabbed':'normal';
   showLayers(form,cur,closedLayersFor(cur,form));
   blinkTimer=setTimeout(()=>{render(cur,form);scheduleBlink()},120+Math.random()*60)
