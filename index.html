@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/png" href="xiaoqinger-favicon.png">
     <title>雨后天晴</title>
-<style id="app-boot-critical">html:not(.app-ready) body>*:not(#appBootScreen){visibility:hidden!important}#appBootScreen{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#fff;color:#4b5563;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}#appBootScreen .app-boot-inner{display:flex;flex-direction:column;align-items:center;gap:12px;padding:24px;text-align:center}#appBootScreen .app-boot-spinner{width:26px;height:26px;border:3px solid #e5e7eb;border-top-color:#64748b;border-radius:50%;animation:appBootSpin .8s linear infinite}#appBootScreen .app-boot-text{font-size:14px;line-height:1.6}#appBootScreen .app-boot-retry{display:none;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#334155;padding:7px 14px;font:inherit;cursor:pointer}#appBootScreen.app-boot-failed .app-boot-spinner{display:none}#appBootScreen.app-boot-failed .app-boot-retry{display:inline-block}@keyframes appBootSpin{to{transform:rotate(360deg)}}</style>
-<script>(function(){window.__appBootWindowLoaded=false;window.__appBootPetReady=false;window.__appBootDone=false;window.__tryFinishAppBoot=function(){if(window.__appBootDone||!window.__appBootWindowLoaded||!window.__appBootPetReady)return;window.__appBootDone=true;document.documentElement.classList.add('app-ready');var n=document.getElementById('appBootScreen');if(n)n.remove()};window.addEventListener('load',function(){window.__appBootWindowLoaded=true;window.__tryFinishAppBoot&&window.__tryFinishAppBoot()},{once:true});setTimeout(function(){if(window.__appBootDone)return;var n=document.getElementById('appBootScreen');if(!n)return;n.classList.add('app-boot-failed');var t=n.querySelector('.app-boot-text');if(t)t.textContent='页面加载得有点慢，请检查网络后刷新重试'},12000)})();</script>
+<style id="app-boot-critical">html:not(.app-ready) body>*:not(#appBootScreen){visibility:hidden!important}#appBootScreen{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#fff;color:#4b5563;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}#appBootScreen .app-boot-inner{display:flex;opacity:0;transition:opacity .18s ease;flex-direction:column;align-items:center;gap:12px;padding:24px;text-align:center}#appBootScreen.app-boot-visible .app-boot-inner{opacity:1}#appBootScreen .app-boot-spinner{width:26px;height:26px;border:3px solid #e5e7eb;border-top-color:#64748b;border-radius:50%;animation:appBootSpin .8s linear infinite}#appBootScreen .app-boot-text{font-size:14px;line-height:1.6}#appBootScreen .app-boot-retry{display:none;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#334155;padding:7px 14px;font:inherit;cursor:pointer}#appBootScreen.app-boot-failed .app-boot-spinner{display:none}#appBootScreen.app-boot-failed .app-boot-retry{display:inline-block}@keyframes appBootSpin{to{transform:rotate(360deg)}}</style>
+<script>(function(){window.__appBootWindowLoaded=false;window.__appBootPetReady=false;window.__appBootDone=false;window.__tryFinishAppBoot=function(){if(window.__appBootDone||!window.__appBootWindowLoaded||!window.__appBootPetReady)return;window.__appBootDone=true;document.documentElement.classList.add('app-ready');var n=document.getElementById('appBootScreen');if(n)n.remove();window.dispatchEvent(new Event('app-front-ready'))};window.addEventListener('load',function(){window.__appBootWindowLoaded=true;window.__tryFinishAppBoot&&window.__tryFinishAppBoot()},{once:true});setTimeout(function(){if(window.__appBootDone)return;var n=document.getElementById('appBootScreen');if(n)n.classList.add('app-boot-visible')},800);setTimeout(function(){if(window.__appBootDone)return;var n=document.getElementById('appBootScreen');if(!n)return;n.classList.add('app-boot-visible','app-boot-failed');var t=n.querySelector('.app-boot-text');if(t)t.textContent='页面加载得有点慢，请检查网络后刷新重试'},12000)})();</script>
 
 <!-- 小晴儿 v25：回溯至 v21 分层叠放方式；保留 v22+ 互动/物品栏改动；移除诊断面板 -->
 <script defer src="https://cdn.tailwindcss.com"></script>
@@ -4294,6 +4294,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 '/timeline?type=xiaoqinger'
             ];
             const sidePromise = Promise.allSettled(sidePaths.map(p => fetchWithRetry(p, 16000, 2)));
+            // 小晴儿共享饱食度/库存属于整站首次云端同步的一部分：拿不到它就不能宣称“已同步云端”。
+            const qingerPetPromise = fetchWithRetry(`/timeline?type=xiaoqingerPet&ownerToken=${encodeURIComponent(window.getEditorOwnerToken?.()||'')}`, 16000, 2);
 
             // 先拿第一页，同时从响应中的 total 计算剩余页；每页 5 条并发读取，避免 59 个大事件串行请求过慢。
             const firstPage = await fetchWithRetry(
@@ -4329,7 +4331,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 if (Array.isArray(page?.items)) cloudEvents.push(...page.items);
             });
 
-            const [meta, results] = await Promise.all([metaPromise, sidePromise]);
+            const [meta, results, qingerPetData] = await Promise.all([metaPromise, sidePromise, qingerPetPromise]);
+            window.__initialQingerPetData = qingerPetData;
+            window.__applyQingerPetCloudData?.(qingerPetData, {initial:true});
             const expectedEvents = Number(meta?.counts?.events ?? totalEvents);
             if (expectedEvents && cloudEvents.length !== expectedEvents) {
                 console.warn(`CloudBase 事件计数在读取期间发生变化：实际 ${cloudEvents.length} / 元数据 ${expectedEvents}`);
@@ -15310,7 +15314,9 @@ viewer.style.visibility='';
         window.onload = () => {
             if(window._invalidRoomAccess){ window.invalidateRoomAccess?.(); return; }
             if(window.forceMobileBrowseMode?.()) window.updateLockButtonUI?.();
-            initAppAndCloudSync();
+            const startCloudOnce=()=>{if(window.__initialCloudSyncStarted)return;window.__initialCloudSyncStarted=true;initAppAndCloudSync()};
+            if(document.documentElement.classList.contains('app-ready')) startCloudOnce();
+            else window.addEventListener('app-front-ready',startCloudOnce,{once:true});
         };
 
         /*
@@ -16797,12 +16803,9 @@ let pet=null, speech=null, hud=null, inv=null, drag=null, suppressClickUntil=0, 
 const baseOf=h=>h<=0?'饿晕':h<10?'很饿':h<40?'轻微饥饿':h<70?'普通':h<90?'较饱':'最饱';
 const owner=()=>String(window.getEditorOwnerToken?.()||'').slice(0,200);
 const isNight=()=>{const h=new Date().getHours();return h>=23||h<8};
-let qingerInitialHungerPending=true,qingerInitialSyncRetryTimer=0,qingerCloudReadInFlight=null;
-const qingerInteractionReady=()=>!qingerInitialHungerPending;
-function scheduleQingerInitialSyncRetry(){
- if(!qingerInitialHungerPending||qingerInitialSyncRetryTimer)return;
- qingerInitialSyncRetryTimer=setTimeout(()=>{qingerInitialSyncRetryTimer=0;cloudRead(true)},1500);
-}
+let qingerCloudReadInFlight=null;
+// 唯一解锁条件：整站首次云端同步成功。小晴儿不再维护第二套首次同步许可证。
+const qingerInteractionReady=()=>window.isCloudSynced===true;
 /* Only pages opened during 23:00-08:00 start visually asleep before the first cloud sync.
    A page that stays open across 23:00 still follows the normal gradual bedtime flow. */
 const openedDuringNight=isNight();
@@ -16894,27 +16897,28 @@ function syncRain(){
  if(state.base!=='很饿')clearVeryHungryVisuals();
 }
 function floatHungerLoss(text){if(!pet)return;const r=pet.getBoundingClientRect(),n=document.createElement('div');n.className='qinger-float-loss';n.textContent=text;n.style.left=(r.right+3)+'px';n.style.top=(r.top+r.height*.5)+'px';document.body.appendChild(n);setTimeout(()=>n.remove(),1100)}
-async function cloudRead(initialRetry=false){
+function applyQingerPetCloudData(d,{live=false}={}){
+ if(!d?.ok)return false;
+ if(!state.testMode)state.hunger=Number(d.hunger??state.hunger);
+ state.gui=Number(d.inventory?.gui||0);state.zhi=Number(d.inventory?.zhi||0);state.lastSettledAt=Number(d.lastSettledAt||Date.now());
+ state.cloud=true;veryHungryDeepSleep=!!d.deepSleepLocked;
+ if(live&&hasCloudSnapshot&&!state.testMode){for(let i=0;i<(Number(d.naturalLost)||0);i++)setTimeout(()=>floatHungerLoss('-1'),i*420);for(let i=0;i<(Number(d.forcedDrainTicks)||0);i++)setTimeout(()=>floatHungerLoss('-0.5'),i*520)}
+ hasCloudSnapshot=true;updateHud();syncRain();render();return true;
+}
+window.__applyQingerPetCloudData=(d,opts={})=>applyQingerPetCloudData(d,{live:!opts.initial});
+async function cloudRead(){
  if(qingerCloudReadInFlight)return qingerCloudReadInFlight;
  qingerCloudReadInFlight=(async()=>{
   try{
    const u='/timeline?type=xiaoqingerPet&ownerToken='+encodeURIComponent(owner());
-   const d=await window.timelineApiFetch?.(u,12000);
-   if(!d?.ok){if(qingerInitialHungerPending)scheduleQingerInitialSyncRetry();return false}
-   const live=hasCloudSnapshot&&!state.testMode;
-   if(!state.testMode)state.hunger=Number(d.hunger??state.hunger);
-   state.gui=Number(d.inventory?.gui||0);state.zhi=Number(d.inventory?.zhi||0);state.lastSettledAt=Number(d.lastSettledAt||Date.now());
-   state.cloud=true;veryHungryDeepSleep=!!d.deepSleepLocked;
-   if(live){for(let i=0;i<(Number(d.naturalLost)||0);i++)setTimeout(()=>floatHungerLoss('-1'),i*420);for(let i=0;i<(Number(d.forcedDrainTicks)||0);i++)setTimeout(()=>floatHungerLoss('-0.5'),i*520)}
-   hasCloudSnapshot=true;
-   /* Interaction unlock belongs only to the first successful pet hunger snapshot, not the site's general cloud-sync badge. */
-   qingerInitialHungerPending=false;clearTimeout(qingerInitialSyncRetryTimer);qingerInitialSyncRetryTimer=0;
-   updateHud();syncRain();render();return true;
-  }catch(e){console.warn('小晴儿状态同步失败',e);if(qingerInitialHungerPending)scheduleQingerInitialSyncRetry();return false}
+   const d=await window.timelineApiFetch(u,12000);
+   return applyQingerPetCloudData(d,{live:true});
+  }catch(e){console.warn('小晴儿状态同步失败',e);return false}
   finally{qingerCloudReadInFlight=null}
  })();
  return qingerCloudReadInFlight;
 }
+
 async function post(action,payload={}){return await window.timelineApiCloudWritePost?.(action,{ownerToken:owner(),...payload},{auth:false,timeoutMs:12000})}
 window.xiaoqingerClaimSaveReward=async eventData=>{if(!eventData?.id)return;try{const d=await post('xiaoqingerClaimReward',{eventId:String(eventData.id),revision:Number(eventData.revision)||0});if(d?.ok){state.gui=Number(d.inventory?.gui||state.gui);state.zhi=Number(d.inventory?.zhi||state.zhi);updateHud();if(d.reward==='gui')window.showToast?.('诶...？这里好像掉了一颗龟糖，快收好！','success');else if(d.reward==='zhi')window.showToast?.('诶...？这里好像掉了一颗直给糖，快收好！','success');}}catch(e){console.warn(e)}};
 const FOOD_REACTION={
@@ -17395,7 +17399,7 @@ async function boot(){
  try{render();window.restoreXiaoqingerPosition?.();positionHud();}catch(e){console.error(e);return;}
  try{bindPetInteractions();scheduleBlink();}catch(e){console.warn(e)}
  try{ensurePetChrome();inv=document.getElementById('qingerInventory');setupRain();setupFood();updateHud();positionHud()}catch(e){console.warn(e)}
- cloudRead(true);clearInterval(behaviorTimer);behaviorTimer=setInterval(behaviorTick,15000);clearInterval(syncTimer);syncTimer=setInterval(cloudRead,3*60*1000);addEventListener('resize',positionHud);
+ if(window.__initialQingerPetData)applyQingerPetCloudData(window.__initialQingerPetData,{live:false});clearInterval(behaviorTimer);behaviorTimer=setInterval(behaviorTick,15000);clearInterval(syncTimer);syncTimer=setInterval(()=>{if(window.isCloudSynced)cloudRead()},3*60*1000);addEventListener('resize',positionHud);
  window.__appBootPetReady=true;window.__tryFinishAppBoot?.();
 }
 
