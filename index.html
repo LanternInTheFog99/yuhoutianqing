@@ -1807,7 +1807,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 </head>
 <!-- v35: head-motion branch from v32 -->
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
-<div id="appBootScreen" aria-live="polite"><div class="app-boot-inner"><div class="app-boot-spinner" aria-hidden="true"></div><div class="app-boot-text">正在加载雨后天晴...</div><button class="app-boot-retry" type="button" onclick="location.reload()">重新加载</button></div></div>
+<div id="appBootScreen" aria-live="polite"><div class="app-boot-inner"><div class="app-boot-spinner" aria-hidden="true"></div><div class="app-boot-text">正在加载该网页...</div><button class="app-boot-retry" type="button" onclick="location.reload()">重新加载</button></div></div>
 <div id="invalidRoomAccessOverlay" aria-live="assertive" aria-label="此链接无效"><div class="invalid-room-card">此链接无效</div></div>
 
 <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm relative">
@@ -16797,7 +16797,12 @@ let pet=null, speech=null, hud=null, inv=null, drag=null, suppressClickUntil=0, 
 const baseOf=h=>h<=0?'饿晕':h<10?'很饿':h<40?'轻微饥饿':h<70?'普通':h<90?'较饱':'最饱';
 const owner=()=>String(window.getEditorOwnerToken?.()||'').slice(0,200);
 const isNight=()=>{const h=new Date().getHours();return h>=23||h<8};
-const qingerInteractionReady=()=>state.cloud===true;
+let qingerInitialHungerPending=true,qingerInitialSyncRetryTimer=0,qingerCloudReadInFlight=null;
+const qingerInteractionReady=()=>!qingerInitialHungerPending;
+function scheduleQingerInitialSyncRetry(){
+ if(!qingerInitialHungerPending||qingerInitialSyncRetryTimer)return;
+ qingerInitialSyncRetryTimer=setTimeout(()=>{qingerInitialSyncRetryTimer=0;cloudRead(true)},1500);
+}
 /* Only pages opened during 23:00-08:00 start visually asleep before the first cloud sync.
    A page that stays open across 23:00 still follows the normal gradual bedtime flow. */
 const openedDuringNight=isNight();
@@ -16889,7 +16894,27 @@ function syncRain(){
  if(state.base!=='很饿')clearVeryHungryVisuals();
 }
 function floatHungerLoss(text){if(!pet)return;const r=pet.getBoundingClientRect(),n=document.createElement('div');n.className='qinger-float-loss';n.textContent=text;n.style.left=(r.right+3)+'px';n.style.top=(r.top+r.height*.5)+'px';document.body.appendChild(n);setTimeout(()=>n.remove(),1100)}
-async function cloudRead(){try{const u='/timeline?type=xiaoqingerPet&ownerToken='+encodeURIComponent(owner());const d=await window.timelineApiFetch?.(u,12000);if(!d?.ok)return;const live=hasCloudSnapshot&&!state.testMode;if(!state.testMode)state.hunger=Number(d.hunger??state.hunger);state.gui=Number(d.inventory?.gui||0);state.zhi=Number(d.inventory?.zhi||0);state.lastSettledAt=Number(d.lastSettledAt||Date.now());state.cloud=true;veryHungryDeepSleep=!!d.deepSleepLocked;if(live){for(let i=0;i<(Number(d.naturalLost)||0);i++)setTimeout(()=>floatHungerLoss('-1'),i*420);for(let i=0;i<(Number(d.forcedDrainTicks)||0);i++)setTimeout(()=>floatHungerLoss('-0.5'),i*520)}hasCloudSnapshot=true;updateHud();syncRain();render();}catch(e){console.warn('小晴儿状态同步失败',e)}}
+async function cloudRead(initialRetry=false){
+ if(qingerCloudReadInFlight)return qingerCloudReadInFlight;
+ qingerCloudReadInFlight=(async()=>{
+  try{
+   const u='/timeline?type=xiaoqingerPet&ownerToken='+encodeURIComponent(owner());
+   const d=await window.timelineApiFetch?.(u,12000);
+   if(!d?.ok){if(qingerInitialHungerPending)scheduleQingerInitialSyncRetry();return false}
+   const live=hasCloudSnapshot&&!state.testMode;
+   if(!state.testMode)state.hunger=Number(d.hunger??state.hunger);
+   state.gui=Number(d.inventory?.gui||0);state.zhi=Number(d.inventory?.zhi||0);state.lastSettledAt=Number(d.lastSettledAt||Date.now());
+   state.cloud=true;veryHungryDeepSleep=!!d.deepSleepLocked;
+   if(live){for(let i=0;i<(Number(d.naturalLost)||0);i++)setTimeout(()=>floatHungerLoss('-1'),i*420);for(let i=0;i<(Number(d.forcedDrainTicks)||0);i++)setTimeout(()=>floatHungerLoss('-0.5'),i*520)}
+   hasCloudSnapshot=true;
+   /* Interaction unlock belongs only to the first successful pet hunger snapshot, not the site's general cloud-sync badge. */
+   qingerInitialHungerPending=false;clearTimeout(qingerInitialSyncRetryTimer);qingerInitialSyncRetryTimer=0;
+   updateHud();syncRain();render();return true;
+  }catch(e){console.warn('小晴儿状态同步失败',e);if(qingerInitialHungerPending)scheduleQingerInitialSyncRetry();return false}
+  finally{qingerCloudReadInFlight=null}
+ })();
+ return qingerCloudReadInFlight;
+}
 async function post(action,payload={}){return await window.timelineApiCloudWritePost?.(action,{ownerToken:owner(),...payload},{auth:false,timeoutMs:12000})}
 window.xiaoqingerClaimSaveReward=async eventData=>{if(!eventData?.id)return;try{const d=await post('xiaoqingerClaimReward',{eventId:String(eventData.id),revision:Number(eventData.revision)||0});if(d?.ok){state.gui=Number(d.inventory?.gui||state.gui);state.zhi=Number(d.inventory?.zhi||state.zhi);updateHud();if(d.reward==='gui')window.showToast?.('诶...？这里好像掉了一颗龟糖，快收好！','success');else if(d.reward==='zhi')window.showToast?.('诶...？这里好像掉了一颗直给糖，快收好！','success');}}catch(e){console.warn(e)}};
 const FOOD_REACTION={
@@ -17370,7 +17395,7 @@ async function boot(){
  try{render();window.restoreXiaoqingerPosition?.();positionHud();}catch(e){console.error(e);return;}
  try{bindPetInteractions();scheduleBlink();}catch(e){console.warn(e)}
  try{ensurePetChrome();inv=document.getElementById('qingerInventory');setupRain();setupFood();updateHud();positionHud()}catch(e){console.warn(e)}
- cloudRead();clearInterval(behaviorTimer);behaviorTimer=setInterval(behaviorTick,15000);clearInterval(syncTimer);syncTimer=setInterval(cloudRead,3*60*1000);addEventListener('resize',positionHud);
+ cloudRead(true);clearInterval(behaviorTimer);behaviorTimer=setInterval(behaviorTick,15000);clearInterval(syncTimer);syncTimer=setInterval(cloudRead,3*60*1000);addEventListener('resize',positionHud);
  window.__appBootPetReady=true;window.__tryFinishAppBoot?.();
 }
 
