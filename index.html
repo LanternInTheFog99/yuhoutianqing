@@ -1064,6 +1064,24 @@ setTimeout(function(){if(!window.__appBootDone&&!document.getElementById('appBoo
                 touch-action:pan-y !important;
                 -webkit-overflow-scrolling:touch;
                 box-sizing:border-box;
+                scroll-padding-bottom:36px;
+                padding-bottom:36px !important;
+                contain:none !important;
+            }
+            #fullscreenViewer.mobile-comments-open [data-detail-shell] [data-detail-body]{
+                display:flow-root;
+                min-height:0;
+                padding-bottom:16px;
+            }
+            #fullscreenViewer.mobile-comments-open .multi-detail-shell #multiDetailScroller{
+                max-height:none;
+                overflow-x:auto;
+                overflow-y:visible;
+                -webkit-overflow-scrolling:touch;
+            }
+            #fullscreenViewer.mobile-comments-open [data-detail-shell] > :last-child,
+            #fullscreenViewer.mobile-comments-open [data-detail-shell] [data-detail-body] > :last-child{
+                margin-bottom:12px;
             }
 
             /* 手机端将评论按钮与关闭按钮下移，与左侧日期标签的垂直位置对齐。 */
@@ -1820,7 +1838,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 #xiaoqingerSimplePet.pet-hungry-walking.qinger-walk-right #qingerVisualStage{scale:-1 1}
 </style>
 <style id="qinger-202610-layout">
-html.qinger-user-hidden #xiaoqingerSimplePet,html.qinger-user-hidden #qingerInventory .qinger-inv-content{display:none!important;visibility:hidden!important}
+html.qinger-user-hidden #xiaoqingerSimplePet,html.qinger-user-hidden #qingerInventory .qinger-inv-head,html.qinger-user-hidden #qingerInventory .qinger-hunger-row,html.qinger-user-hidden #qingerInventory .qinger-inv-grid,html.qinger-user-hidden #qingerInventory .qinger-test-panel{display:none!important;visibility:hidden!important}
 #qingerInventory .qinger-visibility-choice{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;cursor:pointer;padding:5px 2px}
 #qingerInventory .qinger-visibility-choice input{accent-color:#6366f1;width:16px;height:16px}
 html.qinger-user-hidden #qingerInventory{width:210px!important}
@@ -11531,7 +11549,7 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
             window.syncXiaoqingerForDetail?.(true);
             const stackModal=document.getElementById('stackManagerModal');if(stackModal)stackModal.classList.add('hidden');
             const event=window.findEventById?window.findEventById(eventId):window.events.find(e=>String(e.id)===String(eventId));if(!event){document.body.classList.remove('mobile-detail-open');window.syncXiaoqingerForDetail?.(false);return;}eventId=event.id;
-                const detailTags=Array.isArray(event.tags)?event.tags:[];const detailTagHtml=detailTags.length?`<div class="mt-5 pt-4 border-t border-slate-700"><div class="text-xs text-slate-400 mb-2">tag</div><div class="flex flex-wrap gap-2">${detailTags.map(t=>`<span class="text-xs rounded-full px-2.5 py-1 bg-indigo-500/15 text-indigo-200 border border-indigo-500/25">#${escapeHtml(String(t).trim())}</span>`).join('')}</div></div>`:'';
+                const detailTags=Array.isArray(event.tags)?event.tags:[];const detailTagHtml=detailTags.length?`<div class="mt-5 pt-6 border-t border-slate-800"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Tag</h4><div class="flex flex-wrap gap-2">${detailTags.map(t=>`<span class="text-xs rounded-full px-2.5 py-1 bg-indigo-500/15 text-indigo-200 border border-indigo-500/25">#${escapeHtml(String(t).trim())}</span>`).join('')}</div></div>`:'';
             if(event.timeMode==='multi' && Array.isArray(event.timeSegments)){
                 let viewer=document.getElementById('fullscreenViewer');if(!viewer){viewer=document.createElement('div');viewer.id='fullscreenViewer';viewer.className='fixed inset-0 bg-slate-950/90 text-white z-50 overflow-y-auto backdrop-blur-md p-3 sm:p-8 flex flex-col items-center';viewer.addEventListener('click',e=>{if(e.target===viewer)window.closeReadOnlyFullscreen(viewer.dataset.fromStackDate||'');});document.body.appendChild(viewer);}viewer.dataset.fromStackDate=fromStackDate||'';viewer.dataset.eventId=String(event.id||'');
                 const segs=event.timeSegments.slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
@@ -14749,7 +14767,7 @@ viewer.style.visibility='';
             }
         };
         window.normalizeGlobalOverlayStructure = function() {
-            ['thanksNoteModal','xiaoqingerCustomColorModal','xiaoqingerDialogueEditorModal','editorIdentityModal','editorIdentityDeleteConfirmModal','xiaoqingerSimplePet'].forEach(id => {
+            ['thanksNoteModal','xiaoqingerCustomColorModal','xiaoqingerDialogueEditorModal','editorIdentityModal','editorIdentityDeleteConfirmModal'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el && el.parentElement !== document.body) document.body.appendChild(el);
             });
@@ -14885,14 +14903,6 @@ viewer.style.visibility='';
                 window.syncXiaoqingerForDetail?.(true);
             }
             window.renderSvgConnections();
-            const pet = document.getElementById('xiaoqingerSimplePet');
-            if (pet && pet.style.left) {
-                const maxLeft = Math.max(0, window.innerWidth - pet.offsetWidth);
-                const maxTop = Math.max(64, window.innerHeight - pet.offsetHeight);
-                pet.style.left = Math.max(0, Math.min(maxLeft, pet.offsetLeft)) + 'px';
-                pet.style.top = Math.max(64, Math.min(maxTop, pet.offsetTop)) + 'px';
-                // A viewport resize is not a user drag; do not overwrite the saved position.
-            }
         };
 
         /* === 小晴儿初始互动 === */
@@ -16996,7 +17006,7 @@ let actionTipTimer=0;function showActionTip(text){const n=document.getElementByI
 function ensurePetChrome(){
  const defs=[
   ['qingerRain',()=>{const n=document.createElement('div');n.id='qingerRain';return n}],
-  ['qingerInventory',()=>{const n=document.createElement('div');n.id='qingerInventory';n.innerHTML='<label class="qinger-visibility-choice"><span>显示小晴儿</span><input id="qingerVisibleSetting" type="checkbox" onchange="window.setQingerVisibility(this.checked)"></label><div class="qinger-inv-content"><div class="qinger-inv-head"><b>小晴儿物品栏</b><button id="qingerInvClose" class="qinger-inv-close" type="button" aria-label="关闭">×</button></div><div class="qinger-hunger-row"><span>饱食度</span><span class="qinger-hunger-bar"><span id="qingerHungerFill" class="qinger-hunger-fill" style="width:0%"></span></span><b id="qingerHungerText">--/100</b></div><div class="qinger-inv-grid"><div class="qinger-slot qinger-food" data-food="gui" title="龟糖"><img id="qingerGuiImg" alt="龟糖"><b id="qingerGuiCount" class="qinger-slot-count">0</b></div><div class="qinger-slot qinger-food" data-food="zhi" title="直给"><img id="qingerZhiImg" alt="直给"><b id="qingerZhiCount" class="qinger-slot-count">0</b></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div></div><div class="qinger-test-panel"><div class="qinger-test-title"><b>测试模式</b><label class="qinger-test-toggle"><input id="qingerTestMode" type="checkbox"><span>仅本机预览</span></label></div><div class="qinger-test-row"><label>饱食度 <b id="qingerTestHungerText">--/100</b></label><div class="qinger-test-control-line"><input id="qingerTestHunger" type="range" min="0" max="100" step="1" value="80"><input id="qingerTestHungerNumber" class="qinger-test-number" type="number" min="0" max="100" step="1" value="80"></div></div><div class="qinger-test-selects"><label>饱食状态<select id="qingerTestBase"><option>饿晕</option><option>很饿</option><option>轻微饥饿</option><option>普通</option><option>较饱</option><option>最饱</option></select></label><label>行为阶段<select id="qingerTestBehavior"><option value="idle">清醒</option><option value="doze1">初困</option><option value="doze2">明显打瞌睡</option><option value="doze3">快睡着</option><option value="daynap">白天短暂睡着</option><option value="sleep">夜间睡眠</option><option value="withdrawn">很饿 · 角落自闭</option></select></label></div><div class="qinger-test-actions"><button id="qingerTestWake" class="qinger-test-action" type="button">测试惊醒</button><button id="qingerTestDaynap" class="qinger-test-action" type="button">进入白天打盹</button><button id="qingerTestSleepProcess" class="qinger-test-action" type="button">夜间睡眠前睡着</button><button id="qingerTestWakeProcess" class="qinger-test-action" type="button">夜间睡眠后醒来</button><button id="qingerTestLoss1" class="qinger-test-action" type="button">测试饱食度 -1</button><button id="qingerTestLoss05" class="qinger-test-action" type="button">测试饱食度 -0.5</button></div><label class="qinger-test-toggle" style="margin-top:8px;display:flex"><input id="qingerUnlimitedItems" type="checkbox"><span>无限物品（测试，不扣库存）</span></label><small class="qinger-test-note">测试模式只改变当前浏览器显示，不写入共享饱食度。</small></div></div>';return n}],
+  ['qingerInventory',()=>{const n=document.createElement('div');n.id='qingerInventory';n.innerHTML='<div class="qinger-inv-content"><div class="qinger-inv-head"><b>小晴儿物品栏</b><button id="qingerInvClose" class="qinger-inv-close" type="button" aria-label="关闭">×</button></div><div class="qinger-hunger-row"><span>饱食度</span><span class="qinger-hunger-bar"><span id="qingerHungerFill" class="qinger-hunger-fill" style="width:0%"></span></span><b id="qingerHungerText">--/100</b></div><div class="qinger-inv-grid"><div class="qinger-slot qinger-food" data-food="gui" title="龟糖"><img id="qingerGuiImg" alt="龟糖"><b id="qingerGuiCount" class="qinger-slot-count">0</b></div><div class="qinger-slot qinger-food" data-food="zhi" title="直给"><img id="qingerZhiImg" alt="直给"><b id="qingerZhiCount" class="qinger-slot-count">0</b></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div></div><label class="qinger-visibility-choice"><span>显示小晴儿</span><input id="qingerVisibleSetting" type="checkbox" onchange="window.setQingerVisibility(this.checked)"></label><div class="qinger-test-panel"><div class="qinger-test-title"><b>测试模式</b><label class="qinger-test-toggle"><input id="qingerTestMode" type="checkbox"><span>仅本机预览</span></label></div><div class="qinger-test-row"><label>饱食度 <b id="qingerTestHungerText">--/100</b></label><div class="qinger-test-control-line"><input id="qingerTestHunger" type="range" min="0" max="100" step="1" value="80"><input id="qingerTestHungerNumber" class="qinger-test-number" type="number" min="0" max="100" step="1" value="80"></div></div><div class="qinger-test-selects"><label>饱食状态<select id="qingerTestBase"><option>饿晕</option><option>很饿</option><option>轻微饥饿</option><option>普通</option><option>较饱</option><option>最饱</option></select></label><label>行为阶段<select id="qingerTestBehavior"><option value="idle">清醒</option><option value="doze1">初困</option><option value="doze2">明显打瞌睡</option><option value="doze3">快睡着</option><option value="daynap">白天短暂睡着</option><option value="sleep">夜间睡眠</option><option value="withdrawn">很饿 · 角落自闭</option></select></label></div><div class="qinger-test-actions"><button id="qingerTestWake" class="qinger-test-action" type="button">测试惊醒</button><button id="qingerTestDaynap" class="qinger-test-action" type="button">进入白天打盹</button><button id="qingerTestSleepProcess" class="qinger-test-action" type="button">夜间睡眠前睡着</button><button id="qingerTestWakeProcess" class="qinger-test-action" type="button">夜间睡眠后醒来</button><button id="qingerTestLoss1" class="qinger-test-action" type="button">测试饱食度 -1</button><button id="qingerTestLoss05" class="qinger-test-action" type="button">测试饱食度 -0.5</button></div><label class="qinger-test-toggle" style="margin-top:8px;display:flex"><input id="qingerUnlimitedItems" type="checkbox"><span>无限物品（测试，不扣库存）</span></label><small class="qinger-test-note">测试模式只改变当前浏览器显示，不写入共享饱食度。</small></div></div>';return n}],
   ['qingerInventoryBtn',()=>{const n=document.createElement('button');n.id='qingerInventoryBtn';n.type='button';n.title='物品栏';n.setAttribute('aria-label','小晴儿物品栏');n.innerHTML='<i class="fa-solid fa-box-open"></i>';return n}],
   ['qingerZzz',()=>{const n=document.createElement('div');n.id='qingerZzz';n.textContent='';return n}],
   ['qingerBang',()=>{const n=document.createElement('div');n.id='qingerBang';n.textContent='!';return n}],
