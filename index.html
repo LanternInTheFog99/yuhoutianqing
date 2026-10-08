@@ -3722,7 +3722,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 window._invalidRoomControllers?.delete(controller);
             }
         }
-
+        // Pet module is a separate script and uses this shared GET client.
+        window.timelineApiFetch = timelineApiFetch;
 
         window.getTimelineAuthClientId = function(){
             const key='yuhoutianqing_auth_client_id';
@@ -16845,10 +16846,17 @@ const dialogueRoot=document.getElementById('xiaoqingerDialogueListEditor');
 dialogueRoot?.addEventListener('input',()=>{editorDirty=true;});
 function captureState(key){
  const root=document.getElementById('xiaoqingerDialogueListEditor');
- if(!root||!KEYS.includes(key)||editorRenderedKey!==key)return false;
- if(!editorDirty && root.innerHTML===window._xiaoqingerRenderedHtml)return true; // Never reparse untouched rendered content.
- let next;try{next=readEditor();}catch(error){console.error('[小晴儿台词] 读取当前状态失败',key,error);return false;}if(!Array.isArray(next))return false;
- if(next.length===0&&window.xiaoqingerRichPlainText(root.innerHTML))return false;
+ if(!root||!KEYS.includes(key))return false;
+ if(editorRenderedKey!==key){console.warn('[小晴儿台词] 编辑状态标记不同步，保留原草稿', {expected:key,rendered:editorRenderedKey});return false;}
+ if(!editorDirty && root.innerHTML===window._xiaoqingerRenderedHtml)return true;
+ let next;
+ try{next=readEditor();}
+ catch(error){
+  console.error('[小晴儿台词] 富文本读取失败，尝试原有解析器',key,error);
+  try{next=window.xiaoqingerDialogueBlocksFromEditor(root)}catch(fallbackError){console.error('[小晴儿台词] 备用读取失败',fallbackError);return false;}
+ }
+ if(!Array.isArray(next)){console.error('[小晴儿台词] 台词解析结果不是数组',key,next);return false;}
+ if(next.length===0&&root.textContent.trim()){console.error('[小晴儿台词] 非空内容解析为空',key);return false;}
  window._xiaoqingerDialogueDrafts[key]=next;
  editorDirty=false;window._xiaoqingerRenderedHtml=root.innerHTML;
  return true;
@@ -16871,6 +16879,7 @@ window.xiaoqingerSwitchDialogueState=function(key){
    editorDirty=true; // preserve any content already typed into the editor
   }
  }
+ if(!editorRenderedKey && !putEditor('normal')){window.showToast?.('台词编辑器未初始化，请重新打开','error');return;}
  if(!captureState(editorRenderedKey)){
   if(sel)sel.value=editorRenderedKey||'normal';
   window.showToast?.('台词读取异常，已取消切换','error');return;
