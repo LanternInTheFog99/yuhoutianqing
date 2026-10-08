@@ -2480,11 +2480,10 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     <button type="button" onclick="xiaoqingerRichCommand('underline')" title="下划线" class="w-8 h-8 rounded-lg border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 text-xs underline">U</button>
                     <button type="button" onclick="xiaoqingerRichCommand('strikeThrough')" title="删除线" class="w-8 h-8 rounded-lg border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 text-xs line-through">S</button>
                     <select id="xiaoqingerRichSize" style="width:160px;min-width:160px" onchange="xiaoqingerRichSetSize(this.value)" class="h-8 px-2 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-600 outline-none">
-                        <option value="" disabled>选择字号</option>
+                        <option value="14">14px（默认）</option>
                         <option value="11">11px</option>
                         <option value="12">12px</option>
                         <option value="13">13px</option>
-                        <option value="14">14px（默认）</option>
                         <option value="15">15px</option>
                         <option value="16">16px</option>
                         <option value="17">17px</option>
@@ -2493,15 +2492,13 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                         <option value="20">20px</option>
                     </select>
                     <span id="xiaoqingerRichCurrentSize" class="text-[10px] text-slate-400 min-w-[58px]">当前：14px</span>
-                    <div class="flex items-center gap-1 pl-1">
-                        <button type="button" onclick="xiaoqingerRichSetColor('#334155')" title="默认" class="w-5 h-5 rounded-full border border-slate-300 bg-slate-700"></button>
-                        <button type="button" onclick="xiaoqingerRichSetColor('#2563eb')" title="蓝色" class="w-5 h-5 rounded-full border border-slate-300 bg-blue-600"></button>
-                        <button type="button" onclick="xiaoqingerRichSetColor('#4f46e5')" title="靛蓝" class="w-5 h-5 rounded-full border border-slate-300 bg-indigo-600"></button>
-                        <button type="button" onclick="xiaoqingerRichSetColor('#dc2626')" title="红色" class="w-5 h-5 rounded-full border border-slate-300 bg-red-600"></button>
-                        <button type="button" onclick="xiaoqingerRichSetColor('#16a34a')" title="绿色" class="w-5 h-5 rounded-full border border-slate-300 bg-green-600"></button>
-                        <button type="button" onclick="xiaoqingerRichSetColor('#d97706')" title="橙色" class="w-5 h-5 rounded-full border border-slate-300 bg-amber-600"></button>
-                        <button type="button" onclick="openXiaoqingerCustomColorModal()" title="自定义颜色"
-                                class="w-6 h-6 rounded-full border border-slate-300 bg-white cursor-pointer flex items-center justify-center text-[12px] text-slate-500">+</button>
+                    <div class="relative">
+                        <button type="button" id="xiaoqingerRichColorButton" onclick="xiaoqingerToggleColorPalette()" class="h-8 px-2.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-700"><span id="xiaoqingerRichColorSwatch" class="inline-block w-3 h-3 rounded-full mr-1 align-[-1px]" style="background:#334155"></span>文字颜色</button>
+                        <div id="xiaoqingerRichColorPalette" class="hidden absolute left-0 top-9 z-[510] w-64 p-3 bg-white border border-slate-200 rounded-xl shadow-xl">
+                            <div class="text-[10px] font-semibold text-slate-500 mb-2">固定色 / 自定义</div>
+                            <div id="xiaoqingerRichColorGrid" class="grid grid-cols-7 gap-2"></div>
+                            <div class="flex items-center gap-2 mt-3 pt-2 border-t"><span class="text-[10px] text-slate-500">自定义</span><input id="xiaoqingerRichPaletteCustom" type="color" value="#334155" class="w-7 h-7 p-0 border-0"><button type="button" onclick="xiaoqingerChoosePaletteColor(document.getElementById('xiaoqingerRichPaletteCustom').value)" class="ml-auto px-2 py-1 rounded bg-indigo-600 text-white text-[10px]">使用</button></div>
+                        </div>
                     </div>
                     <button type="button" onclick="xiaoqingerRichClear()" title="清除格式" class="ml-auto px-2.5 h-8 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-[10px] text-slate-500">清除格式</button>
                 </div>
@@ -14958,10 +14955,6 @@ viewer.style.visibility='';
             const sel = window.getSelection?.();
             if (!r || !sel) return false;
             try {
-                const node = r.commonAncestorContainer;
-                const host = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
-                const editor = host?.closest?.('.xiaoqinger-rich-editor');
-                if (!editor || !editor.isConnected) return false;
                 sel.removeAllRanges();
                 sel.addRange(r);
                 return true;
@@ -14970,17 +14963,47 @@ viewer.style.visibility='';
             }
         };
 
+        window.xiaoqingerHasSelectedText = function() {
+            const sel=window.getSelection?.();
+            if(!sel||!sel.rangeCount||sel.isCollapsed||!sel.toString().trim())return false;
+            const r=sel.getRangeAt(0);
+            const node=r.commonAncestorContainer;
+            const el=node.nodeType===1?node:node.parentElement;
+            return !!el?.closest?.('.xiaoqinger-rich-editor');
+        };
+        window.xiaoqingerSyncToolbar = function() {
+            const enabled=window.xiaoqingerHasSelectedText();
+            const bar=document.getElementById('xiaoqingerRichToolbar');
+            if(!bar)return;
+            bar.querySelectorAll('button,select').forEach(el=>{el.disabled=!enabled;el.classList.toggle('opacity-40',!enabled);el.classList.toggle('cursor-not-allowed',!enabled);});
+            const pal=document.getElementById('xiaoqingerRichColorPalette');
+            if(!enabled)pal?.classList.add('hidden');
+        };
+        window.xiaoqingerChoosePaletteColor = function(color) {
+            if(window.xiaoqingerApplyInlineStyle('color',color)){
+                const sw=document.getElementById('xiaoqingerRichColorSwatch');if(sw)sw.style.background=color;
+            }
+            document.getElementById('xiaoqingerRichColorPalette')?.classList.add('hidden');
+        };
+        window.xiaoqingerToggleColorPalette = function() {
+            if(!window.xiaoqingerHasSelectedText()&&!window._xiaoqingerRichRange)return;
+            const p=document.getElementById('xiaoqingerRichColorPalette');
+            p?.classList.toggle('hidden');
+        };
+        (function(){
+            const colors=['#0f172a','#334155','#64748b','#dc2626','#ea580c','#f59e0b','#16a34a','#059669','#0284c7','#2563eb','#4f46e5','#7c3aed','#db2777','#ffffff'];
+            const grid=document.getElementById('xiaoqingerRichColorGrid');
+            if(grid)colors.forEach(c=>{const b=document.createElement('button');b.type='button';b.className='w-6 h-6 rounded-full border border-slate-200';b.style.background=c;b.title=c;b.onclick=()=>window.xiaoqingerChoosePaletteColor(c);grid.appendChild(b);});
+        })();
         window.xiaoqingerRichCommand = function(cmd) {
             window.xiaoqingerRestoreRichSelection();
             try { document.execCommand(cmd, false, null); } catch (_) {}
             window.xiaoqingerRememberRichSelection();
+            window.xiaoqingerSyncToolbar();
         };
 
         window.xiaoqingerApplyInlineStyle = function(property, value) {
-            if (!window.xiaoqingerRestoreRichSelection()) {
-                window.showToast?.('请先选中需要调整字号的台词文字', 'info');
-                return false;
-            }
+            if (!window.xiaoqingerRestoreRichSelection()) return false;
             const sel = window.getSelection?.();
             if (!sel || !sel.rangeCount) return false;
             const range = sel.getRangeAt(0);
@@ -15006,7 +15029,7 @@ viewer.style.visibility='';
                 sel.removeAllRanges();
                 sel.addRange(newRange);
                 window._xiaoqingerRichRange = newRange.cloneRange();
-                editor.dispatchEvent(new Event('input', { bubbles: true }));
+
                 window.xiaoqingerUpdateCurrentSize?.();
                 return true;
             } catch (e) {
@@ -15085,9 +15108,8 @@ viewer.style.visibility='';
             }
             label.textContent = `当前：${size}px`;
             const allowed = ['11','12','13','14','15','16','17','18','19','20'];
-            select.value = allowed.includes(String(size)) ? String(size) : '';
-            if (!select.value) select.options[0].textContent = `${size}px（当前）`;
-            else select.options[0].textContent = '选择字号';
+            select.value = allowed.includes(String(size)) ? String(size) : '14';
+            select.dispatchEvent(new Event('change', {bubbles:false}));
         };
 
         window.xiaoqingerRichClear = function() {
@@ -15106,25 +15128,57 @@ viewer.style.visibility='';
                 if (!sel || !sel.rangeCount) return;
                 const n = sel.anchorNode;
                 const root = n?.nodeType === 1 ? n.closest?.('.xiaoqinger-rich-editor') : n?.parentElement?.closest?.('.xiaoqinger-rich-editor');
-                if (root && !sel.isCollapsed) {
+                if (root) {
                     window.xiaoqingerRememberRichSelection();
                     window.xiaoqingerUpdateCurrentSize?.();
                 }
+                window.xiaoqingerSyncToolbar?.();
             });
             document.addEventListener('pointerup', e => {
                 if (e.target?.closest?.('.xiaoqinger-rich-editor')) {
                     window.xiaoqingerRememberRichSelection();
                     window.xiaoqingerUpdateCurrentSize?.();
                 }
+                window.xiaoqingerSyncToolbar?.();
             }, true);
             document.addEventListener('keyup', e => {
                 if (e.target?.closest?.('.xiaoqinger-rich-editor')) {
                     window.xiaoqingerRememberRichSelection();
                     window.xiaoqingerUpdateCurrentSize?.();
                 }
+                window.xiaoqingerSyncToolbar?.();
             }, true);
         }
 
+        document.addEventListener('keydown', function(e) {
+            const root=e.target?.closest?.('.xiaoqinger-rich-editor');
+            if(!root||root.id!=='xiaoqingerDialogueListEditor'||e.key!=='Enter'||e.shiftKey||e.isComposing)return;
+            const sel=window.getSelection();
+            if(!sel?.rangeCount||!root.contains(sel.anchorNode))return;
+            e.preventDefault();
+            const range=sel.getRangeAt(0);
+            range.deleteContents();
+            // Insert a fresh, unformatted block rather than inheriting the previous line's inline styles.
+            let block=range.startContainer.nodeType===1?range.startContainer:range.startContainer.parentElement;
+            while(block&&block.parentElement!==root)block=block.parentElement;
+            const tail=document.createRange();
+            if(block&&block.parentElement===root){
+                tail.selectNodeContents(block);tail.setStart(range.startContainer,range.startOffset);
+            }else{
+                tail.selectNodeContents(root);tail.setStart(range.startContainer,range.startOffset);
+            }
+            const rest=tail.extractContents();
+            const next=document.createElement('div');
+            // New paragraph starts with plain text; subsequent text is not lost.
+            next.textContent=rest.textContent||'';
+            if(!next.textContent)next.appendChild(document.createElement('br'));
+            if(block&&block.parentElement===root)block.after(next);
+            else root.appendChild(next);
+            const caret=document.createRange();caret.setStart(next,0);caret.collapse(true);
+            sel.removeAllRanges();sel.addRange(caret);
+            window._xiaoqingerRichRange=null;
+            window.xiaoqingerSyncToolbar?.();
+        },true);
         window.requestXiaoqingerDialogueEditor = async function() {
             window.normalizeGlobalOverlayStructure?.();
             if (!window.isCloudSynced || window._syncStatusType !== 'synced') {
@@ -16672,6 +16726,8 @@ window.openXiaoqingerDialogueEditor=function(){
   }
   render('normal');
   document.getElementById('xiaoqingerDialogueEditorModal').classList.remove('hidden');
+  window._xiaoqingerRichRange=null;
+  window.xiaoqingerSyncToolbar?.();
  }catch(err){session=null;console.error('[小晴儿台词] 打开失败',err);window.showToast?.('台词编辑器打开失败：'+err.message,'error');}
 };
 window.xiaoqingerSwitchDialogueState=function(key){
