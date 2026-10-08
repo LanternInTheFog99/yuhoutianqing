@@ -14937,247 +14937,118 @@ viewer.style.visibility='';
             window.showXiaoqingerSimpleSpeech(arr[Math.floor(Math.random()*arr.length)],{html:true});
         };
 
-        window._xiaoqingerRichRange = null;
-
-        window.xiaoqingerRememberRichSelection = function() {
-            const sel = window.getSelection?.();
-            if (!sel || !sel.rangeCount) return;
-            const range = sel.getRangeAt(0);
-            const root = range.commonAncestorContainer.nodeType === 1
-                ? range.commonAncestorContainer.closest?.('.xiaoqinger-rich-editor')
-                : range.commonAncestorContainer.parentElement?.closest?.('.xiaoqinger-rich-editor');
-            if (!root) return;
-            window._xiaoqingerRichRange = range.cloneRange();
+        // 小晴儿与详细描述共用底层选区/精确字号操作；仅保存各自的选区状态。
+        window._xiaoqingerRichRange=null;
+        const xqRoot=()=>{const sel=window.getSelection?.();const node=sel?.rangeCount?sel.getRangeAt(0).commonAncestorContainer:null;const el=node?.nodeType===1?node:node?.parentElement;return el?.closest?.('.xiaoqinger-rich-editor')||window._xiaoqingerRichEditor||null;};
+        const xqValid=(r)=>{const root=xqRoot();return !!(root&&r&&!r.collapsed&&root.contains(r.commonAncestorContainer));};
+        window.xiaoqingerRememberRichSelection=function(){
+            const sel=window.getSelection?.(),r=sel?.rangeCount?sel.getRangeAt(0):null;
+            if(xqValid(r)){window._xiaoqingerRichRange=r.cloneRange();const node=r.commonAncestorContainer;window._xiaoqingerRichEditor=(node.nodeType===1?node:node.parentElement).closest('.xiaoqinger-rich-editor');}
         };
-
-        window.xiaoqingerRestoreRichSelection = function() {
-            const r = window._xiaoqingerRichRange;
-            const sel = window.getSelection?.();
-            if (!r || !sel) return false;
-            try {
-                sel.removeAllRanges();
-                sel.addRange(r);
-                return true;
-            } catch (_) {
-                return false;
-            }
+        window.xiaoqingerRestoreRichSelection=function(){
+            const r=window._xiaoqingerRichRange,root=xqRoot();
+            if(!xqValid(r)||!root)return false;
+            try{const sel=window.getSelection();sel.removeAllRanges();sel.addRange(r);root.focus();return true;}catch(_){return false;}
         };
-
-        window.xiaoqingerHasSelectedText = function() {
-            const sel=window.getSelection?.();
-            if(!sel||!sel.rangeCount||sel.isCollapsed||!sel.toString().trim())return false;
-            const r=sel.getRangeAt(0);
-            const node=r.commonAncestorContainer;
-            const el=node.nodeType===1?node:node.parentElement;
-            return !!el?.closest?.('.xiaoqinger-rich-editor');
+        window.xiaoqingerHasSelectedText=function(){
+            const sel=window.getSelection?.();return !!(sel?.rangeCount&&xqValid(sel.getRangeAt(0))&&sel.toString().trim());
         };
-        window.xiaoqingerSyncToolbar = function() {
-            const enabled=window.xiaoqingerHasSelectedText();
-            const bar=document.getElementById('xiaoqingerRichToolbar');
+        window.xiaoqingerSyncToolbar=function(){
+            const enabled=window.xiaoqingerHasSelectedText(),bar=document.getElementById('xiaoqingerRichToolbar');
             if(!bar)return;
-            bar.querySelectorAll('button,select').forEach(el=>{el.disabled=!enabled;el.classList.toggle('opacity-40',!enabled);el.classList.toggle('cursor-not-allowed',!enabled);});
-            const pal=document.getElementById('xiaoqingerRichColorPalette');
-            if(!enabled)pal?.classList.add('hidden');
+            bar.querySelectorAll('button,select').forEach(el=>{el.disabled=!enabled;el.classList.toggle('opacity-40',!enabled);});
+            const sel=document.getElementById('xiaoqingerRichSize');
+            if(sel?.parentElement?.classList.contains('web-select-wrap')){
+                const btn=sel.parentElement.querySelector(':scope > button');if(btn)btn.disabled=!enabled;
+            }
+            if(!enabled)document.getElementById('xiaoqingerRichColorPalette')?.classList.add('hidden');
         };
-        window.xiaoqingerChoosePaletteColor = function(color) {
+        window.xiaoqingerRichCommand=function(cmd){
+            if(!window.xiaoqingerRestoreRichSelection())return;
+            const r=window.getSelection()?.getRangeAt(0);if(!xqValid(r))return;
+            try{document.execCommand(cmd,false,null);}catch(_){}
+            window.xiaoqingerRememberRichSelection();
+        };
+        window.xiaoqingerApplyInlineStyle=function(property,value){
+            if(!window.xiaoqingerRestoreRichSelection())return false;
+            const root=xqRoot(),sel=window.getSelection(),r=sel?.rangeCount?sel.getRangeAt(0):null;
+            if(!xqValid(r))return false;
+            if(property==='fontSize'){
+                // 直接复用详细描述的精确字号实现，避免嵌套 span 和选区事件递归。
+                const fixed=window.applyExactFontSizeToSelection?.(root,r,parseFloat(value));
+                if(!fixed)return false;
+                window._xiaoqingerRichRange=fixed.cloneRange();
+            }else if(property==='color'){
+                // 与详细描述 richSetColor 使用同一种 foreColor 操作。
+                try{document.execCommand('styleWithCSS',false,true);document.execCommand('foreColor',false,value);}catch(_){return false;}
+                window.xiaoqingerRememberRichSelection();
+            }else return false;
+            return true;
+        };
+        window.xiaoqingerRichSetSize=function(px){const n=Number(px);if(n>=11&&n<=20)window.xiaoqingerApplyInlineStyle('fontSize',n+'px');};
+        window.xiaoqingerRichSetColor=function(color){if(color)window.xiaoqingerApplyInlineStyle('color',color);};
+        window.xiaoqingerChoosePaletteColor=function(color){
             if(window.xiaoqingerApplyInlineStyle('color',color)){
                 const sw=document.getElementById('xiaoqingerRichColorSwatch');if(sw)sw.style.background=color;
             }
             document.getElementById('xiaoqingerRichColorPalette')?.classList.add('hidden');
         };
-        window.xiaoqingerToggleColorPalette = function() {
-            if(!window.xiaoqingerHasSelectedText()&&!window._xiaoqingerRichRange)return;
-            const p=document.getElementById('xiaoqingerRichColorPalette');
-            p?.classList.toggle('hidden');
+        window.xiaoqingerToggleColorPalette=function(){
+            if(!xqValid(window._xiaoqingerRichRange))return;
+            document.getElementById('xiaoqingerRichColorPalette')?.classList.toggle('hidden');
         };
         (function(){
-            const colors=['#0f172a','#334155','#64748b','#dc2626','#ea580c','#f59e0b','#16a34a','#059669','#0284c7','#2563eb','#4f46e5','#7c3aed','#db2777','#ffffff'];
             const grid=document.getElementById('xiaoqingerRichColorGrid');
-            if(grid)colors.forEach(c=>{const b=document.createElement('button');b.type='button';b.className='w-6 h-6 rounded-full border border-slate-200';b.style.background=c;b.title=c;b.onclick=()=>window.xiaoqingerChoosePaletteColor(c);grid.appendChild(b);});
-        })();
-        window.xiaoqingerRichCommand = function(cmd) {
-            window.xiaoqingerRestoreRichSelection();
-            try { document.execCommand(cmd, false, null); } catch (_) {}
-            window.xiaoqingerRememberRichSelection();
-            window.xiaoqingerSyncToolbar();
-        };
-
-        window.xiaoqingerApplyInlineStyle = function(property, value) {
-            if (!window.xiaoqingerRestoreRichSelection()) return false;
-            const sel = window.getSelection?.();
-            if (!sel || !sel.rangeCount) return false;
-            const range = sel.getRangeAt(0);
-            if (range.collapsed) {
-                window.showToast?.('请先选中文字', 'info');
-                return false;
-            }
-
-            const ancestor = range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
-                ? range.commonAncestorContainer
-                : range.commonAncestorContainer.parentElement;
-            const editor = ancestor?.closest?.('.xiaoqinger-rich-editor');
-            if (!editor) return false;
-
-            try {
-                const span = document.createElement('span');
-                span.style[property] = value;
-                span.appendChild(range.extractContents());
-                range.insertNode(span);
-
-                const newRange = document.createRange();
-                newRange.selectNodeContents(span);
-                sel.removeAllRanges();
-                sel.addRange(newRange);
-                window._xiaoqingerRichRange = newRange.cloneRange();
-
-                window.xiaoqingerUpdateCurrentSize?.();
-                return true;
-            } catch (e) {
-                console.warn('小晴儿富文本格式应用失败:', e);
-                return false;
-            }
-        };
-
-        window.xiaoqingerRichSetColor = function(color) {
-            if (!color) return;
-            window.xiaoqingerApplyInlineStyle('color', color);
-        };
-
-        window.xiaoqingerRichPreviewCustomColor = function(color) {
-            const hex = document.getElementById('xiaoqingerRichCustomColorHex');
-            if (hex && /^#[0-9a-fA-F]{6}$/.test(color || '')) hex.value = color.toUpperCase();
-        };
-
-        window.xiaoqingerRichSyncHexColor = function(value) {
-            const v = String(value || '').trim();
-            if (!/^#[0-9a-fA-F]{6}$/.test(v)) return;
-            const picker = document.getElementById('xiaoqingerRichCustomColor');
-            if (picker) picker.value = v;
-        };
-
-        window.openXiaoqingerCustomColorModal = function() {
-            window.normalizeGlobalOverlayStructure?.();
-            window.xiaoqingerRememberRichSelection();
-            const picker = document.getElementById('xiaoqingerRichCustomColor');
-            const hex = document.getElementById('xiaoqingerRichCustomColorHex');
-            if (picker && hex) hex.value = picker.value.toUpperCase();
-            document.getElementById('xiaoqingerCustomColorModal')?.classList.remove('hidden');
-        };
-
-        window.closeXiaoqingerCustomColorModal = function() {
-            document.getElementById('xiaoqingerCustomColorModal')?.classList.add('hidden');
-        };
-
-        window.confirmXiaoqingerCustomColor = function() {
-            const picker = document.getElementById('xiaoqingerRichCustomColor');
-            const hex = document.getElementById('xiaoqingerRichCustomColorHex');
-            let color = String(hex?.value || picker?.value || '').trim();
-            if (!/^#[0-9a-fA-F]{6}$/.test(color)) {
-                window.showToast?.('请输入有效的颜色值', 'error');
-                return;
-            }
-            if (picker) picker.value = color;
-            window.xiaoqingerRichSetColor(color);
-            window.closeXiaoqingerCustomColorModal();
-        };
-
-        window.xiaoqingerRichSetSize = function(px) {
-            const size = Number(px);
-            if (!Number.isFinite(size) || size < 11 || size > 20) return;
-            if (window.xiaoqingerApplyInlineStyle('fontSize', `${size}px`)) {
-                window.xiaoqingerUpdateCurrentSize?.();
-            }
-        };
-
-        window.xiaoqingerUpdateCurrentSize = function() {
-            const label = document.getElementById('xiaoqingerRichCurrentSize');
-            const select = document.getElementById('xiaoqingerRichSize');
-            if (!label || !select) return;
-
-            let size = 14;
-            const sel = window.getSelection?.();
-            if (sel && sel.rangeCount) {
-                const range = sel.getRangeAt(0);
-                let node = range.startContainer;
-                if (node?.nodeType === Node.TEXT_NODE) node = node.parentElement;
-                const editor = node?.closest?.('.xiaoqinger-rich-editor');
-                if (editor) {
-                    const parsed = parseFloat(getComputedStyle(node || editor).fontSize);
-                    if (Number.isFinite(parsed)) size = Math.round(parsed);
-                }
-            }
-            label.textContent = `当前：${size}px`;
-            const allowed = ['11','12','13','14','15','16','17','18','19','20'];
-            select.value = allowed.includes(String(size)) ? String(size) : '14';
-            select.dispatchEvent(new Event('change', {bubbles:false}));
-        };
-
-        window.xiaoqingerRichClear = function() {
-            window.xiaoqingerRestoreRichSelection();
-            try { document.execCommand('removeFormat', false, null); } catch (_) {}
-            window.xiaoqingerRememberRichSelection();
-        };
-
-        if (!window._xiaoqingerRichSelectionBound) {
-            window._xiaoqingerRichSelectionBound = true;
-            document.getElementById('xiaoqingerRichToolbar')?.addEventListener('pointerdown', () => {
-                window.xiaoqingerRememberRichSelection();
-            }, true);
-            document.addEventListener('selectionchange', () => {
-                const sel = window.getSelection?.();
-                if (!sel || !sel.rangeCount) return;
-                const n = sel.anchorNode;
-                const root = n?.nodeType === 1 ? n.closest?.('.xiaoqinger-rich-editor') : n?.parentElement?.closest?.('.xiaoqinger-rich-editor');
-                if (root) {
-                    window.xiaoqingerRememberRichSelection();
-                    window.xiaoqingerUpdateCurrentSize?.();
-                }
-                window.xiaoqingerSyncToolbar?.();
+            ['#0f172a','#334155','#64748b','#dc2626','#ea580c','#f59e0b','#16a34a','#059669','#0284c7','#2563eb','#4f46e5','#7c3aed','#db2777','#ffffff'].forEach(c=>{
+                if(!grid)return;const btn=document.createElement('button');btn.type='button';btn.className='w-6 h-6 rounded-full border border-slate-200';btn.style.background=c;btn.title=c;
+                btn.addEventListener('click',()=>window.xiaoqingerChoosePaletteColor(c));grid.appendChild(btn);
             });
-            document.addEventListener('pointerup', e => {
-                if (e.target?.closest?.('.xiaoqinger-rich-editor')) {
-                    window.xiaoqingerRememberRichSelection();
-                    window.xiaoqingerUpdateCurrentSize?.();
+        })();
+        window.xiaoqingerRichClear=function(){window.xiaoqingerRichCommand('removeFormat');};
+        window.xiaoqingerUpdateCurrentSize=function(){
+            const label=document.getElementById('xiaoqingerRichCurrentSize'),select=document.getElementById('xiaoqingerRichSize');
+            if(!label||!select)return;
+            const r=window._xiaoqingerRichRange,root=xqRoot();
+            if(!xqValid(r)||!root)return;
+            // 复用详细描述只读的字号识别，不在 selectionchange 中修改文档。
+            const state=window.getUniformSelectedFontSizeReadOnly?.(root,r);
+            const size=state?.valid&&!state.mixed?Math.round(state.size):14;
+            label.textContent=state?.mixed?'当前：混合字号':`当前：${size}px`;
+            const v=String(size);select.value=[...select.options].some(o=>o.value===v)?v:'14';
+            const customLabel=select.parentElement?.querySelector(':scope > button > span');
+            if(customLabel)customLabel.textContent=select.options[select.selectedIndex]?.textContent||'14px（默认）';
+        };
+        // 复用详细描述的选区生命周期：只读同步、离开编辑区后禁用。
+        document.getElementById('xiaoqingerRichToolbar')?.addEventListener('pointerdown',()=>window.xiaoqingerRememberRichSelection(),true);
+        if(!window._xiaoqingerRichSelectionBound){
+            window._xiaoqingerRichSelectionBound=true;
+            document.addEventListener('selectionchange',()=>{
+                if(window.xiaoqingerHasSelectedText()){
+                    window.xiaoqingerRememberRichSelection();window.xiaoqingerUpdateCurrentSize();
+                }else{
+                    const active=document.activeElement;
+                    if(!active?.closest?.('#xiaoqingerRichToolbar, #xiaoqingerRichColorPalette')&&!document.querySelector('#xiaoqingerRichToolbar:hover')){window._xiaoqingerRichRange=null;window._xiaoqingerRichEditor=null;}
                 }
-                window.xiaoqingerSyncToolbar?.();
-            }, true);
-            document.addEventListener('keyup', e => {
-                if (e.target?.closest?.('.xiaoqinger-rich-editor')) {
-                    window.xiaoqingerRememberRichSelection();
-                    window.xiaoqingerUpdateCurrentSize?.();
-                }
-                window.xiaoqingerSyncToolbar?.();
-            }, true);
+                window.xiaoqingerSyncToolbar();
+            });
         }
-
-        document.addEventListener('keydown', function(e) {
-            const root=e.target?.closest?.('.xiaoqinger-rich-editor');
-            if(!root||root.id!=='xiaoqingerDialogueListEditor'||e.key!=='Enter'||e.shiftKey||e.isComposing)return;
-            const sel=window.getSelection();
-            if(!sel?.rangeCount||!root.contains(sel.anchorNode))return;
-            e.preventDefault();
-            const range=sel.getRangeAt(0);
-            range.deleteContents();
-            // Insert a fresh, unformatted block rather than inheriting the previous line's inline styles.
-            let block=range.startContainer.nodeType===1?range.startContainer:range.startContainer.parentElement;
-            while(block&&block.parentElement!==root)block=block.parentElement;
+        // Enter 换行与详细描述保持一致：行尾新行恢复普通格式；行中原生换行。
+        document.addEventListener('keydown',function(event){
+            if(event.key!=='Enter'||event.defaultPrevented||event.isComposing||event.shiftKey)return;
+            const root=event.target?.closest?.('.xiaoqinger-rich-editor');if(!root)return;
+            const sel=window.getSelection?.();if(!sel?.rangeCount)return;
+            const r=sel.getRangeAt(0);if(!r.collapsed||!root.contains(r.commonAncestorContainer))return;
+            let line=r.startContainer.nodeType===1?r.startContainer:r.startContainer.parentElement;
+            while(line&&line.parentElement&&line.parentElement!==root)line=line.parentElement;
+            if(line===root)line=null;
             const tail=document.createRange();
-            if(block&&block.parentElement===root){
-                tail.selectNodeContents(block);tail.setStart(range.startContainer,range.startOffset);
-            }else{
-                tail.selectNodeContents(root);tail.setStart(range.startContainer,range.startOffset);
-            }
-            const rest=tail.extractContents();
-            const next=document.createElement('div');
-            // New paragraph starts with plain text; subsequent text is not lost.
-            next.textContent=rest.textContent||'';
-            if(!next.textContent)next.appendChild(document.createElement('br'));
-            if(block&&block.parentElement===root)block.after(next);
-            else root.appendChild(next);
-            const caret=document.createRange();caret.setStart(next,0);caret.collapse(true);
-            sel.removeAllRanges();sel.addRange(caret);
-            window._xiaoqingerRichRange=null;
-            window.xiaoqingerSyncToolbar?.();
+            try{tail.selectNodeContents(line||root);tail.setStart(r.startContainer,r.startOffset);}catch(_){return;}
+            if((tail.toString()||'').replace(/[\u200B\uFEFF]/g,'').length)return;
+            event.preventDefault();
+            const fresh=document.createElement('div');fresh.style.cssText='font-size:14px;font-weight:400;font-style:normal;text-decoration:none;color:#334155';fresh.appendChild(document.createElement('br'));
+            if(line)line.after(fresh);else root.appendChild(fresh);
+            const nr=document.createRange();nr.selectNodeContents(fresh);nr.collapse(true);sel.removeAllRanges();sel.addRange(nr);
+            window._xiaoqingerRichRange=null;window.xiaoqingerSyncToolbar();
         },true);
         window.requestXiaoqingerDialogueEditor = async function() {
             window.normalizeGlobalOverlayStructure?.();
