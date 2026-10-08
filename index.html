@@ -5,14 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/png" href="xiaoqinger-favicon.png">
     <title>雨后天晴</title>
-<style id="app-boot-critical">html:not(.app-ready) body>*:not(#appBootScreen){visibility:hidden!important}#appBootScreen{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#fff;color:#4b5563;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}#appBootScreen .app-boot-inner{display:flex;opacity:0;transition:opacity .18s ease;flex-direction:column;align-items:center;gap:12px;padding:24px;text-align:center}#appBootScreen.app-boot-visible .app-boot-inner{opacity:1}#appBootScreen .app-boot-spinner{width:26px;height:26px;border:3px solid #e5e7eb;border-top-color:#64748b;border-radius:50%;animation:appBootSpin .8s linear infinite}#appBootScreen .app-boot-text{font-size:14px;line-height:1.6}#appBootScreen .app-boot-retry{display:none;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#334155;padding:7px 14px;font:inherit;cursor:pointer}#appBootScreen.app-boot-failed .app-boot-spinner{display:none}#appBootScreen.app-boot-failed .app-boot-retry{display:inline-block}@keyframes appBootSpin{to{transform:rotate(360deg)}}</style>
+<style id="app-boot-critical">html:not(.app-ready) #xiaoqingerSimplePet,html.app-pet-settling #xiaoqingerSimplePet,html:not(.app-ready) #xiaoqingerSimplePet *,html.app-pet-settling #xiaoqingerSimplePet *,html:not(.app-ready) #qingerInventory,html.app-pet-settling #qingerInventory,html:not(.app-ready) #qingerInventory *,html.app-pet-settling #qingerInventory *{animation:none!important;transition:none!important} html:not(.app-ready) body>*:not(#appBootScreen){visibility:hidden!important}#appBootScreen{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#fff;color:#4b5563;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}#appBootScreen .app-boot-inner{display:flex;opacity:0;transition:opacity .18s ease;flex-direction:column;align-items:center;gap:12px;padding:24px;text-align:center}#appBootScreen.app-boot-visible .app-boot-inner{opacity:1}#appBootScreen .app-boot-spinner{width:26px;height:26px;border:3px solid #e5e7eb;border-top-color:#64748b;border-radius:50%;animation:appBootSpin .8s linear infinite}#appBootScreen .app-boot-text{font-size:14px;line-height:1.6}#appBootScreen .app-boot-retry{display:none;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#334155;padding:7px 14px;font:inherit;cursor:pointer}#appBootScreen.app-boot-failed .app-boot-spinner{display:none}#appBootScreen.app-boot-failed .app-boot-retry{display:inline-block}@keyframes appBootSpin{to{transform:rotate(360deg)}}</style>
 <script>(function(){
 window.__appBootWindowLoaded=false;window.__appBootPetReady=false;window.__appBootCloudReady=false;window.__appBootDone=false;window.__appBootResourceError=false;
+window.__retryAppBoot=function(){var n=document.getElementById('appBootScreen');if(n){n.classList.remove('app-boot-failed');var t=n.querySelector('.app-boot-text');if(t)t.textContent='正在重新连接云端…';}window.__initialCloudSyncStarted=false;window.__startInitialCloud?.();};
 window.__appBootFailure=function(message){var n=document.getElementById('appBootScreen');if(!n||window.__appBootDone)return;n.classList.add('app-boot-visible','app-boot-failed');var t=n.querySelector('.app-boot-text');if(t)t.textContent=message||'页面加载失败，请检查网络后重新加载'};
-window.__tryFinishAppBoot=function(){if(window.__appBootDone||!window.__appBootWindowLoaded||!window.__appBootPetReady||!window.__appBootCloudReady||window.__appBootResourceError)return;window.__appBootDone=true;document.documentElement.classList.add('app-ready');document.getElementById('appBootScreen')?.remove();};
+window.__tryFinishAppBoot=function(){if(window.__appBootDone||!window.__appBootWindowLoaded||!window.__appBootPetReady||!window.__appBootCloudReady||window.__appBootResourceError)return;window.__appBootDone=true;document.documentElement.classList.add('app-ready','app-pet-settling');document.getElementById('appBootScreen')?.remove();requestAnimationFrame(function(){requestAnimationFrame(function(){setTimeout(function(){document.documentElement.classList.remove('app-pet-settling')},120)})});};
 window.addEventListener('load',function(){window.__appBootWindowLoaded=true;window.__startInitialCloud?.();window.__tryFinishAppBoot()},{once:true});
 setTimeout(function(){if(!window.__appBootDone)document.getElementById('appBootScreen')?.classList.add('app-boot-visible')},800);
-setTimeout(function(){if(!window.__appBootDone)window.__appBootFailure('页面加载得有点慢，请检查网络后重新加载')},20000);
+setTimeout(function(){if(!window.__appBootDone&&!document.getElementById('appBootScreen')?.classList.contains('app-boot-failed')){var t=document.querySelector('#appBootScreen .app-boot-text');if(t)t.textContent='正在等待云端同步，网络较慢时可能需要一些时间…'}},20000);
 })();</script>
 
 <script defer src="https://cdn.tailwindcss.com" onerror="window.__appBootResourceError=true;window.__appBootFailure('页面样式加载失败，请检查网络后重新加载')"></script>
@@ -1824,7 +1825,7 @@ html.qinger-user-hidden #xiaoqingerSimplePet,html.qinger-user-hidden #qingerInve
 </head>
 <!-- v35: head-motion branch from v32 -->
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
-<div id="appBootScreen" aria-live="polite"><div class="app-boot-inner"><div class="app-boot-spinner" aria-hidden="true"></div><div class="app-boot-text">正在加载该网页...</div><button class="app-boot-retry" type="button" onclick="location.reload()">重新加载</button></div></div>
+<div id="appBootScreen" aria-live="polite"><div class="app-boot-inner"><div class="app-boot-spinner" aria-hidden="true"></div><div class="app-boot-text">正在加载该网页...</div><button class="app-boot-retry" type="button" onclick="window.__retryAppBoot?.()">重新连接</button></div></div>
 <div id="invalidRoomAccessOverlay" aria-live="assertive" aria-label="此链接无效"><div class="invalid-room-card">此链接无效</div></div>
 
 <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm relative">
@@ -4303,7 +4304,7 @@ html.qinger-user-hidden #xiaoqingerSimplePet,html.qinger-user-hidden #qingerInve
             };
 
             // 附属数据与主事件同时开始读取，减少等待时间。
-            const metaPromise = fetchWithRetry('/timeline?type=meta', 16000, 2);
+            const metaPromise = fetchWithRetry('/timeline?type=meta', 16000, 2).catch(error => { console.warn('首次元数据读取失败，继续加载事件', error); return null; });
             const sideNames = ['逻辑关系','标签','BGM','活动日志','小晴儿台词'];
             const sidePaths = [
                 '/timeline?type=connections',
@@ -4314,7 +4315,7 @@ html.qinger-user-hidden #xiaoqingerSimplePet,html.qinger-user-hidden #qingerInve
             ];
             const sidePromise = Promise.allSettled(sidePaths.map(p => fetchWithRetry(p, 16000, 2)));
             // 小晴儿共享饱食度/库存属于整站首次云端同步的一部分：拿不到它就不能宣称“已同步云端”。
-            const qingerPetPromise = fetchWithRetry(`/timeline?type=xiaoqingerPet&ownerToken=${encodeURIComponent(window.getEditorOwnerToken?.()||'')}`, 16000, 2);
+            const qingerPetPromise = fetchWithRetry(`/timeline?type=xiaoqingerPet&ownerToken=${encodeURIComponent(window.getEditorOwnerToken?.()||'')}`, 16000, 2).catch(error => { console.warn('首次小晴儿状态读取失败，稍后重试', error); return null; });
 
             // 先拿第一页，同时从响应中的 total 计算剩余页；每页 5 条并发读取，避免 59 个大事件串行请求过慢。
             const firstPage = await fetchWithRetry(
@@ -4351,8 +4352,13 @@ html.qinger-user-hidden #xiaoqingerSimplePet,html.qinger-user-hidden #qingerInve
             });
 
             const [meta, results, qingerPetData] = await Promise.all([metaPromise, sidePromise, qingerPetPromise]);
-            window.__initialQingerPetData = qingerPetData;
-            window.__applyQingerPetCloudData?.(qingerPetData, {initial:true});
+            if (qingerPetData) {
+                window.__initialQingerPetData = qingerPetData;
+                window.__applyQingerPetCloudData?.(qingerPetData, {initial:true});
+            } else {
+                window.__initialQingerPetData = null;
+                window.__initialPetSyncRetryNeeded = true;
+            }
             const expectedEvents = Number(meta?.counts?.events ?? totalEvents);
             if (expectedEvents && cloudEvents.length !== expectedEvents) {
                 console.warn(`CloudBase 事件计数在读取期间发生变化：实际 ${cloudEvents.length} / 元数据 ${expectedEvents}`);
@@ -4431,19 +4437,37 @@ html.qinger-user-hidden #xiaoqingerSimplePet,html.qinger-user-hidden #qingerInve
             });
 
             try {
-                await loadTimelineFromCloudBase();
+                // 首次读取容忍短暂网络抖动；只在全部尝试失败后显示错误。
+                let initialError;
+                for (let attempt = 0; attempt < 3; attempt++) {
+                    try { await loadTimelineFromCloudBase(); initialError = null; break; }
+                    catch (error) {
+                        initialError = error;
+                        console.warn(`首次云端同步第 ${attempt + 1} 次失败`, error);
+                        if (attempt < 2) {
+                            const bootText = document.querySelector('#appBootScreen .app-boot-text');
+                            if (bootText) bootText.textContent = `正在重试云端同步（${attempt + 2}/3）…`;
+                            await new Promise(resolve => setTimeout(resolve, 1500 * (attempt + 1)));
+                        }
+                    }
+                }
+                if (initialError) throw initialError;
                 const partial = Array.isArray(window._cloudPartialFailures) ? window._cloudPartialFailures : [];
                 updateSyncStatus('synced', partial.length ? `已同步云端（${partial.join('、')}暂不可用）` : '已同步云端');
                 window.startTimelineVersionPolling?.();
                 window.__appBootCloudReady=true;
                 window.__tryFinishAppBoot?.();
+                if (window.__initialPetSyncRetryNeeded) {
+                    window.__initialPetSyncRetryNeeded = false;
+                    setTimeout(() => window.__retryInitialQingerPet?.(), 1500);
+                }
             } catch (err) {
                 console.error('CloudBase 时间线读取失败:', err);
                 window.timelineCloudSource = 'cloudbase';
                 window.cloudWriteReady = false;
                 updateSyncStatus('error', '云端同步失败');
                 if(!window._invalidRoomAccess) window.showToast?.(`云端读取失败：${err?.message || '未知错误'}`, 'error');
-                window.__appBootFailure?.('云端同步失败，请检查网络后重新加载');
+                window.__appBootFailure?.('云端连接暂时失败，请点击重试');
             }
         }
 
@@ -16950,6 +16974,7 @@ function applyQingerPetCloudData(d,{live=false}={}){
  hasCloudSnapshot=true;updateHud();syncRain();render();return true;
 }
 window.__applyQingerPetCloudData=(d,opts={})=>applyQingerPetCloudData(d,{live:!opts.initial});
+window.__retryInitialQingerPet=()=>cloudRead();
 async function cloudRead(){
  if(qingerCloudReadInFlight)return qingerCloudReadInFlight;
  qingerCloudReadInFlight=(async()=>{
@@ -17446,7 +17471,7 @@ async function boot(){
  try{render();window.restoreXiaoqingerPosition?.();positionHud();}catch(e){console.error(e);return;}
  try{bindPetInteractions();scheduleBlink();}catch(e){console.warn(e)}
  try{ensurePetChrome();inv=document.getElementById('qingerInventory');setupRain();setupFood();updateQingerTestPanelVisibility();updateHud();positionHud()}catch(e){console.warn(e)}
- if(window.__initialQingerPetData)applyQingerPetCloudData(window.__initialQingerPetData,{live:false});else await cloudRead();clearInterval(behaviorTimer);behaviorTimer=setInterval(behaviorTick,15000);clearInterval(syncTimer);syncTimer=setInterval(()=>{if(window.isCloudSynced)cloudRead()},3*60*1000);addEventListener('resize',positionHud);
+ if(window.__initialQingerPetData)applyQingerPetCloudData(window.__initialQingerPetData,{live:false});else if(window.__initialCloudSyncStarted){/* Initial timeline sync owns the first pet read. */}else await cloudRead();clearInterval(behaviorTimer);behaviorTimer=setInterval(behaviorTick,15000);clearInterval(syncTimer);syncTimer=setInterval(()=>{if(window.isCloudSynced)cloudRead()},3*60*1000);addEventListener('resize',positionHud);
  window.__appBootPetReady=true;window.__tryFinishAppBoot?.();
 }
 
