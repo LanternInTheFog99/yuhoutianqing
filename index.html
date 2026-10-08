@@ -2516,7 +2516,6 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     <label class="block text-[11px] font-bold text-slate-600 mb-1">特殊问候语</label>
                     <div id="xiaoqingerSpecialGreetingEditor" contenteditable="true"
                          class="xiaoqinger-rich-editor min-h-[42px] w-full px-3 py-2 border border-slate-300 rounded-lg leading-6 outline-none focus:ring-2 focus:ring-indigo-500 bg-white"></div>
-                    <p class="text-[9px] text-slate-400 mt-1">当前ID为“鱼猴癖”或“听雨”时，首次点击使用这句问候。</p>
                 </div>
                 <div>
                     <label class="block text-[11px] font-bold text-slate-600 mb-1">连续点击提示</label>
@@ -2534,10 +2533,9 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                             <option value="feedingGui">喂食·龟糖</option>
                             <option value="feedingZhi">喂食·直给糖</option>
                         </select>
-                    <p class="text-[9px] text-slate-400 mt-1">七个台词池相互独立；留空表示不说话，不会自动填入默认台词。</p>
                 </div>
                 <div>
-                    <label id="xiaoqingerDialogueListLabel" class="block text-[11px] font-bold text-slate-600 mb-1">普通 · 随机台词</label>
+                    <label id="xiaoqingerDialogueListLabel" class="block text-[11px] font-bold text-slate-600 mb-1">普通 · 台词池</label>
                     <div id="xiaoqingerDialogueListEditor" contenteditable="true"
                          class="xiaoqinger-rich-editor min-h-[220px] max-h-[330px] overflow-y-auto w-full px-3 py-2 border border-slate-300 rounded-lg  leading-6 outline-none focus:ring-2 focus:ring-indigo-500 bg-white"></div>
                     <p class="text-[9px] text-slate-400 mt-1">每个段落为一句台词；按 Enter 新建下一句。</p>
@@ -16725,7 +16723,7 @@ window.xiaoqingerSwitchDialogueState=function(key){
 };
 window.resetXiaoqingerDialogues=function(){
  if(!session)return;
- if(!window.confirm('确定清空七个台词池以及三项问候/连点台词吗？只有点击保存后才会同步云端。'))return;
+ if(!window.confirm('确定清空所有状态的台词以及问候、连点台词吗？只有点击保存后才会同步云端。'))return;
  session.drafts=empty().dialogues;
  for(const id of ['xiaoqingerGreetingEditor','xiaoqingerSpecialGreetingEditor','xiaoqingerRapidEditor'])document.getElementById(id).innerHTML='';
  render('normal');
@@ -16736,12 +16734,12 @@ window.saveXiaoqingerDialogues=async function(){
  try{capture()}catch(err){console.error('[小晴儿台词] 读取失败',err);window.showToast?.('台词读取失败，未保存：'+err.message,'error');return;}
  const cfg=empty();
  for(const k of KEYS){
-  if(!Object.hasOwn(session.drafts,k)||!Array.isArray(session.drafts[k])){window.showToast?.('缺少台词池：'+LABELS[k],'error');return;}
+  if(!Object.hasOwn(session.drafts,k)||!Array.isArray(session.drafts[k])){window.showToast?.('台词数据不完整，已阻止保存：'+LABELS[k],'error');return;}
   cfg.dialogues[k]=session.drafts[k].map(sanitize).filter(plain);
  }
  for(const [id,key] of [['xiaoqingerGreetingEditor','greeting'],['xiaoqingerSpecialGreetingEditor','specialGreeting'],['xiaoqingerRapidEditor','rapid']])cfg[key]=sanitize(document.getElementById(id).innerHTML);
  const erased=KEYS.filter(k=>session.original.dialogues[k].length&&!cfg.dialogues[k].length);
- if(erased.length&&!window.confirm('以下台词池将被清空：'+erased.map(k=>LABELS[k]).join('、')+'。确定保存吗？'))return;
+ if(erased.length&&!window.confirm('以下状态的台词将被清空：'+erased.map(k=>LABELS[k]).join('、')+'。确定保存吗？'))return;
  const btn=document.querySelector('#xiaoqingerDialogueEditorModal button[onclick="saveXiaoqingerDialogues()"]');
  if(btn){btn.disabled=true;btn.textContent='正在保存...';}
  try{
@@ -16749,7 +16747,7 @@ window.saveXiaoqingerDialogues=async function(){
   window.xiaoqingerDialogueConfig=clone(cfg);
   window.xiaoqingerSimpleDialogues=cfg.dialogues.normal.slice();
   window.closeXiaoqingerDialogueEditor();
-  window.showToast?.('七个台词池已保存到云端','success');
+  window.showToast?.('小晴儿台词已保存到云端','success');
  }catch(err){console.error('[小晴儿台词] 保存失败',err);window.showToast?.('台词云端保存失败：'+(err.message||err),'error');}
  finally{if(btn){btn.disabled=false;btn.textContent='保存';}}
 };
