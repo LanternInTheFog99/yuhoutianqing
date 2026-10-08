@@ -16879,7 +16879,19 @@ window.xiaoqingerSwitchDialogueState=function(key){
    editorDirty=true; // preserve any content already typed into the editor
   }
  }
- if(!editorRenderedKey && !putEditor('normal')){window.showToast?.('台词编辑器未初始化，请重新打开','error');return;}
+ if(!editorRenderedKey){
+  // Recover an editor opened by a legacy handler without destroying visible content.
+  const root=document.getElementById('xiaoqingerDialogueListEditor');
+  if(!root){window.showToast?.('台词编辑框不存在，请刷新页面','error');return;}
+  const cfg=normalized();
+  if(!window._xiaoqingerDialogueDrafts || typeof window._xiaoqingerDialogueDrafts!=='object')window._xiaoqingerDialogueDrafts={};
+  KEYS.forEach(k=>{if(!Array.isArray(window._xiaoqingerDialogueDrafts[k]))window._xiaoqingerDialogueDrafts[k]=(cfg.dialogues[k]||[]).slice();});
+  const active=KEYS.includes(window._xiaoqingerDialogueEditingKey)?window._xiaoqingerDialogueEditingKey:'normal';
+  editorRenderedKey=active;
+  // Preserve the existing DOM (including unsaved edits) and capture it for the active state.
+  editorDirty=true;
+  window._xiaoqingerRenderedHtml=root.innerHTML;
+ }
  if(!captureState(editorRenderedKey)){
   if(sel)sel.value=editorRenderedKey||'normal';
   window.showToast?.('台词读取异常，已取消切换','error');return;
