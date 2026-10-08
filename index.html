@@ -2534,7 +2534,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                             <option value="feedingGui">喂食·龟糖</option>
                             <option value="feedingZhi">喂食·直给糖</option>
                         </select>
-                    <p class="text-[9px] text-slate-400 mt-1">原版“随机台词”归入“普通”。其他状态留空时会自动回退到普通台词，不强制填写。</p>
+                    <p class="text-[9px] text-slate-400 mt-1">七个台词池相互独立；留空表示不说话，不会自动填入默认台词。</p>
                 </div>
                 <div>
                     <label id="xiaoqingerDialogueListLabel" class="block text-[11px] font-bold text-slate-600 mb-1">普通 · 随机台词</label>
@@ -2545,7 +2545,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             </div>
 
             <div class="flex items-center justify-between gap-2 mt-5 pt-4 border-t border-slate-200">
-                <button type="button" onclick="resetXiaoqingerDialogues()" class="px-3 py-2 rounded-lg border border-slate-200 text-xs text-slate-500 hover:bg-slate-50">恢复默认</button>
+                <button type="button" onclick="resetXiaoqingerDialogues()" class="px-3 py-2 rounded-lg border border-slate-200 text-xs text-slate-500 hover:bg-slate-50">清空全部台词</button>
                 <div class="flex gap-2">
                     <button type="button" onclick="closeXiaoqingerDialogueEditor()" class="px-3 py-2 rounded-lg border border-slate-300 text-xs text-slate-600 hover:bg-slate-50">取消</button>
                     <button type="button" onclick="saveXiaoqingerDialogues()" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold">保存</button>
@@ -2664,15 +2664,12 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         window.clearTimelineEditToken = function() { window.setTimelineEditToken(''); };
         window.hasTimelineEditToken = function() { return !!window.getTimelineEditToken(); };
 
-        window.getXiaoqingerEditToken = function() {
-            try { return sessionStorage.getItem(xiaoqingerEditTokenKey()) || ''; } catch (_) { return ''; }
-        };
-        window.setXiaoqingerEditToken = function(token) {
-            try {
-                if (token) sessionStorage.setItem(xiaoqingerEditTokenKey(), token);
-                else sessionStorage.removeItem(xiaoqingerEditTokenKey());
-            } catch (_) {}
-        };
+        // 小晴儿编辑授权仅存在当前页面的 JS 内存中；刷新后必须重新验证密码。
+        // 不改变时间轴编辑、开发者模式及服务端的授权规则。
+        let xiaoqingerPageEditToken = '';
+        try { sessionStorage.removeItem(xiaoqingerEditTokenKey()); } catch (_) {}
+        window.getXiaoqingerEditToken = function() { return xiaoqingerPageEditToken; };
+        window.setXiaoqingerEditToken = function(token) { xiaoqingerPageEditToken = token || ''; };
         window.clearXiaoqingerEditToken = function() { window.setXiaoqingerEditToken(''); };
         window.hasXiaoqingerEditToken = function() { return !!window.getXiaoqingerEditToken(); };
 
@@ -4364,13 +4361,11 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             window._activityListenerReady = true;
             window.renderActivityLogs?.();
 
+            // Only accept v5 config. Legacy cloud config is deliberately not imported.
             const cloudXiaoqinger = window.normalizeXiaoqingerStoredConfig?.(xiaoqingerData?.config);
-            if (cloudXiaoqinger) {
-                window.xiaoqingerDialogueConfig = cloudXiaoqinger;
-                window.xiaoqingerSimpleDialogues = cloudXiaoqinger.lines.slice();
-            } else {
-                window.loadXiaoqingerDialogues?.();
-            }
+            window.xiaoqingerDialogueConfig = cloudXiaoqinger;
+            window._xiaoqingerCloudConfigLoaded = true;
+            window.xiaoqingerSimpleDialogues = cloudXiaoqinger?.dialogues?.normal?.slice() || [];
 
             window.renderEvents();
             window.renderSvgConnections();
@@ -14831,34 +14826,12 @@ viewer.style.visibility='';
         };
 
         /* === 小晴儿初始互动 === */
-        window.XIAOQINGER_DIALOGUE_SCHEMA_VERSION = 4;
-        window.xiaoqingerDialogueDefaults = {
-            greeting: '{name}，你好呀！我是小晴儿',
-            specialGreeting: '妈咪！',
-            rapid: '慢点儿',
-            lines: [
-                '月子中心，只生不养！',
-                '鱼鱼猴猴你们人呢😭😭😭😭😭',
-                '<strong>鱼 猴 9 9</strong>',
-                '我的三搭呢？',
-                '“年年有虞，生生不兮。”',
-                '赶路要紧...',
-                '<span style="color:#2563eb">#yzzx未来可期#</span>',
-                '「我爱不爱你 爱久见人心」'
-            ]
-        };
+        // 台词系统 v5：只使用云端七状态数据，无内置台词和旧 lines 回退。
+        window.XIAOQINGER_DIALOGUE_SCHEMA_VERSION = 5;
         window.xiaoqingerDialogueConfig = null;
+        window._xiaoqingerCloudConfigLoaded = false;
         window.xiaoqingerSimpleDialogues = [];
         window._xiaoqingerSpeechTimer = null;
-        // 小晴儿本体与默认台词不依赖云端。即使 CloudBase 完全不可用，也应该能显示并互动。
-        window.xiaoqingerDialogueConfig = {
-            schemaVersion: window.XIAOQINGER_DIALOGUE_SCHEMA_VERSION,
-            greeting: window.xiaoqingerDialogueDefaults.greeting,
-            specialGreeting: window.xiaoqingerDialogueDefaults.specialGreeting,
-            rapid: window.xiaoqingerDialogueDefaults.rapid,
-            lines: window.xiaoqingerDialogueDefaults.lines.slice()
-        };
-        window.xiaoqingerSimpleDialogues = window.xiaoqingerDialogueDefaults.lines.slice();
 
         window.sanitizeXiaoqingerRichHtml = function(html) {
             const tpl = document.createElement('template');
@@ -14952,49 +14925,7 @@ viewer.style.visibility='';
             return window.sanitizeXiaoqingerRichHtml(tpl.innerHTML);
         };
 
-        window.normalizeXiaoqingerStoredConfig = function(raw) {
-            if (!raw || typeof raw !== 'object') return null;
-            const greeting = window.migrateXiaoqingerLegacyRichHtml(raw.greeting || '');
-            const specialGreeting = window.migrateXiaoqingerLegacyRichHtml(
-                raw.specialGreeting != null ? raw.specialGreeting : window.xiaoqingerDialogueDefaults.specialGreeting
-            );
-            const rapid = window.migrateXiaoqingerLegacyRichHtml(raw.rapid || '');
-            const lines = Array.isArray(raw.lines)
-                ? raw.lines.map(x => window.migrateXiaoqingerLegacyRichHtml(String(x)))
-                    .filter(x => window.xiaoqingerRichPlainText(x))
-                : [];
-            if (!window.xiaoqingerRichPlainText(greeting) ||
-                !window.xiaoqingerRichPlainText(specialGreeting) ||
-                !window.xiaoqingerRichPlainText(rapid) ||
-                !lines.length) return null;
-            return {
-                schemaVersion: window.XIAOQINGER_DIALOGUE_SCHEMA_VERSION,
-                greeting,
-                specialGreeting,
-                rapid,
-                lines
-            };
-        };
-
-        window.loadXiaoqingerDialogues = function() {
-            // CloudBase 尚未返回配置时只使用内置默认值，不读取本机台词文件/缓存。
-            const existing = window.normalizeXiaoqingerStoredConfig(window.xiaoqingerDialogueConfig);
-            if (existing) return existing;
-            const d = window.xiaoqingerDialogueDefaults;
-            const cfg = {
-                schemaVersion: window.XIAOQINGER_DIALOGUE_SCHEMA_VERSION,
-                greeting: window.sanitizeXiaoqingerRichHtml(d.greeting),
-                specialGreeting: window.sanitizeXiaoqingerRichHtml(d.specialGreeting),
-                rapid: window.sanitizeXiaoqingerRichHtml(d.rapid),
-                lines: d.lines.map(x => window.sanitizeXiaoqingerRichHtml(x))
-            };
-            window.xiaoqingerDialogueConfig = cfg;
-            window.xiaoqingerSimpleDialogues = cfg.lines.slice();
-            return cfg;
-        };
-
-        window.loadXiaoqingerDialogues();
-
+        // 数据规范化及编辑器会话由 xiaoqinger-dialogue-v5 唯一负责。
 
         window.getXiaoqingerAddressName = function() {
             if (window.isEditorAnonymous?.()) return '小鱼丁';
@@ -15027,37 +14958,35 @@ viewer.style.visibility='';
         window._xiaoqingerHasGreeted = false;
         window._xiaoqingerLastClickAt = 0;
 
+        // 小晴儿点击只使用当前状态的云端台词池。
         window.xiaoqingerSayRandom = function() {
-            const now = Date.now();
-
+            const cfg=window.xiaoqingerDialogueConfig;
+            if (!cfg || cfg.schemaVersion!==5) return;
+            const now=Date.now();
             if (!window._xiaoqingerHasGreeted) {
-                window._xiaoqingerHasGreeted = true;
-                window._xiaoqingerLastClickAt = now;
-                const storedId = String(window.getStoredEditorIdentity?.() || '').trim();
-                const useSpecialGreeting = !window.isEditorAnonymous?.() && (storedId === '鱼猴癖' || storedId === '听雨');
-                const tpl = String(
-                    useSpecialGreeting
-                        ? (window.xiaoqingerDialogueConfig?.specialGreeting || window.xiaoqingerDialogueDefaults.specialGreeting)
-                        : (window.xiaoqingerDialogueConfig?.greeting || window.xiaoqingerDialogueDefaults.greeting)
-                );
-                const safeName = String(window.getXiaoqingerAddressName()).replace(/[&<>]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]));
-                window.showXiaoqingerSimpleSpeech(tpl.replaceAll('{name}', safeName), { html:true });
+                window._xiaoqingerHasGreeted=true;
+                window._xiaoqingerLastClickAt=now;
+                const id=String(window.getStoredEditorIdentity?.()||'').trim();
+                const special=!window.isEditorAnonymous?.()&&(id==='鱼猴癖'||id==='听雨');
+                const tpl=String(special?cfg.specialGreeting:cfg.greeting||'');
+                if (tpl.trim()) {
+                    const name=String(window.getXiaoqingerAddressName()).replace(/[&<>]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]));
+                    window.showXiaoqingerSimpleSpeech(tpl.replaceAll('{name}',name),{html:true});
+                }
                 return;
             }
-
-            if (now - window._xiaoqingerLastClickAt < 520) {
-                window._xiaoqingerLastClickAt = now;
-                window.showXiaoqingerSimpleSpeech(window.xiaoqingerDialogueConfig?.rapid || window.xiaoqingerDialogueDefaults.rapid, { html:true });
+            if (now-window._xiaoqingerLastClickAt<520) {
+                window._xiaoqingerLastClickAt=now;
+                if (cfg.rapid)window.showXiaoqingerSimpleSpeech(cfg.rapid,{html:true});
                 return;
             }
-
-            window._xiaoqingerLastClickAt = now;
-            const list = window.xiaoqingerSimpleDialogues || [];
-            if (!list.length) return;
-            const line = list[Math.floor(Math.random() * list.length)] || '';
-            window.showXiaoqingerSimpleSpeech(line, { html:true });
+            window._xiaoqingerLastClickAt=now;
+            const key=({'普通':'normal','轻微饥饿':'slightHungry','较饱':'satisfied','最饱':'full'})[window.xiaoqingerPetBaseState];
+            if (!key||['sleep','drowsy'].includes(window.xiaoqingerPetBehavior))return;
+            const arr=cfg.dialogues?.[key];
+            if (!Array.isArray(arr)||!arr.length)return;
+            window.showXiaoqingerSimpleSpeech(arr[Math.floor(Math.random()*arr.length)],{html:true});
         };
-
 
         window._xiaoqingerRichRange = null;
 
@@ -15259,76 +15188,9 @@ viewer.style.visibility='';
             window.openXiaoqingerDialogueEditor();
         };
 
-        window.openXiaoqingerDialogueEditor = function() {
-            window.normalizeGlobalOverlayStructure?.();
-            const cfg = window.loadXiaoqingerDialogues();
-            const greeting = document.getElementById('xiaoqingerGreetingEditor');
-            const specialGreeting = document.getElementById('xiaoqingerSpecialGreetingEditor');
-            const rapid = document.getElementById('xiaoqingerRapidEditor');
-            const lines = document.getElementById('xiaoqingerDialogueListEditor');
-            if (greeting) greeting.innerHTML = cfg.greeting;
-            if (specialGreeting) specialGreeting.innerHTML = cfg.specialGreeting || window.xiaoqingerDialogueDefaults.specialGreeting;
-            if (rapid) rapid.innerHTML = cfg.rapid;
-            if (lines) lines.innerHTML = cfg.lines.map(x => `<div>${x}</div>`).join('');
-            document.getElementById('xiaoqingerDialogueEditorModal')?.classList.remove('hidden');
-            setTimeout(() => window.xiaoqingerUpdateCurrentSize?.(), 0);
-        };
-
         window.closeXiaoqingerDialogueEditor = function() {
+            window._xiaoqingerEditorCloseSession?.();
             document.getElementById('xiaoqingerDialogueEditorModal')?.classList.add('hidden');
-        };
-
-        window.saveXiaoqingerDialogues = async function() {
-            if (!window.isCloudSynced || window._syncStatusType !== 'synced') {
-                window.showToast?.('当前未同步云端，无法保存小晴儿台词', 'error');
-                return;
-            }
-            const greetingRoot = document.getElementById('xiaoqingerGreetingEditor');
-            const specialGreetingRoot = document.getElementById('xiaoqingerSpecialGreetingEditor');
-            const rapidRoot = document.getElementById('xiaoqingerRapidEditor');
-            const linesRoot = document.getElementById('xiaoqingerDialogueListEditor');
-
-            const greeting = window.sanitizeXiaoqingerRichHtml(greetingRoot?.innerHTML || '');
-            const specialGreeting = window.sanitizeXiaoqingerRichHtml(specialGreetingRoot?.innerHTML || '');
-            const rapid = window.sanitizeXiaoqingerRichHtml(rapidRoot?.innerHTML || '');
-            const lines = window.xiaoqingerDialogueBlocksFromEditor(linesRoot);
-
-            if (!window.xiaoqingerRichPlainText(greeting) || !window.xiaoqingerRichPlainText(specialGreeting) || !window.xiaoqingerRichPlainText(rapid) || !lines.length) {
-                window.showToast?.('首次问候、特殊问候语、连续点击提示和随机台词都不能为空', 'error');
-                return;
-            }
-
-            const cfg = {
-                schemaVersion: window.XIAOQINGER_DIALOGUE_SCHEMA_VERSION,
-                greeting,
-                specialGreeting,
-                rapid,
-                lines
-            };
-            const saveBtn=document.querySelector('#xiaoqingerDialogueEditorModal button[onclick="saveXiaoqingerDialogues()"]');
-            const oldSaveText=saveBtn?.textContent||'保存';if(saveBtn)saveBtn.textContent='正在保存...';
-            try {
-                await window.timelineApiXiaoqingerWrite('updateXiaoqinger', { config: cfg });
-                window.xiaoqingerDialogueConfig = cfg;
-                window.xiaoqingerSimpleDialogues = lines.slice();
-                window.closeXiaoqingerDialogueEditor();
-                window.showToast?.('小晴儿台词已同步云端', 'success');
-            } catch (e) {
-                console.warn('小晴儿台词云端保存失败:', e);
-                window.showToast?.('小晴儿台词保存失败', 'error');
-            } finally { if(saveBtn)saveBtn.textContent=oldSaveText; }
-        };
-
-        window.resetXiaoqingerDialogues = function() {
-            const d = window.xiaoqingerDialogueDefaults;
-            const greeting = document.getElementById('xiaoqingerGreetingEditor');
-            const specialGreeting = document.getElementById('xiaoqingerSpecialGreetingEditor');
-            const rapid = document.getElementById('xiaoqingerRapidEditor');
-            const lines = document.getElementById('xiaoqingerDialogueListEditor');
-            if (greeting) greeting.innerHTML = d.greeting;
-            if (specialGreeting) specialGreeting.innerHTML = d.specialGreeting;
-            if (rapid) rapid.innerHTML = d.rapid;
-            if (lines) lines.innerHTML = d.lines.map(x => `<div>${x}</div>`).join('');
         };
 
         // 小晴儿本体和拖动位置是“本机 UI 状态”，不参与云端同步；只有台词配置来自 CloudBase。
@@ -16776,117 +16638,120 @@ viewer.style.visibility='';
 document.addEventListener('wheel',function(e){if(e.target?.closest?.('.deep-font-size-menu'))e.stopPropagation();},{capture:true,passive:false});
 </script>
 
-<script id="xiaoqinger-dialogue-v12">
-(function(){
+<script id="xiaoqinger-dialogue-v5">
+(()=>{
+'use strict';
 const KEYS=['normal','slightHungry','veryHungryWhisper','satisfied','full','feedingGui','feedingZhi'];
 const LABELS={normal:'普通',slightHungry:'较饿',veryHungryWhisper:'很饿·主动低语',satisfied:'较饱',full:'很饱',feedingGui:'喂食·龟糖',feedingZhi:'喂食·直给糖'};
-const BASE_TO_KEY={'普通':'normal','轻微饥饿':'slightHungry','较饱':'satisfied','最饱':'full'};
 window.XIAOQINGER_DIALOGUE_STATE_LABELS=LABELS;
-window._xiaoqingerDialogueDrafts={}; window._xiaoqingerDialogueEditingKey='normal';
-const oldNormalize=window.normalizeXiaoqingerStoredConfig;
-window.normalizeXiaoqingerStoredConfig=function(raw){
-  const base=oldNormalize?.(raw); if(!base)return null;
-  const dialogues={normal:base.lines.slice()};
-  const source=(raw&&raw.dialogues&&typeof raw.dialogues==='object')?raw.dialogues:{};
-  Object.keys(source).forEach(k=>{if(k==='normal')return;if(Array.isArray(source[k]))dialogues[k]=source[k].map(x=>window.migrateXiaoqingerLegacyRichHtml(String(x))).filter(x=>window.xiaoqingerRichPlainText(x));});
-  KEYS.forEach(k=>{if(!Array.isArray(dialogues[k]))dialogues[k]=[];});
-  if(!dialogues.feedingGui?.length)dialogues.feedingGui=['好龟啊，但是好好吃啊...'];
-  if(!dialogues.feedingZhi?.length)dialogues.feedingZhi=['震撼美味！'];
-  if(Array.isArray(source.normal)){const n=source.normal.map(x=>window.migrateXiaoqingerLegacyRichHtml(String(x))).filter(x=>window.xiaoqingerRichPlainText(x));if(n.length)dialogues.normal=n;}
-  return {...base,schemaVersion:4,lines:dialogues.normal.slice(),dialogues};
-};
-function normalized(){
- const raw=window.xiaoqingerDialogueConfig;
- const cfg=window.normalizeXiaoqingerStoredConfig(raw);
- if(!cfg)throw new Error('云端台词配置未正确加载，禁止编辑');
- if(!cfg.dialogues||typeof cfg.dialogues!=='object')throw new Error('多状态台词数据不存在');
- for(const key of KEYS)if(!Array.isArray(cfg.dialogues[key]))throw new Error('台词池缺失：'+key);
- return cfg;
-}
-let session=null;
-const root=()=>document.getElementById('xiaoqingerDialogueListEditor');
+const empty=()=>({schemaVersion:5,greeting:'',specialGreeting:'',rapid:'',dialogues:Object.fromEntries(KEYS.map(k=>[k,[]]))});
 const clone=x=>JSON.parse(JSON.stringify(x));
-function parseEditor(){
- const el=root();if(!el)throw new Error('台词编辑框不存在');
- const blocks=window.xiaoqingerDialogueBlocksFromEditor(el);
- if(!Array.isArray(blocks))throw new Error('台词解析结果无效');
- if(!blocks.length && el.textContent.trim())throw new Error('非空台词解析成空数组');
- return blocks.map(x=>window.sanitizeXiaoqingerRichHtml(x)).filter(x=>window.xiaoqingerRichPlainText(x));
+const plain=x=>window.xiaoqingerRichPlainText(String(x||''));
+const sanitize=x=>window.sanitizeXiaoqingerRichHtml(String(x||''));
+window.normalizeXiaoqingerStoredConfig=function(raw){
+ if(raw==null)return null;
+ if(!raw||typeof raw!=='object'||raw.schemaVersion!==5||!raw.dialogues||typeof raw.dialogues!=='object')return null;
+ const cfg=empty();
+ for(const k of KEYS){
+  if(!Array.isArray(raw.dialogues[k])||raw.dialogues[k].some(x=>typeof x!=='string'))return null;
+  cfg.dialogues[k]=raw.dialogues[k].map(sanitize).filter(plain);
+ }
+ for(const k of ['greeting','specialGreeting','rapid'])cfg[k]=sanitize(raw[k]);
+ return cfg;
+};
+window.loadXiaoqingerDialogues=()=>window.xiaoqingerDialogueConfig;
+let session=null;
+const editor=()=>document.getElementById('xiaoqingerDialogueListEditor');
+const select=()=>document.getElementById('xiaoqingerDialogueStateSelect');
+function parseLines(el){
+ if(!el)throw new Error('台词编辑区域不存在');
+ // Read top-level paragraphs and free text, preserving rich-text markup within each line.
+ const holder=document.createElement('div');holder.innerHTML=el.innerHTML;
+ const out=[];
+ for(const node of [...holder.childNodes]){
+  if(node.nodeType===Node.TEXT_NODE){
+   const txt=String(node.textContent||'');
+   if(txt.trim())out.push(sanitize(txt));
+  }else if(node.nodeType===Node.ELEMENT_NODE){
+   if(node.tagName==='BR')continue;
+   const html=['DIV','P'].includes(node.tagName)?node.innerHTML:node.outerHTML;
+   const clean=sanitize(html);
+   if(plain(clean))out.push(clean);
+  }
+ }
+ if(!out.length&&plain(el.innerHTML))throw new Error('台词内容无法按段落读取，请检查粘贴格式');
+ return out;
 }
 function render(key){
- if(!session||!KEYS.includes(key)||!Array.isArray(session.drafts[key]))throw new Error('目标台词池未加载');
- const el=root();if(!el)throw new Error('台词编辑框不存在');
- el.innerHTML=session.drafts[key].map(x=>`<div>${x}</div>`).join('');
+ if(!session||!KEYS.includes(key))throw new Error('目标状态无效');
+ const el=editor();if(!el)throw new Error('台词编辑区域不存在');
+ el.innerHTML=session.drafts[key].map(line=>'<div>'+line+'</div>').join('');
  session.active=key;
  session.rendered=el.innerHTML;
- window._xiaoqingerDialogueEditingKey=key;
- window._xiaoqingerDialogueDrafts=session.drafts;
- const sel=document.getElementById('xiaoqingerDialogueStateSelect');if(sel)sel.value=key;
- const label=document.getElementById('xiaoqingerDialogueListLabel');if(label)label.textContent=LABELS[key]+' · 随机台词';
+ select().value=key;
+ document.getElementById('xiaoqingerDialogueListLabel').textContent=LABELS[key]+' · 台词池';
 }
 function capture(){
- if(!session||!KEYS.includes(session.active))throw new Error('台词编辑会话未初始化');
- const el=root();if(!el)throw new Error('台词编辑框不存在');
- if(el.innerHTML!==session.rendered){session.drafts[session.active]=parseEditor();session.rendered=el.innerHTML;}
+ if(!session||!KEYS.includes(session.active))throw new Error('台词编辑会话尚未建立');
+ const el=editor();if(!el)throw new Error('台词编辑区域不存在');
+ if(el.innerHTML!==session.rendered){
+  session.drafts[session.active]=parseLines(el);
+  session.rendered=el.innerHTML;
+ }
 }
-window.xiaoqingerSwitchDialogueState=function(key){
- const previous=session?.active;
- if(!session||!KEYS.includes(key)){
-  const sel=document.getElementById('xiaoqingerDialogueStateSelect');if(sel)sel.value=previous||'normal';
-  window.showToast?.('台词编辑会话无效，请关闭后重新打开','error');return;
- }
- try{capture();render(key);}catch(error){
-  console.error('[小晴儿台词] 状态切换失败',error);
-  const sel=document.getElementById('xiaoqingerDialogueStateSelect');if(sel)sel.value=previous;
-  window.showToast?.('台词切换失败，草稿未覆盖：'+error.message,'error');
- }
-};
+window._xiaoqingerEditorCloseSession=()=>{session=null};
 window.openXiaoqingerDialogueEditor=function(){
- window.normalizeGlobalOverlayStructure?.();
  try{
-  const cfg=normalized();
-  const drafts={};for(const key of KEYS)drafts[key]=cfg.dialogues[key].slice();
-  session={baseline:clone(cfg),drafts,active:null,rendered:null};
-  const fields={xiaoqingerGreetingEditor:cfg.greeting,xiaoqingerSpecialGreetingEditor:cfg.specialGreeting,xiaoqingerRapidEditor:cfg.rapid};
-  for(const [id,html] of Object.entries(fields)){const el=document.getElementById(id);if(el)el.innerHTML=html||'';}
+  if(!window._xiaoqingerCloudConfigLoaded)throw new Error('云端台词尚未读取完成');
+  window.normalizeGlobalOverlayStructure?.();
+  const raw=window.xiaoqingerDialogueConfig;
+  if(raw!==null&&!window.normalizeXiaoqingerStoredConfig(raw))throw new Error('云端台词数据格式无效');
+  const cfg=raw?clone(window.normalizeXiaoqingerStoredConfig(raw)):empty();
+  session={original:clone(cfg),drafts:clone(cfg.dialogues),active:null,rendered:null};
+  for(const [id,key] of [['xiaoqingerGreetingEditor','greeting'],['xiaoqingerSpecialGreetingEditor','specialGreeting'],['xiaoqingerRapidEditor','rapid']]){
+   const el=document.getElementById(id);if(!el)throw new Error('缺少编辑字段：'+key);el.innerHTML=cfg[key];
+  }
   render('normal');
-  document.getElementById('xiaoqingerDialogueEditorModal')?.classList.remove('hidden');
-  setTimeout(()=>window.xiaoqingerUpdateCurrentSize?.(),0);
- }catch(error){session=null;console.error('[小晴儿台词] 初始化失败',error);window.showToast?.('台词配置读取失败，已阻止编辑：'+error.message,'error');}
+  document.getElementById('xiaoqingerDialogueEditorModal').classList.remove('hidden');
+ }catch(err){session=null;console.error('[小晴儿台词] 打开失败',err);window.showToast?.('台词编辑器打开失败：'+err.message,'error');}
 };
-window.saveXiaoqingerDialogues=async function(){
- if(!window.isCloudSynced||window._syncStatusType!=='synced'){window.showToast?.('当前未同步云端，无法保存小晴儿台词','error');return;}
- try{capture();}catch(error){console.error('[小晴儿台词] 保存前校验失败',error);window.showToast?.('台词数据不完整，已阻止保存','error');return;}
- const dialogues=clone(session.baseline.dialogues);
- for(const key of KEYS){
-  if(!Object.prototype.hasOwnProperty.call(session.drafts,key)||!Array.isArray(session.drafts[key])){window.showToast?.('台词池未初始化，已阻止保存：'+LABELS[key],'error');return;}
-  dialogues[key]=session.drafts[key].map(x=>window.sanitizeXiaoqingerRichHtml(x)).filter(x=>window.xiaoqingerRichPlainText(x));
- }
- const field=id=>window.sanitizeXiaoqingerRichHtml(document.getElementById(id)?.innerHTML||'');
- const greeting=field('xiaoqingerGreetingEditor'),specialGreeting=field('xiaoqingerSpecialGreetingEditor'),rapid=field('xiaoqingerRapidEditor');
- if(![greeting,specialGreeting,rapid].every(window.xiaoqingerRichPlainText)||!dialogues.normal.length){window.showToast?.('首次问候、特殊问候语、连续点击提示和普通台词不能为空','error');return;}
- const losses=KEYS.filter(k=>session.baseline.dialogues[k].length>0&&dialogues[k].length===0);
- if(losses.length&&!window.confirm('以下状态的台词将被清空：'+losses.map(k=>LABELS[k]).join('、')+'。确定继续吗？'))return;
- const cfg={...session.baseline,schemaVersion:4,greeting,specialGreeting,rapid,lines:dialogues.normal.slice(),dialogues};
- const btn=document.querySelector('#xiaoqingerDialogueEditorModal button[onclick="saveXiaoqingerDialogues()"]');const original=btn?.textContent||'保存';if(btn){btn.textContent='正在保存...';btn.disabled=true;}
+window.xiaoqingerSwitchDialogueState=function(key){
+ const prev=session?.active;
  try{
-  try{localStorage.setItem('xiaoqinger_dialogue_previous_snapshot',JSON.stringify({savedAt:Date.now(),config:window.xiaoqingerDialogueConfig}));}catch(_){}
-  await window.timelineApiXiaoqingerWrite('updateXiaoqinger',{config:cfg});
-  window.xiaoqingerDialogueConfig=cfg;window.xiaoqingerSimpleDialogues=dialogues.normal.slice();session=null;
-  window.closeXiaoqingerDialogueEditor();window.showToast?.('小晴儿台词已同步云端','success');
- }catch(error){console.error('[小晴儿台词] 云端保存失败',error);window.showToast?.('台词保存失败，草稿仍在编辑器中','error');}
- finally{if(btn){btn.textContent=original;btn.disabled=false;}}
+  if(!session)throw new Error('编辑会话不存在，请重新打开');
+  if(!KEYS.includes(key))throw new Error('无效的台词分类');
+  capture();render(key);
+ }catch(err){if(select())select().value=prev||'normal';console.error('[小晴儿台词] 切换失败',err);window.showToast?.('台词状态切换失败：'+err.message,'error');}
 };
 window.resetXiaoqingerDialogues=function(){
  if(!session)return;
- const drafts={};for(const key of KEYS)drafts[key]=key==='normal'?window.xiaoqingerDialogueDefaults.lines.slice():key==='feedingGui'?['好龟啊，但是好好吃啊...']:key==='feedingZhi'?['震撼美味！']:[];
- session.drafts=drafts;render('normal');
+ if(!window.confirm('确定清空七个台词池以及三项问候/连点台词吗？只有点击保存后才会同步云端。'))return;
+ session.drafts=empty().dialogues;
+ for(const id of ['xiaoqingerGreetingEditor','xiaoqingerSpecialGreetingEditor','xiaoqingerRapidEditor'])document.getElementById(id).innerHTML='';
+ render('normal');
 };
-const oldSay=window.xiaoqingerSayRandom;
-window.xiaoqingerSayRandom=function(){
- const now=Date.now(); if(!window._xiaoqingerHasGreeted||now-window._xiaoqingerLastClickAt<520)return oldSay();
- window._xiaoqingerLastClickAt=now;const cfg=normalized();let key=BASE_TO_KEY[window.xiaoqingerPetBaseState]||'normal';if(window.xiaoqingerPetBehavior==='sleep')return;else if(window.xiaoqingerPetBehavior==='drowsy')return;
- let list=cfg.dialogues[key]||[];if(!list.length)list=cfg.dialogues.normal||cfg.lines||[];if(!list.length)return;window.showXiaoqingerSimpleSpeech(list[Math.floor(Math.random()*list.length)]||'',{html:true});
+window.saveXiaoqingerDialogues=async function(){
+ if(!session){window.showToast?.('台词编辑会话无效，请重新打开','error');return;}
+ if(!window.isCloudSynced||window._syncStatusType!=='synced'){window.showToast?.('云端未同步，禁止保存','error');return;}
+ try{capture()}catch(err){console.error('[小晴儿台词] 读取失败',err);window.showToast?.('台词读取失败，未保存：'+err.message,'error');return;}
+ const cfg=empty();
+ for(const k of KEYS){
+  if(!Object.hasOwn(session.drafts,k)||!Array.isArray(session.drafts[k])){window.showToast?.('缺少台词池：'+LABELS[k],'error');return;}
+  cfg.dialogues[k]=session.drafts[k].map(sanitize).filter(plain);
+ }
+ for(const [id,key] of [['xiaoqingerGreetingEditor','greeting'],['xiaoqingerSpecialGreetingEditor','specialGreeting'],['xiaoqingerRapidEditor','rapid']])cfg[key]=sanitize(document.getElementById(id).innerHTML);
+ const erased=KEYS.filter(k=>session.original.dialogues[k].length&&!cfg.dialogues[k].length);
+ if(erased.length&&!window.confirm('以下台词池将被清空：'+erased.map(k=>LABELS[k]).join('、')+'。确定保存吗？'))return;
+ const btn=document.querySelector('#xiaoqingerDialogueEditorModal button[onclick="saveXiaoqingerDialogues()"]');
+ if(btn){btn.disabled=true;btn.textContent='正在保存...';}
+ try{
+  await window.timelineApiXiaoqingerWrite('updateXiaoqinger',{config:cfg});
+  window.xiaoqingerDialogueConfig=clone(cfg);
+  window.xiaoqingerSimpleDialogues=cfg.dialogues.normal.slice();
+  window.closeXiaoqingerDialogueEditor();
+  window.showToast?.('七个台词池已保存到云端','success');
+ }catch(err){console.error('[小晴儿台词] 保存失败',err);window.showToast?.('台词云端保存失败：'+(err.message||err),'error');}
+ finally{if(btn){btn.disabled=false;btn.textContent='保存';}}
 };
 })();
 </script>
@@ -17130,7 +16995,7 @@ function updateFoodWakeSensor(kind,x,y){if(!qingerInteractionReady()){stopFoodWa
  },1000)
 }
 function sleepingFeedTip(){const now=Date.now();if(now-foodSleepTipAt<1500)return;foodSleepTipAt=now;window.showToast?.('嘘，小晴儿现在正在睡觉呢','info')}
-function showFoodDialogue(kind){const key=kind==='gui'?'feedingGui':'feedingZhi';const fallback=kind==='gui'?'好龟啊，但是好好吃啊...':'震撼美味！';const cfg=window.normalizeXiaoqingerStoredConfig?.(window.xiaoqingerDialogueConfig)||window.loadXiaoqingerDialogues?.();const pool=cfg?.dialogues?.[key];const text=Array.isArray(pool)&&pool.length?pool[Math.floor(Math.random()*pool.length)]:fallback;window.showXiaoqingerSimpleSpeech?.(text,{html:true})}
+function showFoodDialogue(kind){const key=kind==='gui'?'feedingGui':'feedingZhi';const cfg=window.normalizeXiaoqingerStoredConfig?.(window.xiaoqingerDialogueConfig)||window.loadXiaoqingerDialogues?.();const pool=cfg?.dialogues?.[key];if(Array.isArray(pool)&&pool.length)window.showXiaoqingerSimpleSpeech?.(pool[Math.floor(Math.random()*pool.length)],{html:true})}
 async function feed(kind){if(!qingerInteractionReady())return;
  try{
   const beforeBase=baseOf(state.hunger);
@@ -17392,7 +17257,7 @@ function moveToCorner(){
  };
 }
 let lastFullSpeechCheck=Date.now();
-function maybeFullSpeech(){const now=Date.now();if(state.base!=='最饱'||state.behavior!=='idle'||isNight()||now-lastFullSpeechCheck<8*60e3)return;lastFullSpeechCheck=now;if(Math.random()>.40)return;const cfg=window.normalizeXiaoqingerStoredConfig?.(window.xiaoqingerDialogueConfig)||window.loadXiaoqingerDialogues?.();const arr=cfg?.dialogues?.full?.length?cfg.dialogues.full:cfg?.dialogues?.normal||[];if(arr.length)window.showXiaoqingerSimpleSpeech?.(arr[Math.floor(Math.random()*arr.length)],{html:true})}
+function maybeFullSpeech(){const now=Date.now();if(state.base!=='最饱'||state.behavior!=='idle'||isNight()||now-lastFullSpeechCheck<8*60e3)return;lastFullSpeechCheck=now;if(Math.random()>.40)return;const cfg=window.normalizeXiaoqingerStoredConfig?.(window.xiaoqingerDialogueConfig)||window.loadXiaoqingerDialogues?.();const arr=cfg?.dialogues?.full||[];if(arr.length)window.showXiaoqingerSimpleSpeech?.(arr[Math.floor(Math.random()*arr.length)],{html:true})}
 function maybeVeryHungryWhisper(){const now=Date.now();if(state.base!=='很饿'||now-lastWhisperCheck<8*60e3)return;lastWhisperCheck=now;if(Math.random()>.25)return;const cfg=window.normalizeXiaoqingerStoredConfig?.(window.xiaoqingerDialogueConfig)||window.loadXiaoqingerDialogues?.();const arr=cfg?.dialogues?.veryHungryWhisper||[];if(arr.length)window.showXiaoqingerSimpleSpeech?.(arr[Math.floor(Math.random()*arr.length)])}
 function scheduleVeryHungryCorner(){
  if(state.base!=='很饿'||state.behavior==='sleep'||veryHungryAtCorner||veryHungryWalking)return;
