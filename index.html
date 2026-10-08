@@ -1051,9 +1051,19 @@ setTimeout(function(){if(!window.__appBootDone&&!document.getElementById('appBoo
 
             /* 打开评论区后，详情页自动移到屏幕上方，给底部半屏评论区让出空间。 */
             #fullscreenViewer.mobile-comments-open [data-detail-shell]{
-                top:16px !important;
+                top:12px !important;
+                bottom:auto !important;
                 transform:none !important;
-                max-height:calc(50vh - 24px) !important;
+                height:calc(50vh - 24px) !important;
+                height:calc(50dvh - 24px) !important;
+                max-height:calc(50dvh - 24px) !important;
+                min-height:0 !important;
+                overflow-y:auto !important;
+                overflow-x:hidden !important;
+                overscroll-behavior-y:contain;
+                touch-action:pan-y !important;
+                -webkit-overflow-scrolling:touch;
+                box-sizing:border-box;
             }
 
             /* 手机端将评论按钮与关闭按钮下移，与左侧日期标签的垂直位置对齐。 */
@@ -1118,11 +1128,8 @@ setTimeout(function(){if(!window.__appBootDone&&!document.getElementById('appBoo
 
             /* 手机评论区固定为底部半屏，内容区可纵向滑动。 */
             #eventCommentWindow{
-                left:0 !important;
-                right:0 !important;
                 top:auto !important;
                 bottom:0 !important;
-                width:100vw !important;
                 height:50vh !important;
                 min-width:0 !important;
                 min-height:0 !important;
@@ -1818,7 +1825,7 @@ html.qinger-user-hidden #xiaoqingerSimplePet,html.qinger-user-hidden #qingerInve
 #qingerInventory .qinger-visibility-choice input{accent-color:#6366f1;width:16px;height:16px}
 html.qinger-user-hidden #qingerInventory{width:210px!important}
 @media(max-width:639px){
- body.qinger-mobile-detail-hidden #qingerInventory,body.qinger-mobile-detail-hidden #qingerInventoryBtn{display:none!important}
+ body.qinger-mobile-secondary-open #xiaoqingerSimplePet,body.qinger-mobile-secondary-open #qingerInventory,body.qinger-mobile-secondary-open #qingerInventoryBtn,body.qinger-mobile-secondary-open #qingerZzz,body.qinger-mobile-secondary-open #qingerBang,body.qinger-mobile-secondary-open #qingerActionTip{display:none!important;visibility:hidden!important}
  #qingerInventoryBtn{bottom:4px!important}
  #qingerInventory{bottom:49px!important}
  #eventCommentWindow:not(.mobile-compose-open){left:22px!important;right:22px!important;width:calc(100vw - 44px)!important;max-width:calc(100vw - 44px)!important;border-radius:18px 18px 0 0!important}
@@ -1827,6 +1834,49 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
 </style>
 <style>html.qinger-return-settling #xiaoqingerSimplePet,html.qinger-return-settling #xiaoqingerSimplePet *,html.qinger-return-settling #qingerInventory,html.qinger-return-settling #qingerInventory *{animation:none!important;transition:none!important}</style>
 <script>(function(){window.isQingerVisible=function(){try{return localStorage.getItem('qinger_visible')!=='0'}catch(e){return true}};window.applyQingerVisibility=function(){var visible=window.isQingerVisible();document.documentElement.classList.toggle('qinger-user-hidden',!visible);var pet=document.getElementById('xiaoqingerSimplePet');if(pet){if(!visible){pet.style.setProperty('display','none','important');pet.setAttribute('aria-hidden','true')}else{pet.style.removeProperty('display');pet.removeAttribute('aria-hidden')}}var sw=document.getElementById('qingerVisibleSetting');if(sw)sw.checked=visible;};window.setQingerVisibility=function(v){try{localStorage.setItem('qinger_visible',v?'1':'0')}catch(e){}window.applyQingerVisibility();if(!v){var inv=document.getElementById('qingerInventory');if(inv)inv.classList.remove('open')}var sw=document.getElementById('qingerVisibleSetting');if(sw)sw.checked=!!v;};window.applyQingerVisibility()})();</script>
+<script id="qinger-mobile-secondary-controller">
+(function(){
+  const modalIds=['musicModal','tagModal','shareModal','pwdModal','confirmModal','multiSegmentDeleteModal','confirmSaveModal','savingModal','deletingModal','cropModal','videoCropModal','lightboxModal','helpModal','thanksNoteModal','xiaoqingerCustomColorModal','xiaoqingerDialogueEditorModal','editorIdentityModal','editorIdentityDeleteConfirmModal','fullscreenViewer','eventCommentWindow','deepMediaPreviewModal','deepReadMediaLightbox','deepReadCanvasModal','stackManagerModal'];
+  const known=new Set(modalIds);
+  const modalPattern=/(?:Modal|Viewer|Lightbox|Window)$/;
+  const watched=new Map();
+  const isOpen=el=>!!el&&el.isConnected&&!el.classList.contains('hidden')&&getComputedStyle(el).display!=='none'&&getComputedStyle(el).visibility!=='hidden';
+  const candidate=el=>el instanceof HTMLElement&&!!el.id&&(known.has(el.id)||(modalPattern.test(el.id)&&!/^qinger/i.test(el.id)));
+  function sync(){
+    const narrow=matchMedia('(max-width:639px)').matches;
+    const secondary=narrow&&(Array.from(watched.keys()).some(isOpen)||!!document.querySelector('.event-comment-profile-card'));
+    document.body.classList.toggle('qinger-mobile-secondary-open',secondary);
+    if(secondary)document.getElementById('qingerInventory')?.classList.remove('open');
+  }
+  let pending=false;
+  function schedule(){if(pending)return;pending=true;requestAnimationFrame(()=>{pending=false;sync()})}
+  function register(el){
+    if(!candidate(el)||watched.has(el))return;
+    const observer=new MutationObserver(schedule);
+    observer.observe(el,{attributes:true,attributeFilter:['class','style','hidden']});
+    watched.set(el,observer);
+  }
+  function registerTree(root){if(!(root instanceof Element))return;register(root);root.querySelectorAll('[id]').forEach(register)}
+  function prune(){for(const [el,observer] of watched){if(!el.isConnected){observer.disconnect();watched.delete(el)}}}
+  function boot(){
+    document.querySelectorAll('[id]').forEach(register);
+    // Observe structural changes only; modal style/class changes are watched on the modal itself.
+    new MutationObserver(records=>{
+      let changed=false;
+      for(const record of records){
+        for(const node of record.addedNodes){if(node instanceof Element){registerTree(node);changed=true}}
+        if(record.removedNodes.length)changed=true;
+      }
+      if(changed){prune();schedule()}
+    }).observe(document.body,{childList:true,subtree:true});
+    window.addEventListener('resize',schedule,{passive:true});
+    document.addEventListener('click',schedule,true);
+    sync();
+  }
+  window.syncQingerMobileSecondaryVisibility=sync;
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+})();
+</script>
 </head>
 <!-- v35: head-motion branch from v32 -->
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
@@ -5544,7 +5594,12 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             });
         };
         document.addEventListener('click',()=>document.querySelectorAll('.web-select-wrap > div:not(.hidden), .deep-font-size-menu:not(.hidden)').forEach(x=>x.classList.add('hidden')));
-        new MutationObserver(()=>window.enhanceWebSelects?.(document)).observe(document.body,{childList:true,subtree:true});
+        let selectEnhancementPending=false;
+        new MutationObserver(records=>{
+            if(selectEnhancementPending||!records.some(r=>Array.from(r.addedNodes).some(n=>n.nodeType===1)))return;
+            selectEnhancementPending=true;
+            requestAnimationFrame(()=>{selectEnhancementPending=false;window.enhanceWebSelects?.(document)});
+        }).observe(document.body,{childList:true,subtree:true});
         setTimeout(()=>window.enhanceWebSelects?.(document),0);
         window.multiSet=(i,k,v)=>{ if(window.multiTimeDraft[i])window.multiTimeDraft[i][k]=v; };
         window.multiSegmentDateFieldsHtml=function(i,date){const raw=String(date||'');const isRange=raw.includes('至');const parts=isRange?raw.split('至'):[raw,''];const start=parts[0]||'',end=parts[1]||'';return `<div id="multiSingleDate_${i}" class="grid grid-cols-1 sm:grid-cols-2 gap-2" style="display:${isRange?'none':'grid'}"><div><span class="block text-[10px] text-slate-500 mb-0.5">具体日期</span>${window.inlineDateFieldsHtml(`multiDateInput_${i}`,start,`multiSyncSegmentDate(${i})`)}</div></div><div id="multiRangeDate_${i}" class="grid grid-cols-2 gap-2" style="display:${isRange?'grid':'none'}"><div><span class="block text-[10px] text-slate-500 mb-0.5">开始日期</span>${window.inlineDateFieldsHtml(`multiStartDate_${i}`,start,`multiSyncSegmentDate(${i})`)}</div><div><span class="block text-[10px] text-slate-500 mb-0.5">结束日期</span>${window.inlineDateFieldsHtml(`multiEndDate_${i}`,end,`multiSyncSegmentDate(${i})`)}</div></div>`;};
@@ -11398,25 +11453,8 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
             }
         };
 
-        window.syncXiaoqingerForDetail = function(detailOpen){
-            const pet=document.getElementById('xiaoqingerSimplePet');
-            if(!pet)return;
-            document.body.classList.toggle('qinger-mobile-detail-hidden',!!detailOpen&&!!window.isPhoneLikeDevice?.());
-            if(detailOpen && window.isPhoneLikeDevice?.()){
-                if(pet.dataset.detailPrevDisplay === undefined){
-                    pet.dataset.detailPrevDisplay = pet.style.display || '';
-                }
-                pet.style.setProperty('display','none','important');
-            }else{
-                const prev=pet.dataset.detailPrevDisplay;
-                pet.style.removeProperty('display');
-                if(prev){
-                    pet.style.display=prev;
-                }
-                delete pet.dataset.detailPrevDisplay;
-            }
-            window.applyQingerVisibility?.();
-        };
+        // Compatibility entrypoint: visibility is now derived from every open secondary view.
+        window.syncXiaoqingerForDetail = function(){window.syncQingerMobileSecondaryVisibility?.();};
 
         window.getDetailExternalLinkMark = function(currentEvent, connections, placement='top') {
             const list=(connections||[]).filter(Boolean);
@@ -16711,7 +16749,6 @@ viewer.style.visibility='';
  #deepTextTools>div:has(#deepTextColorBtn){flex-basis:100%!important}
 }
 
-/* Editor header fixing experiment removed: editor uses its original scrolling/layout model. */
 
 /* Same-time collection relation miniature. Its location stays where the card design puts it; arrowheads sit on the curve itself. */
 .relation-curve-mark{position:absolute;z-index:38;width:58px;height:22px;pointer-events:auto;color:#6366f1;background:transparent;border:0}
@@ -16744,7 +16781,10 @@ viewer.style.visibility='';
  if(oldRestore)window.deepRestoreState=function(){const v=oldRestore.apply(this,arguments);syncDeepHistoryButtons();return v;};
  if(oldOpen)window.openDeepDescriptionEditor=async function(){const v=await oldOpen.apply(this,arguments);syncDeepHistoryButtons();return v;};
  const syncAdaptive=()=>{[['editConnTargetSegmentRow','editConnAdaptiveRow'],['multiConnTargetSegmentRow','__none__']].forEach(([r,a])=>{const row=document.getElementById(r),host=document.getElementById(a);if(!row||!host)return;const shown=!row.classList.contains('hidden');host.classList.toggle('grid-cols-2',shown);host.classList.toggle('grid-cols-1',!shown);});};
- new MutationObserver(syncAdaptive).observe(document.body,{subtree:true,attributes:true,attributeFilter:['class'],childList:true});document.addEventListener('click',()=>requestAnimationFrame(syncAdaptive),true);
+ // The edit row is static; the multi-time row is recreated on render. Observe only its editor host.
+ const adaptiveHost=document.getElementById('editConnAdaptiveRow');
+ if(adaptiveHost)new MutationObserver(syncAdaptive).observe(adaptiveHost,{subtree:true,attributes:true,attributeFilter:['class']});
+ document.addEventListener('click',()=>requestAnimationFrame(syncAdaptive),true);
  const esc=v=>window.escapeHtml?.(String(v??''))??String(v??'');
  const direction=(current,c)=>{const src=String(c.sourceId)===String(current.id);if(c.dir==='both')return {out:1,inn:1,rel:'both'};if(c.dir==='backward')return src?{out:0,inn:1,rel:'backward'}:{out:1,inn:0,rel:'forward'};return src?{out:1,inn:0,rel:'forward'}:{out:0,inn:1,rel:'backward'};};
  const curve=(current,c,context='event')=>{
