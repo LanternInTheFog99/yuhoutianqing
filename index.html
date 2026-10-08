@@ -1054,8 +1054,9 @@ setTimeout(function(){if(!window.__appBootDone&&!document.getElementById('appBoo
                 top:12px !important;
                 bottom:auto !important;
                 transform:none !important;
-                height:calc(50vh - 24px) !important;
-                height:calc(50dvh - 24px) !important;
+                /* 窄屏评论展开：由内容自然决定高度，仅限制可视上限；滚动只交给详情 shell。 */
+                height:auto !important;
+                max-height:calc(50vh - 24px) !important;
                 max-height:calc(50dvh - 24px) !important;
                 min-height:0 !important;
                 overflow-y:auto !important;
@@ -1064,19 +1065,13 @@ setTimeout(function(){if(!window.__appBootDone&&!document.getElementById('appBoo
                 touch-action:pan-y !important;
                 -webkit-overflow-scrolling:touch;
                 box-sizing:border-box;
-                scroll-padding-bottom:8px;
-                padding-bottom:12px !important;
+                scroll-padding-bottom:0;
                 contain:none !important;
-            }
-            #fullscreenViewer.mobile-comments-open [data-detail-shell] [data-detail-body]{
-                display:flow-root;
-                min-height:0;
-                padding-bottom:0;
             }
             #fullscreenViewer.mobile-comments-open .multi-detail-shell #multiDetailScroller{
                 max-height:none;
                 overflow-x:auto;
-                overflow-y:visible;
+                overflow-y:hidden;
                 -webkit-overflow-scrolling:touch;
             }
 
@@ -11392,7 +11387,7 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
                     sc.scrollLeft += delta;
                 }else{
                     e.preventDefault();
-                    viewer.scrollTop += e.deltaY;
+                    (window.innerWidth<=639 ? viewer.querySelector('[data-detail-shell]') : viewer).scrollTop += e.deltaY;
                 }
             },{passive:false});
 
@@ -11409,7 +11404,7 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
                     x:e.clientX,
                     y:e.clientY,
                     left:sc.scrollLeft,
-                    top:viewer.scrollTop,
+                    top:(window.innerWidth<=639 ? viewer.querySelector('[data-detail-shell]') : viewer).scrollTop,
                     axis:null,
                     moved:false
                 };
@@ -11427,7 +11422,7 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
                     sc.setPointerCapture?.(e.pointerId);
                 }
                 if(drag.axis==='x')sc.scrollLeft=drag.left-dx;
-                else viewer.scrollTop=drag.top-dy;
+                else (window.innerWidth<=639 ? viewer.querySelector('[data-detail-shell]') : viewer).scrollTop=drag.top-dy;
                 e.preventDefault();
             });
 
@@ -16985,20 +16980,37 @@ function updateHud(){
 // 物品栏只在展开或视口变化时计算最终停靠侧，避免先右后左的闪动。
 window.addEventListener('resize',()=>{if(window.innerWidth<=639)document.getElementById('qingerInventory')?.classList.remove('qinger-inventory-left');else positionQingerInventory()});
 function positionQingerInventory(){
- const i=document.getElementById('qingerInventory');
- if(!i||!i.classList.contains('open'))return;
- if(window.innerWidth<=639){i.classList.remove('qinger-inventory-left');return;}
- const petRect=pet?.getBoundingClientRect();
- if(!petRect){i.classList.remove('qinger-inventory-left');return;}
- const margin=12, width=i.offsetWidth||300, height=i.offsetHeight||0;
- const right=14, bottom=60;
- const proposedLeft=window.innerWidth-right-width;
- const proposedTop=window.innerHeight-bottom-height;
- const overlap=!(proposedLeft+width<petRect.left-margin||proposedLeft>petRect.right+margin||proposedTop+height<petRect.top-margin||proposedTop>petRect.bottom+margin);
- i.classList.toggle('qinger-inventory-left',overlap);
+ const inv=document.getElementById('qingerInventory');
+ if(!inv||!inv.classList.contains('open'))return;
+ // 窄屏沿用原固定定位；不参与桌面端避让。
+ if(window.innerWidth<=639){inv.style.removeProperty('left');inv.style.removeProperty('right');inv.classList.remove('qinger-inventory-left');return;}
+ const width=inv.offsetWidth||300, height=inv.offsetHeight||0;
+ const defaultRight=14, defaultLeft=window.innerWidth-defaultRight-width;
+ const invTop=window.innerHeight-60-height;
+ let targetLeft=defaultLeft;
+ if(pet){
+   // 使用未经过 transform 的布局坐标，避免饿晕旋转等视觉效果扩大碰撞矩形。
+   const petBox=pet.getBoundingClientRect();
+   const petLeft=petBox.left-(petBox.width-pet.offsetWidth)/2;
+   const petTop=petBox.top-(petBox.height-pet.offsetHeight)/2;
+   const petRight=petLeft+pet.offsetWidth,petBottom=petTop+pet.offsetHeight;
+   const gap=6;
+   if(invTop<petBottom+gap && invTop+height>petTop-gap && defaultLeft<petRight+gap && defaultLeft+width>petLeft-gap){
+     targetLeft=Math.max(8,Math.min(defaultLeft,petLeft-gap-width));
+   }
+ }
+ inv.classList.remove('qinger-inventory-left');
+ if(targetLeft<defaultLeft){
+   inv.style.setProperty('left',targetLeft+'px','important');
+   inv.style.setProperty('right','auto','important');
+ }else{
+   inv.style.removeProperty('left');
+   inv.style.removeProperty('right');
+ }
 }
 function positionHud(){
  if(!pet)return;
+ if(window.innerWidth>639)positionQingerInventory();
  const r=pet.getBoundingClientRect();
  const z=document.getElementById('qingerZzz');if(z){z.style.left=(r.right-32)+'px';z.style.top=(r.top-12)+'px';if(z.style.display!=='none')clampQingerFeedback(z)}
  const b=document.getElementById('qingerBang');if(b){b.style.left=(r.right-25)+'px';b.style.top=(r.top-5)+'px';if(b.style.display!=='none')clampQingerFeedback(b)}
