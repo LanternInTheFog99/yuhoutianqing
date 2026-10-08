@@ -2526,13 +2526,14 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 <div>
                     <label class="block text-[11px] font-bold text-slate-600 mb-1">台词状态</label>
                     <select id="xiaoqingerDialogueStateSelect" onchange="xiaoqingerSwitchDialogueState(this.value)" class="w-full h-10 px-3 rounded-lg border border-slate-300 bg-white text-xs text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500" style="writing-mode:horizontal-tb;text-orientation:mixed">
-                        <optgroup label="六种饱食状态">
-                            <option value="normal">普通</option><option value="slightHungry">轻微饥饿</option><option value="veryHungry">很饿</option><option value="satisfied">较饱</option><option value="full">最饱</option><option value="fainted">饿晕</option>
-                        </optgroup>
-                        <optgroup label="其他行为 / 互动">
-                            <option value="drowsy">打瞌睡</option><option value="sleeping">睡觉</option><option value="waking">惊醒</option><option value="feeding">被喂食</option><option value="stroking">摸头</option>
-                        </optgroup>
-                    </select>
+                        <option value="normal">普通</option>
+                            <option value="slightHungry">较饿</option>
+                            <option value="veryHungryWhisper">很饿·主动低语</option>
+                            <option value="satisfied">较饱</option>
+                            <option value="full">很饱</option>
+                            <option value="feedingGui">喂食·龟糖</option>
+                            <option value="feedingZhi">喂食·直给糖</option>
+                        </select>
                     <p class="text-[9px] text-slate-400 mt-1">原版“随机台词”归入“普通”。其他状态留空时会自动回退到普通台词，不强制填写。</p>
                 </div>
                 <div>
@@ -16776,9 +16777,9 @@ document.addEventListener('wheel',function(e){if(e.target?.closest?.('.deep-font
 
 <script id="xiaoqinger-dialogue-v12">
 (function(){
-const KEYS=['normal','slightHungry','veryHungry','veryHungryWhisper','satisfied','full','fainted','drowsy','sleeping','waking','feeding','stroking'];
-const LABELS={normal:'普通',slightHungry:'轻微饥饿',veryHungry:'很饿',veryHungryWhisper:'很饿 · 主动低语',satisfied:'较饱',full:'最饱',fainted:'饿晕',drowsy:'打瞌睡',sleeping:'睡觉',waking:'惊醒',feeding:'被喂食',stroking:'摸头'};
-const BASE_TO_KEY={'普通':'normal','轻微饥饿':'slightHungry','很饿':'veryHungry','较饱':'satisfied','最饱':'full','饿晕':'fainted'};
+const KEYS=['normal','slightHungry','veryHungryWhisper','satisfied','full','feedingGui','feedingZhi'];
+const LABELS={normal:'普通',slightHungry:'较饿',veryHungryWhisper:'很饿·主动低语',satisfied:'较饱',full:'很饱',feedingGui:'喂食·龟糖',feedingZhi:'喂食·直给糖'};
+const BASE_TO_KEY={'普通':'normal','轻微饥饿':'slightHungry','较饱':'satisfied','最饱':'full'};
 window.XIAOQINGER_DIALOGUE_STATE_LABELS=LABELS;
 window._xiaoqingerDialogueDrafts={}; window._xiaoqingerDialogueEditingKey='normal';
 const oldNormalize=window.normalizeXiaoqingerStoredConfig;
@@ -16786,13 +16787,15 @@ window.normalizeXiaoqingerStoredConfig=function(raw){
   const base=oldNormalize?.(raw); if(!base)return null;
   const dialogues={normal:base.lines.slice()};
   const source=(raw&&raw.dialogues&&typeof raw.dialogues==='object')?raw.dialogues:{};
-  KEYS.forEach(k=>{ if(k==='normal')return; dialogues[k]=Array.isArray(source[k])?source[k].map(x=>window.migrateXiaoqingerLegacyRichHtml(String(x))).filter(x=>window.xiaoqingerRichPlainText(x)):[]; });
+  Object.keys(source).forEach(k=>{if(k==='normal')return;dialogues[k]=Array.isArray(source[k])?source[k].map(x=>window.migrateXiaoqingerLegacyRichHtml(String(x))).filter(x=>window.xiaoqingerRichPlainText(x)):[];});
+  if(!dialogues.feedingGui?.length)dialogues.feedingGui=['好龟啊，但是好好吃啊...'];
+  if(!dialogues.feedingZhi?.length)dialogues.feedingZhi=['震撼美味！'];
   if(Array.isArray(source.normal)){const n=source.normal.map(x=>window.migrateXiaoqingerLegacyRichHtml(String(x))).filter(x=>window.xiaoqingerRichPlainText(x));if(n.length)dialogues.normal=n;}
   return {...base,schemaVersion:4,lines:dialogues.normal.slice(),dialogues};
 };
 function normalized(){
  const cfg=window.normalizeXiaoqingerStoredConfig(window.xiaoqingerDialogueConfig)||window.loadXiaoqingerDialogues();
- if(!cfg.dialogues)cfg.dialogues={normal:(cfg.lines||[]).slice()};
+ if(!cfg.dialogues)cfg.dialogues={normal:(cfg.lines||[]).slice(),feedingGui:['好龟啊，但是好好吃啊...'],feedingZhi:['震撼美味！']};
  KEYS.forEach(k=>{if(!Array.isArray(cfg.dialogues[k]))cfg.dialogues[k]=[]}); return cfg;
 }
 // Each rendered dialogue is one top-level block. Browser paste can insert nested div/p;
@@ -16853,9 +16856,24 @@ function captureState(key){
 window.xiaoqingerSwitchDialogueState=function(key){
  const prev=editorRenderedKey;
  const sel=document.getElementById('xiaoqingerDialogueStateSelect');
- if(!KEYS.includes(key)||!prev||!captureState(prev)){
+ if(!KEYS.includes(key)){
   if(sel)sel.value=prev||'normal';
-  window.showToast?.('台词状态切换失败，原内容已保留','error');return;
+  window.showToast?.('未知台词状态，已取消切换','error');return;
+ }
+ // The selector can be used before a prior render established its marker.
+ // Initialize the marker without rewriting the editor or discarding its contents.
+ if(!prev){
+  const active=KEYS.includes(window._xiaoqingerDialogueEditingKey)?window._xiaoqingerDialogueEditingKey:'normal';
+  const root=document.getElementById('xiaoqingerDialogueListEditor');
+  if(root&&Array.isArray(window._xiaoqingerDialogueDrafts[active])){
+   editorRenderedKey=active;
+   window._xiaoqingerRenderedHtml=root.innerHTML;
+   editorDirty=true; // preserve any content already typed into the editor
+  }
+ }
+ if(!captureState(editorRenderedKey)){
+  if(sel)sel.value=editorRenderedKey||'normal';
+  window.showToast?.('台词读取异常，已取消切换','error');return;
  }
  window._xiaoqingerDialogueEditingKey=key;
  if(!putEditor(key)){window._xiaoqingerDialogueEditingKey=prev;if(sel)sel.value=prev;putEditor(prev);}
@@ -16874,8 +16892,9 @@ window.openXiaoqingerDialogueEditor=function(){
  window._xiaoqingerDialogueDrafts={};
  KEYS.forEach(k=>window._xiaoqingerDialogueDrafts[k]=(complete.dialogues[k]||[]).slice());
  window._xiaoqingerDialogueEditingKey='normal';
+ editorRenderedKey=null;editorDirty=false;
  const sel=document.getElementById('xiaoqingerDialogueStateSelect');if(sel)sel.value='normal';
- putEditor('normal');
+ if(!putEditor('normal')){window.showToast?.('台词编辑器初始化失败','error');return;}
  document.getElementById('xiaoqingerDialogueEditorModal')?.classList.remove('hidden');
  setTimeout(()=>window.xiaoqingerUpdateCurrentSize?.(),0);
 };
@@ -16885,7 +16904,7 @@ window.saveXiaoqingerDialogues=async function(){
  const greeting=window.sanitizeXiaoqingerRichHtml(document.getElementById('xiaoqingerGreetingEditor')?.innerHTML||'');
  const specialGreeting=window.sanitizeXiaoqingerRichHtml(document.getElementById('xiaoqingerSpecialGreetingEditor')?.innerHTML||'');
  const rapid=window.sanitizeXiaoqingerRichHtml(document.getElementById('xiaoqingerRapidEditor')?.innerHTML||'');
- const dialogues={};KEYS.forEach(k=>dialogues[k]=(window._xiaoqingerDialogueDrafts[k]||[]).map(x=>window.sanitizeXiaoqingerRichHtml(x)).filter(x=>window.xiaoqingerRichPlainText(x)));
+ const dialogues={...normalized().dialogues};KEYS.forEach(k=>dialogues[k]=(window._xiaoqingerDialogueDrafts[k]||[]).map(x=>window.sanitizeXiaoqingerRichHtml(x)).filter(x=>window.xiaoqingerRichPlainText(x)));
  if(!window.xiaoqingerRichPlainText(greeting)||!window.xiaoqingerRichPlainText(specialGreeting)||!window.xiaoqingerRichPlainText(rapid)||!dialogues.normal.length){window.showToast?.('首次问候、特殊问候语、连续点击提示和“普通”台词不能为空','error');return;}
  // Warn on unexpectedly large losses across any state, while allowing intentional moves.
  const baseline=normalized().dialogues;
@@ -16897,11 +16916,11 @@ window.saveXiaoqingerDialogues=async function(){
   try{const previous=window.xiaoqingerDialogueConfig;if(previous)localStorage.setItem('xiaoqinger_dialogue_previous_snapshot',JSON.stringify({savedAt:Date.now(),config:previous}));}catch(_){/* storage may be disabled */}
   await window.timelineApiXiaoqingerWrite('updateXiaoqinger',{config:cfg});window.xiaoqingerDialogueConfig=cfg;window.xiaoqingerSimpleDialogues=dialogues.normal.slice();window.closeXiaoqingerDialogueEditor();window.showToast?.('小晴儿多状态台词已同步云端','success');}catch(e){console.warn(e);window.showToast?.('小晴儿台词保存失败','error')}finally{if(btn)btn.textContent=old}
 };
-window.resetXiaoqingerDialogues=function(){window._xiaoqingerDialogueDrafts={normal:window.xiaoqingerDialogueDefaults.lines.slice()};KEYS.forEach(k=>{if(k!=='normal')window._xiaoqingerDialogueDrafts[k]=[]});window._xiaoqingerDialogueEditingKey='normal';const sel=document.getElementById('xiaoqingerDialogueStateSelect');if(sel)sel.value='normal';putEditor('normal');};
+window.resetXiaoqingerDialogues=function(){window._xiaoqingerDialogueDrafts={normal:window.xiaoqingerDialogueDefaults.lines.slice()};KEYS.forEach(k=>{if(k!=='normal')window._xiaoqingerDialogueDrafts[k]=k==='feedingGui'?['好龟啊，但是好好吃啊...']:k==='feedingZhi'?['震撼美味！']:[]});window._xiaoqingerDialogueEditingKey='normal';const sel=document.getElementById('xiaoqingerDialogueStateSelect');if(sel)sel.value='normal';putEditor('normal');};
 const oldSay=window.xiaoqingerSayRandom;
 window.xiaoqingerSayRandom=function(){
  const now=Date.now(); if(!window._xiaoqingerHasGreeted||now-window._xiaoqingerLastClickAt<520)return oldSay();
- window._xiaoqingerLastClickAt=now;const cfg=normalized();let key=BASE_TO_KEY[window.xiaoqingerPetBaseState]||'normal';if(window.xiaoqingerPetBehavior==='sleep')key='sleeping';else if(window.xiaoqingerPetBehavior==='drowsy')key='drowsy';
+ window._xiaoqingerLastClickAt=now;const cfg=normalized();let key=BASE_TO_KEY[window.xiaoqingerPetBaseState]||'normal';if(window.xiaoqingerPetBehavior==='sleep')return;else if(window.xiaoqingerPetBehavior==='drowsy')return;
  let list=cfg.dialogues[key]||[];if(!list.length)list=cfg.dialogues.normal||cfg.lines||[];if(!list.length)return;window.showXiaoqingerSimpleSpeech(list[Math.floor(Math.random()*list.length)]||'',{html:true});
 };
 })();
@@ -17035,7 +17054,7 @@ let actionTipTimer=0;function showActionTip(text){const n=document.getElementByI
 function ensurePetChrome(){
  const defs=[
   ['qingerRain',()=>{const n=document.createElement('div');n.id='qingerRain';return n}],
-  ['qingerInventory',()=>{const n=document.createElement('div');n.id='qingerInventory';n.innerHTML='<div class="qinger-inv-content"><div class="qinger-inv-head"><b>小晴儿物品栏</b><button id="qingerInvClose" class="qinger-inv-close" type="button" aria-label="关闭">×</button></div><div class="qinger-hunger-row"><span>饱食度</span><span class="qinger-hunger-bar"><span id="qingerHungerFill" class="qinger-hunger-fill" style="width:0%"></span></span><b id="qingerHungerText">--/100</b></div><div class="qinger-inv-grid"><div class="qinger-slot qinger-food" data-food="gui" title="龟糖"><img id="qingerGuiImg" alt="龟糖"><b id="qingerGuiCount" class="qinger-slot-count">0</b></div><div class="qinger-slot qinger-food" data-food="zhi" title="直给"><img id="qingerZhiImg" alt="直给"><b id="qingerZhiCount" class="qinger-slot-count">0</b></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div></div><label class="qinger-visibility-choice"><span>显示小晴儿</span><input id="qingerVisibleSetting" type="checkbox" onchange="window.setQingerVisibility(this.checked)"></label><div class="qinger-test-panel"><div class="qinger-test-title"><b>测试模式</b><label class="qinger-test-toggle"><input id="qingerTestMode" type="checkbox"><span>仅本机预览</span></label></div><div class="qinger-test-row"><label>饱食度 <b id="qingerTestHungerText">--/100</b></label><div class="qinger-test-control-line"><input id="qingerTestHunger" type="range" min="0" max="100" step="1" value="80"><input id="qingerTestHungerNumber" class="qinger-test-number" type="number" min="0" max="100" step="1" value="80"></div></div><div class="qinger-test-selects"><label>饱食状态<select id="qingerTestBase"><option>饿晕</option><option>很饿</option><option>轻微饥饿</option><option>普通</option><option>较饱</option><option>最饱</option></select></label><label>行为阶段<select id="qingerTestBehavior"><option value="idle">清醒</option><option value="doze1">初困</option><option value="doze2">明显打瞌睡</option><option value="doze3">快睡着</option><option value="daynap">白天短暂睡着</option><option value="sleep">夜间睡眠</option><option value="withdrawn">很饿 · 角落自闭</option></select></label></div><div class="qinger-test-actions"><button id="qingerTestWake" class="qinger-test-action" type="button">测试惊醒</button><button id="qingerTestDaynap" class="qinger-test-action" type="button">进入白天打盹</button><button id="qingerTestSleepProcess" class="qinger-test-action" type="button">夜间睡眠前睡着</button><button id="qingerTestWakeProcess" class="qinger-test-action" type="button">夜间睡眠后醒来</button><button id="qingerTestLoss1" class="qinger-test-action" type="button">测试饱食度 -1</button><button id="qingerTestLoss05" class="qinger-test-action" type="button">测试饱食度 -0.5</button></div><label class="qinger-test-toggle" style="margin-top:8px;display:flex"><input id="qingerUnlimitedItems" type="checkbox"><span>无限物品（测试，不扣库存）</span></label><small class="qinger-test-note">测试模式只改变当前浏览器显示，不写入共享饱食度。</small></div></div>';return n}],
+  ['qingerInventory',()=>{const n=document.createElement('div');n.id='qingerInventory';n.innerHTML='<div class="qinger-inv-content"><div class="qinger-inv-head"><b>小晴儿物品栏</b><button id="qingerInvClose" class="qinger-inv-close" type="button" aria-label="关闭">×</button></div><div class="qinger-hunger-row"><span>饱食度</span><span class="qinger-hunger-bar"><span id="qingerHungerFill" class="qinger-hunger-fill" style="width:0%"></span></span><b id="qingerHungerText">--/100</b></div><div class="qinger-inv-grid"><div class="qinger-slot qinger-food" data-food="gui" title="龟糖"><img id="qingerGuiImg" alt="龟糖"><b id="qingerGuiCount" class="qinger-slot-count">0</b></div><div class="qinger-slot qinger-food" data-food="zhi" title="直给"><img id="qingerZhiImg" alt="直给"><b id="qingerZhiCount" class="qinger-slot-count">0</b></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div><div class="qinger-slot qinger-slot-empty"></div></div><label class="qinger-visibility-choice"><span>显示小晴儿</span><input id="qingerVisibleSetting" type="checkbox" onchange="window.setQingerVisibility(this.checked)"></label><div class="qinger-test-panel"><div class="qinger-test-title"><b>测试模式</b><label class="qinger-test-toggle"><input id="qingerTestMode" type="checkbox"><span>仅本机预览</span></label></div><div class="qinger-test-row"><label>饱食度 <b id="qingerTestHungerText">--/100</b></label><div class="qinger-test-control-line"><input id="qingerTestHunger" type="range" min="0" max="100" step="1" value="80"><input id="qingerTestHungerNumber" class="qinger-test-number" type="number" min="0" max="100" step="1" value="80"></div></div><div class="qinger-test-selects"><label>饱食状态<select id="qingerTestBase"><option>饿晕</option><option>很饿</option><option value="轻微饥饿">较饿</option><option>普通</option><option>较饱</option><option value="最饱">很饱</option></select></label><label>行为阶段<select id="qingerTestBehavior"><option value="idle">清醒</option><option value="doze1">初困</option><option value="doze2">明显打瞌睡</option><option value="doze3">快睡着</option><option value="daynap">白天短暂睡着</option><option value="sleep">夜间睡眠</option><option value="withdrawn">很饿 · 角落自闭</option></select></label></div><div class="qinger-test-actions"><button id="qingerTestWake" class="qinger-test-action" type="button">测试惊醒</button><button id="qingerTestDaynap" class="qinger-test-action" type="button">进入白天打盹</button><button id="qingerTestSleepProcess" class="qinger-test-action" type="button">夜间睡眠前睡着</button><button id="qingerTestWakeProcess" class="qinger-test-action" type="button">夜间睡眠后醒来</button><button id="qingerTestLoss1" class="qinger-test-action" type="button">测试饱食度 -1</button><button id="qingerTestLoss05" class="qinger-test-action" type="button">测试饱食度 -0.5</button></div><label class="qinger-test-toggle" style="margin-top:8px;display:flex"><input id="qingerUnlimitedItems" type="checkbox"><span>无限物品（测试，不扣库存）</span></label><small class="qinger-test-note">测试模式只改变当前浏览器显示，不写入共享饱食度。</small></div></div>';return n}],
   ['qingerInventoryBtn',()=>{const n=document.createElement('button');n.id='qingerInventoryBtn';n.type='button';n.title='物品栏';n.setAttribute('aria-label','小晴儿物品栏');n.innerHTML='<i class="fa-solid fa-box-open"></i>';return n}],
   ['qingerZzz',()=>{const n=document.createElement('div');n.id='qingerZzz';n.textContent='';return n}],
   ['qingerBang',()=>{const n=document.createElement('div');n.id='qingerBang';n.textContent='!';return n}],
@@ -17146,7 +17165,7 @@ function updateFoodWakeSensor(kind,x,y){if(!qingerInteractionReady()){stopFoodWa
  },1000)
 }
 function sleepingFeedTip(){const now=Date.now();if(now-foodSleepTipAt<1500)return;foodSleepTipAt=now;window.showToast?.('嘘，小晴儿现在正在睡觉呢','info')}
-function showFoodDialogue(kind){window.showXiaoqingerSimpleSpeech?.(kind==='gui'?'好龟啊，但是好好吃啊...':'震撼美味！')}
+function showFoodDialogue(kind){const key=kind==='gui'?'feedingGui':'feedingZhi';const fallback=kind==='gui'?'好龟啊，但是好好吃啊...':'震撼美味！';const cfg=window.normalizeXiaoqingerStoredConfig?.(window.xiaoqingerDialogueConfig)||window.loadXiaoqingerDialogues?.();const pool=cfg?.dialogues?.[key];const text=Array.isArray(pool)&&pool.length?pool[Math.floor(Math.random()*pool.length)]:fallback;window.showXiaoqingerSimpleSpeech?.(text,{html:true})}
 async function feed(kind){if(!qingerInteractionReady())return;
  try{
   const beforeBase=baseOf(state.hunger);
@@ -17407,6 +17426,8 @@ function moveToCorner(){
   settleVeryHungryCorner(leftTarget,topTarget);
  };
 }
+let lastFullSpeechCheck=Date.now();
+function maybeFullSpeech(){const now=Date.now();if(state.base!=='最饱'||state.behavior!=='idle'||isNight()||now-lastFullSpeechCheck<8*60e3)return;lastFullSpeechCheck=now;if(Math.random()>.40)return;const cfg=window.normalizeXiaoqingerStoredConfig?.(window.xiaoqingerDialogueConfig)||window.loadXiaoqingerDialogues?.();const arr=cfg?.dialogues?.full?.length?cfg.dialogues.full:cfg?.dialogues?.normal||[];if(arr.length)window.showXiaoqingerSimpleSpeech?.(arr[Math.floor(Math.random()*arr.length)],{html:true})}
 function maybeVeryHungryWhisper(){const now=Date.now();if(state.base!=='很饿'||now-lastWhisperCheck<8*60e3)return;lastWhisperCheck=now;if(Math.random()>.25)return;const cfg=window.normalizeXiaoqingerStoredConfig?.(window.xiaoqingerDialogueConfig)||window.loadXiaoqingerDialogues?.();const arr=cfg?.dialogues?.veryHungryWhisper||[];if(arr.length)window.showXiaoqingerSimpleSpeech?.(arr[Math.floor(Math.random()*arr.length)])}
 function scheduleVeryHungryCorner(){
  if(state.base!=='很饿'||state.behavior==='sleep'||veryHungryAtCorner||veryHungryWalking)return;
@@ -17444,7 +17465,7 @@ function behaviorTick(){
  }else{
   clearTimeout(veryHungryCornerTimer);veryHungryCornerTimer=0;veryHungrySince=0;veryHungryMoved=false;veryHungryWalking=false;veryHungryAtCorner=false;clearVeryHungryVisuals();pet?.classList.remove('pet-withdrawn-gray','pet-hungry-walking','pet-hungry-arrived','qinger-walk-right')
  }
- if(state.base==='最饱'&&!isNight()){clearBehaviorTimeouts();clearDozeVisualTimers();state.behavior='idle';dozeMark('idle');render();return}
+ if(state.base==='最饱'&&!isNight()){maybeFullSpeech();clearBehaviorTimeouts();clearDozeVisualTimers();state.behavior='idle';dozeMark('idle');render();return}
  if(isNight()){
   if(state.behavior==='sleep'||state.behavior==='nightSleepTransition')return;
   if(state.behavior==='wake'||state.behavior==='nightWaking'||['doze1','doze2','doze3'].includes(state.behavior))return;
