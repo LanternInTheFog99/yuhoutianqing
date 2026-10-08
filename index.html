@@ -1064,24 +1064,20 @@ setTimeout(function(){if(!window.__appBootDone&&!document.getElementById('appBoo
                 touch-action:pan-y !important;
                 -webkit-overflow-scrolling:touch;
                 box-sizing:border-box;
-                scroll-padding-bottom:36px;
-                padding-bottom:36px !important;
+                scroll-padding-bottom:8px;
+                padding-bottom:12px !important;
                 contain:none !important;
             }
             #fullscreenViewer.mobile-comments-open [data-detail-shell] [data-detail-body]{
                 display:flow-root;
                 min-height:0;
-                padding-bottom:16px;
+                padding-bottom:0;
             }
             #fullscreenViewer.mobile-comments-open .multi-detail-shell #multiDetailScroller{
                 max-height:none;
                 overflow-x:auto;
                 overflow-y:visible;
                 -webkit-overflow-scrolling:touch;
-            }
-            #fullscreenViewer.mobile-comments-open [data-detail-shell] > :last-child,
-            #fullscreenViewer.mobile-comments-open [data-detail-shell] [data-detail-body] > :last-child{
-                margin-bottom:12px;
             }
 
             /* 手机端将评论按钮与关闭按钮下移，与左侧日期标签的垂直位置对齐。 */
@@ -1437,8 +1433,10 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 .qinger-slot{position:relative;aspect-ratio:1;border:1px solid #cbd5e1;border-radius:8px;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;min-width:0}
 .qinger-slot-empty{background:rgba(241,245,249,.75)}
 .qinger-food{margin:0;padding:3px;display:flex;cursor:grab;touch-action:none}.qinger-food img{width:90%;height:90%;object-fit:contain}.qinger-slot-count{position:absolute;right:4px;bottom:2px;font-size:11px;line-height:1;color:#334155;text-shadow:0 1px 2px #fff}
-@media(max-width:639px){#xiaoqingerSimplePet{width:118px!important;height:149px!important}#qingerInventory{width:min(292px,calc(100vw - 20px))!important;right:10px!important;bottom:56px!important}#qingerInventoryBtn{right:10px;bottom:10px}}
+@media(max-width:639px){#xiaoqingerSimplePet{width:118px!important;height:149px!important}#qingerInventory{width:min(292px,calc(100vw - 20px))!important;right:10px!important}#qingerInventoryBtn{right:10px;bottom:10px}}
 
+#qingerInventory.qinger-inventory-left{right:auto!important;left:18px!important}
+@media(max-width:639px){#qingerInventory.qinger-inventory-left{right:10px!important;left:auto!important}}
 #qingerInventory{max-height:min(76vh,620px);overflow:auto;overscroll-behavior:contain;touch-action:auto}
 #qingerZzz{font-size:28px!important;color:#3b82f6!important;text-shadow:0 2px 8px rgba(255,255,255,.95)!important}
 #qingerBang{font-size:28px!important;color:#ef4444!important;text-shadow:0 2px 8px rgba(255,255,255,.95)!important}
@@ -1692,7 +1690,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
 #xiaoqingerSimplePet.pet-hungry-walking{will-change:translate}
 
-/* Restore the older flash-afterimage appearance; later speed-line experiment is disabled. */
+/* 闪现残影效果 */
 .qinger-dodge-afterimage{position:fixed!important;z-index:89!important;pointer-events:none!important;overflow:visible!important;filter:blur(.35px)!important;will-change:opacity,transform}
 .qinger-dodge-afterimage .qpet-layer{display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none}
 .qinger-dodge-afterimage .qpet-layer.on{display:block}
@@ -1741,7 +1739,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 #qingerSadShade{opacity:0;transition:opacity .55s ease!important}
 #qingerSadShade.on{display:block;opacity:1}
 
-/* Consolidated current Qing'er rules from v46-v56; historical wrappers removed, rule order preserved. */
+/* 小晴儿当前样式 */
 
 #xiaoqingerSimplePet.pet-sad:not(.pet-hungry-head-down),
 #xiaoqingerSimplePet.pet-sad.pet-hungry-walking{rotate:0deg!important;}
@@ -1845,7 +1843,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
 @media(max-width:639px){
  body.qinger-mobile-secondary-open #xiaoqingerSimplePet,body.qinger-mobile-secondary-open #qingerInventory,body.qinger-mobile-secondary-open #qingerInventoryBtn,body.qinger-mobile-secondary-open #qingerZzz,body.qinger-mobile-secondary-open #qingerBang,body.qinger-mobile-secondary-open #qingerActionTip{display:none!important;visibility:hidden!important}
  #qingerInventoryBtn{bottom:4px!important}
- #qingerInventory{bottom:49px!important}
+ #qingerInventory{bottom:49px!important;left:auto!important;right:10px!important}
  #eventCommentWindow:not(.mobile-compose-open){left:22px!important;right:22px!important;width:calc(100vw - 44px)!important;max-width:calc(100vw - 44px)!important;border-radius:18px 18px 0 0!important}
  #fullscreenViewer .multi-detail-shell #multiDetailScroller>section{width:min(72vw,300px)!important;max-width:calc(100vw - 76px)!important;box-sizing:border-box}
 }
@@ -11549,7 +11547,7 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
             window.syncXiaoqingerForDetail?.(true);
             const stackModal=document.getElementById('stackManagerModal');if(stackModal)stackModal.classList.add('hidden');
             const event=window.findEventById?window.findEventById(eventId):window.events.find(e=>String(e.id)===String(eventId));if(!event){document.body.classList.remove('mobile-detail-open');window.syncXiaoqingerForDetail?.(false);return;}eventId=event.id;
-                const detailTags=Array.isArray(event.tags)?event.tags:[];const detailTagHtml=detailTags.length?`<div class="mt-5 pt-6 border-t border-slate-800"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Tag</h4><div class="flex flex-wrap gap-2">${detailTags.map(t=>`<span class="text-xs rounded-full px-2.5 py-1 bg-indigo-500/15 text-indigo-200 border border-indigo-500/25">#${escapeHtml(String(t).trim())}</span>`).join('')}</div></div>`:'';
+                const detailTags=Array.isArray(event.tags)?event.tags:[];const detailTagHtml=detailTags.length?`<div class="mt-5 pt-6 border-t border-slate-800"><h4 class="text-xs font-semibold text-slate-400 tracking-wider mb-2">Tag</h4><div class="flex flex-wrap gap-2">${detailTags.map(t=>`<span class="text-xs rounded-full px-2.5 py-1 bg-indigo-500/15 text-indigo-200 border border-indigo-500/25">#${escapeHtml(String(t).trim())}</span>`).join('')}</div></div>`:'';
             if(event.timeMode==='multi' && Array.isArray(event.timeSegments)){
                 let viewer=document.getElementById('fullscreenViewer');if(!viewer){viewer=document.createElement('div');viewer.id='fullscreenViewer';viewer.className='fixed inset-0 bg-slate-950/90 text-white z-50 overflow-y-auto backdrop-blur-md p-3 sm:p-8 flex flex-col items-center';viewer.addEventListener('click',e=>{if(e.target===viewer)window.closeReadOnlyFullscreen(viewer.dataset.fromStackDate||'');});document.body.appendChild(viewer);}viewer.dataset.fromStackDate=fromStackDate||'';viewer.dataset.eventId=String(event.id||'');
                 const segs=event.timeSegments.slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
@@ -16984,19 +16982,24 @@ function updateHud(){
  const infinite=state.testMode&&state.unlimitedItems;if(g)g.textContent=infinite?'∞':state.gui;if(z)z.textContent=infinite?'∞':state.zhi;
  positionHud();
 }
+// 物品栏只在展开或视口变化时计算最终停靠侧，避免先右后左的闪动。
+window.addEventListener('resize',()=>{if(window.innerWidth<=639)document.getElementById('qingerInventory')?.classList.remove('qinger-inventory-left');else positionQingerInventory()});
+function positionQingerInventory(){
+ const i=document.getElementById('qingerInventory');
+ if(!i||!i.classList.contains('open'))return;
+ if(window.innerWidth<=639){i.classList.remove('qinger-inventory-left');return;}
+ const petRect=pet?.getBoundingClientRect();
+ if(!petRect){i.classList.remove('qinger-inventory-left');return;}
+ const margin=12, width=i.offsetWidth||300, height=i.offsetHeight||0;
+ const right=14, bottom=60;
+ const proposedLeft=window.innerWidth-right-width;
+ const proposedTop=window.innerHeight-bottom-height;
+ const overlap=!(proposedLeft+width<petRect.left-margin||proposedLeft>petRect.right+margin||proposedTop+height<petRect.top-margin||proposedTop>petRect.bottom+margin);
+ i.classList.toggle('qinger-inventory-left',overlap);
+}
 function positionHud(){
- if(!pet)return;const r=pet.getBoundingClientRect();const i=document.getElementById('qingerInventory');
- if(i&&i.classList.contains('open')){
-  const set=(k,v)=>i.style.setProperty(k,v,'important');
-  set('top','auto');set('bottom',innerWidth<=639?'49px':'58px');set('left','auto');set('right',innerWidth<=639?'10px':'14px');
-  /* 先保留原版右侧位置；只有实际遮住晴儿时才换到左侧。CSS 里有 !important，所以这里也必须用 important。 */
-  requestAnimationFrame(()=>{
-   if(!i.classList.contains('open')||!pet)return;
-   const pr=pet.getBoundingClientRect(),ir=i.getBoundingClientRect(),m=12;
-   const overlap=!(ir.right<pr.left-m||ir.left>pr.right+m||ir.bottom<pr.top-m||ir.top>pr.bottom+m);
-   if(overlap){set('right','auto');set('left',innerWidth<=639?'10px':'18px')}
-  })
- }
+ if(!pet)return;
+ const r=pet.getBoundingClientRect();
  const z=document.getElementById('qingerZzz');if(z){z.style.left=(r.right-32)+'px';z.style.top=(r.top-12)+'px';if(z.style.display!=='none')clampQingerFeedback(z)}
  const b=document.getElementById('qingerBang');if(b){b.style.left=(r.right-25)+'px';b.style.top=(r.top-5)+'px';if(b.style.display!=='none')clampQingerFeedback(b)}
 }
@@ -17129,7 +17132,7 @@ async function feed(kind){if(!qingerInteractionReady())return;
   const d=await post('xiaoqingerFeed',{food:kind});if(!d?.ok)throw new Error(d?.message||'喂食失败');state.hunger=Number(d.hunger);const gained=Math.max(0,state.hunger-beforeHunger);state.gui=Number(d.inventory?.gui||0);state.zhi=Number(d.inventory?.zhi||0);state.behavior='idle';touch();updateHud();syncRain();render();if(gained>0)requestAnimationFrame(()=>floatHungerChange(gained));requestAnimationFrame(()=>playFeedReaction(beforeBase,kind));later(()=>showFoodDialogue(kind),180);window.showToast?.(kind==='zhi'?'小晴儿吃下了舒心的直给糖':'小晴儿吃下了龟糖','success');
  }catch(e){window.showToast?.(String(e?.message||e),'error')}
 }
-function toggleInventory(force){if(!inv)return;if(!qingerInteractionReady()){inv.classList.remove('open');return}const open=typeof force==='boolean'?force:!inv.classList.contains('open');inv.classList.toggle('open',open);if(open){updateHud();positionHud()}}
+function toggleInventory(force){if(!inv)return;if(!qingerInteractionReady()){inv.classList.remove('open');return}const open=typeof force==='boolean'?force:!inv.classList.contains('open');inv.classList.toggle('open',open);if(open){updateHud();positionQingerInventory()}}
 function setupFood(){
  const gi=document.getElementById('qingerGuiImg'),zi=document.getElementById('qingerZhiImg');if(gi)gi.src=FOOD_GUI;if(zi)zi.src=FOOD_ZHI;
  document.getElementById('qingerInvClose')?.addEventListener('click',e=>{e.stopPropagation();toggleInventory(false)});
