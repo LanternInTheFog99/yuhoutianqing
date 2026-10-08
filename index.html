@@ -1068,6 +1068,10 @@ setTimeout(function(){if(!window.__appBootDone&&!document.getElementById('appBoo
                 scroll-padding-bottom:0;
                 contain:none !important;
             }
+            /* Keep the final Tag block inside the single-event body's layout box.
+               This is a formatting-context correction, not artificial bottom padding. */
+            #fullscreenViewer.mobile-comments-open [data-detail-body]{display:flow-root;}
+            #fullscreenViewer.mobile-comments-open [data-detail-tags]{max-height:none;overflow:visible;}
             #fullscreenViewer.mobile-comments-open .multi-detail-shell #multiDetailScroller{
                 max-height:none;
                 overflow-x:auto;
@@ -1832,7 +1836,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 </style>
 <style id="qinger-202610-layout">
 html.qinger-user-hidden #xiaoqingerSimplePet,html.qinger-user-hidden #qingerInventory .qinger-inv-head,html.qinger-user-hidden #qingerInventory .qinger-hunger-row,html.qinger-user-hidden #qingerInventory .qinger-inv-grid,html.qinger-user-hidden #qingerInventory .qinger-test-panel{display:none!important;visibility:hidden!important}
-#qingerInventory .qinger-visibility-choice{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;cursor:pointer;padding:5px 2px}
+#qingerInventory .qinger-visibility-choice{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;cursor:pointer;padding:10px 12px;border:1px solid #475569;border-radius:10px;background:rgba(30,41,59,.45);margin-top:10px}
 #qingerInventory .qinger-visibility-choice input{accent-color:#6366f1;width:16px;height:16px}
 html.qinger-user-hidden #qingerInventory{width:210px!important}
 @media(max-width:639px){
@@ -11542,7 +11546,7 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
             window.syncXiaoqingerForDetail?.(true);
             const stackModal=document.getElementById('stackManagerModal');if(stackModal)stackModal.classList.add('hidden');
             const event=window.findEventById?window.findEventById(eventId):window.events.find(e=>String(e.id)===String(eventId));if(!event){document.body.classList.remove('mobile-detail-open');window.syncXiaoqingerForDetail?.(false);return;}eventId=event.id;
-                const detailTags=Array.isArray(event.tags)?event.tags:[];const detailTagHtml=detailTags.length?`<div class="mt-5 pt-6 border-t border-slate-800"><h4 class="text-xs font-semibold text-slate-400 tracking-wider mb-2">Tag</h4><div class="flex flex-wrap gap-2">${detailTags.map(t=>`<span class="text-xs rounded-full px-2.5 py-1 bg-indigo-500/15 text-indigo-200 border border-indigo-500/25">#${escapeHtml(String(t).trim())}</span>`).join('')}</div></div>`:'';
+                const detailTags=Array.isArray(event.tags)?event.tags:[];const detailTagHtml=detailTags.length?`<div data-detail-tags class="mt-5 pt-6 border-t border-slate-800"><h4 class="text-xs font-semibold text-slate-400 tracking-wider mb-2">Tag</h4><div class="flex flex-wrap gap-2">${detailTags.map(t=>`<span class="text-xs rounded-full px-2.5 py-1 bg-indigo-500/15 text-indigo-200 border border-indigo-500/25">#${escapeHtml(String(t).trim())}</span>`).join('')}</div></div>`:'';
             if(event.timeMode==='multi' && Array.isArray(event.timeSegments)){
                 let viewer=document.getElementById('fullscreenViewer');if(!viewer){viewer=document.createElement('div');viewer.id='fullscreenViewer';viewer.className='fixed inset-0 bg-slate-950/90 text-white z-50 overflow-y-auto backdrop-blur-md p-3 sm:p-8 flex flex-col items-center';viewer.addEventListener('click',e=>{if(e.target===viewer)window.closeReadOnlyFullscreen(viewer.dataset.fromStackDate||'');});document.body.appendChild(viewer);}viewer.dataset.fromStackDate=fromStackDate||'';viewer.dataset.eventId=String(event.id||'');
                 const segs=event.timeSegments.slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
