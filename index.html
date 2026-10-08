@@ -6,10 +6,17 @@
     <link rel="icon" type="image/png" href="xiaoqinger-favicon.png">
     <title>雨后天晴</title>
 <style id="app-boot-critical">html:not(.app-ready) body>*:not(#appBootScreen){visibility:hidden!important}#appBootScreen{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#fff;color:#4b5563;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}#appBootScreen .app-boot-inner{display:flex;opacity:0;transition:opacity .18s ease;flex-direction:column;align-items:center;gap:12px;padding:24px;text-align:center}#appBootScreen.app-boot-visible .app-boot-inner{opacity:1}#appBootScreen .app-boot-spinner{width:26px;height:26px;border:3px solid #e5e7eb;border-top-color:#64748b;border-radius:50%;animation:appBootSpin .8s linear infinite}#appBootScreen .app-boot-text{font-size:14px;line-height:1.6}#appBootScreen .app-boot-retry{display:none;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#334155;padding:7px 14px;font:inherit;cursor:pointer}#appBootScreen.app-boot-failed .app-boot-spinner{display:none}#appBootScreen.app-boot-failed .app-boot-retry{display:inline-block}@keyframes appBootSpin{to{transform:rotate(360deg)}}</style>
-<script>(function(){window.__appBootWindowLoaded=false;window.__appBootPetReady=false;window.__appBootDone=false;window.__tryFinishAppBoot=function(){if(window.__appBootDone||!window.__appBootWindowLoaded||!window.__appBootPetReady)return;window.__appBootDone=true;document.documentElement.classList.add('app-ready');var n=document.getElementById('appBootScreen');if(n)n.remove();window.dispatchEvent(new Event('app-front-ready'))};window.addEventListener('load',function(){window.__appBootWindowLoaded=true;window.__tryFinishAppBoot&&window.__tryFinishAppBoot()},{once:true});setTimeout(function(){if(window.__appBootDone)return;var n=document.getElementById('appBootScreen');if(n)n.classList.add('app-boot-visible')},800);setTimeout(function(){if(window.__appBootDone)return;var n=document.getElementById('appBootScreen');if(!n)return;n.classList.add('app-boot-visible','app-boot-failed');var t=n.querySelector('.app-boot-text');if(t)t.textContent='页面加载得有点慢，请检查网络后刷新重试'},12000)})();</script>
+<script>(function(){
+window.__appBootWindowLoaded=false;window.__appBootPetReady=false;window.__appBootCloudReady=false;window.__appBootDone=false;window.__appBootResourceError=false;
+window.__appBootFailure=function(message){var n=document.getElementById('appBootScreen');if(!n||window.__appBootDone)return;n.classList.add('app-boot-visible','app-boot-failed');var t=n.querySelector('.app-boot-text');if(t)t.textContent=message||'页面加载失败，请检查网络后重新加载'};
+window.__tryFinishAppBoot=function(){if(window.__appBootDone||!window.__appBootWindowLoaded||!window.__appBootPetReady||!window.__appBootCloudReady||window.__appBootResourceError)return;window.__appBootDone=true;document.documentElement.classList.add('app-ready');document.getElementById('appBootScreen')?.remove();};
+window.addEventListener('load',function(){window.__appBootWindowLoaded=true;window.__startInitialCloud?.();window.__tryFinishAppBoot()},{once:true});
+setTimeout(function(){if(!window.__appBootDone)document.getElementById('appBootScreen')?.classList.add('app-boot-visible')},800);
+setTimeout(function(){if(!window.__appBootDone)window.__appBootFailure('页面加载得有点慢，请检查网络后重新加载')},20000);
+})();</script>
 
-<script defer src="https://cdn.tailwindcss.com"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script defer src="https://cdn.tailwindcss.com" onerror="window.__appBootResourceError=true;window.__appBootFailure('页面样式加载失败，请检查网络后重新加载')"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" onerror="window.__appBootResourceError=true;window.__appBootFailure('页面资源加载失败，请检查网络后重新加载')">
     
     <style>
         .transition-all-custom {
@@ -1803,6 +1810,17 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 /* 很饿走路：原画方向用于向左；向右时只水平翻转人物视觉层。 */
 #xiaoqingerSimplePet.pet-hungry-walking.qinger-walk-right #qingerVisualStage{scale:-1 1}
 </style>
+<style id="qinger-202610-layout">
+html.qinger-user-hidden #xiaoqingerSimplePet,html.qinger-user-hidden #qingerInventory,html.qinger-user-hidden #qingerInventoryBtn{display:none!important}
+@media(max-width:639px){
+ body.qinger-mobile-detail-hidden #qingerInventory,body.qinger-mobile-detail-hidden #qingerInventoryBtn{display:none!important}
+ #qingerInventoryBtn{bottom:4px!important}
+ #qingerInventory{bottom:49px!important}
+ #eventCommentWindow:not(.mobile-compose-open){left:12px!important;right:12px!important;width:calc(100vw - 24px)!important;border-radius:18px 18px 0 0!important}
+ #fullscreenViewer .multi-detail-shell #multiDetailScroller>section{width:min(72vw,300px)!important;max-width:calc(100vw - 76px)!important;box-sizing:border-box}
+}
+</style>
+<script>(function(){window.isQingerVisible=function(){try{return localStorage.getItem('qinger_visible')!=='0'}catch(e){return true}};window.applyQingerVisibility=function(){document.documentElement.classList.toggle('qinger-user-hidden',!window.isQingerVisible());var pet=document.getElementById('xiaoqingerSimplePet');if(pet&&window.isQingerVisible()&&!document.body.classList.contains('mobile-detail-open'))pet.style.removeProperty('display');};window.setQingerVisibility=function(v){try{localStorage.setItem('qinger_visible',v?'1':'0')}catch(e){}window.applyQingerVisibility();if(!v)document.getElementById('qingerInventory')?.classList.remove('open');};window.applyQingerVisibility()})();</script>
 </head>
 <!-- v35: head-motion branch from v32 -->
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
@@ -2577,6 +2595,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             <button type="button" onclick="saveEditorIdentity()" class="w-full mt-3 px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-sm">确定</button>
             <button id="editorIdentityDeleteBtn" type="button" onclick="openDeleteEditorIdentityConfirm()" class="hidden w-full mt-2 px-4 py-2.5 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 text-sm font-semibold">删除ID</button>
 
+            <label class="flex items-center justify-between gap-3 mt-4 pt-3 border-t border-slate-200 text-xs text-slate-700 cursor-pointer"><span>显示小晴儿和物品栏</span><input id="qingerVisibleSetting" type="checkbox" onchange="window.setQingerVisibility(this.checked)" class="accent-indigo-600 w-4 h-4"></label>
             <div id="editorIdentityHistorySection" class="mt-4 pt-3 border-t border-slate-200">
                 <div class="text-xs font-bold text-slate-700 mb-2">历史ID</div>
                 <div id="editorIdentityHistoryList" class="space-y-1.5 max-h-28 overflow-y-auto pr-1">
@@ -4416,12 +4435,15 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 const partial = Array.isArray(window._cloudPartialFailures) ? window._cloudPartialFailures : [];
                 updateSyncStatus('synced', partial.length ? `已同步云端（${partial.join('、')}暂不可用）` : '已同步云端');
                 window.startTimelineVersionPolling?.();
+                window.__appBootCloudReady=true;
+                window.__tryFinishAppBoot?.();
             } catch (err) {
                 console.error('CloudBase 时间线读取失败:', err);
                 window.timelineCloudSource = 'cloudbase';
                 window.cloudWriteReady = false;
                 updateSyncStatus('error', '云端同步失败');
                 if(!window._invalidRoomAccess) window.showToast?.(`云端读取失败：${err?.message || '未知错误'}`, 'error');
+                window.__appBootFailure?.('云端同步失败，请检查网络后重新加载');
             }
         }
 
@@ -5131,6 +5153,7 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
             const audio = document.getElementById('globalBgmAudio');
             if (!audio) return;
 
+            if(!song?.url){window.showToast?.('歌曲地址无效，请重新上传音乐','error');return;}
             audio.src = song.url;
             audio.volume = window.bgmVolume;
             audio.play().then(() => {
@@ -5138,7 +5161,9 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
                 updateBgmUIState(song.name);
                 window.showToast(`正在播放：《${song.name}》`, "info");
             }).catch(e => {
-                window.showToast("音频播放失败", "error");
+                window.isBgmPlaying=false;updateBgmUIState(song.name);
+                console.warn('背景音乐播放失败',e,song.url);
+                window.showToast('音频播放失败，请检查网络或歌曲文件','error');
             });
         };
 
@@ -5156,11 +5181,12 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
         function resumeBgm() {
             const audio = document.getElementById('globalBgmAudio');
             if (!audio || window.bgmPlaylist.length === 0) return;
+            if(!audio.currentSrc&&!audio.getAttribute('src')){playSpecificBgm(Math.max(0,window.currentBgmIndex));return;}
             audio.volume = window.bgmVolume;
             audio.play().then(() => {
                 window.isBgmPlaying = true;
                 updateBgmUIState(window.bgmPlaylist[window.currentBgmIndex]?.name);
-            }).catch(e => {});
+            }).catch(e => {window.isBgmPlaying=false;updateBgmUIState(window.bgmPlaylist[window.currentBgmIndex]?.name);console.warn('恢复背景音乐失败',e);window.showToast?.('音乐播放失败，请检查网络或歌曲文件','error');});
         }
 
         function updateBgmUIState(songName) {
@@ -11341,6 +11367,7 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
         window.syncXiaoqingerForDetail = function(detailOpen){
             const pet=document.getElementById('xiaoqingerSimplePet');
             if(!pet)return;
+            document.body.classList.toggle('qinger-mobile-detail-hidden',!!detailOpen&&!!window.isPhoneLikeDevice?.());
             if(detailOpen && window.isPhoneLikeDevice?.()){
                 if(pet.dataset.detailPrevDisplay === undefined){
                     pet.dataset.detailPrevDisplay = pet.style.display || '';
@@ -11354,6 +11381,7 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
                 }
                 delete pet.dataset.detailPrevDisplay;
             }
+            window.applyQingerVisibility?.();
         };
 
         window.getDetailExternalLinkMark = function(currentEvent, connections, placement='top') {
@@ -11431,6 +11459,7 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
             window.syncXiaoqingerForDetail?.(true);
             const stackModal=document.getElementById('stackManagerModal');if(stackModal)stackModal.classList.add('hidden');
             const event=window.findEventById?window.findEventById(eventId):window.events.find(e=>String(e.id)===String(eventId));if(!event){document.body.classList.remove('mobile-detail-open');window.syncXiaoqingerForDetail?.(false);return;}eventId=event.id;
+                const detailTags=Array.isArray(event.tags)?event.tags:[];const detailTagHtml=detailTags.length?`<div class="mt-5 pt-4 border-t border-slate-700"><div class="text-xs text-slate-400 mb-2">tag</div><div class="flex flex-wrap gap-2">${detailTags.map(t=>`<span class="text-xs rounded-full px-2.5 py-1 bg-indigo-500/15 text-indigo-200 border border-indigo-500/25"># ${escapeHtml(String(t))}</span>`).join('')}</div></div>`:'';
             if(event.timeMode==='multi' && Array.isArray(event.timeSegments)){
                 let viewer=document.getElementById('fullscreenViewer');if(!viewer){viewer=document.createElement('div');viewer.id='fullscreenViewer';viewer.className='fixed inset-0 bg-slate-950/90 text-white z-50 overflow-y-auto backdrop-blur-md p-3 sm:p-8 flex flex-col items-center';viewer.addEventListener('click',e=>{if(e.target===viewer)window.closeReadOnlyFullscreen(viewer.dataset.fromStackDate||'');});document.body.appendChild(viewer);}viewer.dataset.fromStackDate=fromStackDate||'';viewer.dataset.eventId=String(event.id||'');
                 const segs=event.timeSegments.slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
@@ -11458,7 +11487,7 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
                     const subtitle=String(seg.subtitle||'').trim();
                     return `<section class="relative shrink-0 w-[78vw] sm:w-[360px] rounded-2xl border border-slate-700 bg-slate-900/80 p-4 self-start">${window.getMultiSegmentRelationMarks?.(event,seg.id)||''}<div class="text-xs font-mono text-indigo-300 ${subtitle?'mb-1':'mb-3'}">${window.formatDisplayDate(seg.date)}</div>${subtitle?`<h2 class="text-sm sm:text-base font-normal text-slate-200 mb-3">${escapeHtml(subtitle)}</h2>`:''}<div class="space-y-3">${body||'<div class="text-xs text-slate-500">这个时间没有附加内容</div>'}</div></section>`;
                 }).join('');
-                viewer.innerHTML=`<div data-detail-shell class="multi-detail-shell max-w-6xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-8 shadow-2xl relative"><div class="detail-window-dragbar" data-detail-drag-handle><i class="fa-solid fa-grip-lines"></i><span>点击此处拖动详情页</span></div><button type="button" onclick="window.openEventCommentWindow('${event.id}')" class="detail-window-comments-btn"><i class="fa-regular fa-comments"></i><span>评论区</span></button><button onclick="closeReadOnlyFullscreen('${fromStackDate?fromStackDate.replace(/'/g,"\\'"):''}')" class="absolute top-3 right-4 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full"><i class="fa-solid fa-xmark"></i></button><h1 class="text-xl sm:text-2xl font-bold mb-5 pr-12">${escapeHtml(event.title)}</h1><div id="multiDetailScroller" class="flex gap-4 overflow-x-auto overflow-y-visible pb-3 cursor-grab select-none" style="touch-action:pan-x pan-y;overscroll-behavior-x:contain;scroll-snap-type:none;scroll-behavior:auto;">${cols}</div></div>`;
+                viewer.innerHTML=`<div data-detail-shell class="multi-detail-shell max-w-6xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-8 shadow-2xl relative"><div class="detail-window-dragbar" data-detail-drag-handle><i class="fa-solid fa-grip-lines"></i><span>点击此处拖动详情页</span></div><button type="button" onclick="window.openEventCommentWindow('${event.id}')" class="detail-window-comments-btn"><i class="fa-regular fa-comments"></i><span>评论区</span></button><button onclick="closeReadOnlyFullscreen('${fromStackDate?fromStackDate.replace(/'/g,"\\'"):''}')" class="absolute top-3 right-4 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full"><i class="fa-solid fa-xmark"></i></button><h1 class="text-xl sm:text-2xl font-bold mb-5 pr-12">${escapeHtml(event.title)}</h1><div id="multiDetailScroller" class="flex gap-4 overflow-x-auto overflow-y-visible pb-3 cursor-grab select-none" style="touch-action:pan-x pan-y;overscroll-behavior-x:contain;scroll-snap-type:none;scroll-behavior:auto;">${cols}</div>${detailTagHtml}</div>`;
                 viewer.classList.remove('hidden');window.bindDetailVideoBehavior(viewer,event.id);window.initMultiDetailScroller?.();window.initFloatingDetailWindow(viewer);return;
             }
             const detailHasImages=Array.isArray(event.images)&&event.images.length>0,detailHasVideos=Array.isArray(event.videos)&&event.videos.length>0,detailDescriptionText=String(event.description||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/gi,' ').trim(),detailHasDescription=!!detailDescriptionText;
@@ -11467,7 +11496,7 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
             let videosHtml='';if(detailHasVideos){videosHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-video mr-1"></i>事件视频</h4><div data-detail-videos>${event.videos.map((v,vidx)=>{const vUrl=typeof v==='object'?(v.blobUrl||v.url):v,vCover=typeof v==='object'?(v.cover||''):'',vTitle=typeof v==='object'?(v.title||''):'',vType=typeof v==='object'&&v.mime?`type="${v.mime}"`:'';const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(v?.deepDescription);return `<div data-detail-video-card data-detail-video-index="${vidx}" data-detail-video-deep="${hasDeep?'1':'0'}" class="bg-black rounded-xl overflow-hidden border border-slate-800 ${hasDeep?'cursor-pointer':''}">${vTitle?`<div data-detail-video-title class="px-3 py-2 bg-slate-900 text-xs font-semibold text-slate-200 border-b border-slate-800">${escapeHtml(vTitle)}</div>`:''}<div data-detail-video-stage class="relative bg-black overflow-hidden"><video ${vCover?`poster="${vCover}"`:''} playsinline webkit-playsinline preload="none" class="block bg-black object-contain"><source src="${vUrl}" ${vType}></video>${hasDeep?'<span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">🐢</span><span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">✌🏻</span>':''}</div></div>`;}).join('')}</div></div>`;}
             let linksHtml='';if(event.links&&event.links.length>0){linksHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-link mr-1"></i>跳转网址</h4><div class="flex flex-wrap gap-2">${event.links.map(l=>`<a href="${l.url}" target="_blank" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-indigo-300 hover:text-indigo-200 px-3 py-2 rounded-xl text-xs transition-colors"><i class="fa-solid fa-globe"></i><span class="font-medium">${l.title||l.url}</span></a>`).join('')}</div></div>`;}
             const descriptionHtml=detailHasDescription?`<div data-detail-description class="border-t border-slate-800 pt-6 mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">事件经过与描述</h4><div class="event-description-html text-sm sm:text-base leading-relaxed whitespace-pre-wrap">${window.prepareDescriptionForView?window.prepareDescriptionForView(event.description):event.description}</div></div>`:'';
-            viewer.innerHTML=`<div data-detail-shell class="${event.type==='major'?'detail-has-major ':''}${/(?:\d{4}[./-]\d{1,2}(?:[./-]\d{1,2})?|\d{1,2}[./-]\d{1,2})\s*(?:–|—|~|～|至|\s+-\s+)\s*(?:\d{4}[./-]\d{1,2}(?:[./-]\d{1,2})?|\d{1,2}[./-]\d{1,2})/.test(String(event.date||''))?'detail-has-range ':''}max-w-3xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-10 shadow-2xl relative"><div class="detail-window-dragbar" data-detail-drag-handle><i class="fa-solid fa-grip-lines"></i><span>点击此处拖动详情页</span></div><button type="button" onclick="window.openEventCommentWindow('${event.id}')" class="detail-window-comments-btn"><i class="fa-regular fa-comments"></i><span>评论区</span></button><button onclick="closeReadOnlyFullscreen('${fromStackDate?fromStackDate.replace(/'/g,"\\'"):''}')" class="absolute top-3 right-4 sm:top-4 sm:right-6 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full flex items-center justify-center transition-colors"><i class="fa-solid fa-xmark text-lg"></i></button><div class="flex items-center gap-3 mb-2"><span class="text-xs font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full font-semibold">${window.formatDisplayDate(event.date)}</span>${event.type==='major'?'<span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full">重大里程碑</span>':''}</div><h1 class="text-xl sm:text-2xl font-bold text-white mb-3 tracking-wide">${event.title}</h1><div data-detail-body>${imagesHtml}${videosHtml}${linksHtml}${descriptionHtml}</div></div>`;
+            viewer.innerHTML=`<div data-detail-shell class="${event.type==='major'?'detail-has-major ':''}${/(?:\d{4}[./-]\d{1,2}(?:[./-]\d{1,2})?|\d{1,2}[./-]\d{1,2})\s*(?:–|—|~|～|至|\s+-\s+)\s*(?:\d{4}[./-]\d{1,2}(?:[./-]\d{1,2})?|\d{1,2}[./-]\d{1,2})/.test(String(event.date||''))?'detail-has-range ':''}max-w-3xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-10 shadow-2xl relative"><div class="detail-window-dragbar" data-detail-drag-handle><i class="fa-solid fa-grip-lines"></i><span>点击此处拖动详情页</span></div><button type="button" onclick="window.openEventCommentWindow('${event.id}')" class="detail-window-comments-btn"><i class="fa-regular fa-comments"></i><span>评论区</span></button><button onclick="closeReadOnlyFullscreen('${fromStackDate?fromStackDate.replace(/'/g,"\\'"):''}')" class="absolute top-3 right-4 sm:top-4 sm:right-6 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full flex items-center justify-center transition-colors"><i class="fa-solid fa-xmark text-lg"></i></button><div class="flex items-center gap-3 mb-2"><span class="text-xs font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full font-semibold">${window.formatDisplayDate(event.date)}</span>${event.type==='major'?'<span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full">重大里程碑</span>':''}</div><h1 class="text-xl sm:text-2xl font-bold text-white mb-3 tracking-wide">${event.title}</h1><div data-detail-body>${imagesHtml}${videosHtml}${linksHtml}${descriptionHtml}${detailTagHtml}</div></div>`;
             // 首次打开详情时先完成媒体布局，再让整个详情页参与绘制，避免媒体以块级默认宽度闪现一帧。
             viewer.style.visibility='hidden';
             viewer.classList.remove('hidden');
@@ -14371,6 +14400,7 @@ viewer.style.visibility='';
                 return;
             }
             const modal = document.getElementById('editorIdentityModal');
+            const visibilitySwitch=document.getElementById('qingerVisibleSetting');if(visibilitySwitch)visibilitySwitch.checked=window.isQingerVisible?.()!==false;
             const input = document.getElementById('editorIdentityInput');
             const err = document.getElementById('editorIdentityError');
             const title = document.getElementById('editorIdentityTitle');
@@ -15326,8 +15356,8 @@ viewer.style.visibility='';
             if(window._invalidRoomAccess){ window.invalidateRoomAccess?.(); return; }
             if(window.forceMobileBrowseMode?.()) window.updateLockButtonUI?.();
             const startCloudOnce=()=>{if(window.__initialCloudSyncStarted)return;window.__initialCloudSyncStarted=true;initAppAndCloudSync()};
-            if(document.documentElement.classList.contains('app-ready')) startCloudOnce();
-            else window.addEventListener('app-front-ready',startCloudOnce,{once:true});
+            window.__startInitialCloud=startCloudOnce;
+            startCloudOnce();
         };
 
         /*
@@ -16873,7 +16903,7 @@ function positionHud(){
  if(!pet)return;const r=pet.getBoundingClientRect();const i=document.getElementById('qingerInventory');
  if(i&&i.classList.contains('open')){
   const set=(k,v)=>i.style.setProperty(k,v,'important');
-  set('top','auto');set('bottom',innerWidth<=639?'56px':'58px');set('left','auto');set('right',innerWidth<=639?'10px':'14px');
+  set('top','auto');set('bottom',innerWidth<=639?'49px':'58px');set('left','auto');set('right',innerWidth<=639?'10px':'14px');
   /* 先保留原版右侧位置；只有实际遮住晴儿时才换到左侧。CSS 里有 !important，所以这里也必须用 important。 */
   requestAnimationFrame(()=>{
    if(!i.classList.contains('open')||!pet)return;
@@ -17322,7 +17352,7 @@ function scheduleBlink(){
   blinkTimer=setTimeout(()=>{render(cur,form);scheduleBlink()},120+Math.random()*60)
  },4000+Math.random()*4000)
 }
-function strokeFeedback(){touch();if(state.base==='饿晕')return;if(state.base==='很饿'){pet.classList.add('pet-struggle');setTimeout(()=>pet.classList.remove('pet-struggle'),450);window.showXiaoqingerSimpleSpeech?.('……呜。');return}const map={'轻微饥饿':'普通','普通':'较饱','较饱':'最饱','最饱':'普通'};const v=map[state.base];if(v){showLayers('normal',v);const r=pet.getBoundingClientRect();const h=document.createElement('span');h.className='xiaoqinger-pet-heart';h.textContent='♥';h.style.left=(r.left+r.width*.5)+'px';h.style.top=(r.top+r.height*.18)+'px';document.body.appendChild(h);setTimeout(()=>h.remove(),760);setTimeout(()=>render(),950)}}
+function strokeFeedback(){touch();if(state.base==='饿晕')return;if(state.base==='很饿'){pet.classList.add('pet-struggle');setTimeout(()=>pet.classList.remove('pet-struggle'),450);window.showXiaoqingerSimpleSpeech?.('……呜。');return}const map={'轻微饥饿':'普通','普通':'较饱','较饱':'最饱','最饱':'普通'};const v=map[state.base];if(v){showLayers('normal',v);const r=pet.getBoundingClientRect();const h=document.createElement('span');h.className='xiaoqinger-pet-heart';h.textContent='♥';h.style.left=(r.left+r.width*.5)+'px';h.style.top=(Math.max(12,r.top-17))+'px';document.body.appendChild(h);setTimeout(()=>h.remove(),760);setTimeout(()=>render(),950)}}
 async function preloadPetLayers(){
  if(!pet)return false;
  const need=new Set();
@@ -17416,7 +17446,7 @@ async function boot(){
  try{render();window.restoreXiaoqingerPosition?.();positionHud();}catch(e){console.error(e);return;}
  try{bindPetInteractions();scheduleBlink();}catch(e){console.warn(e)}
  try{ensurePetChrome();inv=document.getElementById('qingerInventory');setupRain();setupFood();updateQingerTestPanelVisibility();updateHud();positionHud()}catch(e){console.warn(e)}
- if(window.__initialQingerPetData)applyQingerPetCloudData(window.__initialQingerPetData,{live:false});clearInterval(behaviorTimer);behaviorTimer=setInterval(behaviorTick,15000);clearInterval(syncTimer);syncTimer=setInterval(()=>{if(window.isCloudSynced)cloudRead()},3*60*1000);addEventListener('resize',positionHud);
+ if(window.__initialQingerPetData)applyQingerPetCloudData(window.__initialQingerPetData,{live:false});else await cloudRead();clearInterval(behaviorTimer);behaviorTimer=setInterval(behaviorTick,15000);clearInterval(syncTimer);syncTimer=setInterval(()=>{if(window.isCloudSynced)cloudRead()},3*60*1000);addEventListener('resize',positionHud);
  window.__appBootPetReady=true;window.__tryFinishAppBoot?.();
 }
 
