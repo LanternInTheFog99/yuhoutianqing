@@ -6,9 +6,9 @@
     <link rel="icon" type="image/png" href="xiaoqinger-favicon.png">
     <title>雨后天晴</title>
 <script>(function(){try{if(localStorage.getItem('qinger_visible')==='0')document.documentElement.classList.add('qinger-user-hidden')}catch(_){}})();</script>
-<style id="app-boot-critical">html:not(.app-ready) #xiaoqingerSimplePet,html.app-pet-settling #xiaoqingerSimplePet,html:not(.app-ready) #xiaoqingerSimplePet *,html.app-pet-settling #xiaoqingerSimplePet *,html:not(.app-ready) #qingerInventory,html.app-pet-settling #qingerInventory,html:not(.app-ready) #qingerInventory *,html.app-pet-settling #qingerInventory *{animation:none!important;transition:none!important} html:not(.app-ready) body>*:not(#appBootScreen):not(#startupReportTools){visibility:hidden!important}#appBootScreen{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#fff;color:#4b5563;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}#appBootScreen .app-boot-inner{display:flex;opacity:0;transition:opacity .18s ease;flex-direction:column;align-items:center;gap:12px;padding:24px;text-align:center}#appBootScreen.app-boot-visible .app-boot-inner{opacity:1}#appBootScreen .app-boot-spinner{width:26px;height:26px;border:3px solid #e5e7eb;border-top-color:#64748b;border-radius:50%;animation:appBootSpin .8s linear infinite}#appBootScreen .app-boot-text{font-size:14px;line-height:1.6}#appBootScreen .app-boot-retry{display:none;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#334155;padding:7px 14px;font:inherit;cursor:pointer}#appBootScreen.app-boot-failed .app-boot-spinner{display:none}#appBootScreen.app-boot-failed .app-boot-retry{display:inline-block}@keyframes appBootSpin{to{transform:rotate(360deg)}}</style>
+<style id="app-boot-critical">html:not(.app-ready) #xiaoqingerSimplePet,html.app-pet-settling #xiaoqingerSimplePet,html:not(.app-ready) #xiaoqingerSimplePet *,html.app-pet-settling #xiaoqingerSimplePet *,html:not(.app-ready) #qingerInventory,html.app-pet-settling #qingerInventory,html:not(.app-ready) #qingerInventory *,html.app-pet-settling #qingerInventory *{animation:none!important;transition:none!important} html:not(.app-ready) body>*:not(#appBootScreen):not(#startupReportTools){visibility:hidden!important}#appBootScreen{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;background:#fff;color:#4b5563;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}#appBootScreen .app-boot-inner{display:flex;opacity:0;transition:opacity .18s ease;flex-direction:column;align-items:center;gap:12px;padding:24px;text-align:center}#appBootScreen.app-boot-visible .app-boot-inner{opacity:1}#appBootScreen .app-boot-spinner{width:26px;height:26px;border:3px solid #e5e7eb;border-top-color:#64748b;border-radius:50%;animation:appBootSpin .8s linear infinite}#appBootScreen .app-boot-text{font-size:14px;line-height:1.6}#appBootScreen .app-boot-retry{display:none;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#334155;padding:7px 14px;font:inherit;cursor:pointer}#appBootScreen.app-boot-failed .app-boot-spinner{display:none}#appBootScreen.app-boot-failed .app-boot-retry{display:inline-block}@keyframes appBootSpin{to{transform:rotate(360deg)}}</style>
 <script>(function(){
-window.__appBootDomReady=false;window.__appBootPetReady=false;window.__appBootCloudReady=false;window.__appBootDone=false;window.__appBootResourceError=false;
+window.__appBootDomReady=false;window.__appBootPetReady=false;window.__appBootCloudReady=false;window.__appBootDone=false;window.__appBootResourceError=false;window.__appBootStyleReady=false;window.__appBootIconsReady=false;window.__appBootErrors=[];
 window.getStartupReport=function(){
  const round=n=>Number.isFinite(n)?Math.round(n):null;
  const nav=performance.getEntriesByType('navigation')[0];
@@ -20,21 +20,23 @@ window.getStartupReport=function(){
    else if(u.pathname.endsWith('/timeline')||u.pathname.endsWith('/timeline/version'))name='云端：'+(u.searchParams.get('type')||'账号或其他请求');
    return name?{resource:name,startMs:round(r.startTime),durationMs:round(r.duration)}:null;
  }).filter(Boolean);
- return {pageDownloadMs:nav?round(nav.responseEnd-nav.responseStart):null,pageTransferBytes:nav?.transferSize||null,domReadyMs:round(window.__appBootDomReadyAt),petReadyMs:round(window.__appBootPetReadyAt),cloudReadyMs:round(window.__appBootCloudReadyAt),pageReadyMs:round(window.__appBootDoneAt),resources};
+ return {stage:{domReady:!!window.__appBootDomReady,moduleEntered:!!window.__appBootModuleEntered,moduleReady:!!window.__startInitialCloud,petFailed:!!window.__appBootPetFailed,petReady:!!window.__appBootPetReady,cloudReady:!!window.__appBootCloudReady,styleReady:!!window.__appBootStyleReady,iconsReady:!!window.__appBootIconsReady,resourceError:!!window.__appBootResourceError},errors:(window.__appBootErrors||[]).slice(-10),pageDownloadMs:nav?round(nav.responseEnd-nav.responseStart):null,pageTransferBytes:nav?.transferSize||null,domReadyMs:round(window.__appBootDomReadyAt),accountReadyMs:round(window.__appBootAccountReadyAt),eventsReadyMs:round(window.__appBootEventsReadyAt),petReadyMs:round(window.__appBootPetReadyAt),cloudReadyMs:round(window.__appBootCloudReadyAt),pageReadyMs:round(window.__appBootDoneAt),resources};
 };
-window.__retryAppBoot=function(){var n=document.getElementById('appBootScreen');if(n){n.classList.remove('app-boot-failed');var t=n.querySelector('.app-boot-text');if(t)t.textContent='正在重新连接云端…';}window.__initialCloudSyncStarted=false;window.__startInitialCloud?.();};
-window.__appBootFailure=function(message){var n=document.getElementById('appBootScreen');if(!n||window.__appBootDone)return;n.classList.add('app-boot-visible','app-boot-failed');var t=n.querySelector('.app-boot-text');if(t)t.textContent=message||'页面加载失败，请检查网络后重新加载'};
-window.__tryFinishAppBoot=function(){if(window.__appBootDone||!window.__appBootDomReady||!window.__appBootPetReady||!window.__appBootCloudReady||window.__appBootResourceError)return;window.__appBootDone=true;window.__appBootDoneAt=performance.now();document.documentElement.classList.add('app-ready','app-pet-settling');document.getElementById('appBootScreen')?.remove();requestAnimationFrame(function(){requestAnimationFrame(function(){setTimeout(function(){document.documentElement.classList.remove('app-pet-settling')},120)})});};
+window.addEventListener('error',function(e){if(window.__appBootDone||!e.error)return;window.__appBootErrors.push({atMs:Math.round(performance.now()),kind:'script',name:String(e.error.name||'Error'),line:Number(e.lineno)||null});window.__appBootFailure?.('页面启动出错，请重新加载')});
+window.__retryAppBoot=function(){if(window.__appBootResourceError||window.__appBootPetFailed||!window.__appBootStyleReady||!window.__startInitialCloud){location.reload();return}var n=document.getElementById('appBootScreen');if(n){n.classList.remove('app-boot-failed');var t=n.querySelector('.app-boot-text');if(t)t.textContent='正在重新连接云端…';}window.__initialCloudSyncStarted=false;window.__startInitialCloud?.();};
+window.__appBootFailure=function(message){window.__appBootErrors.push({atMs:Math.round(performance.now()),message:message||'加载失败'});var n=document.getElementById('appBootScreen');if(!n||window.__appBootDone)return;n.classList.add('app-boot-visible','app-boot-failed');var t=n.querySelector('.app-boot-text');if(t)t.textContent=message||'页面加载失败，请检查网络后重新加载'};
+window.__tryFinishAppBoot=function(){if(window.__appBootDone||!window.__appBootStyleReady||!window.__appBootDomReady||!window.__appBootPetReady||!window.__appBootCloudReady||window.__appBootResourceError)return;window.__appBootDone=true;window.__appBootDoneAt=performance.now();document.documentElement.classList.add('app-ready','app-pet-settling');document.getElementById('appBootScreen')?.remove();requestAnimationFrame(function(){requestAnimationFrame(function(){setTimeout(function(){document.documentElement.classList.remove('app-pet-settling')},120)})});};
 document.addEventListener('DOMContentLoaded',function(){window.__appBootDomReady=true;window.__appBootDomReadyAt=performance.now();window.__startInitialCloud?.();window.__tryFinishAppBoot()},{once:true});
 setTimeout(function(){if(!window.__appBootDone)document.getElementById('appBootScreen')?.classList.add('app-boot-visible')},800);
 setTimeout(function(){if(!window.__appBootDone&&!document.getElementById('appBootScreen')?.classList.contains('app-boot-failed')){var t=document.querySelector('#appBootScreen .app-boot-text');if(t)t.textContent='正在等待云端同步，网络较慢时可能需要一些时间…'}},20000);
+setTimeout(function(){if(!window.__appBootDone){if(!window.__appBootStyleReady){window.__appBootResourceError=true;window.__appBootFailure('页面样式加载超时，请重新加载')}else if(!window.__appBootDomReady||!window.__startInitialCloud){window.__appBootFailure('页面启动未完成，请重新加载')}}},25000);
 })();</script>
 
 <script id="startup-report-tools">(function(){
 if(new URLSearchParams(location.search).get('loadReport')!=='1')return;
 function mount(){
  const root=document.createElement('div');root.id='startupReportTools';
- root.style.cssText='position:fixed;right:12px;bottom:16px;z-index:2147483647;font:14px/1.5 sans-serif;color:#334155;visibility:visible';
+ root.style.cssText='position:fixed;right:12px;top:12px;z-index:2147483647;font:14px/1.5 sans-serif;color:#334155;visibility:visible';
  const open=document.createElement('button');open.type='button';open.textContent='加载报告';
  const buttonStyle='padding:9px 14px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;color:#334155;font:inherit;cursor:pointer';
  open.style.cssText=buttonStyle;root.appendChild(open);
@@ -47,7 +49,9 @@ function mount(){
  const copy=document.createElement('button');copy.type='button';copy.textContent='复制';copy.style.cssText=buttonStyle;
  const close=document.createElement('button');close.type='button';close.textContent='关闭';close.style.cssText=buttonStyle;
  actions.append(copy,close);card.append(title,field,status,actions);panel.appendChild(card);root.appendChild(panel);document.body.appendChild(root);
- open.onclick=function(){field.value=JSON.stringify(window.getStartupReport(),null,2);status.textContent='复制后发给我即可';panel.style.display='flex'};
+ const showReport=function(){field.value=JSON.stringify(window.getStartupReport(),null,2);status.textContent='复制后发给我即可';panel.style.display='flex'};
+ open.onclick=showReport;
+ setTimeout(function(){if(!window.__appBootDone)showReport()},20000);
  close.onclick=function(){panel.style.display='none'};
  panel.onclick=function(e){if(e.target===panel)panel.style.display='none'};
  copy.onclick=async function(){
@@ -60,8 +64,8 @@ function mount(){
 if(document.body)mount();else {const observer=new MutationObserver(function(){if(document.body){observer.disconnect();mount()}});observer.observe(document.documentElement,{childList:true})}
 })();</script>
 
-<script defer src="https://cdn.tailwindcss.com" onerror="window.__appBootResourceError=true;window.__appBootFailure('页面样式加载失败，请检查网络后重新加载')"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" onerror="window.__appBootResourceError=true;window.__appBootFailure('页面资源加载失败，请检查网络后重新加载')">
+<script async src="https://cdn.tailwindcss.com" onload="window.__appBootStyleReady=true;window.__appBootResourceError=false;window.__tryFinishAppBoot?.()" onerror="window.__appBootResourceError=true;window.__appBootFailure('页面样式加载失败，请检查网络后重新加载')"></script>
+<link rel="stylesheet" media="print" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" onload="this.media='all';window.__appBootIconsReady=true" onerror="window.__appBootErrors.push({atMs:Math.round(performance.now()),message:'图标资源加载失败'})">
     
     <style>
         .transition-all-custom {
@@ -1875,7 +1879,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
 </head>
 <!-- v35: head-motion branch from v32 -->
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
-<div id="appBootScreen" aria-live="polite"><div class="app-boot-inner"><div class="app-boot-spinner" aria-hidden="true"></div><div class="app-boot-text">正在加载该网页...</div><button class="app-boot-retry" type="button" onclick="window.__retryAppBoot?.()">重新连接</button></div></div>
+<div id="appBootScreen" class="app-boot-visible" aria-live="polite"><div class="app-boot-inner"><div class="app-boot-spinner" aria-hidden="true"></div><div class="app-boot-text">正在加载该网页...</div><button class="app-boot-retry" type="button" onclick="window.__retryAppBoot?.()">重新连接</button></div></div>
 <div id="invalidRoomAccessOverlay" aria-live="assertive" aria-label="此链接无效"><div class="invalid-room-card">此链接无效</div></div>
 
 <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm relative">
@@ -2530,6 +2534,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
 
                 
 
+        window.__appBootModuleEntered=true;
         const urlParams = new URLSearchParams(window.location.search);
         window.currentRoomId = (urlParams.get('room') || 'default').trim() || 'default';
         window.roomAccessToken = (urlParams.get('access') || '').trim();
@@ -2638,7 +2643,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             return uaMobile||phoneTabletUA||appleTouchDesktop||coarsePrimary||noFinePointer||touchTabletViewport;
         };
         document.documentElement.toggleAttribute('data-mobile-editing',window.isMobileEditingDevice());
-        window.isLocked = localStorage.getItem('yuhoutianqing_isLocked') === 'false' ? false : true;
+        window.isLocked = true;
+        try { window.isLocked = localStorage.getItem('yuhoutianqing_isLocked') !== 'false'; } catch (_) {}
         // 编辑授权只存于 sessionStorage。重新打开页面/标签页若没有有效令牌，必须真正回到浏览模式，
         // 避免按钮显示“编辑模式”但实际 canEditNow() 为 false。
         if (!window.hasTimelineEditToken?.()) {
@@ -2659,7 +2665,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         window.canEditNow = function() { return !window.isLocked && window.isCloudSynced && window.cloudWriteReady && window.hasTimelineEditToken?.(); };
         window.zoomLevel = 3;
         window.edgeScrollSpeed = (function() {
-            const v = Number(localStorage.getItem('yuhoutianqing_edgeScrollSpeed'));
+            let v=0;try { v = Number(localStorage.getItem('yuhoutianqing_edgeScrollSpeed')); } catch (_) {}
             if (!v || isNaN(v)) return 5;
             if (v > 20) return Math.max(1, Math.min(20, Math.round(v / 6)));
             return Math.max(1, Math.min(20, v));
@@ -4182,10 +4188,11 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 await window.ensureRoomAccess?.();
                 return false;
             }
+            const readDeadline = performance.now() + 90000;
             const fetchWithRetry = async (path, timeoutMs = 20000, attempts = 2) => {
                 let lastErr = null;
                 for (let i = 0; i < attempts; i++) {
-                    try { return await timelineApiFetch(path, timeoutMs); }
+                    try { const remaining=readDeadline-performance.now();if(remaining<=0)throw new Error('云端读取超时，请重试');return await timelineApiFetch(path, Math.min(timeoutMs, remaining)); }
                     catch (err) {
                         lastErr = err;
                         if (i + 1 < attempts) await new Promise(r => setTimeout(r, 320));
@@ -4202,6 +4209,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 '/timeline?type=connections','/timeline?type=activityLogs','/timeline?type=xiaoqinger'
             ].map(p=>fetchWithRetry(p,16000,2)));
             if(window._accountInitialValidation)await window._accountInitialValidation;
+            if(!window.__appBootDone)window.__appBootAccountReadyAt=performance.now();
             const privateSidePromise=Promise.allSettled([
                 `/timeline?type=tags&accountId=${encodeURIComponent(window.getCurrentAccountId?.()||'')}`,
                 `/timeline?type=bgm&accountId=${encodeURIComponent(window.getCurrentAccountId?.()||'')}`
@@ -4213,8 +4221,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             // 先拿第一页，同时从响应中的 total 计算剩余页；每页 5 条并发读取，避免 59 个大事件串行请求过慢。
             const firstPage = await fetchWithRetry(
                 `/timeline?type=events&offset=0&limit=${TIMELINE_EVENT_PAGE_LIMIT}&accountId=${encodeURIComponent(window.getCurrentAccountId?.()||'')}`,
-                45000,
-                3
+                20000,
+                2
             );
             const cloudEvents = Array.isArray(firstPage?.items) ? firstPage.items.slice() : [];
             const totalEvents = Math.max(cloudEvents.length, Number(firstPage?.total) || 0);
@@ -4234,12 +4242,13 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     const off = offsets[idx];
                     pageResults[idx] = await fetchWithRetry(
                         `/timeline?type=events&offset=${encodeURIComponent(off)}&limit=${TIMELINE_EVENT_PAGE_LIMIT}&accountId=${encodeURIComponent(window.getCurrentAccountId?.()||'')}`,
-                        45000,
-                        3
+                        20000,
+                        2
                     );
                 }
             });
             await Promise.all(pool);
+            if(!window.__appBootDone)window.__appBootEventsReadyAt=performance.now();
             pageResults.forEach(page => {
                 if (Array.isArray(page?.items)) cloudEvents.push(...page.items);
             });
@@ -4328,21 +4337,9 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             });
 
             try {
-                // 首次读取容忍短暂网络抖动；只在全部尝试失败后显示错误。
-                let initialError;
-                for (let attempt = 0; attempt < 3; attempt++) {
-                    try { await loadTimelineFromCloudBase(); initialError = null; break; }
-                    catch (error) {
-                        initialError = error;
-                        console.warn(`首次云端同步第 ${attempt + 1} 次失败`, error);
-                        if (attempt < 2) {
-                            const bootText = document.querySelector('#appBootScreen .app-boot-text');
-                            if (bootText) bootText.textContent = `正在加载网页…`;
-                            await new Promise(resolve => setTimeout(resolve, 1500 * (attempt + 1)));
-                        }
-                    }
-                }
-                if (initialError) throw initialError;
+                // Each read already retries; avoid nesting another full startup retry loop.
+                const initialResult=await loadTimelineFromCloudBase();
+                if(initialResult===false)return;
                 const partial = Array.isArray(window._cloudPartialFailures) ? window._cloudPartialFailures : [];
                 updateSyncStatus('synced', partial.length ? `已同步云端（${partial.join('、')}暂不可用）` : '已同步云端');
                 window.startTimelineVersionPolling?.();
@@ -14202,7 +14199,7 @@ viewer.style.visibility='';
         window.ACCOUNT_DELETE_KEY='yuhoutianqing_account_delete_v1';
         window.ACCOUNT_DELETE_PENDING_KEY='yuhoutianqing_account_delete_pending_v1';
         window.accountClearDeleteTask=function(){localStorage.removeItem(window.ACCOUNT_DELETE_KEY);localStorage.removeItem(window.ACCOUNT_DELETE_PENDING_KEY);};
-        window.isActivityAnonymous=()=>localStorage.getItem(window.ACTIVITY_ANON_KEY)==='1';
+        window.isActivityAnonymous=()=>{try{return localStorage.getItem(window.ACTIVITY_ANON_KEY)==='1'}catch(_){return false}};
         window.setActivityAnonymous=value=>{localStorage.setItem(window.ACTIVITY_ANON_KEY,value?'1':'0');const sw=document.getElementById('activityAnonymousSwitch');if(sw)sw.checked=!!value;};
         window._accountState=null;
         window._accountVerified=false;
@@ -15017,7 +15014,7 @@ viewer.style.visibility='';
         window.startTimelineApp = () => {
             if(window._invalidRoomAccess){ window.invalidateRoomAccess?.(); return; }
             window.updateLockButtonUI?.();
-            const startCloudOnce=()=>{if(window.__initialCloudSyncStarted)return;window.__initialCloudSyncStarted=true;initAppAndCloudSync()};
+            const startCloudOnce=()=>{if(window.__initialCloudSyncStarted)return;window.__initialCloudSyncStarted=true;initAppAndCloudSync().catch(()=>window.__appBootFailure?.('页面启动未完成，请重新加载'))};
             window.__startInitialCloud=startCloudOnce;
             startCloudOnce();
         };
@@ -15311,7 +15308,7 @@ viewer.style.visibility='';
 
         window.COMMENT_ANON_KEY = 'yht_comment_anonymous';
         window.commentIsAnonymous = function(){
-            return localStorage.getItem(window.COMMENT_ANON_KEY)==='1';
+            try{return localStorage.getItem(window.COMMENT_ANON_KEY)==='1'}catch(_){return false}
         };
 
         // 评论区不再创建/维护第二套身份。唯一身份就是账号管理中的 ID + accountId。
@@ -17143,10 +17140,12 @@ async function preloadPetLayers(){
  // data: PNGs are already embedded in this HTML. Wait for browser image load only; do not make
  // visibility depend on decode(), whose behaviour differs across deployed browsers/WebViews.
  const results=await Promise.all(imgs.map(img=>new Promise(resolve=>{
-   const finish=()=>resolve({ok:img.naturalWidth>0&&img.naturalHeight>0,img});
+   let settled=false;const timer=setTimeout(()=>finish(false),12000);
+   const finish=(loaded=true)=>{if(settled)return;settled=true;clearTimeout(timer);img.removeEventListener('load',onLoad);img.removeEventListener('error',onError);resolve({ok:loaded&&img.naturalWidth>0&&img.naturalHeight>0,img})};
+   const onLoad=()=>finish(),onError=()=>finish(false);
    if(img.complete){finish();return;}
-   img.addEventListener('load',finish,{once:true});
-   img.addEventListener('error',()=>resolve({ok:false,img}),{once:true});
+   img.addEventListener('load',onLoad,{once:true});
+   img.addEventListener('error',onError,{once:true});
  })));
  const bad=results.filter(x=>!x.ok);
  if(bad.length){console.error('小晴儿：分层素材加载失败',bad.map(x=>x.img.dataset.form+':'+x.img.dataset.layer));return false;}
@@ -17214,14 +17213,15 @@ function bindPetInteractions(){
  const end=e=>{if(!drag||drag.id!==e.pointerId)return;const moved=drag.moved,attempted=drag.attempted;if(drag.sleeping&&!moved){try{pet.releasePointerCapture?.(e.pointerId)}catch(_){}drag=null;sleepClick();suppressClickUntil=Date.now()+350;return;}if(moved||attempted)suppressClickUntil=Date.now()+420;if(moved)window.saveXiaoqingerPosition?.();try{pet.releasePointerCapture?.(e.pointerId)}catch(_){}pet.classList.remove('pet-grabbed','pet-satisfied-sway','pet-satisfied-lift','pet-satisfied-drag','pet-drag-lean','pet-satisfied-drag-start');if(moved&&state.base==='较饱'){pet.classList.remove('pet-satisfied-land-v40');void pet.offsetWidth;pet.classList.add('pet-satisfied-land-v40');setTimeout(()=>pet?.classList.remove('pet-satisfied-land-v40'),360)}if(drag)drag.leanTarget=0;drag=null;startDragLeanLoop();if(moved)render();positionHud()};pet.addEventListener('pointerup',end);pet.addEventListener('pointercancel',end);
  pet.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();if(!qingerInteractionReady())return;if(Date.now()<suppressClickUntil)return;clearTimeout(window.__qingerClickTimer);window.__qingerClickTimer=setTimeout(()=>{if(Date.now()<suppressClickUntil)return;pet.classList.remove('pet-click-feedback');void pet.offsetWidth;pet.classList.add('pet-click-feedback');setTimeout(()=>pet?.classList.remove('pet-click-feedback'),190);if(state.base==='饿晕')return;if(state.base==='很饿'){window.showXiaoqingerSimpleSpeech?.('……');return}touch();window.xiaoqingerPetBaseState=state.base;window.xiaoqingerPetBehavior=['doze1','doze2','doze3'].includes(state.behavior)?'drowsy':state.behavior;window.xiaoqingerSayRandom?.()},90)});
 }
+function petBootFailure(){window.__appBootPetFailed=true;window.__appBootFailure?.('小晴儿素材加载未完成，请重新加载');}
 async function boot(){
- let created=false;try{created=createPetLayers();}catch(e){console.error(e);return;}
- if(!created)return;
- let ready=false;try{ready=await preloadPetLayers();}catch(e){console.error(e);return;}
- if(!ready)return;
+ let created=false;try{created=createPetLayers();}catch(e){console.error(e);petBootFailure();return;}
+ if(!created){petBootFailure();return;}
+ let ready=false;try{ready=await preloadPetLayers();}catch(e){console.error(e);petBootFailure();return;}
+ if(!ready){petBootFailure();return;}
  /* Avoid a daytime-looking flash while waiting for the first cloud state read at night. */
  if(openedDuringNight){state.behavior='sleep';dozeMark('sleep');}
- try{render();window.restoreXiaoqingerPosition?.();positionHud();}catch(e){console.error(e);return;}
+ try{render();window.restoreXiaoqingerPosition?.();positionHud();}catch(e){console.error(e);petBootFailure();return;}
  try{bindPetInteractions();scheduleBlink();}catch(e){console.warn(e)}
  try{ensurePetChrome();inv=document.getElementById('qingerInventory');setupRain();setupFood();updateQingerTestPanelVisibility();updateHud();positionHud();window.applyQingerVisibility?.()}catch(e){console.warn(e)}
  if(window.__initialQingerPetData)applyQingerPetCloudData(window.__initialQingerPetData,{live:false});else if(window.__initialCloudSyncStarted){/* Initial timeline sync owns the first pet read. */}else await cloudRead();clearInterval(behaviorTimer);behaviorTimer=setInterval(()=>{if(!document.hidden&&!window.__qingerSilentRestore)behaviorTick()},15000);clearInterval(syncTimer);syncTimer=setInterval(()=>{if(window.isCloudSynced)cloudRead()},3*60*1000);addEventListener('resize',positionHud);
