@@ -678,6 +678,7 @@ setTimeout(function(){if(!window.__appBootDone&&!document.getElementById('appBoo
             #editModal,#multiTimeEventModal{padding-top:20px!important;padding-bottom:20px!important}
             #editModal>div,#multiTimeEventModal>div{max-height:calc(100dvh - 40px)!important;margin-top:0!important;margin-bottom:0!important}
         }
+        html[data-mobile-editing] .deep-description-edit-control,html[data-mobile-editing] #editModal [data-deep-edit-btn],html[data-mobile-editing] #multiTimeEventModal [data-deep-edit-btn]{display:none!important}
         html[data-mobile-editing] #shareCollabBtn{display:none!important}
         html[data-mobile-editing] #userSettingsBtn{position:static!important;transform:none!important}
         html.qinger-browse-mode #qingerInventory .qinger-inv-grid{display:none!important}
@@ -5420,6 +5421,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         window.multiOpenVideoEdit=function(seg,index){if(!window.multiActivateSharedSegment(seg))return;window.openVideoEditModal(index);};
         window.multiOpenLinkEdit=function(seg,index){if(!window.multiActivateSharedSegment(seg))return;window.openEditLinkModal(index);};
         window.multiOpenDeepDescriptionEditor=function(segIndex,type,index){
+            if(window.isMobileEditingDevice?.())return;
             if(!window.multiActivateSharedSegment(segIndex))return;
             window.openDeepDescriptionEditor(type,index);
             if(window.deepCanvasTarget)window.deepCanvasTarget={multi:true,segIndex,type,index};
@@ -7759,6 +7761,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             try{const r=await fetch(src,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);const blob=await r.blob();let base=(cp.split('/').pop()||'media').replace(/\.[^.]+$/,'');const ext=(cp.split('/').pop()||'').match(/(\.[^.]+)$/)?.[1]||'';base=base.replace(/_[a-z0-9]+_[a-f0-9]{8}$/i,'').replace(/_[a-f0-9]{8}$/i,'');const name=base+'_desc'+ext;const file=new File([blob],name,{type:blob.type||obj?.mime||'application/octet-stream'});const up=await window.uploadLargeMediaToCloudBase(file,{purpose:type==='video'?'video':(obj?.isAnimated?'gif':'picture')});return {src:up.url,cloudPath:up.cloudPath};}catch(e){console.warn('深入描述默认媒体副本创建失败，回退原媒体',e);return {src,cloudPath:cp};}
         };
         window.openDeepDescriptionEditor = async function(type,index){
+            if(window.isMobileEditingDevice?.())return;
             const obj=window.deepMediaObject(type,index); if(!obj)return;
             const m=window.deepEnsureModal();
             window.deepCanvasTarget={type,index};
@@ -11838,7 +11841,7 @@ viewer.style.visibility='';
 
                         <div id="editPage2" class="space-y-3.5 hidden">
                         <div class="space-y-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                            <div class="flex items-center justify-between gap-3 bg-indigo-50/70 border border-indigo-100 rounded-xl px-3 py-2.5">
+                            <div class="deep-description-edit-control flex items-center justify-between gap-3 bg-indigo-50/70 border border-indigo-100 rounded-xl px-3 py-2.5">
                                 <div><div class="text-xs font-bold text-slate-700"><i class="fa-solid fa-expand text-indigo-600 mr-1"></i>深入描述</div><p class="text-[10px] text-slate-500 mt-0.5">开启后，每个图片、动图、视频都可以进入独立的全屏画布进行图文解析。</p></div>
                                 <label class="relative inline-flex items-center cursor-pointer shrink-0"><input type="checkbox" id="deepDescriptionToggle" class="sr-only peer" ${event.deepDescriptionEnabled === true ? 'checked' : ''} onchange="toggleDeepDescriptionFeature(this.checked)"><span class="w-10 h-5 bg-slate-300 peer-checked:bg-indigo-600 rounded-full transition-colors"></span><span class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5"></span></label>
                             </div>
@@ -12835,18 +12838,6 @@ viewer.style.visibility='';
             window.richRestoreMobileBookmark(e,bookmark);
             window.richRememberSelection?.();
         };
-        if(!window._richSelectionSyncBound){
-            window._richSelectionSyncBound=true;
-            document.addEventListener('selectionchange',()=>{
-                const e=document.getElementById('editDescription'),sel=window.getSelection();
-                if(!e||!sel||!sel.rangeCount)return;
-                const r=sel.getRangeAt(0);
-                if(e.contains(r.commonAncestorContainer)){
-                    window.richRememberSelection?.();
-                    
-                }
-            });
-        }
         window.richGetTopLevelLine=function(root,node){
             if(!root||!node)return null;
             let el=node.nodeType===1?node:node.parentElement;
@@ -15067,7 +15058,7 @@ viewer.style.visibility='';
                 <div><label class="block text-xs font-bold text-slate-700 mb-1">时间线排序基准</label><select id="multiTimelineSortSegment" onchange="multiTimeGeneralDraft.timelineSortSegmentId=this.value" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"><option value="">默认（最早时间）</option>${(window.multiTimeDraft||[]).map((seg,i)=>`<option value="${window.multiEsc(seg.id||'')}" ${String(ev.timelineSortSegmentId||'')===String(seg.id||'')?'selected':''}>时间 ${i+1} · ${window.multiEsc(window.formatDisplayDate(seg.date||''))}${seg.subtitle?' · '+window.multiEsc(seg.subtitle):''}</option>`).join('')}</select><p class="mt-1 text-[10px] text-slate-400">只影响节点在时间线上的排序位置，不改变事件显示的时间</p></div>
                 <div><label class="block text-xs font-bold text-slate-700 mb-1">tag选择（可多选）</label><div class="flex flex-wrap gap-1.5 p-2 border border-slate-200 rounded-lg bg-slate-50 max-h-28 overflow-y-auto">${tagHtml}</div></div>
                 <div class="space-y-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                    <div class="flex items-center justify-between gap-3 bg-indigo-50/70 border border-indigo-100 rounded-xl px-3 py-2.5">
+                    <div class="deep-description-edit-control flex items-center justify-between gap-3 bg-indigo-50/70 border border-indigo-100 rounded-xl px-3 py-2.5">
                         <div><div class="text-xs font-bold text-slate-700"><i class="fa-solid fa-expand text-indigo-600 mr-1"></i>深入描述</div><p class="text-[10px] text-slate-500 mt-0.5">开启后，每个图片、动图、视频都可以进入独立的全屏画布进行图文解析。</p></div>
                         <label class="relative inline-flex items-center cursor-pointer shrink-0"><input id="multiDeepToggle" type="checkbox" ${window.multiTimeDeepEnabledDraft?'checked':''} onchange="multiToggleDeepDescriptionFeature(this.checked)" class="sr-only peer"><span class="w-10 h-5 bg-slate-300 peer-checked:bg-indigo-600 rounded-full transition-colors"></span><span class="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5"></span></label>
                     </div>
@@ -15096,8 +15087,8 @@ viewer.style.visibility='';
 
         window.multiSegmentPageHtml=function(segIndex){
             const s=window.multiTimeDraft[segIndex];if(!s)return'';
-            const images=(s.images||[]).map((im,j)=>`<div draggable="true" data-multi-drag data-seg="${segIndex}" data-key="images" data-index="${j}" class="media-drag-item relative w-20 h-16 rounded-lg overflow-hidden border border-slate-200 bg-slate-900 group cursor-grab"><img src="${window.multiEsc(window.multiGetImageThumb(im))}" class="w-full h-full object-cover" draggable="false"><span class="absolute top-1 left-1 text-white/80 text-[9px]"><i class="fa-solid fa-grip-vertical"></i></span><div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1"><button type="button" onclick="event.stopPropagation();multiOpenCropModal(${segIndex},${j})" class="w-6 h-6 rounded-full bg-indigo-600 text-white" title="截选"><i class="fa-solid fa-crop text-[10px]"></i></button>${window.multiTimeDeepEnabledDraft?`<button type="button" onclick="event.stopPropagation();multiOpenDeepDescriptionEditor(${segIndex},'image',${j})" class="w-6 h-6 rounded-full bg-violet-600 text-white" title="深入描述"><i class="fa-solid fa-feather-pointed text-[10px]"></i></button>`:''}<button type="button" onclick="event.stopPropagation();multiRemoveMedia(${segIndex},'images',${j})" class="w-6 h-6 rounded-full bg-rose-600 text-white" title="删除"><i class="fa-solid fa-xmark text-[10px]"></i></button></div></div>`).join('');
-            const videos=(s.videos||[]).map((v,j)=>`<div draggable="true" data-multi-drag data-seg="${segIndex}" data-key="videos" data-index="${j}" class="media-drag-item video-edit-card border border-slate-200 rounded-lg px-2.5 py-2 flex items-center gap-2 cursor-grab bg-white"><i class="fa-solid fa-grip-vertical text-slate-300 text-[10px]"></i>${v.cover?`<img src="${window.multiEsc(v.cover)}" class="w-10 h-7 object-cover rounded">`:`<div class="w-10 h-7 bg-slate-100 rounded text-[9px] text-slate-400 flex items-center justify-center">视频</div>`}<div class="min-w-0 flex-1"><div class="text-xs font-semibold truncate text-slate-700">${window.multiEsc(v.title||'未命名视频')}</div></div><span class="text-[10px] text-indigo-500">${Number(v.previewDuration)||4}s</span><button type="button" onclick="multiOpenVideoEdit(${segIndex},${j})" class="px-2 py-1 bg-indigo-50 text-indigo-600 rounded text-[10px]">编辑</button>${window.multiTimeDeepEnabledDraft?`<button type="button" onclick="multiOpenDeepDescriptionEditor(${segIndex},'video',${j})" class="px-2 py-1 bg-violet-50 text-violet-600 rounded text-[10px]">深入描述</button>`:''}<button type="button" onclick="multiOpenVideoCropModal(${segIndex},${j})" class="px-2 py-1 bg-slate-100 text-slate-600 rounded text-[10px]">截选</button><button type="button" onclick="multiRemoveMedia(${segIndex},'videos',${j})" class="text-rose-500 w-6 h-6"><i class="fa-solid fa-xmark"></i></button></div>`).join('');
+            const images=(s.images||[]).map((im,j)=>`<div draggable="true" data-multi-drag data-seg="${segIndex}" data-key="images" data-index="${j}" class="media-drag-item relative w-20 h-16 rounded-lg overflow-hidden border border-slate-200 bg-slate-900 group cursor-grab"><img src="${window.multiEsc(window.multiGetImageThumb(im))}" class="w-full h-full object-cover" draggable="false"><span class="absolute top-1 left-1 text-white/80 text-[9px]"><i class="fa-solid fa-grip-vertical"></i></span><div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1"><button type="button" onclick="event.stopPropagation();multiOpenCropModal(${segIndex},${j})" class="w-6 h-6 rounded-full bg-indigo-600 text-white" title="截选"><i class="fa-solid fa-crop text-[10px]"></i></button>${window.multiTimeDeepEnabledDraft?`<button type="button" data-deep-edit-btn onclick="event.stopPropagation();multiOpenDeepDescriptionEditor(${segIndex},'image',${j})" class="w-6 h-6 rounded-full bg-violet-600 text-white" title="深入描述"><i class="fa-solid fa-feather-pointed text-[10px]"></i></button>`:''}<button type="button" onclick="event.stopPropagation();multiRemoveMedia(${segIndex},'images',${j})" class="w-6 h-6 rounded-full bg-rose-600 text-white" title="删除"><i class="fa-solid fa-xmark text-[10px]"></i></button></div></div>`).join('');
+            const videos=(s.videos||[]).map((v,j)=>`<div draggable="true" data-multi-drag data-seg="${segIndex}" data-key="videos" data-index="${j}" class="media-drag-item video-edit-card border border-slate-200 rounded-lg px-2.5 py-2 flex items-center gap-2 cursor-grab bg-white"><i class="fa-solid fa-grip-vertical text-slate-300 text-[10px]"></i>${v.cover?`<img src="${window.multiEsc(v.cover)}" class="w-10 h-7 object-cover rounded">`:`<div class="w-10 h-7 bg-slate-100 rounded text-[9px] text-slate-400 flex items-center justify-center">视频</div>`}<div class="min-w-0 flex-1"><div class="text-xs font-semibold truncate text-slate-700">${window.multiEsc(v.title||'未命名视频')}</div></div><span class="text-[10px] text-indigo-500">${Number(v.previewDuration)||4}s</span><button type="button" onclick="multiOpenVideoEdit(${segIndex},${j})" class="px-2 py-1 bg-indigo-50 text-indigo-600 rounded text-[10px]">编辑</button>${window.multiTimeDeepEnabledDraft?`<button type="button" data-deep-edit-btn onclick="multiOpenDeepDescriptionEditor(${segIndex},'video',${j})" class="px-2 py-1 bg-violet-50 text-violet-600 rounded text-[10px]">深入描述</button>`:''}<button type="button" onclick="multiOpenVideoCropModal(${segIndex},${j})" class="px-2 py-1 bg-slate-100 text-slate-600 rounded text-[10px]">截选</button><button type="button" onclick="multiRemoveMedia(${segIndex},'videos',${j})" class="text-rose-500 w-6 h-6"><i class="fa-solid fa-xmark"></i></button></div>`).join('');
             const links=(s.links||[]).map((l,j)=>`<div draggable="true" data-multi-drag data-seg="${segIndex}" data-key="links" data-index="${j}" class="flex items-center gap-2 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs cursor-grab bg-white"><i class="fa-solid fa-grip-vertical text-slate-300"></i><div class="min-w-0 flex-1 text-left truncate text-slate-700"><i class="fa-solid fa-globe text-indigo-500 mr-1"></i>${window.multiEsc(l.title||l.url)}</div><button type="button" onclick="event.stopPropagation();multiOpenLinkEdit(${segIndex},${j})" class="text-slate-400 hover:text-indigo-600 w-6 h-6" title="编辑"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="event.stopPropagation();multiRemoveMedia(${segIndex},'links',${j})" class="text-rose-500 w-6 h-6" title="删除"><i class="fa-solid fa-xmark"></i></button></div>`).join('');
             return `<div class="space-y-3.5">
                 <div>
