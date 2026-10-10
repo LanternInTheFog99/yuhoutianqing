@@ -601,7 +601,7 @@ setTimeout(function(){if(!window.__appBootDone&&!document.getElementById('appBoo
         #xiaoqingerSimplePet.pet-click-feedback{animation:xiaoqingerTap .16s ease}
         #xiaoqingerSimplePet.pet-dragging{cursor:grabbing;transition:none!important}
         #xiaoqingerSimplePet.pet-dragging::after{display:none!important}
-        #xiaoqingerSimplePet.pet-head-stroking img{transition:transform .07s linear!important;transform:rotate(var(--pet-head-sway,0deg));transform-origin:50% 88%}
+        #xiaoqingerSimplePet.pet-head-stroking #qingerVisualStage{transition:transform .07s linear!important;transform:rotate(var(--pet-head-sway,0deg));transform-origin:50% 88%}
         .xiaoqinger-pet-heart{position:fixed;z-index:91;pointer-events:none;user-select:none;font-size:12px;line-height:1;color:#fb7185;text-shadow:0 2px 6px rgba(190,24,93,.18);animation:xiaoqingerPetHeart .72s ease-out forwards}
         @keyframes xiaoqingerPetHeart{0%{opacity:0;transform:translate(-50%,-20%) scale(.65)}18%{opacity:1;transform:translate(-50%,-45%) scale(1)}100%{opacity:0;transform:translate(-50%,-125%) scale(1.18)}}
         #xiaoqingerSimplePet img{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;filter:drop-shadow(0 7px 9px rgba(15,23,42,.18))}
@@ -1837,7 +1837,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
 <script>(function(){window.isQingerVisible=function(){try{return localStorage.getItem('qinger_visible')!=='0'}catch(e){return true}};window.applyQingerVisibility=function(){var visible=window.isQingerVisible();document.documentElement.classList.toggle('qinger-user-hidden',!visible);var pet=document.getElementById('xiaoqingerSimplePet');if(pet){if(!visible){pet.style.setProperty('display','none','important');pet.setAttribute('aria-hidden','true')}else{pet.style.removeProperty('display');pet.removeAttribute('aria-hidden')}}var sw=document.getElementById('qingerVisibleSetting');if(sw)sw.checked=visible;};window.setQingerVisibility=function(v){try{localStorage.setItem('qinger_visible',v?'1':'0')}catch(e){}window.applyQingerVisibility();if(!v){var inv=document.getElementById('qingerInventory');if(inv)inv.classList.remove('open')}var sw=document.getElementById('qingerVisibleSetting');if(sw)sw.checked=!!v;};window.applyQingerVisibility()})();</script>
 <script id="qinger-mobile-secondary-controller">
 (function(){
-  const modalIds=['musicModal','tagModal','shareModal','pwdModal','confirmModal','multiSegmentDeleteModal','confirmSaveModal','savingModal','deletingModal','cropModal','videoCropModal','lightboxModal','helpModal','thanksNoteModal','xiaoqingerDialogueEditorModal','editorIdentityModal','editorIdentityDeleteConfirmModal','fullscreenViewer','eventCommentWindow','deepMediaPreviewModal','deepReadMediaLightbox','deepReadCanvasModal','stackManagerModal'];
+  const modalIds=['musicModal','tagModal','shareModal','pwdModal','confirmModal','multiSegmentDeleteModal','confirmSaveModal','savingModal','deletingModal','cropModal','videoCropModal','lightboxModal','helpModal','thanksNoteModal','xiaoqingerDialogueEditorModal','fullscreenViewer','eventCommentWindow','deepMediaPreviewModal','deepReadMediaLightbox','deepReadCanvasModal','stackManagerModal'];
   const known=new Set(modalIds);
   const modalPattern=/(?:Modal|Viewer|Lightbox|Window)$/;
   const watched=new Map();
@@ -2433,17 +2433,13 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 <div class="border border-rose-300 rounded-xl p-5 bg-rose-50">
                     <h4 class="text-base font-bold text-slate-800 mb-3 flex items-center gap-2"><span>感谢名单</span></h4>
                     <p class="text-slate-500 leading-6 mb-4">感谢所有帮助制作、测试和完善这个网页的人。</p>
-                    <div class="flex flex-wrap gap-2">
-                        <button type="button" onclick="openThanksNote('yuhoupi')" class="inline-flex items-center rounded-lg bg-white border border-slate-200 hover:border-rose-300 hover:bg-rose-50/80 px-3 py-2 font-semibold text-slate-700 whitespace-nowrap transition-colors shadow-sm">鱼猴癖</button>
-                        <button type="button" onclick="openThanksNote('xiaochuang')" class="inline-flex items-center rounded-lg bg-white border border-slate-200 hover:border-rose-300 hover:bg-rose-50/80 px-3 py-2 font-semibold text-slate-700 whitespace-nowrap transition-colors shadow-sm">所有被我小窗骚扰过的朋友们</button>
-                        <button type="button" onclick="openThanksNote('yuesao')" class="inline-flex items-center rounded-lg bg-white border border-slate-200 hover:border-rose-300 hover:bg-rose-50/80 px-3 py-2 font-semibold text-slate-700 whitespace-nowrap transition-colors shadow-sm">所有参与测试过beta版本的月嫂们</button>
-                    </div>
+                    <div id="thanksList" class="flex flex-wrap gap-2" aria-live="polite"></div>
                 </div>
             </div>
         </div>
     </div>
 <div id="thanksNoteModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[95] hidden flex items-center justify-center p-4" onclick="if(event.target===this)closeThanksNote()">
-        <div class="border border-amber-300 rounded-xl p-5 bg-amber-50 max-w-md w-full relative shadow-sm">
+        <div class="border border-amber-300 rounded-xl p-5 bg-amber-50 max-w-md w-full relative shadow-sm" onclick="if(!event.target.closest('button'))void revealThanksEgg()">
             <button type="button" onclick="closeThanksNote()" class="absolute top-3 right-3 text-slate-400 hover:text-amber-700/80 w-7 h-7 rounded-full flex items-center justify-center">
                 <i class="fa-solid fa-xmark text-sm"></i>
             </button>
@@ -4433,7 +4429,6 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 dot.className = "w-2 h-2 rounded-full bg-rose-500";
             }
             if (typeof window.updateLockButtonUI === 'function') window.updateLockButtonUI();
-            // 不要在每次保存完成后自动重新 claim 编辑者 ID。
             // 该动作本身也是一次云端写入，会形成“保存中 ↔ 已同步云端”的递归循环。
         }
 
@@ -14156,22 +14151,32 @@ viewer.style.visibility='';
             document.getElementById('confirmSaveModal')?.classList.remove('hidden');
         };
 
-        window.THANKS_NOTES = {
-            yuhoupi: {
-                title: '鱼猴癖',
-                body: '非常非常感谢这位朋友！从一开始就和我一起制作这个网页，不厌其烦地找到了一大堆的待修改的bug，客观上加速了雨后天晴正式版的成型速度，也填写了很多事件，勤劳的小蜜蜂一枚。雨后天晴有你了不起啊！伟大！ദ്ദി˶ｰ̀֊ｰ́ )✧'
-            },
-            xiaochuang: {
-                title: '所有被我小窗骚扰过的朋友们',
-                body: '感谢你们每次都不厌其烦地理睬我发出的有关这个小网页的碎碎念！我的分享欲得到大满足嘿嘿嘿。爱你萌！o(￣▽￣)o '
-            },
-            yuesao: {
-                title: '所有参与测试过beta版本的月嫂们',
-                body: '感谢你们答应我的小请求来测试这个网页！每个反馈都给我增加了很多信心。₍ᐢ..ᐢ₎ ༘♡'
-            }
+        window._thanksNotes=new Map();
+        let thanksPending=null,thanksOpenId=null,thanksEggPending=false,thanksOpenVersion=0;
+        window.loadThanks=async function(){
+            const list=document.getElementById('thanksList');if(!list)return;
+            if(thanksPending)return thanksPending;
+            list.innerHTML='<p class="text-slate-500"><i class="fa-solid fa-spinner fa-spin mr-1" aria-hidden="true"></i>正在加载感谢名单…</p>';
+            thanksPending=(async()=>{
+                try{
+                    const data=await timelineApiFetch('/timeline?type=thanks',15000);
+                    if(!Array.isArray(data?.items))throw new Error('感谢名单格式异常');
+                    window._thanksNotes.clear();list.replaceChildren();
+                    for(const note of data.items){
+                        window._thanksNotes.set(String(note.id),note);
+                        const button=document.createElement('button');button.type='button';button.className='inline-flex items-center rounded-lg bg-white border border-slate-200 hover:border-rose-300 hover:bg-rose-50/80 px-3 py-2 font-semibold text-slate-700 whitespace-nowrap transition-colors shadow-sm';
+                        button.textContent=note.title;button.onclick=()=>window.openThanksNote(String(note.id));list.appendChild(button);
+                    }
+                    if(!data.items.length){const empty=document.createElement('p');empty.className='text-slate-500';empty.textContent='暂无感谢名单';list.appendChild(empty);}
+                }catch(e){
+                    window._thanksNotes.clear();list.replaceChildren();
+                    const message=document.createElement('p');message.className='text-slate-500';message.textContent='感谢名单加载失败，请稍后重试';
+                    const retry=document.createElement('button');retry.type='button';retry.className='text-rose-600 underline';retry.textContent='重试';retry.onclick=()=>window.loadThanks();list.appendChild(message);list.appendChild(retry);
+                }finally{thanksPending=null;}
+            })();return thanksPending;
         };
         window.openThanksNote = function(id) {
-            const note = window.THANKS_NOTES[id];
+            const note = window._thanksNotes.get(String(id));
             if (!note) return;
             const modal = document.getElementById('thanksNoteModal');
             const title = document.getElementById('thanksNoteTitle');
@@ -14181,9 +14186,23 @@ viewer.style.visibility='';
             if (modal.parentElement !== document.body) document.body.appendChild(modal);
             if (title) title.textContent = note.title;
             if (body) body.textContent = note.body;
+            thanksOpenId=String(id);thanksOpenVersion++;thanksEggPending=false;
             modal.classList.remove('hidden');
         };
+        window.revealThanksEgg=async function(){
+            if(!thanksOpenId||thanksEggPending)return;
+            const version=thanksOpenVersion,id=thanksOpenId,account=window.getCurrentAccountId?.()||'';
+            if(!account)return;
+            thanksEggPending=true;
+            try{
+                const data=await timelineApiFetch('/timeline?type=thanksEgg&id='+encodeURIComponent(id),15000);
+                if(version===thanksOpenVersion&&account===(window.getCurrentAccountId?.()||'')&&typeof data?.body==='string')
+                    document.getElementById('thanksNoteBody').textContent=data.body;
+            }catch(_){if(version===thanksOpenVersion)window.showToast?.('读取失败，请再试一次','error');}
+            finally{if(version===thanksOpenVersion)thanksEggPending=false;}
+        };
         window.closeThanksNote = function() {
+            thanksOpenId=null;thanksOpenVersion++;thanksEggPending=false;
             document.getElementById('thanksNoteModal')?.classList.add('hidden');
         };
 
@@ -14202,11 +14221,9 @@ viewer.style.visibility='';
         window.getAccountSessionToken=()=>window._accountState?.sessionToken||'';
         window.getCurrentAccountId=()=>window._accountVerified?(window._accountState?.account?.accountId||''):'';
         window.getCommonUserId=()=>window._accountVerified?(window._accountState?.account?.id||''):'';
-        window.getStoredEditorIdentity=window.getCommonUserId;
         window.normalizeEditorIdentityName=value=>String(value||'').normalize('NFKC').trim().replace(/\s+/g,' ');
         window.accountRefreshIdentityViews=function(){
             window.currentEditorIdentity=window.getCommonUserId();
-            window._identityReservationValid=!!window.getCurrentAccountId();
             window._identityHistoryCache?.clear?.();window._permissionIdentityCache=[];
             const currentAccount=window.getCurrentAccountId();if(currentAccount!==window._lastViewAccountId){for(const ev of window.events||[])ev.creatorOwned=false;for(const song of window.bgmPlaylist||[])song.owned=false;}window._lastViewAccountId=currentAccount;
             document.querySelectorAll('[data-comment-board]').forEach(b=>window.commentRenderIdentity?.(b));
@@ -14274,9 +14291,9 @@ viewer.style.visibility='';
                 await Promise.all([window.isCloudSynced?loadTimelineFromCloudBase():null,window.isCloudSynced?window.refreshNotificationBadge?.():null,...[...document.querySelectorAll('[data-comment-board]')].map(b=>window.commentLoadMessages?.(b)),window._accountPetRefresh]);
             }
             await window.waitForCloudView?.();
-            const manager=window.renderAccountManagement({loadHistory:false});if(showManager)manager.classList.remove('hidden');
+            const manager=window.renderAccountManagement();if(showManager)manager.classList.remove('hidden');
         };
-        window.renderAccountManagement=function({loadHistory=true}={}){
+        window.renderAccountManagement=function(){
             const logged=!!window.getCurrentAccountId();let deleteTicket='',deletePending=false;try{deleteTicket=localStorage.getItem(window.ACCOUNT_DELETE_KEY)||'';deletePending=localStorage.getItem(window.ACCOUNT_DELETE_PENDING_KEY)==='1';}catch(_){}
             const html=logged?`<button type="button" data-account-history aria-label="查看历史ID" class="account-profile w-full mb-4 text-left hover:border-indigo-200 transition-colors"><span class="min-w-0 flex-1"><span class="block text-[11px] text-slate-500 mb-1">当前账号</span><span class="flex items-center gap-3 min-w-0"><span class="min-w-0 flex-1 font-semibold text-slate-800 break-all leading-6">${accountEscape(window.getCommonUserId())}</span><i class="fa-solid fa-chevron-right shrink-0 text-[11px] text-slate-400" aria-hidden="true"></i></span></span></button><div class="account-menu">${accountButton('rename','修改ID')}${accountButton('password','修改密码')}${accountButton('logout','退出登录')}${accountButton('delete','删除账号',true)}</div>`:`<div class="account-profile mb-4"><div><p class="font-semibold text-slate-800">当前为游客</p><p class="text-xs text-slate-500 mt-1">登录后管理你的账号</p></div></div><div class="account-menu">${accountButton('login','登录账号')}${accountButton('register','创建账号')}</div>${deleteTicket||deletePending?`<div class="mt-4 pt-3 border-t border-slate-100">${deleteTicket?accountButton('resumeDelete','继续未完成的删除',true):accountButton('recoverDelete','继续未完成的删除',true)}</div>`:''}`;
             const m=window.accountDialog('accountManageModal','账号管理',html);
@@ -14317,33 +14334,35 @@ viewer.style.visibility='';
             let html='';
             if(['login','register','rename','delete','recoverDelete'].includes(mode))html+=field('id',mode==='delete'?'再次输入当前ID':'ID','text',mode==='rename'?window.getCommonUserId():'','username');
             if(['login','register','delete','recoverDelete'].includes(mode))html+=field('password',mode==='delete'?'再次输入账号密码':'密码','password','',mode==='register'?'new-password':'current-password');
-            if(['register'].includes(mode))html+=field('confirmPassword','确认密码','password','','new-password');
+            if(mode==='register')html+=field('confirmPassword','确认密码','password','','new-password')+'<p data-account-confirm-error role="alert" class="hidden -mt-1 mb-3 text-xs text-rose-500"></p>';
             if(['verifyRename','verifyPassword'].includes(mode))html+=field('currentPassword','当前密码','password','','current-password');
-            if(mode==='password')html+=field('newPassword','新密码','password','','new-password')+field('confirmPassword','确认新密码','password','','new-password');
+            if(mode==='password')html+=field('newPassword','新密码','password','','new-password')+field('confirmPassword','确认新密码','password','','new-password')+'<p data-account-confirm-error role="alert" class="hidden -mt-1 mb-3 text-xs text-rose-500"></p>';
 
             if(['register','password'].includes(mode))html+=`<div class="space-y-2 mb-4 text-[11px] leading-5" aria-live="polite"><p data-account-password-rule="length" class="flex items-start gap-2 text-slate-500"><i class="fa-regular fa-circle-check mt-1 shrink-0" aria-hidden="true"></i><span>密码由8-16位数字、字母或符号组成</span></p><p data-account-password-rule="categories" class="flex items-start gap-2 text-slate-500"><i class="fa-regular fa-circle-check mt-1 shrink-0" aria-hidden="true"></i><span>至少含两种以上字符</span></p></div>`;
             const actions=mode==='delete'?`<div class="flex justify-center gap-3 mt-5"><button type="button" data-account-cancel class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button><button type="submit" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-medium shadow-sm">确认删除</button></div>`:`<div class="flex justify-end gap-3 mt-5"><button type="button" data-account-cancel class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button><button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">${labels[mode]}</button></div>`;
             const modal=window.accountDialog('account'+mode[0].toUpperCase()+mode.slice(1)+'Modal',titles[mode],`<form data-account-form ${['register','password'].includes(mode)?'novalidate':''}>${html}<p data-account-error role="alert" class="hidden text-xs text-rose-500 mb-3"></p>${actions}</form>`,{danger:mode==='delete',description:mode==='delete'?'请重新输入当前ID和密码，确认后将删除账号。':''});
             if(mode==='delete')modal.dataset.accountDeleteConfirmed='1';
-            if(['register','password'].includes(mode)){const input=modal.querySelector('[name="'+(mode==='password'?'newPassword':'password')+'"]');if(input){input.oninput=()=>window.accountUpdatePasswordRules(modal,input.value);window.accountUpdatePasswordRules(modal,input.value||'');}}
+            if(['register','password'].includes(mode)){const input=modal.querySelector('[name="'+(mode==='password'?'newPassword':'password')+'"]');if(input){input.oninput=()=>{window.accountUpdatePasswordRules(modal,input.value);modal.querySelector('[data-account-confirm-error]')?.classList.add('hidden');};window.accountUpdatePasswordRules(modal,input.value||'');}}
+            const confirmation=modal.querySelector('[name="confirmPassword"]');if(confirmation)confirmation.oninput=()=>modal.querySelector('[data-account-confirm-error]')?.classList.add('hidden');
             modal.querySelector('[data-account-cancel]').onclick=()=>window.closeAccountDialog(modal.id);
             modal.querySelector('form').onsubmit=e=>{e.preventDefault();void window.accountSubmit(mode,modal);};window.accountShow(modal);
         };
         window.accountSubmit=async function(mode,modal){
             if(window._accountSubmitting)return;
             const form=modal.querySelector('form'),values=Object.fromEntries(new FormData(form)),error=modal.querySelector('[data-account-error]'),btn=form.querySelector('button[type=submit]');
-            error.classList.add('hidden');
+            error.classList.add('hidden');const confirmError=modal.querySelector('[data-account-confirm-error]')||error;confirmError.classList.add('hidden');
             if(!modal._accountCommitted&&['register','password'].includes(mode)){
                 const pw=mode==='password'?values.newPassword:values.password;modal._accountPasswordSubmitted=true;
                 const rules=window.accountPasswordRules(pw);window.accountUpdatePasswordRules(modal,pw);if(!rules.length||!rules.categories)return;
-                if(values.confirmPassword!==pw){error.textContent='两次输入的密码不一致';error.classList.remove('hidden');return;}
+                if(values.confirmPassword!==pw){confirmError.textContent='两次输入的密码不一致';confirmError.classList.remove('hidden');return;}
+                if(mode==='password'&&accountVerifiedPasswords.get(mode)?.password===pw){error.textContent='新密码不能与原密码相同';error.classList.remove('hidden');return;}
             }
             if(!modal._accountCommitted&&mode==='delete'&&window.normalizeEditorIdentityName(values.id).toLowerCase()!==window.normalizeEditorIdentityName(window.getCommonUserId()).toLowerCase()){error.textContent='请输入当前账号的ID';error.classList.remove('hidden');return;}
             window._accountSubmitting=true;
             const original=btn.textContent;
             try{
-                if(modal._accountCommitted){btn.textContent='正在刷新...';btn.setAttribute('aria-busy','true');await window.withCloudWriteOperation(async()=>{await window.accountAfterChange({showManager:false,mode});});modal._accountCommitted=false;modal.classList.add('hidden');form.reset();window.accountShow(window.renderAccountManagement({loadHistory:false}));window.showToast?.('操作已完成','success');return;}
-                if(mode==='recoverDelete'){let completed=false;const ok=await window.deepAppConfirm({title:'确认继续删除账号？',desc:'将继续完成上次未完成的账号删除，此操作不可撤销。',confirmText:'继续删除',danger:true,busyText:'正在删除...',onConfirm:async()=>{await window.withCloudWriteOperation(async()=>{if(modal._accountCommitted){await window.accountAfterChange({showManager:false,mode});modal._accountCommitted=false;modal.classList.add('hidden');form.reset();window.accountShow(window.renderAccountManagement({loadHistory:false}));completed=true;return;}let r;try{r=await timelineApiPost('accountDeleteResume',values,{auth:false,timeoutMs:30000});}catch(e){if(e.code==='account_delete_not_pending'){window.accountClearDeleteTask();modal._accountCommitted=true;await window.accountAfterChange({showManager:false,mode});modal._accountCommitted=false;modal.classList.add('hidden');form.reset();window.accountShow(window.renderAccountManagement({loadHistory:false}));window.showToast?.(e.message,'info');return;}throw e;}localStorage.setItem(window.ACCOUNT_DELETE_KEY,r.deleteTicket);await window.accountFinishDelete(r.deleteTicket);modal._accountCommitted=true;await window.accountAfterChange({showManager:false,mode});modal._accountCommitted=false;modal.classList.add('hidden');form.reset();window.accountShow(window.renderAccountManagement({loadHistory:false}));completed=true;});return completed;}});if(ok)window.showToast?.('账号已删除','success');return;}
+                if(modal._accountCommitted){btn.textContent='正在刷新...';btn.setAttribute('aria-busy','true');await window.withCloudWriteOperation(async()=>{await window.accountAfterChange({showManager:false,mode});});modal._accountCommitted=false;modal.classList.add('hidden');form.reset();window.accountShow(window.renderAccountManagement());window.showToast?.('操作已完成','success');return;}
+                if(mode==='recoverDelete'){let completed=false;const ok=await window.deepAppConfirm({title:'确认继续删除账号？',desc:'将继续完成上次未完成的账号删除，此操作不可撤销。',confirmText:'继续删除',danger:true,busyText:'正在删除...',onConfirm:async()=>{await window.withCloudWriteOperation(async()=>{if(modal._accountCommitted){await window.accountAfterChange({showManager:false,mode});modal._accountCommitted=false;modal.classList.add('hidden');form.reset();window.accountShow(window.renderAccountManagement());completed=true;return;}let r;try{r=await timelineApiPost('accountDeleteResume',values,{auth:false,timeoutMs:30000});}catch(e){if(e.code==='account_delete_not_pending'){window.accountClearDeleteTask();modal._accountCommitted=true;await window.accountAfterChange({showManager:false,mode});modal._accountCommitted=false;modal.classList.add('hidden');form.reset();window.accountShow(window.renderAccountManagement());window.showToast?.(e.message,'info');return;}throw e;}localStorage.setItem(window.ACCOUNT_DELETE_KEY,r.deleteTicket);await window.accountFinishDelete(r.deleteTicket);modal._accountCommitted=true;await window.accountAfterChange({showManager:false,mode});modal._accountCommitted=false;modal.classList.add('hidden');form.reset();window.accountShow(window.renderAccountManagement());completed=true;});return completed;}});if(ok)window.showToast?.('账号已删除','success');return;}
                 if(['verifyRename','verifyPassword'].includes(mode)){
                     btn.textContent='正在验证...';
                     const target=mode==='verifyRename'?'rename':'password',accountId=window.getCurrentAccountId();
@@ -14360,7 +14379,7 @@ viewer.style.visibility='';
                         localStorage.setItem(window.ACCOUNT_DELETE_KEY,r.deleteTicket);window.accountClearSession();
                         await window.accountFinishDelete(r.deleteTicket);modal._accountCommitted=true;await window.accountAfterChange({showManager:false,mode});
                     });
-                    modal._accountCommitted=false;modal.classList.add('hidden');form.reset();window.accountShow(window.renderAccountManagement({loadHistory:false}));window.showToast?.('账号已删除，当前为游客','success');return;
+                    modal._accountCommitted=false;modal.classList.add('hidden');form.reset();window.accountShow(window.renderAccountManagement());window.showToast?.('账号已删除，当前为游客','success');return;
                 }
                 btn.textContent=mode==='login'?'正在登录...':mode==='register'?'正在创建...':'正在保存...';btn.setAttribute('aria-busy','true');
                 await window.withCloudWriteOperation(async()=>{
@@ -14369,7 +14388,7 @@ viewer.style.visibility='';
                     if(['rename','password'].includes(mode)){const checked=accountVerifiedPasswords.get(mode);if(!checked||checked.accountId!==window.getCurrentAccountId())throw new Error('请先验证当前密码');payload.currentPassword=checked.password;}
                     const result=await timelineApiPost(actions[mode],payload,{auth:false,timeoutMs:55000});
                     accountVerifiedPasswords.clear();window.accountApply(result);
-                    modal._accountCommitted=true;await window.accountAfterChange({showManager:false,mode});modal._accountCommitted=false;modal.classList.add('hidden');form.reset();window.accountShow(window.renderAccountManagement({loadHistory:false}));
+                    modal._accountCommitted=true;await window.accountAfterChange({showManager:false,mode});modal._accountCommitted=false;modal.classList.add('hidden');form.reset();window.accountShow(window.renderAccountManagement());
                 });
                 window.showToast?.({login:'登录成功',register:'账号已创建',rename:'ID已修改',password:'密码已修改'}[mode],'success');
             }catch(e){if(mode==='login'&&e.code==='account_delete_in_progress'){localStorage.setItem(window.ACCOUNT_DELETE_PENDING_KEY,'1');window.renderAccountManagement();}if(mode==='delete'&&['account_bad_password','account_delete_id_mismatch','delete_confirmation_required','account_session_expired','accounts_not_initialized','account_busy','account_rate_limited'].includes(e.code)&&!localStorage.getItem(window.ACCOUNT_DELETE_KEY))window.accountClearDeleteTask();error.textContent=modal._accountCommitted?'操作已完成，页面刷新失败，请重试':(e.message||'操作失败，请稍后再试');error.classList.remove('hidden');}
@@ -14504,9 +14523,8 @@ viewer.style.visibility='';
         };
 
         window.writeActivityLog = async function(action, eventInfo) {
-            const storedIdentity = window.getStoredEditorIdentity?.();
+            const storedIdentity = window.getCommonUserId?.();
             const anonymous = window.isActivityAnonymous();
-            if (storedIdentity && !window._identityReservationValid) return false;
             if ((!storedIdentity && !anonymous) || !window.isCloudSynced || !window.hasTimelineEditToken?.()) return false;
             const signedName = anonymous ? '不知名的小鱼丁' : storedIdentity;
             try {
@@ -14533,7 +14551,7 @@ viewer.style.visibility='';
             }
         };
         window.normalizeGlobalOverlayStructure = function() {
-            ['thanksNoteModal','xiaoqingerDialogueEditorModal','editorIdentityModal','editorIdentityDeleteConfirmModal'].forEach(id => {
+            ['thanksNoteModal','xiaoqingerDialogueEditorModal'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el && el.parentElement !== document.body) document.body.appendChild(el);
             });
@@ -14648,6 +14666,7 @@ viewer.style.visibility='';
                 thanks: document.getElementById('helpTabThanks')
             };
             let active = panels[tab] ? tab : 'usage';
+            if(active==='thanks')void window.loadThanks();
             if(active==='activity' && window.isLocked) window.loadNotifications?.();
             if(active==='activity' && window.isLocked){
                 // 进入“互动通知”即视为已读：只更新当前界面状态，后台静默落库。
@@ -14778,7 +14797,7 @@ viewer.style.visibility='';
 
         window.getXiaoqingerAddressName = function() {
             if (window.isEditorAnonymous?.()) return '小鱼丁';
-            const stored = String(window.getStoredEditorIdentity?.() || '').trim();
+            const stored = String(window.getCommonUserId?.() || '').trim();
             return stored || '小鱼丁';
         };
 
@@ -14815,7 +14834,7 @@ viewer.style.visibility='';
             if (!window._xiaoqingerHasGreeted) {
                 window._xiaoqingerHasGreeted=true;
                 window._xiaoqingerLastClickAt=now;
-                const id=String(window.getStoredEditorIdentity?.()||'').trim();
+                const id=String(window.getCommonUserId?.()||'').trim();
                 const special=!window.isEditorAnonymous?.()&&(id==='鱼猴癖'||id==='听雨');
                 const tpl=String(special?cfg.specialGreeting:cfg.greeting||'');
                 if (tpl.trim()) {
@@ -16149,7 +16168,7 @@ viewer.style.visibility='';
             try{
                 const data=await timelineApiPost('getOwnIdentityHistory',{accountId},{auth:false,timeoutMs:12000});
                 const profile=data?.profile||{};
-                const current=String(profile.currentHandle||window.getStoredEditorIdentity?.()||'').trim();
+                const current=String(profile.currentHandle||window.getCommonUserId?.()||'').trim();
                 const history=Array.isArray(profile.history)?profile.history:[];
                 const names=[...new Set(
                     history.map(x=>String(x?.handle||'').trim()).filter(name=>name && name!==current)
@@ -16223,7 +16242,6 @@ viewer.style.visibility='';
             const closeByOverlayId = {
                 musicModal: () => window.closeMusicModal?.(),
                 tagModal: () => window.closeTagModal?.(),
-                editorIdentityModal: () => window.closeEditorIdentityEditor?.(),
                 shareModal: () => window.closeShareModal?.(),
                 pwdModal: () => window.closePwdModal?.()
             };
@@ -17001,7 +17019,7 @@ function moveToCorner(){
 }
 let lastFullSpeechCheck=Date.now();
 function maybeFullSpeech(){const now=Date.now();if(state.base!=='最饱'||state.behavior!=='idle'||isNight()||now-lastFullSpeechCheck<8*60e3)return;lastFullSpeechCheck=now;if(Math.random()>.40)return;const cfg=window.normalizeXiaoqingerStoredConfig?.(window.xiaoqingerDialogueConfig)||window.loadXiaoqingerDialogues?.();const arr=cfg?.dialogues?.full||[];if(arr.length)window.showXiaoqingerSimpleSpeech?.(arr[Math.floor(Math.random()*arr.length)],{html:true})}
-function maybeVeryHungryWhisper(){const now=Date.now();if(state.base!=='很饿'||now-lastWhisperCheck<8*60e3)return;lastWhisperCheck=now;if(Math.random()>.25)return;const cfg=window.normalizeXiaoqingerStoredConfig?.(window.xiaoqingerDialogueConfig)||window.loadXiaoqingerDialogues?.();const arr=cfg?.dialogues?.veryHungryWhisper||[];if(arr.length)window.showXiaoqingerSimpleSpeech?.(arr[Math.floor(Math.random()*arr.length)])}
+function maybeVeryHungryWhisper(){const now=Date.now();if(state.base!=='很饿'||now-lastWhisperCheck<8*60e3)return;lastWhisperCheck=now;if(Math.random()>.25)return;const cfg=window.normalizeXiaoqingerStoredConfig?.(window.xiaoqingerDialogueConfig)||window.loadXiaoqingerDialogues?.();const arr=cfg?.dialogues?.veryHungryWhisper||[];if(arr.length)window.showXiaoqingerSimpleSpeech?.(arr[Math.floor(Math.random()*arr.length)],{html:true})}
 function scheduleVeryHungryCorner(){
  if(state.base!=='很饿'||state.behavior==='sleep'||veryHungryAtCorner||veryHungryWalking)return;
  if(!veryHungrySince)veryHungrySince=Date.now();
