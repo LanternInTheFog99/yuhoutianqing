@@ -1342,7 +1342,8 @@ html.invalid-room-access #xiaoqinger,
 html.invalid-room-access [id*="xiaoqinger" i],
 html.invalid-room-access [class*="xiaoqinger" i]{display:none !important;visibility:hidden !important;opacity:0 !important}
 #invalidRoomAccessOverlay{position:fixed;inset:0;z-index:2147483647;display:none;align-items:center;justify-content:center;background:rgba(241,245,249,.80);backdrop-filter:grayscale(1) blur(1.5px);pointer-events:all}
-html.invalid-room-access #invalidRoomAccessOverlay{display:flex}
+html.invalid-room-access #invalidRoomAccessOverlay{display:flex;visibility:visible!important}
+html.invalid-room-access #appBootScreen{display:none!important}
 #invalidRoomAccessOverlay .invalid-room-card{font-size:24px;line-height:1.25;font-weight:800;color:#475569;background:rgba(255,255,255,.96);border:1px solid #cbd5e1;border-radius:16px;padding:20px 30px;box-shadow:0 10px 32px rgba(15,23,42,.12);letter-spacing:.02em}
 </style>
 <script id="earlyInvalidRoomGuard">
@@ -1877,6 +1878,16 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
 </script>
+<style id="account-management-style">
+.account-profile{display:flex;align-items:center;gap:12px;padding:14px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc}
+.account-avatar{display:flex;align-items:center;justify-content:center;flex-shrink:0;width:42px;height:42px;border-radius:12px;background:#e0e7ff;color:#4f46e5;font-weight:700;font-size:18px}
+.account-menu{border:1px solid #e2e8f0;border-radius:12px;overflow:hidden}
+.account-menu-row{display:flex;align-items:center;gap:12px;width:100%;padding:12px;text-align:left;background:white;color:#475569;font-size:13px;font-weight:500;transition:background .15s}
+.account-menu .account-menu-row+.account-menu-row{border-top:1px solid #f1f5f9}
+.account-menu-row:hover{background:#f8fafc}.account-menu-row:focus-visible{outline:2px solid #6366f1;outline-offset:-2px}
+.account-menu-icon{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;background:#f1f5f9;color:#64748b;flex-shrink:0}
+.account-menu-danger{color:#e11d48;border-radius:10px}.account-menu-danger:hover{background:#fff1f2}.account-menu-danger .account-menu-icon{background:#fff1f2;color:#e11d48}
+</style>
 </head>
 <!-- v35: head-motion branch from v32 -->
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
@@ -14223,32 +14234,42 @@ viewer.style.visibility='';
             catch(e){if(e.code==='account_session_expired'&&window.getAccountSessionToken()===expected)window.accountClearSession();else console.warn('账号状态验证暂时失败',e);return false;}
         };
         const accountEscape=v=>String(v||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-        const accountButton=(action,label,danger=false)=>`<button type="button" data-account-action="${action}" class="w-full px-4 py-2.5 rounded-lg border ${danger?'border-rose-200 text-rose-600 bg-rose-50 hover:bg-rose-100':'border-slate-300 text-slate-700 bg-white hover:bg-slate-50'} text-sm font-semibold">${label}</button>`;
-        let accountReturnFocus=null;
-        window.accountDialog=function(id,title,html){
+        const accountIcons={rename:'fa-pen',password:'fa-key',logout:'fa-arrow-right-from-bracket',delete:'fa-trash-can',login:'fa-arrow-right-to-bracket',register:'fa-user-plus',recoverDelete:'fa-rotate-left',upgrade:'fa-shield-halved',resumeDelete:'fa-trash-can'};
+        const accountButton=(action,label,danger=false)=>`<button type="button" data-account-action="${action}" class="account-menu-row ${danger?'account-menu-danger':''}"><span class="account-menu-icon"><i class="fa-solid ${accountIcons[action]||'fa-user'}" aria-hidden="true"></i></span><span class="flex-1 text-left">${label}</span><i class="fa-solid fa-chevron-right text-[10px] opacity-40" aria-hidden="true"></i></button>`;
+        const accountFocusByDialog=new Map();
+        window.accountDialog=function(id,title,html,{danger=false,description=''}={}){
             let modal=document.getElementById(id);
-            if(!modal){modal=document.createElement('div');modal.id=id;modal.className='fixed inset-0 bg-slate-900/65 backdrop-blur-sm z-[150] hidden flex items-center justify-center p-4';document.body.appendChild(modal);}
-            modal.innerHTML=`<div role="dialog" aria-modal="true" aria-labelledby="${id}Title" class="bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[90vh] overflow-y-auto p-5 sm:p-6"><div class="flex items-center justify-between mb-4"><h3 id="${id}Title" class="font-bold text-slate-800 text-base">${title}</h3><button type="button" data-account-close class="w-8 h-8 rounded-full text-slate-400 hover:bg-slate-50" aria-label="关闭">×</button></div>${html}</div>`;
+            if(!modal){modal=document.createElement('div');modal.id=id;modal.className='fixed inset-0 bg-slate-900/75 backdrop-blur-md z-[150] hidden flex items-center justify-center p-4';document.body.appendChild(modal);}
+            const heading=danger?`<div class="w-12 h-12 rounded-full bg-rose-100 text-rose-500 flex items-center justify-center text-xl mx-auto mb-3"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i></div><h3 id="${id}Title" class="font-bold text-slate-800 text-base mb-1 text-center">${title}</h3><p class="text-xs text-slate-500 mb-5 text-center leading-5">${description}</p>`:`<div class="flex items-center gap-3 mb-5 pr-7"><div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0"><i class="fa-solid ${id==='accountManageModal'?'fa-user-gear':'fa-pen'}" aria-hidden="true"></i></div><h3 id="${id}Title" class="font-bold text-slate-800 text-base">${title}</h3></div>`;
+            modal.innerHTML=`<div role="dialog" aria-modal="true" aria-labelledby="${id}Title" class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[90vh] overflow-y-auto p-6"><button type="button" data-account-close class="absolute right-4 top-4 w-8 h-8 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="${id==='accountManageModal'?'关闭账号管理':'返回账号管理'}">×</button>${heading}${html}</div>`;
             modal.querySelector('[data-account-close]').onclick=()=>window.closeAccountDialog(id);
             modal.onkeydown=e=>{
                 if((window._cloudWriteLockDepth||0)>0)return;
-                if(e.key==='Escape'){e.preventDefault();window.closeAccountDialog(id);return;}
+                if(e.key==='Escape'){e.preventDefault();e.stopPropagation();window.closeAccountDialog(id);return;}
                 if(e.key==='Tab'){const nodes=[...modal.querySelectorAll('button,input')].filter(n=>!n.disabled&&n.offsetParent!==null);if(!nodes.length)return;const first=nodes[0],last=nodes[nodes.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}
             };
             return modal;
         };
-        window.closeAccountDialog=function(id){if((window._cloudWriteLockDepth||0)>0)return;const m=document.getElementById(id);m?.classList.add('hidden');m?.querySelectorAll('input[type=password]').forEach(i=>i.value='');accountReturnFocus?.focus?.();};
-        window.accountShow=function(modal){accountReturnFocus=document.activeElement;modal.classList.remove('hidden');setTimeout(()=>modal.querySelector('input,button')?.focus(),30);};
+        window.closeAccountDialog=function(id){
+            if((window._cloudWriteLockDepth||0)>0)return;
+            const m=document.getElementById(id);m?.classList.add('hidden');m?.querySelectorAll('input[type=password]').forEach(i=>i.value='');
+            if(id!=='accountManageModal'){
+                const parent=document.getElementById('accountManageModal')||window.renderAccountManagement();parent.classList.remove('hidden');
+                const focus=accountFocusByDialog.get(id);if(focus?.isConnected)focus.focus();else parent.querySelector('[data-account-action],button')?.focus();
+            }else accountFocusByDialog.get(id)?.focus?.();
+            accountFocusByDialog.delete(id);
+        };
+        window.accountShow=function(modal){accountFocusByDialog.set(modal.id,document.activeElement);modal.classList.remove('hidden');setTimeout(()=>modal.querySelector('input,button')?.focus(),30);};
         window.accountAfterChange=async function(){
             window.accountRefreshIdentityViews();
             if(window.isCloudSynced){await window.refreshActivityLogsFromCloudBase?.();await window.refreshNotificationBadge?.();}
             await Promise.all([...document.querySelectorAll('[data-comment-board]')].map(b=>window.commentLoadMessages?.(b)));
             if(window.isCloudSynced){try{await loadTimelineFromCloudBase();}catch(e){console.error('账号更新后的页面刷新失败',e);window.showToast?.('账号状态已更新，页面数据刷新失败，请刷新页面','error');}}
-            window.renderAccountManagement({loadHistory:false});if(window.getCurrentAccountId())await window.loadEditorIdentityHistory?.();
+            const manager=window.renderAccountManagement({loadHistory:false});manager.classList.remove('hidden');if(window.getCurrentAccountId())await window.loadEditorIdentityHistory?.();
         };
         window.renderAccountManagement=function({loadHistory=true}={}){
             const logged=!!window.getCurrentAccountId();let deleteTicket='';try{deleteTicket=localStorage.getItem(window.ACCOUNT_DELETE_KEY)||'';}catch(_){}
-            const html=logged?`<p class="text-xs text-slate-500 mb-1">当前ID</p><p class="font-bold text-indigo-700 break-all mb-4">${accountEscape(window.getCommonUserId())}</p><div class="space-y-2">${accountButton('rename','修改ID')}${accountButton('password','修改密码')}${accountButton('logout','退出登录')}${accountButton('delete','删除账号',true)}</div><div class="mt-4 pt-3 border-t border-slate-200"><p class="text-xs font-semibold text-slate-500 mb-2">历史ID</p><div id="editorIdentityHistoryList" class="space-y-1.5 max-h-28 overflow-y-auto"></div></div>`:`<p class="text-sm text-slate-500 mb-4">当前为游客</p><div class="space-y-2">${accountButton('login','登录账号')}${accountButton('register','创建账号')}${accountButton('recoverDelete','恢复未完成的删除')}<div id="accountLegacyEntry" class="hidden">${accountButton('upgrade','升级账号／设置密码')}</div>${deleteTicket?accountButton('resumeDelete','继续删除账号',true):''}</div>`;
+            const html=logged?`<div class="account-profile mb-4"><span class="account-avatar" aria-hidden="true">${accountEscape(Array.from(window.getCommonUserId())[0]||'鱼')}</span><div class="min-w-0"><p class="text-[11px] text-slate-500 mb-1">当前账号</p><p class="font-semibold text-slate-800 break-all leading-6">${accountEscape(window.getCommonUserId())}</p></div></div><div class="account-menu">${accountButton('rename','修改ID')}${accountButton('password','修改密码')}${accountButton('logout','退出登录')}</div><div class="mt-5"><p class="text-[11px] font-semibold text-slate-400 mb-2">历史ID</p><div id="editorIdentityHistoryList" class="space-y-1.5 max-h-28 overflow-y-auto"></div></div><div class="mt-5 pt-3 border-t border-slate-100">${accountButton('delete','删除账号',true)}</div>`:`<div class="account-profile mb-4"><span class="account-avatar" aria-hidden="true"><i class="fa-regular fa-user"></i></span><div><p class="font-semibold text-slate-800">当前为游客</p><p class="text-xs text-slate-500 mt-1">登录后管理你的账号</p></div></div><div class="account-menu">${accountButton('login','登录账号')}${accountButton('register','创建账号')}<div id="accountLegacyEntry" class="hidden">${accountButton('upgrade','升级账号／设置密码')}</div></div><div class="mt-4 pt-3 border-t border-slate-100">${accountButton('recoverDelete','恢复未完成的删除')}${deleteTicket?accountButton('resumeDelete','继续删除账号',true):''}</div>`;
             const m=window.accountDialog('accountManageModal','账号管理',html);
             m.querySelectorAll('[data-account-action]').forEach(b=>b.onclick=()=>{const action=b.dataset.accountAction;if(action==='logout')window.accountLogout(b);else if(action==='resumeDelete')window.accountResumeDelete(b);else window.openAccountForm(action);});
             if(logged){if(loadHistory)void window.loadEditorIdentityHistory?.();}
@@ -14264,13 +14285,15 @@ viewer.style.visibility='';
             const labels={login:'登录',register:'创建账号',upgrade:'升级账号',rename:'保存',password:'保存',delete:'继续',recoverDelete:'继续删除'};
             const field=(name,label,type='text',value='',autocomplete='off')=>`<label class="block text-xs font-semibold text-slate-600 mb-3">${label}<input name="${name}" type="${type}" ${type==='text'?'maxlength="32"':'maxlength="128"'} autocomplete="${autocomplete}" value="${accountEscape(value)}" required class="mt-1.5 w-full px-3 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none text-sm"></label>`;
             let html='';
-            if(['login','register','rename','recoverDelete'].includes(mode))html+=field('id','ID','text',mode==='rename'?window.getCommonUserId():'','username');
+            if(['login','register','rename','delete','recoverDelete'].includes(mode))html+=field('id',mode==='delete'?'再次输入当前ID':'ID','text',mode==='rename'?window.getCommonUserId():'','username');
             if(mode==='upgrade'){let id='';try{id=localStorage.getItem(window.EDITOR_ID_STORAGE_KEY)||'';}catch(_){}html+=`<p class="text-sm text-slate-600 mb-4">旧ID：<b>${accountEscape(id)}</b></p>`;}
             if(['login','register','upgrade','delete','recoverDelete'].includes(mode))html+=field('password',mode==='delete'?'再次输入账号密码':'密码','password','',mode==='login'||mode==='delete'?'current-password':'new-password');
             if(['register','upgrade'].includes(mode))html+=field('confirmPassword','确认密码','password','','new-password');
             if(mode==='password')html+=field('currentPassword','当前密码','password','','current-password')+field('newPassword','新密码','password','','new-password')+field('confirmPassword','确认新密码','password','','new-password');
-            if(mode==='delete')html+='<p class="text-xs text-rose-600 leading-5 mb-3">删除后账号、本人评论和个人数据将被删除，当前ID将永久占用。公共时间线和编辑成果保留。</p>';
-            const modal=window.accountDialog('account'+mode[0].toUpperCase()+mode.slice(1)+'Modal',titles[mode],`<form data-account-form>${html}<p data-account-error role="alert" class="hidden text-xs text-rose-500 mb-3"></p><button type="submit" class="w-full px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold">${labels[mode]}</button></form>`);
+
+            const actions=mode==='delete'?`<div class="flex justify-center gap-3 mt-5"><button type="button" data-account-cancel class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button><button type="submit" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-medium shadow-sm">继续</button></div>`:`<div class="flex justify-end gap-3 mt-5"><button type="button" data-account-cancel class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button><button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">${labels[mode]}</button></div>`;
+            const modal=window.accountDialog('account'+mode[0].toUpperCase()+mode.slice(1)+'Modal',titles[mode],`<form data-account-form>${html}<p data-account-error role="alert" class="hidden text-xs text-rose-500 mb-3"></p>${actions}</form>`,{danger:mode==='delete',description:mode==='delete'?'请重新输入当前ID和密码，继续确认删除。':''});
+            modal.querySelector('[data-account-cancel]').onclick=()=>window.closeAccountDialog(modal.id);
             modal.querySelector('form').onsubmit=e=>{e.preventDefault();void window.accountSubmit(mode,modal);};window.accountShow(modal);
         };
         window.accountSubmit=async function(mode,modal){
@@ -14279,15 +14302,16 @@ viewer.style.visibility='';
             error.classList.add('hidden');
             if(['register','upgrade','password'].includes(mode)&&values.confirmPassword!==(mode==='password'?values.newPassword:values.password)){error.textContent='两次输入的密码不一致';error.classList.remove('hidden');return;}
             if(['register','upgrade','password'].includes(mode)){const pw=mode==='password'?values.newPassword:values.password;if(pw.length<8){error.textContent='密码长度需为8至128个字符';error.classList.remove('hidden');return;}}
+            if(mode==='delete'&&window.normalizeEditorIdentityName(values.id).toLowerCase()!==window.normalizeEditorIdentityName(window.getCommonUserId()).toLowerCase()){error.textContent='请输入当前账号的ID';error.classList.remove('hidden');return;}
             window._accountSubmitting=true;
             const original=btn.textContent;
             try{
-                if(mode==='recoverDelete'){await window.withCloudWriteOperation(async()=>{const r=await timelineApiPost('accountDeleteResume',values,{auth:false,timeoutMs:30000});localStorage.setItem(window.ACCOUNT_DELETE_KEY,r.deleteTicket);await window.accountFinishDelete(r.deleteTicket);modal.classList.add('hidden');form.reset();await window.accountAfterChange();});window.showToast?.('账号已删除','success');return;}
+                if(mode==='recoverDelete'){const ok=await window.deepAppConfirm({title:'确认继续删除账号？',desc:'将继续完成上次未完成的账号删除，此操作不可撤销。',confirmText:'继续删除',danger:true,busyText:'正在删除...',onConfirm:async()=>{await window.withCloudWriteOperation(async()=>{const r=await timelineApiPost('accountDeleteResume',values,{auth:false,timeoutMs:30000});localStorage.setItem(window.ACCOUNT_DELETE_KEY,r.deleteTicket);await window.accountFinishDelete(r.deleteTicket);modal.classList.add('hidden');form.reset();await window.accountAfterChange();});return true;}});if(ok)window.showToast?.('账号已删除','success');return;}
                 if(mode==='delete'){
-                    const pw=values.password;
+                    const pw=values.password,deleteId=values.id;
                     const ok=await window.deepAppConfirm({title:'确认删除账号？',desc:'本人评论和个人数据将被删除，当前ID永久占用，此操作不可撤销。',confirmText:'确认删除',danger:true,busyText:'正在删除...',onConfirm:async()=>{
                         await window.withCloudWriteOperation(async()=>{
-                            const r=await timelineApiPost('accountDelete',{password:pw,confirm:true},{auth:false,timeoutMs:30000});
+                            const r=await timelineApiPost('accountDelete',{id:deleteId,password:pw,confirm:true},{auth:false,timeoutMs:30000});
                             localStorage.setItem(window.ACCOUNT_DELETE_KEY,r.deleteTicket);window.accountClearSession();
                             await window.accountFinishDelete(r.deleteTicket);await window.accountAfterChange();
                         });return true;
@@ -14309,9 +14333,21 @@ viewer.style.visibility='';
             }catch(e){error.textContent=e.message||'操作失败，请稍后再试';error.classList.remove('hidden');}
             finally{window._accountSubmitting=false;btn.textContent=original;btn.removeAttribute('aria-busy');}
         };
-        window.accountLogout=async function(btn){const label=btn.textContent;btn.textContent='正在退出...';try{await window.withCloudWriteOperation(async()=>{await timelineApiPost('accountLogout',{}, {auth:false,timeoutMs:12000});window.accountClearSession();await window.accountAfterChange();});window.showToast?.('已退出当前浏览器的登录','success');}catch(e){window.showToast?.(e.message||'退出失败','error');}finally{btn.textContent=label;}};
+        window.accountLogout=async function(btn){
+            if(window._accountLogoutPending)return;window._accountLogoutPending=true;
+            try{
+                const ok=await window.deepAppConfirm({title:'确认退出登录？',desc:'退出后当前浏览器将恢复游客状态，其他浏览器的登录保持不变。',confirmText:'确认退出',busyText:'正在退出...',onConfirm:async()=>{
+                    await window.withCloudWriteOperation(async()=>{await timelineApiPost('accountLogout',{}, {auth:false,timeoutMs:12000});window.accountClearSession();await window.accountAfterChange();});return true;
+                }});
+                if(ok)window.showToast?.('已退出当前浏览器的登录','success');
+            }catch(e){window.showToast?.(e.message||'退出失败','error');}finally{window._accountLogoutPending=false;}
+        };
         window.accountFinishDelete=async function(ticket){let r;do{r=await timelineApiPost('accountDeleteContinue',{deleteTicket:ticket},{auth:false,timeoutMs:55000});if(r.pending)await new Promise(resolve=>setTimeout(resolve,150));}while(r.pending);localStorage.removeItem(window.ACCOUNT_DELETE_KEY);window.accountClearSession();};
-        window.accountResumeDelete=async function(btn){btn.textContent='正在删除...';try{await window.withCloudWriteOperation(async()=>{await window.accountFinishDelete(localStorage.getItem(window.ACCOUNT_DELETE_KEY)||'');await window.accountAfterChange();});window.showToast?.('账号已删除','success');}catch(e){btn.textContent='继续删除账号';window.showToast?.(e.message||'删除未完成，请重试','error');}};
+        window.accountResumeDelete=async function(btn){
+            if(window._accountResumeDeletePending)return;window._accountResumeDeletePending=true;
+            try{const ok=await window.deepAppConfirm({title:'确认继续删除账号？',desc:'将继续完成上次未完成的账号删除，此操作不可撤销。',confirmText:'继续删除',danger:true,busyText:'正在删除...',onConfirm:async()=>{await window.withCloudWriteOperation(async()=>{await window.accountFinishDelete(localStorage.getItem(window.ACCOUNT_DELETE_KEY)||'');await window.accountAfterChange();});return true;}});if(ok)window.showToast?.('账号已删除','success');}
+            catch(e){window.showToast?.(e.message||'删除未完成，请重试','error');}finally{window._accountResumeDeletePending=false;}
+        };
         let lastAccountTouch=0;
         const recordAccountUse=e=>{
             if(!e.isTrusted||document.visibilityState!=='visible'||!window.getCurrentAccountId()||Date.now()-lastAccountTouch<60000)return;
