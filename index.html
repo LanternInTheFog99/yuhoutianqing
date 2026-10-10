@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="qinger-browse-mode">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -630,147 +630,49 @@ setTimeout(function(){if(!window.__appBootDone&&!document.getElementById('appBoo
         .cloud-sync-mini-switch::after{content:'';position:absolute;width:10px;height:10px;border-radius:9999px;background:#fff;left:2px;top:2px;box-shadow:0 1px 2px rgba(15,23,42,.25);transition:.16s ease;}
         /* Keep the mode switch footprint stable while its icon/text state is refreshed. */
         #lockToggleBtn{width:104px;min-width:104px;justify-content:center;white-space:nowrap;flex:0 0 104px;}
-        /* 手机和平板统一使用移动端顶部栏：
-           只保留 背景音乐 / tag库 / 账号管理 三个纯图标按钮。 */
-        /* 触屏移动设备通用：隐藏分享协同 / 模式切换 / 新建事件。 */
-        @media (hover:none) and (pointer:coarse){
-            #shareCollabBtn,#addEventBtn,#lockToggleBtn{display:none !important;}
+        /* 移动端顶部栏：同步、音乐、tag、模式、新建、账号；分享不占移动端空间。 */
+        @media (any-pointer:coarse){#shareCollabBtn{display:none!important}}
+        @media (any-pointer:coarse) and (min-width:640px){
+            header>div.max-w-6xl{padding-left:12px!important;padding-right:12px!important;gap:8px!important}
+            header>div.max-w-6xl>div:last-of-type{gap:5px!important;flex-wrap:nowrap!important;min-width:0;margin-left:auto;transform:none!important}
+            #syncStatus{display:flex!important;font-size:11px!important;padding:5px 6px!important;white-space:nowrap}
+            header button[onclick="openMusicModal()"],header button[onclick="openTagModal()"],#lockToggleBtn,#addEventBtn,#userSettingsBtn{display:flex!important;width:auto!important;min-width:0!important;max-width:none!important;flex:0 0 auto!important;padding:8px 6px!important;gap:4px!important;white-space:nowrap}
+            #userSettingsBtn{position:static!important;transform:none!important;margin:0!important}
+            #mobileMusicLabel,#mobileTagLabel,#userSettingsBtn span,#lockToggleBtn span,#addEventBtn span{display:inline!important}
+            #lockToggleBtn span.sm\:hidden{display:none!important}
         }
-
-        /* 平板：保留文字版同步状态、背景音乐、tag库、账号管理。
-           账号管理并回工具组，和其他按钮使用相同 gap；整组向左收。 */
-        @media (hover:none) and (pointer:coarse) and (min-width:640px){
-            header > div.max-w-6xl{
-                padding-right:24px !important;
-            }
-            header > div.max-w-6xl > div:last-of-type{
-                gap:8px !important;
-                flex-wrap:nowrap !important;
-                min-width:0 !important;
-                margin-left:auto !important;
-                transform:translateX(-18px);
-            }
-
-            #cloudSyncCluster{
-                display:flex !important;
-                align-items:center !important;
-                flex:0 0 auto !important;
-                margin:0 !important;
-            }
-            #syncStatus{
-                display:flex !important;
-                align-items:center !important;
-                gap:5px !important;
-                padding:5px 9px !important;
-                font-size:11px !important;
-                white-space:nowrap !important;
-            }
-
-            header button[onclick="openMusicModal()"],
-            header button[onclick="openTagModal()"]{
-                width:auto !important;
-                height:auto !important;
-                min-width:0 !important;
-                max-width:none !important;
-                flex:0 0 auto !important;
-                padding:8px 10px !important;
-                gap:5px !important;
-                justify-content:center !important;
-                overflow:visible !important;
-                margin:0 !important;
-            }
-            #mobileMusicLabel,#mobileTagLabel{
-                display:inline !important;
-                max-width:none !important;
-                overflow:visible !important;
-            }
-
-            #userSettingsBtn{
-                position:static !important;
-                right:auto !important;
-                top:auto !important;
-                transform:none !important;
-                width:auto !important;
-                height:auto !important;
-                min-width:0 !important;
-                max-width:none !important;
-                flex:0 0 auto !important;
-                padding:8px 10px !important;
-                gap:5px !important;
-                justify-content:center !important;
-                overflow:visible !important;
-                margin:0 !important;
-                z-index:auto !important;
-            }
-            #userSettingsBtn span{display:inline !important;}
-        }
-
-        /* 手机：同步状态 + 音乐 + tag + 账号管理全部进入同一个 flex 组，
-           所有相邻项目都只使用同一个 gap，不再让账号管理单独绝对定位。 */
         @media(max-width:639px){
-            #shareCollabBtn,#addEventBtn,#lockToggleBtn{display:none !important;}
-
-            header > div.max-w-6xl{
-                padding-right:12px !important;
-            }
-            header > div.max-w-6xl > div:last-of-type{
-                gap:6px !important;
-                flex-wrap:nowrap !important;
-                min-width:0 !important;
-                margin-left:auto !important;
-            }
-
-            #cloudSyncCluster{
-                display:flex !important;
-                align-items:center !important;
-                flex:0 0 auto !important;
-                margin:0 !important;
-            }
-            #syncStatus{
-                display:flex !important;
-                align-items:center !important;
-                gap:3px !important;
-                padding:4px 6px !important;
-                font-size:9px !important;
-                white-space:nowrap !important;
-                flex:0 0 auto !important;
-            }
-            #syncStatus #syncDot{width:6px !important;height:6px !important;}
-
-            header button[onclick="openMusicModal()"],
-            header button[onclick="openTagModal()"]{
-                width:32px !important;height:32px !important;
-                min-width:32px !important;max-width:32px !important;
-                flex:0 0 32px !important;
-                padding:0 !important;gap:0 !important;
-                justify-content:center !important;
-                overflow:hidden !important;
-                margin:0 !important;
-            }
-            #mobileMusicLabel,#mobileTagLabel{display:none !important;}
-
-            #userSettingsBtn{
-                position:static !important;
-                right:auto !important;
-                top:auto !important;
-                transform:none !important;
-                width:32px !important;height:32px !important;
-                min-width:32px !important;max-width:32px !important;
-                flex:0 0 32px !important;
-                padding:0 !important;gap:0 !important;
-                justify-content:center !important;
-                overflow:hidden !important;
-                margin:0 !important;
-                z-index:auto !important;
-            }
-            #userSettingsBtn span{display:none !important;}
-
-            /* 给功能组更多横向空间，避免标题把右侧按钮挤折叠。 */
-            header h1{
-                font-size:14px !important;
-                white-space:nowrap !important;
-            }
+            #shareCollabBtn{display:none!important}
+            header>div.max-w-6xl{padding-left:6px!important;padding-right:6px!important;gap:4px!important}
+            header>div.max-w-6xl>div:last-of-type{gap:3px!important;flex-wrap:nowrap!important;min-width:0;margin-left:auto}
+            header h1{font-size:14px!important;white-space:nowrap}
+            #cloudSyncCluster{display:flex!important;align-items:center;flex:0 0 auto;margin:0}
+            #syncStatus{display:flex!important;gap:3px!important;padding:4px!important;font-size:9px!important;white-space:nowrap}
+            #syncStatus #syncDot{width:5px!important;height:5px!important}
+            header button[onclick="openMusicModal()"],header button[onclick="openTagModal()"],#lockToggleBtn,#addEventBtn,#userSettingsBtn{display:flex!important;width:32px!important;height:36px!important;min-width:32px!important;max-width:32px!important;flex:0 0 32px!important;padding:0!important;gap:0!important;justify-content:center!important;margin:0!important}
+            #userSettingsBtn{position:static!important;transform:none!important}
+            #mobileMusicLabel,#mobileTagLabel,#userSettingsBtn span,#lockToggleBtn span,#addEventBtn span{display:none!important}
+            #editModal,#multiTimeEventModal{padding:0!important;top:var(--mobile-editor-top,0px)!important;bottom:auto!important;height:var(--mobile-editor-height,100dvh)!important;align-items:stretch!important}
+            #editModal>div,#multiTimeEventModal>div{max-width:none!important;height:100%!important;max-height:100%!important;margin:0!important;border-radius:0!important}
+            #editScrollArea,#multiScrollArea{overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scroll-padding-bottom:24px}
+            #editModal input:not([type="checkbox"]):not([type="range"]),#editModal textarea,#editModal select,#editDescription,#multiTimeEventModal input:not([type="checkbox"]):not([type="range"]),#multiTimeEventModal textarea,#multiTimeEventModal select{font-size:16px!important}
+            #editModal button,#multiTimeEventModal button{min-height:32px}
+            #editFixedTabs button{padding-left:6px!important;padding-right:6px!important;font-size:11px!important}
+            #editScrollArea .flex.justify-end,#multiScrollArea .flex.justify-end{flex-wrap:wrap}
+            #editScrollArea .flex.justify-between.pt-3,#multiScrollArea .flex.justify-between.pt-3{flex-wrap:wrap;gap:8px}
+            #editScrollArea .flex.justify-between.pt-3>div:last-child,#multiScrollArea .flex.justify-between.pt-3>div:last-child{flex-wrap:wrap}
         }
+        @media(max-width:359px){header h1{font-size:12px!important}header>div.max-w-6xl>div:last-of-type{gap:2px!important}}
+        html[data-mobile-editing] #shareCollabBtn{display:none!important}
+        html[data-mobile-editing] #userSettingsBtn{position:static!important;transform:none!important}
+        html.qinger-browse-mode #qingerInventory .qinger-inv-grid{display:none!important}
+        @media (any-pointer:coarse){
+            #editModal .media-drag-item>div.absolute.inset-0,#multiTimeEventModal .media-drag-item>div.absolute.inset-0{opacity:1!important;background:rgba(0,0,0,.18);align-items:flex-start!important;padding-top:4px}
+            .touch-media-order{display:flex!important}
+        }
+        .touch-media-order{display:none;gap:3px;align-items:center;position:relative;z-index:12;flex-shrink:0}
+        .media-drag-item:not(.video-edit-card)>.touch-media-order{position:absolute;bottom:1px;left:2px}
+        .touch-media-order button{min-height:24px!important;width:26px;height:24px;background:#fff;color:#334155;border:1px solid #cbd5e1;border-radius:5px;font-size:13px;line-height:1}
         /* === 每个事件独立留言板 / CloudBase message-api === */
         .event-comment-board{margin-top:28px;padding-top:24px;border-top:1px solid #1e293b;color:#e2e8f0}
         .event-comment-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
@@ -1934,12 +1836,12 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     </div>
                 </div>
 
-                <button onclick="openMusicModal()" class="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-medium border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 flex items-center gap-1 transition-all shadow-sm">
+                <button title="背景音乐" aria-label="背景音乐" onclick="openMusicModal()" class="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-medium border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 flex items-center gap-1 transition-all shadow-sm">
                     <i class="fa-solid fa-music text-indigo-600"></i>
                     <span id="mobileMusicLabel" class="hidden md:inline">背景音乐</span>
                 </button>
 
-                <button onclick="openTagModal()" class="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-medium border border-slate-300 hover:bg-slate-50 text-slate-700 flex items-center gap-1 transition-all">
+                <button title="tag库" aria-label="tag库" onclick="openTagModal()" class="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-medium border border-slate-300 hover:bg-slate-50 text-slate-700 flex items-center gap-1 transition-all">
                     <i class="fa-solid fa-tags text-slate-500"></i>
                     <span id="mobileTagLabel" class="hidden md:inline">tag库</span>
                 </button>
@@ -1961,7 +1863,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 <button id="lockToggleBtn" onclick="toggleLockState()" class="flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs font-medium transition-all shadow-sm border">
                 </button>
 
-                <button id="addEventBtn" onclick="handleNewEventClick()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 shadow-sm transition-all shrink-0">
+                <button title="新建事件" aria-label="新建事件" id="addEventBtn" onclick="handleNewEventClick()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs font-medium flex items-center gap-1.5 shadow-sm transition-all shrink-0">
                     <i class="fa-solid fa-plus"></i>
                     <span class="hidden sm:inline">新建事件</span>
                 </button>
@@ -2682,13 +2584,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             const touchTabletViewport=touchPoints>1 && shortSide>0 && shortSide<=1024 && longSide<=1366 && !/^Win/i.test(platform);
             return uaMobile||phoneTabletUA||appleTouchDesktop||coarsePrimary||noFinePointer||touchTabletViewport;
         };
-        window.forceMobileBrowseMode = function() {
-            if(!window.isMobileEditingDevice())return false;
-            window.isLocked=true;
-            try{localStorage.setItem('yuhoutianqing_isLocked','true');}catch(_){}
-            document.documentElement.setAttribute('data-mobile-browse-only','true');
-            return true;
-        };
+        document.documentElement.toggleAttribute('data-mobile-editing',window.isMobileEditingDevice());
         window.isLocked = localStorage.getItem('yuhoutianqing_isLocked') === 'false' ? false : true;
         // 编辑授权只存于 sessionStorage。重新打开页面/标签页若没有有效令牌，必须真正回到浏览模式，
         // 避免按钮显示“编辑模式”但实际 canEditNow() 为 false。
@@ -2696,10 +2592,18 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             window.isLocked = true;
             try { localStorage.setItem('yuhoutianqing_isLocked', 'true'); } catch (_) {}
         }
-        window.forceMobileBrowseMode();
         window.isCloudSynced = false;
         try { localStorage.removeItem('yuhoutianqing_pending_events'); } catch (_) {}
-        window.canEditNow = function() { return !window.isMobileEditingDevice() && !window.isLocked && window.isCloudSynced && window.cloudWriteReady && window.hasTimelineEditToken?.(); };
+        window.updateMobileEditorViewport=function(){
+            const v=window.visualViewport;
+            document.documentElement.style.setProperty('--mobile-editor-height',(v?.height||window.innerHeight)+'px');
+            document.documentElement.style.setProperty('--mobile-editor-top',(v?.offsetTop||0)+'px');
+        };
+        window.visualViewport?.addEventListener('resize',window.updateMobileEditorViewport);
+        window.visualViewport?.addEventListener('scroll',window.updateMobileEditorViewport);
+        window.addEventListener('resize',window.updateMobileEditorViewport);
+        window.updateMobileEditorViewport();
+        window.canEditNow = function() { return !window.isLocked && window.isCloudSynced && window.cloudWriteReady && window.hasTimelineEditToken?.(); };
         window.zoomLevel = 3;
         window.edgeScrollSpeed = (function() {
             const v = Number(localStorage.getItem('yuhoutianqing_edgeScrollSpeed'));
@@ -4119,7 +4023,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         };
 
         window.updateManagementButtons = function(){
-            const show=!window.isLocked && !!window.hasTimelineEditToken?.() && !window.forceMobileBrowseMode?.();
+            document.documentElement.classList.toggle('qinger-browse-mode',!!window.isLocked);
+            const show=!window.isLocked && !!window.hasTimelineEditToken?.();
             ['xiaoqingerDialogueEditorBtn','developerModeBtn','manualBackupBtn'].forEach(id=>document.getElementById(id)?.classList.toggle('hidden',!show));
             const dev=document.getElementById('developerModeBtn');
             if(dev){ dev.classList.toggle('text-indigo-500',show&&window.isDeveloperMode?.()); dev.title=window.isDeveloperMode?.()?'开发者模式已启用':'开发者模式'; }
@@ -5162,10 +5067,9 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         }
 
         window.updateLockButtonUI = function() {
-            const mobileBrowseOnly=!!window.forceMobileBrowseMode?.();
             const lockBtn = document.getElementById('lockToggleBtn');
             const shareBtn = document.getElementById('shareCollabBtn');
-            const shareEnabled = !mobileBrowseOnly && !window.isLocked && !!window.isCloudSynced && !!window.cloudWriteReady;
+            const shareEnabled = !window.isLocked && !!window.isCloudSynced && !!window.cloudWriteReady;
             if (shareBtn) {
                 shareBtn.disabled = !shareEnabled;
                 shareBtn.className = shareEnabled
@@ -5177,11 +5081,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             let nextHtml = "";
             let nextTitle = "";
             let nextDisabled = false;
-            if (mobileBrowseOnly) {
-                nextClass = "flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs font-medium transition-colors shadow-sm border bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-80";
-                nextHtml = `<i class="fa-solid fa-lock text-slate-400"></i><span class="hidden sm:inline">浏览模式</span><span class="sm:hidden">浏览</span>`;
-                nextTitle = "移动端固定为浏览模式，编辑模式仅限电脑端";
-            } else if (!window.isCloudSynced) {
+            if (!window.isCloudSynced) {
                 nextClass = "flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs font-medium transition-colors shadow-sm border bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed";
                 nextHtml = `<i class="fa-solid fa-cloud-arrow-down text-slate-400"></i><span class="hidden sm:inline">等待同步</span><span class="sm:hidden">同步中</span>`;
                 nextDisabled = true;
@@ -5201,30 +5101,12 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             if (lockBtn.innerHTML !== nextHtml) lockBtn.innerHTML = nextHtml;
             lockBtn.className = nextClass;
             lockBtn.title = nextTitle;
+            lockBtn.setAttribute('aria-label',!window.isCloudSynced?'等待同步':(window.isLocked?'切换至编辑模式':'切换至浏览模式'));
             lockBtn.disabled = nextDisabled;
             window.updateManagementButtons?.();
         };
 
-        if(!window._mobileBrowseForceBound){
-            window._mobileBrowseForceBound=true;
-            const enforceMobileBrowse=()=>{
-                if(window.forceMobileBrowseMode?.()){
-                    window.updateLockButtonUI?.();
-                }
-            };
-            if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',enforceMobileBrowse,{once:true});
-            else enforceMobileBrowse();
-            window.addEventListener('pageshow',enforceMobileBrowse);
-            window.addEventListener('focus',enforceMobileBrowse);
-            window.addEventListener('resize',enforceMobileBrowse);
-        }
-
         window.toggleLockState = function() {
-            if (window.forceMobileBrowseMode?.()) {
-                window.updateLockButtonUI?.();
-                window.showToast('移动端锁定为浏览模式，如需新建或编辑事件，请使用电脑端', 'info');
-                return;
-            }
             if (!window.isCloudSynced) {
                 window.showToast('请先等待右上角显示“已同步云端”', 'error');
                 return;
@@ -5270,11 +5152,6 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         };
 
         window.openPwdModal = function() {
-            if (window.forceMobileBrowseMode?.()) { window.updateLockButtonUI?.(); return; }
-            if (!window.getCommonUserId?.()) {
-                window.showToast?.('当前未登录，请先通过账号管理登录账号', 'info');
-                return;
-            }
             const pwdInput = document.getElementById('unlockPwdInput');
             if (pwdInput) pwdInput.value = '';
             document.getElementById('pwdModal')?.classList.remove('hidden');
@@ -5289,11 +5166,6 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         window.submitUnlockPassword = async function() {
             if((window._unlockCooldownUntil||0)>Date.now()){
                 window.applyUnlockCooldown(window._unlockCooldownUntil-Date.now());
-                return;
-            }
-            if (window.forceMobileBrowseMode?.()) {
-                window.closePwdModal();
-                window.updateLockButtonUI?.();
                 return;
             }
             if (!window.isCloudSynced) {
@@ -7788,19 +7660,19 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                             <button type="button" id="deepBorderToggleBtn" onclick="deepApplyTextStyle('borderToggle')" class="mt-3 w-full px-2 py-1.5 rounded-lg border text-[10px] transition-all">显示边框：关</button>
                         </div>
                     </div>
-                    <label class="text-[10px] text-slate-500 flex items-center gap-1">字号<select id="deepFontSize" style="width:82px;min-width:82px" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onchange="deepSetFontSizeControl(this.value)" class="deep-selection-text-control h-7 border rounded-md bg-white"><option value="10">10px</option><option value="12">12px</option><option value="14">14px</option><option value="16">16px</option><option value="18" selected>18px（默认）</option><option value="20">20px</option><option value="24">24px</option><option value="28">28px</option><option value="32">32px</option><option value="36">36px</option><option value="40">40px</option><option value="48">48px</option><option value="56">56px</option><option value="64">64px</option><option value="72">72px</option></select><span id="deepCustomSizeGroup" class="inline-flex items-center gap-1 shrink-0"><input id="deepFontSizeCustom" disabled data-deep-text-control data-deep-selection-only type="number" min="6" max="240" step="0.1" value="18" class="deep-selection-text-control h-7 w-12 border rounded-md bg-white px-1.5 font-mono text-[10px]" title="实际字号，可输入任意数值" oninput="deepPreviewFontSizeControl(this.value)" onchange="deepCommitFontSizeControl(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"><span class="font-mono text-[10px] text-slate-400">px</span></span></label>
+                    <label class="text-[10px] text-slate-500 flex items-center gap-1">字号<select id="deepFontSize" style="width:82px;min-width:82px" disabled data-deep-text-control data-deep-selection-only onpointerdown="deepRememberTextSelection(event)" onchange="deepSetFontSizeControl(this.value)" class="deep-selection-text-control h-7 border rounded-md bg-white"><option value="10">10px</option><option value="12">12px</option><option value="14">14px</option><option value="16">16px</option><option value="18" selected>18px（默认）</option><option value="20">20px</option><option value="24">24px</option><option value="28">28px</option><option value="32">32px</option><option value="36">36px</option><option value="40">40px</option><option value="48">48px</option><option value="56">56px</option><option value="64">64px</option><option value="72">72px</option></select><span id="deepCustomSizeGroup" class="inline-flex items-center gap-1 shrink-0"><input id="deepFontSizeCustom" disabled data-deep-text-control data-deep-selection-only type="number" min="6" max="240" step="0.1" value="18" class="deep-selection-text-control h-7 w-12 border rounded-md bg-white px-1.5 font-mono text-[10px]" title="实际字号，可输入任意数值" oninput="deepPreviewFontSizeControl(this.value)" onchange="deepCommitFontSizeControl(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"><span class="font-mono text-[10px] text-slate-400">px</span></span></label>
                     <div class="deep-text-style-group" role="group" aria-label="文字样式">
-                        <button id="deepBoldBtn" type="button" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('bold')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs font-bold">B</button>
-                        <button id="deepItalicBtn" type="button" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('italic')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs italic">I</button>
-                        <button id="deepUnderlineBtn" type="button" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('underline')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs underline">U</button>
-                        <button id="deepStrikeBtn" type="button" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('strike')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs line-through">S</button>
+                        <button id="deepBoldBtn" type="button" disabled data-deep-text-control data-deep-selection-only onpointerdown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('bold')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs font-bold">B</button>
+                        <button id="deepItalicBtn" type="button" disabled data-deep-text-control data-deep-selection-only onpointerdown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('italic')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs italic">I</button>
+                        <button id="deepUnderlineBtn" type="button" disabled data-deep-text-control data-deep-selection-only onpointerdown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('underline')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs underline">U</button>
+                        <button id="deepStrikeBtn" type="button" disabled data-deep-text-control data-deep-selection-only onpointerdown="deepRememberTextSelection(event)" onclick="deepApplyTextStyle('strike')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs line-through">S</button>
                     </div>
                     <div class="deep-text-align-group" role="group" aria-label="文字对齐">
                         <button id="deepAlignLeftBtn" type="button" disabled data-deep-text-control data-deep-selection-only class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs" title="左对齐" onclick="deepApplyTextStyle('align','left')"><i class="fa-solid fa-align-left"></i></button>
                         <button id="deepAlignCenterBtn" type="button" disabled data-deep-text-control data-deep-selection-only class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs" title="居中" onclick="deepApplyTextStyle('align','center')"><i class="fa-solid fa-align-center"></i></button>
                         <button id="deepAlignRightBtn" type="button" disabled data-deep-text-control data-deep-selection-only class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs" title="右对齐" onclick="deepApplyTextStyle('align','right')"><i class="fa-solid fa-align-right"></i></button>
                     </div>
-                    <div class="relative"><button id="deepTextColorBtn" type="button" disabled data-deep-text-control data-deep-selection-only onmousedown="deepRememberTextSelection(event)" onclick="deepOpenColorPalette('text')" class="deep-selection-text-control px-2.5 py-1.5 bg-white border rounded-lg text-xs"><span id="deepTextColorSwatch" class="inline-block w-3 h-3 rounded-full mr-1 align-[-1px]" style="background:#334155"></span>文字颜色</button><div id="deepTextColorPalette" class="hidden absolute left-0 top-9 z-[260] w-64 p-3 bg-white border border-slate-200 rounded-xl shadow-xl"><div class="text-[10px] font-semibold text-slate-500 mb-2">固定色 / 自定义</div><div class="grid grid-cols-7 gap-2">${['#0f172a','#334155','#64748b','#dc2626','#ea580c','#f59e0b','#16a34a','#059669','#0284c7','#2563eb','#4f46e5','#7c3aed','#db2777','#ffffff'].map(c=>`<button type="button" onclick="deepPickColor('text','${c}')" class="w-6 h-6 rounded-full border border-slate-200 deep-color-choice" style="background:${c}" title="${c}"></button>`).join('')}</div><div class="flex items-center gap-2 mt-3 pt-2 border-t"><span class="text-[10px] text-slate-500">自定义</span><input id="deepTextCustomColor" type="color" value="#334155" onchange="deepPickColor('text',this.value)" class="w-7 h-7 p-0 border-0"><button type="button" onclick="deepPickColor('text',document.getElementById('deepTextCustomColor').value)" class="ml-auto px-2 py-1 rounded bg-indigo-600 text-white text-[10px]">使用</button></div></div></div>
+                    <div class="relative"><button id="deepTextColorBtn" type="button" disabled data-deep-text-control data-deep-selection-only onpointerdown="deepRememberTextSelection(event)" onclick="deepOpenColorPalette('text')" class="deep-selection-text-control px-2.5 py-1.5 bg-white border rounded-lg text-xs"><span id="deepTextColorSwatch" class="inline-block w-3 h-3 rounded-full mr-1 align-[-1px]" style="background:#334155"></span>文字颜色</button><div id="deepTextColorPalette" class="hidden absolute left-0 top-9 z-[260] w-64 p-3 bg-white border border-slate-200 rounded-xl shadow-xl"><div class="text-[10px] font-semibold text-slate-500 mb-2">固定色 / 自定义</div><div class="grid grid-cols-7 gap-2">${['#0f172a','#334155','#64748b','#dc2626','#ea580c','#f59e0b','#16a34a','#059669','#0284c7','#2563eb','#4f46e5','#7c3aed','#db2777','#ffffff'].map(c=>`<button type="button" onclick="deepPickColor('text','${c}')" class="w-6 h-6 rounded-full border border-slate-200 deep-color-choice" style="background:${c}" title="${c}"></button>`).join('')}</div><div class="flex items-center gap-2 mt-3 pt-2 border-t"><span class="text-[10px] text-slate-500">自定义</span><input id="deepTextCustomColor" type="color" value="#334155" onchange="deepPickColor('text',this.value)" class="w-7 h-7 p-0 border-0"><button type="button" onclick="deepPickColor('text',document.getElementById('deepTextCustomColor').value)" class="ml-auto px-2 py-1 rounded bg-indigo-600 text-white text-[10px]">使用</button></div></div></div>
                     <label class="text-[10px] text-slate-500 flex items-center gap-1">透明度<input id="deepTextOpacity" data-deep-text-control data-deep-selection-only type="range" min="0" max="100" value="100" disabled oninput="deepApplyTextStyle('opacity',this.value)" class="deep-selection-text-control w-16"><span id="deepTextOpacityValue" class="w-5 text-right font-mono text-slate-400">—</span></label>
                     </div>
                     <button type="button" onclick="deepDeleteSelected()" class="px-2.5 py-1.5 bg-rose-50 border border-rose-200 text-rose-600 rounded-lg text-xs">删除选中</button>
@@ -11978,17 +11850,17 @@ viewer.style.visibility='';
                                 <label class="block text-xs font-bold text-slate-700 mb-1">详细经过与描述</label>
                                 <div class="border border-slate-300 rounded-lg overflow-visible bg-white">
                                     <div class="flex flex-wrap items-center gap-1 p-2 bg-slate-50 border-b border-slate-200">
-                                        <button id="richBoldBtn" type="button" disabled onmousedown="event.preventDefault(); richRememberSelection()" onclick="richExec('bold')" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 font-bold w-7 h-7" title="加粗">B</button>
-                                        <button id="richItalicBtn" type="button" disabled onmousedown="event.preventDefault(); richRememberSelection()" onclick="richExec('italic')" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 italic w-7 h-7" title="斜体">I</button>
-                                        <button id="richUnderlineBtn" type="button" disabled onmousedown="event.preventDefault(); richRememberSelection()" onclick="richExec('underline')" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 underline w-7 h-7" title="下划线">U</button>
-                                        <button id="richStrikeBtn" type="button" disabled onmousedown="event.preventDefault(); richRememberSelection()" onclick="richExec('strikeThrough')" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 line-through w-7 h-7" title="删除线">S</button>
-                                        <button id="richRevealBtn" type="button" disabled onmousedown="event.preventDefault(); richRememberSelection()" onclick="richToggleReveal()" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 px-1.5 h-7 text-[10px] font-semibold" title="悬停显现：选中文字后仅在鼠标悬停时显示">悬停</button>
-                                        <select id="richFontSizePreset" style="width:160px;min-width:160px" disabled onmousedown="richRememberSelection()" onchange="richSetFontSize(this.value)" class="h-7 rounded-md border border-slate-200 bg-white text-[11px] text-slate-700" title="字号">
+                                        <button id="richBoldBtn" type="button" disabled onpointerdown="event.preventDefault(); richRememberSelection()" onclick="richExec('bold')" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 font-bold w-7 h-7" title="加粗">B</button>
+                                        <button id="richItalicBtn" type="button" disabled onpointerdown="event.preventDefault(); richRememberSelection()" onclick="richExec('italic')" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 italic w-7 h-7" title="斜体">I</button>
+                                        <button id="richUnderlineBtn" type="button" disabled onpointerdown="event.preventDefault(); richRememberSelection()" onclick="richExec('underline')" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 underline w-7 h-7" title="下划线">U</button>
+                                        <button id="richStrikeBtn" type="button" disabled onpointerdown="event.preventDefault(); richRememberSelection()" onclick="richExec('strikeThrough')" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 line-through w-7 h-7" title="删除线">S</button>
+                                        <button id="richRevealBtn" type="button" disabled onpointerdown="event.preventDefault(); richRememberSelection()" onclick="richToggleReveal()" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 px-1.5 h-7 text-[10px] font-semibold" title="悬停显现：选中文字后仅在鼠标悬停时显示">悬停</button>
+                                        <select id="richFontSizePreset" style="width:160px;min-width:160px" disabled onpointerdown="richRememberSelection()" onchange="richSetFontSize(this.value)" class="h-7 rounded-md border border-slate-200 bg-white text-[11px] text-slate-700" title="字号">
                                             
                                             ${['8px','9px','10px','11px','12px','13px','14px','16px','18px','20px','24px','28px','32px'].map(v=>`<option value="${v}">${v}${v==='14px'?'（默认）':''}</option>`).join('')}
                                         </select>
                                         <div class="relative">
-                                            <button id="richColorBtn" type="button" disabled onmousedown="event.preventDefault(); richRememberSelection()" onclick="openRichColorPalette()" class="rich-selection-btn rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 px-2 h-7" title="字体颜色"><i class="fa-solid fa-palette"></i></button>
+                                            <button id="richColorBtn" type="button" disabled onpointerdown="event.preventDefault(); richRememberSelection()" onclick="openRichColorPalette()" class="rich-selection-btn rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 px-2 h-7" title="字体颜色"><i class="fa-solid fa-palette"></i></button>
                                             <div id="richColorPalette" class="hidden absolute left-0 top-8 z-[240] w-56 p-2 bg-white border border-slate-200 rounded-xl shadow-xl">
                                                 <div class="text-[10px] text-slate-500 mb-2">常用颜色</div>
                                                 <div class="grid grid-cols-7 gap-2">
@@ -11996,17 +11868,17 @@ viewer.style.visibility='';
                                                 </div>
                                                 <div class="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100">
                                                     <span class="text-[10px] text-slate-500">自定义</span>
-                                                    <input id="richCustomColor" type="color" value="#334155" onmousedown="richRememberSelection()" class="w-7 h-7 p-0 border-0 bg-transparent cursor-pointer">
+                                                    <input id="richCustomColor" type="color" value="#334155" onpointerdown="richRememberSelection()" class="w-7 h-7 p-0 border-0 bg-transparent cursor-pointer">
                                                     <button type="button" onclick="richConfirmCustomColor()" class="ml-auto px-2 py-1 rounded-md bg-indigo-600 text-white text-[10px] font-semibold hover:bg-indigo-700">确定</button>
                                                 </div>
                                             </div>
                                         </div>
                                         <label class="flex items-center gap-1.5 ml-1 text-[10px] text-slate-500" title="文字透明度">
                                             透明度
-                                            <input id="richOpacityRange" type="range" min="0" max="100" step="1" value="100" disabled onmousedown="richRememberSelection()" oninput="richSetOpacity(this.value)" class="w-20 disabled:opacity-40 disabled:cursor-not-allowed">
+                                            <input id="richOpacityRange" type="range" min="0" max="100" step="1" value="100" disabled onpointerdown="richRememberSelection()" oninput="richSetOpacity(this.value)" class="w-20 disabled:opacity-40 disabled:cursor-not-allowed">
                                             <span id="richOpacityValue" class="w-7 text-right">—</span>
                                         </label>
-                                        <button id="richClearFormattingBtn" type="button" disabled onmousedown="event.preventDefault(); richRememberSelection()" onclick="richClearFormatting()" class="ml-auto rounded-md border border-slate-200 bg-white hover:bg-indigo-50 px-2 h-7 text-[10px] text-slate-700" title="清除格式">清除格式</button>
+                                        <button id="richClearFormattingBtn" type="button" disabled onpointerdown="event.preventDefault(); richRememberSelection()" onclick="richClearFormatting()" class="ml-auto rounded-md border border-slate-200 bg-white hover:bg-indigo-50 px-2 h-7 text-[10px] text-slate-700" title="清除格式">清除格式</button>
                                     </div>
                                     <div id="editDescription" contenteditable="true" onkeydown="richHandleEditorKeydown(event)" oninput="richEditorInput()" onmouseup="richRememberSelection()" onkeyup="richRememberSelection()" ontouchend="setTimeout(()=>richRememberSelection(),0)" class="rich-editor w-full px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" data-placeholder="记录关于这件事的详细经过...">${window.descriptionToEditorHtml ? window.descriptionToEditorHtml(event.description || '') : String(event.description || '')}</div>
                                 </div>
@@ -12923,7 +12795,30 @@ viewer.style.visibility='';
             });
         };
 
+        window.installTouchMediaOrderButtons=function(container,type){
+            if(!container||!window.isMobileEditingDevice?.())return;
+            container.querySelectorAll('.media-drag-item').forEach(item=>{
+                if(item.querySelector('.touch-media-order'))return;
+                const controls=document.createElement('div');controls.className='touch-media-order';
+                [-1,1].forEach(direction=>{
+                    const button=document.createElement('button');button.type='button';button.textContent=direction<0?'←':'→';button.title=direction<0?'向前移动':'向后移动';button.setAttribute('aria-label',button.title);
+                    button.addEventListener('pointerdown',e=>e.stopPropagation());
+                    button.onclick=e=>{
+                        e.preventDefault();e.stopPropagation();if(!window.canEditNow?.()||(Number(window._cloudWriteLockDepth)||0)>0)return;
+                        const multi=item.hasAttribute('data-multi-drag');
+                        if(multi)window.multiPersistCurrentPage?.();
+                        const arr=multi?window.multiTimeDraft?.[Number(item.dataset.seg)]?.[item.dataset.key]:(type==='image'?window.editingImageFiles:window.editingVideos);
+                        const from=Number(multi?item.dataset.index:item.dataset.mediaIndex),to=from+direction;
+                        if(!Array.isArray(arr)||from<0||from>=arr.length||to<0||to>=arr.length)return;
+                        [arr[from],arr[to]]=[arr[to],arr[from]];
+                        if(multi)window.multiRenderCurrentPage();else if(type==='image')window.renderMicroPreviews();else window.renderVideoPreviews();
+                    };
+                    controls.appendChild(button);
+                });item.appendChild(controls);
+            });
+        };
         window.initMediaDragDrop=function(container,type){
+            window.installTouchMediaOrderButtons(container,type);
             if(!container||container.dataset.dragInited==='1') return;
             container.dataset.dragInited='1';
             let from=-1, over=-1, after=false;
@@ -14981,7 +14876,7 @@ viewer.style.visibility='';
 
         window.onload = () => {
             if(window._invalidRoomAccess){ window.invalidateRoomAccess?.(); return; }
-            if(window.forceMobileBrowseMode?.()) window.updateLockButtonUI?.();
+            window.updateLockButtonUI?.();
             const startCloudOnce=()=>{if(window.__initialCloudSyncStarted)return;window.__initialCloudSyncStarted=true;initAppAndCloudSync()};
             window.__startInitialCloud=startCloudOnce;
             startCloudOnce();
@@ -15025,7 +14920,7 @@ viewer.style.visibility='';
             window.multiRenderEditorShell();
         };
         window.multiMoveMedia=function(seg,key,from,to){const a=window.multiTimeDraft?.[seg]?.[key];if(!a||from<0||from>=a.length)return;to=Math.max(0,Math.min(a.length,to));if(from<to)to--;if(from===to)return;const [x]=a.splice(from,1);a.splice(to,0,x);window.multiRenderCurrentPage();};
-        window.multiBindDrag=function(){const root=document.getElementById('multiPageBody');if(!root||root.dataset.dragBound)return;root.dataset.dragBound='1';let drag=null,marked=null;const mark=x=>{if(marked===x)return;if(marked){marked.style.outline='';marked.style.outlineOffset='';}marked=x;if(marked){marked.style.outline='2px solid #6366f1';marked.style.outlineOffset='2px';}};const clear=()=>{root.querySelector('.opacity-50[data-multi-drag]')?.classList.remove('opacity-50');mark(null);};root.addEventListener('dragstart',e=>{const x=e.target.closest('[data-multi-drag]');if(!x)return;drag={seg:Number(x.dataset.seg),key:x.dataset.key,from:Number(x.dataset.index),over:Number(x.dataset.index),after:false};x.classList.add('opacity-50');try{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',String(drag.from));}catch(_){}});root.addEventListener('dragend',()=>{clear();drag=null;});root.addEventListener('dragover',e=>{if(!drag)return;const x=e.target.closest('[data-multi-drag]');if(!x||Number(x.dataset.seg)!==drag.seg||x.dataset.key!==drag.key)return;e.preventDefault();drag.over=Number(x.dataset.index);const r=x.getBoundingClientRect();const horizontal=drag.key==='images';drag.after=horizontal?(e.clientX-r.left)>r.width/2:(e.clientY-r.top)>r.height/2;mark(x);try{e.dataTransfer.dropEffect='move';}catch(_){}});root.addEventListener('drop',e=>{if(!drag)return;e.preventDefault();const x=e.target.closest('[data-multi-drag]');if(x&&Number(x.dataset.seg)===drag.seg&&x.dataset.key===drag.key){drag.over=Number(x.dataset.index);const r=x.getBoundingClientRect();drag.after=drag.key==='images'?(e.clientX-r.left)>r.width/2:(e.clientY-r.top)>r.height/2;}const d=drag;clear();drag=null;if(Number.isInteger(d.over))window.multiMoveMedia(d.seg,d.key,d.from,d.over+(d.after?1:0));});};
+        window.multiBindDrag=function(){const root=document.getElementById('multiPageBody');window.installTouchMediaOrderButtons(root,'multi');if(!root||root.dataset.dragBound)return;root.dataset.dragBound='1';let drag=null,marked=null;const mark=x=>{if(marked===x)return;if(marked){marked.style.outline='';marked.style.outlineOffset='';}marked=x;if(marked){marked.style.outline='2px solid #6366f1';marked.style.outlineOffset='2px';}};const clear=()=>{root.querySelector('.opacity-50[data-multi-drag]')?.classList.remove('opacity-50');mark(null);};root.addEventListener('dragstart',e=>{const x=e.target.closest('[data-multi-drag]');if(!x)return;drag={seg:Number(x.dataset.seg),key:x.dataset.key,from:Number(x.dataset.index),over:Number(x.dataset.index),after:false};x.classList.add('opacity-50');try{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',String(drag.from));}catch(_){}});root.addEventListener('dragend',()=>{clear();drag=null;});root.addEventListener('dragover',e=>{if(!drag)return;const x=e.target.closest('[data-multi-drag]');if(!x||Number(x.dataset.seg)!==drag.seg||x.dataset.key!==drag.key)return;e.preventDefault();drag.over=Number(x.dataset.index);const r=x.getBoundingClientRect();const horizontal=drag.key==='images';drag.after=horizontal?(e.clientX-r.left)>r.width/2:(e.clientY-r.top)>r.height/2;mark(x);try{e.dataTransfer.dropEffect='move';}catch(_){}});root.addEventListener('drop',e=>{if(!drag)return;e.preventDefault();const x=e.target.closest('[data-multi-drag]');if(x&&Number(x.dataset.seg)===drag.seg&&x.dataset.key===drag.key){drag.over=Number(x.dataset.index);const r=x.getBoundingClientRect();drag.after=drag.key==='images'?(e.clientX-r.left)>r.width/2:(e.clientY-r.top)>r.height/2;}const d=drag;clear();drag=null;if(Number.isInteger(d.over))window.multiMoveMedia(d.seg,d.key,d.from,d.over+(d.after?1:0));});};
 
         window.multiRenderConnectionPicker=function(){const list=document.getElementById('multiConnPickerList');if(!list)return;const q=(document.getElementById('multiConnSearch')?.value||'').trim().toLowerCase();const others=(window.events||[]).filter(e=>String(e.id)!==String(window.multiTimeEditingId)).filter(e=>{const d=window.formatDisplayDate(e.date);return !q||`${e.title||''} ${d} ${e.id}`.toLowerCase().includes(q);}).sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.title||'').localeCompare(String(b.title||'')));list.innerHTML=others.length?others.map(e=>`<button type="button" onclick="multiPickConnectionEvent('${String(e.id).replace(/'/g,"\\'")}')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-indigo-50 text-xs text-slate-700 transition-colors"><span class="block font-medium truncate">${window.multiEsc(e.title||'未命名事件')}</span><span class="block mt-0.5 text-[10px] text-slate-400">${window.multiEsc(window.formatDisplayDate(e.date))}</span></button>`).join(''):'<div class="px-3 py-4 text-center text-[11px] text-slate-400">没有匹配事件</div>';};
         window.multiToggleConnPicker=function(){const p=document.getElementById('multiConnPicker');if(!p)return;const opening=p.classList.contains('hidden');p.classList.toggle('hidden');if(opening){const q=document.getElementById('multiConnSearch');if(q)q.value='';window.multiRenderConnectionPicker();const list=document.getElementById('multiConnPickerList');if(list)list.scrollTop=0;setTimeout(()=>{q?.focus();if(list)list.scrollTop=0;},0);}};
@@ -15140,17 +15035,17 @@ viewer.style.visibility='';
                     <label class="block text-xs font-bold text-slate-700 mb-1">详细经过与描述</label>
                     <div class="border border-slate-300 rounded-lg overflow-visible bg-white">
                         <div class="flex flex-wrap items-center gap-1 p-2 bg-slate-50 border-b border-slate-200">
-                            <button id="richBoldBtn" type="button" disabled onmousedown="event.preventDefault(); richRememberSelection()" onclick="richExec('bold')" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 font-bold w-7 h-7" title="加粗">B</button>
-                            <button id="richItalicBtn" type="button" disabled onmousedown="event.preventDefault(); richRememberSelection()" onclick="richExec('italic')" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 italic w-7 h-7" title="斜体">I</button>
-                            <button id="richUnderlineBtn" type="button" disabled onmousedown="event.preventDefault(); richRememberSelection()" onclick="richExec('underline')" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 underline w-7 h-7" title="下划线">U</button>
-                            <button id="richStrikeBtn" type="button" disabled onmousedown="event.preventDefault(); richRememberSelection()" onclick="richExec('strikeThrough')" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 line-through w-7 h-7" title="删除线">S</button>
-                            <button id="richRevealBtn" type="button" disabled onmousedown="event.preventDefault(); richRememberSelection()" onclick="richToggleReveal()" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 px-1.5 h-7 text-[10px] font-semibold" title="悬停显现：选中文字后仅在鼠标悬停时显示">悬停</button>
-                            <select id="richFontSizePreset" style="width:160px;min-width:160px" disabled onmousedown="richRememberSelection()" onchange="richSetFontSize(this.value)" class="h-7 rounded-md border border-slate-200 bg-white text-[11px] text-slate-700" title="字号">
+                            <button id="richBoldBtn" type="button" disabled onpointerdown="event.preventDefault(); richRememberSelection()" onclick="richExec('bold')" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 font-bold w-7 h-7" title="加粗">B</button>
+                            <button id="richItalicBtn" type="button" disabled onpointerdown="event.preventDefault(); richRememberSelection()" onclick="richExec('italic')" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 italic w-7 h-7" title="斜体">I</button>
+                            <button id="richUnderlineBtn" type="button" disabled onpointerdown="event.preventDefault(); richRememberSelection()" onclick="richExec('underline')" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 underline w-7 h-7" title="下划线">U</button>
+                            <button id="richStrikeBtn" type="button" disabled onpointerdown="event.preventDefault(); richRememberSelection()" onclick="richExec('strikeThrough')" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 line-through w-7 h-7" title="删除线">S</button>
+                            <button id="richRevealBtn" type="button" disabled onpointerdown="event.preventDefault(); richRememberSelection()" onclick="richToggleReveal()" class="rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 px-1.5 h-7 text-[10px] font-semibold" title="悬停显现：选中文字后仅在鼠标悬停时显示">悬停</button>
+                            <select id="richFontSizePreset" style="width:160px;min-width:160px" disabled onpointerdown="richRememberSelection()" onchange="richSetFontSize(this.value)" class="h-7 rounded-md border border-slate-200 bg-white text-[11px] text-slate-700" title="字号">
                                 
                                 ${['8px','9px','10px','11px','12px','13px','14px','16px','18px','20px','24px','28px','32px'].map(v=>`<option value="${v}">${v}${v==='14px'?'（默认）':''}</option>`).join('')}
                             </select>
                             <div class="relative">
-                                <button id="richColorBtn" type="button" disabled onmousedown="event.preventDefault(); richRememberSelection()" onclick="openRichColorPalette()" class="rich-selection-btn rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 px-2 h-7" title="字体颜色"><i class="fa-solid fa-palette"></i></button>
+                                <button id="richColorBtn" type="button" disabled onpointerdown="event.preventDefault(); richRememberSelection()" onclick="openRichColorPalette()" class="rich-selection-btn rounded-md border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 px-2 h-7" title="字体颜色"><i class="fa-solid fa-palette"></i></button>
                                 <div id="richColorPalette" class="hidden absolute left-0 top-8 z-[480] w-56 p-2 bg-white border border-slate-200 rounded-xl shadow-xl">
                                     <div class="text-[10px] text-slate-500 mb-2">常用颜色</div>
                                     <div class="grid grid-cols-7 gap-2">
@@ -15158,17 +15053,17 @@ viewer.style.visibility='';
                                     </div>
                                     <div class="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100">
                                         <span class="text-[10px] text-slate-500">自定义</span>
-                                        <input id="richCustomColor" type="color" value="#334155" onmousedown="richRememberSelection()" class="w-7 h-7 p-0 border-0 bg-transparent cursor-pointer">
+                                        <input id="richCustomColor" type="color" value="#334155" onpointerdown="richRememberSelection()" class="w-7 h-7 p-0 border-0 bg-transparent cursor-pointer">
                                         <button type="button" onclick="richConfirmCustomColor()" class="ml-auto px-2 py-1 rounded-md bg-indigo-600 text-white text-[10px] font-semibold hover:bg-indigo-700">确定</button>
                                     </div>
                                 </div>
                             </div>
                             <label class="flex items-center gap-1.5 ml-1 text-[10px] text-slate-500" title="文字透明度">
                                 透明度
-                                <input id="richOpacityRange" type="range" min="0" max="100" step="1" value="100" disabled onmousedown="richRememberSelection()" oninput="richSetOpacity(this.value)" class="w-20 disabled:opacity-40 disabled:cursor-not-allowed">
+                                <input id="richOpacityRange" type="range" min="0" max="100" step="1" value="100" disabled onpointerdown="richRememberSelection()" oninput="richSetOpacity(this.value)" class="w-20 disabled:opacity-40 disabled:cursor-not-allowed">
                                 <span id="richOpacityValue" class="w-7 text-right">—</span>
                             </label>
-                            <button id="richClearFormattingBtn" type="button" disabled onmousedown="event.preventDefault(); richRememberSelection()" onclick="richClearFormatting()" class="ml-auto rounded-md border border-slate-200 bg-white hover:bg-indigo-50 px-2 h-7 text-[10px] text-slate-700" title="清除格式">清除格式</button>
+                            <button id="richClearFormattingBtn" type="button" disabled onpointerdown="event.preventDefault(); richRememberSelection()" onclick="richClearFormatting()" class="ml-auto rounded-md border border-slate-200 bg-white hover:bg-indigo-50 px-2 h-7 text-[10px] text-slate-700" title="清除格式">清除格式</button>
                         </div>
                         <div id="editDescription" contenteditable="true" onkeydown="richHandleEditorKeydown(event)" oninput="richEditorInput()" onmouseup="richRememberSelection()" onkeyup="richRememberSelection()" ontouchend="setTimeout(()=>richRememberSelection(),0)" class="rich-editor w-full px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" data-placeholder="记录关于这件事的详细经过...">${window.descriptionToEditorHtml ? window.descriptionToEditorHtml(s.description || '') : String(s.description || '')}</div>
                     </div>
