@@ -652,10 +652,15 @@ setTimeout(function(){if(!window.__appBootDone&&!document.getElementById('appBoo
             header button[onclick="openMusicModal()"],header button[onclick="openTagModal()"],#lockToggleBtn,#addEventBtn,#userSettingsBtn{display:flex!important;width:32px!important;height:36px!important;min-width:32px!important;max-width:32px!important;flex:0 0 32px!important;padding:0!important;gap:0!important;justify-content:center!important;margin:0!important}
             #userSettingsBtn{position:static!important;transform:none!important}
             #mobileMusicLabel,#mobileTagLabel,#userSettingsBtn span,#lockToggleBtn span,#addEventBtn span{display:none!important}
-            #editModal,#multiTimeEventModal{padding:0!important;top:var(--mobile-editor-top,0px)!important;bottom:auto!important;height:var(--mobile-editor-height,100dvh)!important;align-items:stretch!important}
-            #editModal>div,#multiTimeEventModal>div{max-width:none!important;height:100%!important;max-height:100%!important;margin:0!important;border-radius:0!important}
+            #editModal,#multiTimeEventModal{padding:12px 10px!important;top:var(--mobile-editor-top,0px)!important;bottom:auto!important;height:var(--mobile-editor-height,100dvh)!important;align-items:stretch!important}
+            #editModal>div,#multiTimeEventModal>div{max-width:none!important;height:100%!important;max-height:100%!important;margin:0!important;border-radius:16px!important}
             #editScrollArea,#multiScrollArea{overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scroll-padding-bottom:24px}
-            #editModal input:not([type="checkbox"]):not([type="range"]),#editModal textarea,#editModal select,#editDescription,#multiTimeEventModal input:not([type="checkbox"]):not([type="range"]),#multiTimeEventModal textarea,#multiTimeEventModal select{font-size:16px!important}
+            #editModal input:not([type="checkbox"]):not([type="range"]),#editModal textarea,#editModal select,#multiTimeEventModal input:not([type="checkbox"]):not([type="range"]),#multiTimeEventModal textarea,#multiTimeEventModal select{font-size:12px!important;min-width:0}
+            #editModal input::placeholder,#editModal textarea::placeholder,#multiTimeEventModal input::placeholder,#multiTimeEventModal textarea::placeholder{font-size:inherit}
+            #rangeDateContainer,#multiTimeEventModal [id^="multiRangeDate_"]{grid-template-columns:minmax(0,1fr)!important}
+            #linkTitleInput,#multiTimeEventModal [id^="multiLinkTitle_"]{width:0!important;flex:1 1 0!important;min-width:0}
+            #linkUrlInput,#multiTimeEventModal [id^="multiLinkUrl_"]{width:0!important;flex:1.25 1 0!important;min-width:0}
+            .editor-add-link-label-wide{display:none}.editor-add-link-label-narrow{display:inline!important}
             #editModal button,#multiTimeEventModal button{min-height:32px}
             #editFixedTabs button{padding-left:6px!important;padding-right:6px!important;font-size:11px!important}
             #editScrollArea .flex.justify-end,#multiScrollArea .flex.justify-end{flex-wrap:wrap}
@@ -663,6 +668,11 @@ setTimeout(function(){if(!window.__appBootDone&&!document.getElementById('appBoo
             #editScrollArea .flex.justify-between.pt-3>div:last-child,#multiScrollArea .flex.justify-between.pt-3>div:last-child{flex-wrap:wrap}
         }
         @media(max-width:359px){header h1{font-size:12px!important}header>div.max-w-6xl>div:last-of-type{gap:2px!important}}
+        .editor-add-link-label-narrow{display:none}
+        @media(min-width:640px){
+            #editModal,#multiTimeEventModal{padding-top:20px!important;padding-bottom:20px!important}
+            #editModal>div,#multiTimeEventModal>div{max-height:calc(100dvh - 40px)!important;margin-top:0!important;margin-bottom:0!important}
+        }
         html[data-mobile-editing] #shareCollabBtn{display:none!important}
         html[data-mobile-editing] #userSettingsBtn{position:static!important;transform:none!important}
         html.qinger-browse-mode #qingerInventory .qinger-inv-grid{display:none!important}
@@ -5066,7 +5076,16 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             }
         }
 
+        window.requireEditingAccount=function(){
+            if(window.getCurrentAccountId?.())return true;
+            window.isLocked=true;
+            window.updateLockButtonUI?.();
+            window.showToast?.('请先登录账号','info');
+            return false;
+        };
         window.updateLockButtonUI = function() {
+            const accountReady=!!window.getCurrentAccountId?.();
+            if(!accountReady)window.isLocked=true;
             const lockBtn = document.getElementById('lockToggleBtn');
             const shareBtn = document.getElementById('shareCollabBtn');
             const shareEnabled = !window.isLocked && !!window.isCloudSynced && !!window.cloudWriteReady;
@@ -5081,7 +5100,11 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             let nextHtml = "";
             let nextTitle = "";
             let nextDisabled = false;
-            if (!window.isCloudSynced) {
+            if (!accountReady) {
+                nextClass = "flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs font-medium transition-colors shadow-sm border bg-slate-100 text-slate-400 border-slate-200";
+                nextHtml = `<i class="fa-solid fa-lock text-slate-400"></i><span class="hidden sm:inline">浏览模式</span><span class="sm:hidden">浏览</span>`;
+                nextTitle = "请先登录账号";
+            } else if (!window.isCloudSynced) {
                 nextClass = "flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs font-medium transition-colors shadow-sm border bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed";
                 nextHtml = `<i class="fa-solid fa-cloud-arrow-down text-slate-400"></i><span class="hidden sm:inline">等待同步</span><span class="sm:hidden">同步中</span>`;
                 nextDisabled = true;
@@ -5101,12 +5124,13 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             if (lockBtn.innerHTML !== nextHtml) lockBtn.innerHTML = nextHtml;
             lockBtn.className = nextClass;
             lockBtn.title = nextTitle;
-            lockBtn.setAttribute('aria-label',!window.isCloudSynced?'等待同步':(window.isLocked?'切换至编辑模式':'切换至浏览模式'));
+            lockBtn.setAttribute('aria-label',!accountReady?'请先登录账号':(!window.isCloudSynced?'等待同步':(window.isLocked?'切换至编辑模式':'切换至浏览模式')));
             lockBtn.disabled = nextDisabled;
             window.updateManagementButtons?.();
         };
 
         window.toggleLockState = function() {
+            if(!window.requireEditingAccount())return;
             if (!window.isCloudSynced) {
                 window.showToast('请先等待右上角显示“已同步云端”', 'error');
                 return;
@@ -5152,6 +5176,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         };
 
         window.openPwdModal = function() {
+            if(!window.requireEditingAccount())return;
             const pwdInput = document.getElementById('unlockPwdInput');
             if (pwdInput) pwdInput.value = '';
             document.getElementById('pwdModal')?.classList.remove('hidden');
@@ -5164,6 +5189,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         };
 
         window.submitUnlockPassword = async function() {
+            if(!window.requireEditingAccount()){window.closePwdModal();return;}
             if((window._unlockCooldownUntil||0)>Date.now()){
                 window.applyUnlockCooldown(window._unlockCooldownUntil-Date.now());
                 return;
@@ -11840,7 +11866,7 @@ viewer.style.visibility='';
                                 <div class="flex gap-1.5">
                                     <input type="text" id="linkTitleInput" placeholder="网址标题" class="w-1/3 px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs outline-none">
                                     <input type="url" id="linkUrlInput" placeholder="https://..." class="flex-grow px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs outline-none">
-                                    <button type="button" onclick="addWebLink()" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium shrink-0">添加网址</button>
+                                    <button type="button" onclick="addWebLink()" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium shrink-0"><span class="editor-add-link-label-wide">添加网址</span><span class="editor-add-link-label-narrow">添加</span></button>
                                 </div>
                                 <div id="linkPreviewsContainer" class="space-y-1.5"></div>
                             </div>
@@ -14074,6 +14100,7 @@ viewer.style.visibility='';
         window.getCommonUserId=()=>window._accountVerified?(window._accountState?.account?.id||''):'';
         window.normalizeEditorIdentityName=value=>String(value||'').normalize('NFKC').trim().replace(/\s+/g,' ');
         window.accountRefreshIdentityViews=function(){
+            window.updateLockButtonUI?.();
             window.currentEditorIdentity=window.getCommonUserId();
             window._identityHistoryCache?.clear?.();window._permissionIdentityCache=[];
             const currentAccount=window.getCurrentAccountId();if(currentAccount!==window._lastViewAccountId){for(const ev of window.events||[])ev.creatorOwned=false;for(const song of window.bgmPlaylist||[])song.owned=false;}window._lastViewAccountId=currentAccount;
@@ -15027,7 +15054,7 @@ viewer.style.visibility='';
                     </div>
                     <div class="space-y-2 pt-2 border-t border-slate-200">
                         <span class="block text-[11px] font-bold text-slate-600">添加相关网址链接</span>
-                        <div class="flex gap-1.5"><input id="multiLinkTitle_${segIndex}" placeholder="网址标题" class="w-1/3 px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs outline-none"><input id="multiLinkUrl_${segIndex}" type="url" placeholder="https://..." class="flex-grow px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs outline-none"><button onclick="multiAddLink(${segIndex})" type="button" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium shrink-0">添加网址</button></div>
+                        <div class="flex gap-1.5"><input id="multiLinkTitle_${segIndex}" placeholder="网址标题" class="w-1/3 px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs outline-none"><input id="multiLinkUrl_${segIndex}" type="url" placeholder="https://..." class="flex-grow px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs outline-none"><button onclick="multiAddLink(${segIndex})" type="button" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium shrink-0"><span class="editor-add-link-label-wide">添加网址</span><span class="editor-add-link-label-narrow">添加</span></button></div>
                         <div class="space-y-1.5">${links||'<span class="text-[11px] text-slate-400">暂无网址</span>'}</div>
                     </div>
                 </div>
