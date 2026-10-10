@@ -1742,9 +1742,17 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 
 /* qinger-visual-stage-base */
 
+
+/* 糖果 PNG 自带透明边距：直给糖单独放大，拖动图使用更大的方形画布。 */
+#qingerInventory .qinger-food[data-food="zhi"] img{width:125%!important;height:125%!important;max-width:125%!important;max-height:125%!important;flex-shrink:0;transform:scale(1.12)}
+.qinger-food-ghost{width:108px!important;height:108px!important;max-width:108px!important;max-height:108px!important;object-fit:contain!important}
 /* 睡帽独立于表情图层，只在夜间睡眠戴上。 */
-#xiaoqingerSimplePet #qingerSleepHat{display:none!important;position:absolute;left:6%;top:-29%;width:85%!important;height:auto!important;object-fit:contain;pointer-events:none;filter:none!important;z-index:2;transform-origin:50% 88%}
-#xiaoqingerSimplePet.pet-sleeping.qinger-night-sleep-head-down #qingerSleepHat{display:block!important;transform:translateY(3.2px) rotate(1.15deg);transition:transform 1.45s cubic-bezier(.32,.02,.22,1)}
+#xiaoqingerSimplePet #qingerSleepHat{display:block!important;position:absolute;left:12%;top:-30%;width:78%!important;height:auto!important;object-fit:contain;pointer-events:none;filter:none!important;z-index:2;opacity:0;visibility:hidden;transform:translateY(-5px) rotate(-2deg) scale(.96);transform-origin:50% 88%;transition:opacity 1.2s ease,transform 1.45s cubic-bezier(.32,.02,.22,1),visibility 0s linear 1.2s}
+#xiaoqingerSimplePet.pet-sleeping.qinger-night-sleep-head-down #qingerSleepHat,
+#xiaoqingerSimplePet.qinger-night-preparing #qingerSleepHat,
+#xiaoqingerSimplePet.qinger-night-bedtime-1 #qingerSleepHat,
+#xiaoqingerSimplePet.qinger-night-bedtime-2 #qingerSleepHat{opacity:1;visibility:visible;transform:translateY(3.2px) rotate(1.15deg) scale(1);transition:opacity 1.2s ease,transform 1.45s cubic-bezier(.32,.02,.22,1),visibility 0s}
+
 #qingerVisualStage{position:absolute;inset:0;pointer-events:none;transform-origin:50% 94%}
 
 #xiaoqingerSimplePet::after{display:none!important}
@@ -16641,7 +16649,7 @@ function positionHud(){
  if(!pet)return;
  if(window.innerWidth>639)positionQingerInventory();
  const r=pet.getBoundingClientRect();
- const z=document.getElementById('qingerZzz');if(z){z.style.left=(r.right-32)+'px';z.style.top=(r.top-12)+'px';if(z.style.display!=='none')clampQingerFeedback(z)}
+ const z=document.getElementById('qingerZzz');if(z){const nightHat=['sleep','nightSleepTransition','nightWaking'].includes(state.behavior);z.style.left=(nightHat?r.left-8:r.right-32)+'px';z.style.top=(r.top-(nightHat?16:12))+'px';if(z.style.display!=='none')clampQingerFeedback(z)}
  const b=document.getElementById('qingerBang');if(b){b.style.left=(r.right-25)+'px';b.style.top=(r.top-5)+'px';if(b.style.display!=='none')clampQingerFeedback(b)}
 }
 function clampQingerFeedback(el,pad=3){if(!el||el.style.display==='none')return;const r=el.getBoundingClientRect();let dx=0,dy=0;if(r.left<pad)dx=pad-r.left;else if(r.right>innerWidth-pad)dx=(innerWidth-pad)-r.right;if(r.top<pad)dy=pad-r.top;else if(r.bottom>innerHeight-pad)dy=(innerHeight-pad)-r.bottom;if(dx)el.style.left=(parseFloat(el.style.left||0)+dx)+'px';if(dy)el.style.top=(parseFloat(el.style.top||0)+dy)+'px'}
@@ -16676,7 +16684,14 @@ function applyQingerPetCloudData(d,{live=false}={}){
  state.gui=Number(d.inventory?.gui||0);state.zhi=Number(d.inventory?.zhi||0);state.lastSettledAt=Number(d.lastSettledAt||Date.now());
  state.cloud=true;veryHungryDeepSleep=!!d.deepSleepLocked;
  if(live&&!document.hidden&&!window.__qingerSilentRestore&&hasCloudSnapshot&&!state.testMode){for(let i=0;i<(Number(d.naturalLost)||0);i++)setTimeout(()=>floatHungerChange(-1),i*420);for(let i=0;i<(Number(d.forcedDrainTicks)||0);i++)setTimeout(()=>floatHungerChange(-0.5),i*520)}
- hasCloudSnapshot=true;updateHud();syncRain();render();return true;
+ const initialSnapshot=!hasCloudSnapshot;
+ hasCloudSnapshot=true;updateHud();syncRain();render();
+ if(initialSnapshot&&!state.testMode&&state.base==='很饿'){
+  cancelVeryHungryMove();clearTimeout(veryHungryCornerTimer);veryHungryCornerTimer=0;
+  const target=veryHungryCornerTarget();
+  if(target){settleVeryHungryCorner(target.left,target.top);clearTimeout(veryHungryHeadTimer);clearTimeout(veryHungryShadeTimer);pet.classList.add('pet-hungry-head-down');ensureVeryHungryShade()?.classList.add('on');}
+ }
+ return true;
 }
 window.__applyQingerPetCloudData=(d,opts={})=>applyQingerPetCloudData(d,{live:!opts.initial&&!document.hidden&&!window.__qingerSilentRestore});
 window.__retryInitialQingerPet=()=>cloudRead();
@@ -16781,7 +16796,43 @@ function setupFood(){
  const tm=document.getElementById('qingerTestMode'),hr=document.getElementById('qingerTestHunger'),hn=document.getElementById('qingerTestHungerNumber'),bs=document.getElementById('qingerTestBase'),bh=document.getElementById('qingerTestBehavior'),ui=document.getElementById('qingerUnlimitedItems');const reps={'饿晕':0,'很饿':5,'轻微饥饿':25,'普通':55,'较饱':80,'最饱':100};const testOn=()=>{state.testMode=true;if(tm)tm.checked=true};const testApply=()=>{state.base=baseOf(state.hunger);updateHud();syncRain();render()};if(tm)tm.addEventListener('change',()=>{state.testMode=tm.checked;if(!state.testMode)cloudRead();else testApply()});const setTH=v=>{testOn();state.hunger=Math.max(0,Math.min(100,Number(v)||0));state.behavior='idle';testApply()};hr?.addEventListener('input',()=>setTH(hr.value));hn?.addEventListener('input',()=>setTH(hn.value));bs?.addEventListener('change',()=>{testOn();state.hunger=reps[bs.value]??state.hunger;state.behavior='idle';testApply()});bh?.addEventListener('change',()=>{testOn();clearBehaviorTimeouts();clearDozeVisualTimers();state.behavior=bh.value;if(state.behavior==='sleep')dozeMark('sleep');else if(['doze1','doze2','doze3'].includes(state.behavior))renderDozeStage();render();updateHud()});ui?.addEventListener('change',()=>{testOn();state.unlimitedItems=ui.checked;updateHud()});document.getElementById('qingerTestWake')?.addEventListener('click',()=>{testOn();bodyWakeJolt(1)});document.getElementById('qingerTestDaynap')?.addEventListener('click',()=>{testOn();state.behavior='daynap';dayNapUntil=Date.now()+45000;render();dozeMark('daynap')});document.getElementById('qingerTestSleepProcess')?.addEventListener('click',()=>{testOn();testNightSleepProcess()});document.getElementById('qingerTestWakeProcess')?.addEventListener('click',()=>{testOn();state.behavior='sleep';dozeMark('sleep');render();setTimeout(()=>naturalWakeNight(),650)});document.getElementById('qingerTestLoss1')?.addEventListener('click',()=>{testOn();floatHungerChange(-1)});document.getElementById('qingerTestLoss05')?.addEventListener('click',()=>{testOn();floatHungerChange(-0.5)});
 
  inv?.addEventListener('pointerdown',e=>e.stopPropagation());inv?.addEventListener('click',e=>e.stopPropagation());document.addEventListener('pointerdown',e=>{const btn=document.getElementById('qingerInventoryBtn');if(inv?.classList.contains('open')&&!inv.contains(e.target)&&!pet?.contains(e.target)&&!btn?.contains(e.target))toggleInventory(false)});
- document.querySelectorAll('.qinger-food').forEach(row=>row.addEventListener('pointerdown',e=>{if(!qingerInteractionReady()){e.preventDefault();e.stopPropagation();return}const kind=row.dataset.food,count=kind==='gui'?state.gui:state.zhi;if(!(state.testMode&&state.unlimitedItems)&&count<=0)return;stopFoodWakeSensor();const ghost=document.createElement('img');ghost.className='qinger-food-ghost';ghost.src=kind==='gui'?FOOD_GUI:FOOD_ZHI;document.body.appendChild(ghost);const move=ev=>{ghost.style.left=ev.clientX+'px';ghost.style.top=ev.clientY+'px';ghost.style.transform='translate(-50%,-50%)';updateFoodWakeSensor(kind,ev.clientX,ev.clientY)};move(e);const mm=ev=>move(ev);const up=ev=>{removeEventListener('pointermove',mm);stopFoodWakeSensor();const r=pet.getBoundingClientRect(),hit=ev.clientX>=r.left&&ev.clientX<=r.right&&ev.clientY>=r.top&&ev.clientY<=r.bottom;ghost.remove();if(hit){if(isFoodWakePending()){}else if(isQingerSleeping())sleepingFeedTip();else feed(kind)}};addEventListener('pointermove',mm);addEventListener('pointerup',up,{once:true});e.preventDefault();e.stopPropagation()}));
+ document.querySelectorAll('.qinger-food').forEach(row=>{
+  let suppressFoodClickUntil=0;
+  const kind=row.dataset.food,src=kind==='gui'?FOOD_GUI:FOOD_ZHI;
+  const preview=()=>{if(qingerInteractionReady())window.openLightbox?.([src],0);};
+  row.setAttribute('tabindex','0');row.setAttribute('role','button');row.setAttribute('aria-label',kind==='gui'?'查看龟糖大图，拖动可喂食':'查看直给糖大图，拖动可喂食');
+  row.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();preview();}});
+  // Pointer gestures own preview/feeding; never interpret the generated click after a drag.
+  row.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();if(e.detail===0&&Date.now()>=suppressFoodClickUntil)preview();});
+  row.addEventListener('pointerdown',e=>{
+   if(e.button!==0||!qingerInteractionReady())return;
+   e.preventDefault();e.stopPropagation();
+   const id=e.pointerId,sx=e.clientX,sy=e.clientY;
+   let moved=false,ghost=null;
+   const canFeed=()=>state.testMode&&state.unlimitedItems||(kind==='gui'?state.gui:state.zhi)>0;
+   const cleanup=()=>{removeEventListener('pointermove',move);removeEventListener('pointerup',up);removeEventListener('pointercancel',cancel);removeEventListener('blur',abort);stopFoodWakeSensor();ghost?.remove();suppressFoodClickUntil=Date.now()+700;};
+   const move=ev=>{
+    if(ev.pointerId!==id)return;
+    if(!moved&&Math.hypot(ev.clientX-sx,ev.clientY-sy)<8)return;
+    moved=true;
+    if(!canFeed())return;
+    if(!ghost){stopFoodWakeSensor();ghost=document.createElement('img');ghost.className='qinger-food-ghost';ghost.src=src;document.body.appendChild(ghost);}
+    ghost.style.left=ev.clientX+'px';ghost.style.top=ev.clientY+'px';ghost.style.transform='translate(-50%,-50%)';updateFoodWakeSensor(kind,ev.clientX,ev.clientY);
+   };
+   const up=ev=>{
+    if(ev.pointerId!==id)return;
+    // A release far from the press is a drag even if the final move event was missed.
+    if(Math.hypot(ev.clientX-sx,ev.clientY-sy)>=8)moved=true;
+    const dragged=moved,hasFood=!!ghost;cleanup();
+    if(!dragged){preview();return;}
+    if(!hasFood||!canFeed())return;
+    const r=pet.getBoundingClientRect(),hit=ev.clientX>=r.left&&ev.clientX<=r.right&&ev.clientY>=r.top&&ev.clientY<=r.bottom;
+    if(hit){if(isFoodWakePending()){}else if(isQingerSleeping())sleepingFeedTip();else void feed(kind);}
+   };
+   const cancel=ev=>{if(ev.pointerId===id)cleanup();};const abort=()=>cleanup();
+   addEventListener('pointermove',move);addEventListener('pointerup',up);addEventListener('pointercancel',cancel);addEventListener('blur',abort);
+  });
+ });
 }
 function closedLayersFor(base,form='normal'){
  const source=form==='grabbed'?(GRABBED[base]||GRABBED['普通']):(NORMAL[base]||NORMAL['普通']);
@@ -16858,7 +16909,7 @@ function nightSleepRise(){
  if(stage)stage.getAnimations().forEach(a=>{try{a.cancel()}catch(_){}});
 }
 let nightTransitionToken=0;
-function clearNightTransitionVisuals(){nightTransitionToken++;pet?.classList.remove('qinger-night-bedtime-1','qinger-night-bedtime-2','qinger-night-waking')}
+function clearNightTransitionVisuals(){nightTransitionToken++;pet?.classList.remove('qinger-night-preparing','qinger-night-bedtime-1','qinger-night-bedtime-2','qinger-night-waking')}
 function slowOpenNightEyes(form='normal',base=state.base,duration=900,{liftHead=false}={}){
  if(!pet)return;const token=nightTransitionToken;const open=layers(form,base),closed=closedLayersFor(base,form),eyeIds=new Set([15,16,18,19,21]);
  showLayers(form,base,closed);
@@ -16876,10 +16927,12 @@ function slowOpenNightEyes(form='normal',base=state.base,duration=900,{liftHead=
 }
 function startNightSleepTransition({test=false}={}){
  clearBehaviorTimeouts();clearDozeVisualTimers();clearNightTransitionVisuals();const token=nightTransitionToken;dozeMark('idle');state.behavior='nightSleepTransition';render();
- pet?.classList.add('qinger-night-bedtime-1','qinger-night-sleep-head-down');showLayers('normal',state.base);
- later(()=>{if(token!==nightTransitionToken||state.behavior!=='nightSleepTransition'||(!test&&!isNight()))return;showLayers('normal',state.base,closedLayersFor(state.base));pet?.classList.remove('qinger-night-bedtime-1');pet?.classList.add('qinger-night-bedtime-2')},1700);
- later(()=>{if(token!==nightTransitionToken||state.behavior!=='nightSleepTransition'||(!test&&!isNight()))return;showLayers('normal','睡觉')},3300);
- later(()=>{if(token!==nightTransitionToken||state.behavior!=='nightSleepTransition'||(!test&&!isNight()))return;pet?.classList.remove('qinger-night-bedtime-2');state.behavior='sleep';dozeMark('sleep');render()},5000);return true
+ pet?.classList.add('qinger-night-preparing');showLayers('normal',state.base);
+ // 戴帽渐显结束后，才启动低头和闭眼的入睡动作。
+ later(()=>{if(token!==nightTransitionToken||state.behavior!=='nightSleepTransition'||(!test&&!isNight()))return;pet?.classList.remove('qinger-night-preparing');pet?.classList.add('qinger-night-bedtime-1','qinger-night-sleep-head-down')},1500);
+ later(()=>{if(token!==nightTransitionToken||state.behavior!=='nightSleepTransition'||(!test&&!isNight()))return;showLayers('normal',state.base,closedLayersFor(state.base));pet?.classList.remove('qinger-night-bedtime-1');pet?.classList.add('qinger-night-bedtime-2')},3200);
+ later(()=>{if(token!==nightTransitionToken||state.behavior!=='nightSleepTransition'||(!test&&!isNight()))return;showLayers('normal','睡觉')},4800);
+ later(()=>{if(token!==nightTransitionToken||state.behavior!=='nightSleepTransition'||(!test&&!isNight()))return;pet?.classList.remove('qinger-night-bedtime-2');state.behavior='sleep';dozeMark('sleep');render()},6500);return true
 }
 function naturalWakeNight(){
  if(state.behavior!=='sleep')return false;clearBehaviorTimeouts();clearDozeVisualTimers();clearNightTransitionVisuals();const token=nightTransitionToken;dozeMark('idle');veryHungryDeepSleep=false;veryHungryWakeConfirmed=false;state.base=baseOf(state.hunger);nightSleepRise();state.behavior='nightWaking';pet?.classList.add('qinger-night-waking','qinger-night-sleep-head-down');showLayers('normal','睡觉');
@@ -16993,7 +17046,7 @@ function settleVeryHungryCorner(left=null,top=null){
   veryHungryShadeTimer=setTimeout(()=>{
    if(state.base!=='很饿'||!veryHungryAtCorner)return;
    ensureVeryHungryShade()?.classList.add('on');
-   if(isNight()&&state.behavior==='idle'&&!veryHungryWakeDrainUntil)later(()=>{if(isNight()&&state.base==='很饿'&&veryHungryAtCorner&&state.behavior==='idle'&&!veryHungryWakeDrainUntil&&!drag?.moved){state.behavior='sleep';dozeMark('sleep');render()}},1400);
+   if(isNight()&&state.behavior==='idle'&&!veryHungryWakeDrainUntil)later(()=>{if(isNight()&&state.base==='很饿'&&veryHungryAtCorner&&state.behavior==='idle'&&!veryHungryWakeDrainUntil&&!drag?.moved){startNightSleepTransition()}},1400);
   },820);
  },400);
 }
