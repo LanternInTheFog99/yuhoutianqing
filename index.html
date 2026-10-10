@@ -4135,7 +4135,6 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         };
 
         async function loadTimelineFromCloudBase() {
-            if(window._accountInitialValidation)await window._accountInitialValidation;
             if(!window.roomAccessToken){
                 await window.ensureRoomAccess?.();
                 return false;
@@ -4155,14 +4154,16 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             // 附属数据与主事件同时开始读取，减少等待时间。
             const metaPromise = fetchWithRetry('/timeline?type=meta', 16000, 2).catch(error => { console.warn('首次元数据读取失败，继续加载事件', error); return null; });
             const sideNames = ['逻辑关系','标签','BGM','活动日志','小晴儿台词'];
-            const sidePaths = [
-                '/timeline?type=connections',
+            // Public room data can load while the account is being verified; ownership data waits.
+            const publicSidePromise=Promise.allSettled([
+                '/timeline?type=connections','/timeline?type=activityLogs','/timeline?type=xiaoqinger'
+            ].map(p=>fetchWithRetry(p,16000,2)));
+            if(window._accountInitialValidation)await window._accountInitialValidation;
+            const privateSidePromise=Promise.allSettled([
                 `/timeline?type=tags&accountId=${encodeURIComponent(window.getCurrentAccountId?.()||'')}`,
-                `/timeline?type=bgm&accountId=${encodeURIComponent(window.getCurrentAccountId?.()||'')}`,
-                '/timeline?type=activityLogs',
-                '/timeline?type=xiaoqinger'
-            ];
-            const sidePromise = Promise.allSettled(sidePaths.map(p => fetchWithRetry(p, 16000, 2)));
+                `/timeline?type=bgm&accountId=${encodeURIComponent(window.getCurrentAccountId?.()||'')}`
+            ].map(p=>fetchWithRetry(p,16000,2)));
+            const sidePromise=Promise.all([publicSidePromise,privateSidePromise]).then(([p,q])=>[p[0],q[0],q[1],p[1],p[2]]);
             // 小晴儿共享饱食度/库存属于整站首次云端同步的一部分：拿不到它就不能宣称“已同步云端”。
             const qingerPetPromise = fetchWithRetry(`/timeline?type=xiaoqingerPet&accountId=${encodeURIComponent(window.getCurrentAccountId?.()||'')}`, 16000, 2).catch(error => { console.warn('首次小晴儿状态读取失败，稍后重试', error); return null; });
 
@@ -16277,15 +16278,14 @@ viewer.style.visibility='';
  const direction=(current,c)=>{const src=String(c.sourceId)===String(current.id);if(c.dir==='both')return {out:1,inn:1,rel:'both'};if(c.dir==='backward')return src?{out:0,inn:1,rel:'backward'}:{out:1,inn:0,rel:'forward'};return src?{out:1,inn:0,rel:'forward'}:{out:0,inn:1,rel:'backward'};};
  const curve=(current,c,context='event')=>{
    const d=direction(current,c),otherId=String(String(c.sourceId)===String(current.id)?c.targetId:c.sourceId),other=window.findEventById?.(otherId)||(window.events||[]).find(e=>String(e.id)===otherId),label=String(c.label||'').trim();
-   const seq=(window._stackRelationMarkerSeq=(window._stackRelationMarkerSeq||0)+1),marker=`stackRelMid${seq}`;
-   const defs=`<defs><marker id="${marker}" markerWidth="8" markerHeight="8" refX="6.8" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L8,4 L0,8 Z" fill="currentColor"/></marker></defs>`;
-   /* Visible curve and arrow share the exact same geometry. The two hidden half-paths terminate at the apex, so marker-end is physically bound to the curve centre instead of being positioned with x/y guesses. */
+   // Centre the visible arrow bounds on the symmetric curve apex (29,7).
+   // A marker-end anchors its reference point, which previously shifted the triangle sideways.
    const visible='<path d="M4 18 Q17 7 29 7 Q41 7 54 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-dasharray="5 3.5" stroke-linecap="round"/>';
-   const out=d.out?`<path d="M4 18 Q17 7 29 7" fill="none" stroke="transparent" stroke-width="1" marker-end="url(#${marker})"/>`:'';
-   const inn=d.inn?`<path d="M54 18 Q41 7 29 7" fill="none" stroke="transparent" stroke-width="1" marker-end="url(#${marker})"/>`:'';
+   const arrowShape=d.out&&d.inn?'M-6 0 L-1 -3.5 L-1 3.5 Z M6 0 L1 -3.5 L1 3.5 Z':d.out?'M-4 -4 L4 0 L-4 4 Z':'M4 -4 L-4 0 L4 4 Z';
+   const arrow=`<g transform="translate(29 7)"><path d="${arrowShape}" fill="currentColor"/></g>`;
    const arrowWidth=Math.max(44,Math.min(150,36+Array.from(label).length*8));
    const dirClass=d.rel==='both'?'is-both':d.rel==='backward'?'is-backward':'is-forward';
-   return `<span class="relation-curve-mark stack-card-mark"><svg viewBox="0 0 58 22" aria-hidden="true">${defs}${visible}${out}${inn}</svg><span class="relation-tip" style="--relation-arrow-width:${arrowWidth}px">${label?`<div class="relation-tip-label">${esc(label)}</div>`:''}<div class="relation-tip-row"><span>${context==='time'?'当前时间':'当前事件'}</span><span class="relation-tip-arrow-line ${dirClass}"></span><span>${esc(other?.title||otherId)}</span></div></span></span>`;
+   return `<span class="relation-curve-mark stack-card-mark"><svg viewBox="0 0 58 22" aria-hidden="true">${visible}${arrow}</svg><span class="relation-tip" style="--relation-arrow-width:${arrowWidth}px">${label?`<div class="relation-tip-label">${esc(label)}</div>`:''}<div class="relation-tip-row"><span>${context==='time'?'当前时间':'当前事件'}</span><span class="relation-tip-arrow-line ${dirClass}"></span><span>${esc(other?.title||otherId)}</span></div></span></span>`;
  };
  window.getStackCardRelationMark=(event)=>{const cs=(window.connections||[]).filter(c=>String(c.sourceId)===String(event.id)||String(c.targetId)===String(event.id));if(!cs.length)return '';return `<span class="stack-relation-marks" data-relation-count="${cs.length}">${cs.map(c=>curve(event,c)).join('')}</span>`;};
  window.getMultiSegmentRelationMarks=(event,segmentId)=>{const sid=String(segmentId||'');if(!sid)return '';const cs=(window.connections||[]).filter(c=>{if(String(c.sourceId)===String(event.id))return !!c.sourceSegmentId&&String(c.sourceSegmentId)===sid;if(String(c.targetId)===String(event.id))return !!c.targetSegmentId&&String(c.targetSegmentId)===sid;return false;});if(!cs.length)return '';return `<span class="multi-segment-relations" data-relation-count="${cs.length}">${cs.map(c=>curve(event,c,'time')).join('')}</span>`;};
