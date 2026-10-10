@@ -1747,7 +1747,8 @@ html.invalid-room-access img[alt="小晴儿"]{display:none !important;visibility
 #qingerInventory .qinger-slot{min-height:0;overflow:hidden}
 #qingerInventory .qinger-food img{position:absolute!important;left:50%;top:50%;transform:translate(-50%,-50%);width:88%!important;height:88%!important;max-width:88%!important;max-height:88%!important}
 #qingerInventory .qinger-food[data-food="zhi"] img{width:112%!important;height:112%!important;max-width:112%!important;max-height:112%!important}
-.qinger-food-ghost{width:108px!important;height:108px!important;max-width:108px!important;max-height:108px!important;object-fit:contain!important}
+.qinger-food-ghost{width:var(--qinger-food-width,48px)!important;height:var(--qinger-food-height,48px)!important;max-width:none!important;max-height:none!important;object-fit:contain!important}
+#qingerInventory .qinger-food[data-food="gui"] img{top:46%}
 /* 睡帽独立于表情图层，只在夜间睡眠戴上。 */
 #xiaoqingerSimplePet #qingerSleepHat{display:block!important;position:absolute;left:12%;top:-30%;width:78%!important;height:auto!important;object-fit:contain;pointer-events:none;filter:none!important;z-index:2;opacity:0;visibility:hidden;transform:scale(.96);transform-origin:50% 88%;transition:opacity 1.2s ease,transform 1.45s cubic-bezier(.32,.02,.22,1),visibility 0s linear 1.2s}
 #xiaoqingerSimplePet.pet-sleeping.qinger-night-sleep-head-down #qingerSleepHat,
@@ -2355,7 +2356,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             <i class="fa-solid fa-chevron-right text-base sm:text-lg"></i>
         </button>
 
-        <div class="relative flex flex-col items-center justify-center max-w-full max-h-[90vh]" onclick="event.stopPropagation()">
+        <div class="relative flex flex-col items-center justify-center max-w-full max-h-[90vh]" onclick="handleLightboxContentClick(event)">
             <img id="lightboxImg" class="max-w-full max-h-[82vh] object-contain rounded-lg shadow-2xl" style="opacity:0;">
             <div id="lightboxCounter" class="absolute -bottom-8 text-xs text-slate-400 font-mono tracking-widest bg-slate-900/80 px-3 py-1 rounded-full border border-slate-800"></div>
         </div>
@@ -11624,6 +11625,25 @@ viewer.style.visibility='';
             document.getElementById('lightboxModal')?.addEventListener('wheel',e=>{if((window.currentLightboxImages||[]).length<=1)return;e.preventDefault();const now=Date.now();if(now-(window._lightboxWheelAt||0)<180)return;window._lightboxWheelAt=now;window.changeLightboxImage((Math.abs(e.deltaX)>Math.abs(e.deltaY)?e.deltaX:e.deltaY)>0?1:-1);},{passive:false});
         }
 
+        window.handleLightboxContentClick=function(ev){
+            ev.stopPropagation();
+            const lb=document.getElementById('lightboxModal');
+            if(!lb?._returnToQingerInventory)return;
+            const img=ev.target?.closest?.('#lightboxImg');
+            if(!img){window.closeLightbox(ev);return;}
+            // The food PNG has transparent margins: those are blank space too.
+            try{
+                if(!img.naturalWidth||!img.naturalHeight)return;
+                const r=img.getBoundingClientRect(),scale=Math.min(r.width/img.naturalWidth,r.height/img.naturalHeight);
+                const x=(ev.clientX-r.left-(r.width-img.naturalWidth*scale)/2)/scale;
+                const y=(ev.clientY-r.top-(r.height-img.naturalHeight*scale)/2)/scale;
+                if(x<0||y<0||x>=img.naturalWidth||y>=img.naturalHeight){window.closeLightbox(ev);return;}
+                let canvas=img._foodAlphaCanvas;
+                if(!canvas){canvas=document.createElement('canvas');canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;canvas.getContext('2d',{willReadFrequently:true}).drawImage(img,0,0);img._foodAlphaCanvas=canvas;}
+                if(canvas.getContext('2d').getImageData(Math.floor(x),Math.floor(y),1,1).data[3]<=8)window.closeLightbox(ev);
+            }catch(_){}
+        };
+
         window.closeLightbox = function(ev) {
             const _lb=document.getElementById('lightboxModal');
             // A tap that opens the lightbox can synthesize a click after the modal is already visible.
@@ -16663,7 +16683,7 @@ function positionHud(){
  if(!pet)return;
  if(window.innerWidth>639)positionQingerInventory();
  const r=pet.getBoundingClientRect();
- const z=document.getElementById('qingerZzz');if(z){z.style.left=(r.right-32)+'px';z.style.top=(r.top-12)+'px';if(z.style.display!=='none')clampQingerFeedback(z)}
+ const z=document.getElementById('qingerZzz');if(z){z.style.left=(r.right-20)+'px';z.style.top=(r.top-12)+'px';if(z.style.display!=='none')clampQingerFeedback(z)}
  const b=document.getElementById('qingerBang');if(b){b.style.left=(r.right-25)+'px';b.style.top=(r.top-5)+'px';if(b.style.display!=='none')clampQingerFeedback(b)}
 }
 function clampQingerFeedback(el,pad=3){if(!el||el.style.display==='none')return;const r=el.getBoundingClientRect();let dx=0,dy=0;if(r.left<pad)dx=pad-r.left;else if(r.right>innerWidth-pad)dx=(innerWidth-pad)-r.right;if(r.top<pad)dy=pad-r.top;else if(r.bottom>innerHeight-pad)dy=(innerHeight-pad)-r.bottom;if(dx)el.style.left=(parseFloat(el.style.left||0)+dx)+'px';if(dy)el.style.top=(parseFloat(el.style.top||0)+dy)+'px'}
@@ -16831,7 +16851,7 @@ function setupFood(){
     if(!moved&&Math.hypot(ev.clientX-sx,ev.clientY-sy)<8)return;
     moved=true;
     if(!canFeed())return;
-    if(!ghost){stopFoodWakeSensor();ghost=document.createElement('img');ghost.className='qinger-food-ghost';ghost.src=src;document.body.appendChild(ghost);}
+    if(!ghost){stopFoodWakeSensor();ghost=document.createElement('img');ghost.className='qinger-food-ghost';ghost.src=src;const imageRect=row.querySelector?.('img')?.getBoundingClientRect();ghost.style.setProperty('--qinger-food-width',(imageRect?.width||48)+'px');ghost.style.setProperty('--qinger-food-height',(imageRect?.height||48)+'px');document.body.appendChild(ghost);}
     ghost.style.left=ev.clientX+'px';ghost.style.top=ev.clientY+'px';ghost.style.transform='translate(-50%,-50%)';updateFoodWakeSensor(kind,ev.clientX,ev.clientY);
    };
    const up=ev=>{
