@@ -14294,14 +14294,19 @@ viewer.style.visibility='';
             try{const ok=await window.deepAppConfirm({title:'确认删除账号？',desc:'账号及相关数据将被一并删除，无法恢复。',confirmText:'确认删除',danger:true});if(ok)window.openAccountForm('delete',{confirmedDelete:true});}
             finally{window._accountDeleteConfirmPending=false;}
         };
+        window.accountPasswordRules=value=>({length:value.length>=8&&value.length<=16&&/^[0-9A-Za-z\p{P}\p{S}]+$/u.test(value),categories:[/[0-9]/,/[A-Za-z]/,/[\p{P}\p{S}]/u].filter(pattern=>pattern.test(value)).length>=2});
+        window.accountUpdatePasswordRules=function(modal,value){
+            const rules=window.accountPasswordRules(value);
+            for(const key of ['length','categories']){const row=modal.querySelector('[data-account-password-rule="'+key+'"]');if(!row)continue;row.classList.toggle('text-emerald-600',rules[key]);row.classList.toggle('text-slate-400',!rules[key]);row.dataset.satisfied=String(rules[key]);}
+        };
         window.openAccountForm=function(mode,{confirmedDelete=false,verified=false}={}){
             if(mode==='delete'&&!confirmedDelete){void window.accountConfirmDelete();return;}
             if(['rename','password'].includes(mode)&&!verified){accountVerifiedPasswords.clear();window.openAccountForm(mode==='rename'?'verifyRename':'verifyPassword');return;}
 
             document.getElementById('accountManageModal')?.classList.add('hidden');
             const titles={login:'登录账号',register:'创建账号',rename:'修改ID',password:'修改密码',delete:'删除账号',recoverDelete:'继续删除账号',verifyRename:'验证当前密码',verifyPassword:'验证当前密码'};
-            const labels={login:'登录',register:'创建账号',rename:'保存',password:'保存',delete:'继续',recoverDelete:'继续删除',verifyRename:'下一步',verifyPassword:'下一步'};
-            const field=(name,label,type='text',value='',autocomplete='off')=>`<label class="block text-xs font-semibold text-slate-600 mb-3">${label}<input name="${name}" type="${type}" ${type==='text'?'maxlength="32"':(autocomplete==='new-password'?'maxlength="16"':'maxlength="128"')} autocomplete="${autocomplete}" value="${accountEscape(value)}" required class="mt-1.5 w-full px-3 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none text-sm"></label>`;
+            const labels={login:'登录',register:'创建账号',rename:'确定',password:'确定',delete:'继续',recoverDelete:'继续删除',verifyRename:'下一步',verifyPassword:'下一步'};
+            const field=(name,label,type='text',value='',autocomplete='off')=>`<label class="block text-xs font-semibold text-slate-600 mb-3">${label}<input name="${name}" type="${type}" ${type==='text'?'maxlength="32"':(autocomplete==='new-password'?'maxlength="16"':'maxlength="128"')} autocomplete="${autocomplete}" ${name==='id'?'placeholder="不超过32个字符"':''} value="${accountEscape(value)}" required class="mt-1.5 w-full px-3 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none text-sm"></label>`;
             let html='';
             if(['login','register','rename','delete','recoverDelete'].includes(mode))html+=field('id',mode==='delete'?'再次输入当前ID':'ID','text',mode==='rename'?window.getCommonUserId():'','username');
             if(['login','register','delete','recoverDelete'].includes(mode))html+=field('password',mode==='delete'?'再次输入账号密码':'密码','password','',mode==='register'?'new-password':'current-password');
@@ -14309,9 +14314,11 @@ viewer.style.visibility='';
             if(['verifyRename','verifyPassword'].includes(mode))html+=field('currentPassword','当前密码','password','','current-password');
             if(mode==='password')html+=field('newPassword','新密码','password','','new-password')+field('confirmPassword','确认新密码','password','','new-password');
 
+            if(['register','password'].includes(mode))html+=`<div class="space-y-2 mb-4 text-[11px] leading-5" aria-live="polite"><p data-account-password-rule="length" class="flex items-start gap-2 text-slate-400"><i class="fa-regular fa-circle-check mt-1 shrink-0" aria-hidden="true"></i><span>密码由8-16位数字、字母或符号组成</span></p><p data-account-password-rule="categories" class="flex items-start gap-2 text-slate-400"><i class="fa-regular fa-circle-check mt-1 shrink-0" aria-hidden="true"></i><span>至少含两种以上字符</span></p></div>`;
             const actions=mode==='delete'?`<div class="flex justify-center gap-3 mt-5"><button type="button" data-account-cancel class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button><button type="submit" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-medium shadow-sm">确认删除</button></div>`:`<div class="flex justify-end gap-3 mt-5"><button type="button" data-account-cancel class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button><button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">${labels[mode]}</button></div>`;
             const modal=window.accountDialog('account'+mode[0].toUpperCase()+mode.slice(1)+'Modal',titles[mode],`<form data-account-form>${html}<p data-account-error role="alert" class="hidden text-xs text-rose-500 mb-3"></p>${actions}</form>`,{danger:mode==='delete',description:mode==='delete'?'请重新输入当前ID和密码，确认后将删除账号。':''});
             if(mode==='delete')modal.dataset.accountDeleteConfirmed='1';
+            if(['register','password'].includes(mode)){const input=modal.querySelector('[name="'+(mode==='password'?'newPassword':'password')+'"]');if(input){input.oninput=()=>window.accountUpdatePasswordRules(modal,input.value);window.accountUpdatePasswordRules(modal,input.value||'');}}
             modal.querySelector('[data-account-cancel]').onclick=()=>window.closeAccountDialog(modal.id);
             modal.querySelector('form').onsubmit=e=>{e.preventDefault();void window.accountSubmit(mode,modal);};window.accountShow(modal);
         };
@@ -14320,7 +14327,7 @@ viewer.style.visibility='';
             const form=modal.querySelector('form'),values=Object.fromEntries(new FormData(form)),error=modal.querySelector('[data-account-error]'),btn=form.querySelector('button[type=submit]');
             error.classList.add('hidden');
             if(!modal._accountCommitted&&['register','password'].includes(mode)&&values.confirmPassword!==(mode==='password'?values.newPassword:values.password)){error.textContent='两次输入的密码不一致';error.classList.remove('hidden');return;}
-            if(!modal._accountCommitted&&['register','password'].includes(mode)){const pw=mode==='password'?values.newPassword:values.password;if(pw.length<8||pw.length>16||[/[0-9]/,/[A-Za-z]/,/[\p{P}\p{S}]/u].filter(pattern=>pattern.test(pw)).length<2){error.textContent='密码要有8～16位，数字、字母、符号至少用两种。';error.classList.remove('hidden');return;}}
+            if(!modal._accountCommitted&&['register','password'].includes(mode)){const pw=mode==='password'?values.newPassword:values.password;const rules=window.accountPasswordRules(pw);window.accountUpdatePasswordRules(modal,pw);if(!rules.length||!rules.categories)return;}
             if(!modal._accountCommitted&&mode==='delete'&&window.normalizeEditorIdentityName(values.id).toLowerCase()!==window.normalizeEditorIdentityName(window.getCommonUserId()).toLowerCase()){error.textContent='请输入当前账号的ID';error.classList.remove('hidden');return;}
             window._accountSubmitting=true;
             const original=btn.textContent;
