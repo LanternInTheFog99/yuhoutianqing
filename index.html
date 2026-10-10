@@ -12549,6 +12549,8 @@ viewer.style.visibility='';
             window.richSyncSelectionOnlyControls?.(true);
         };
         window.richResetOpacitySelection = function() {
+            window.richToolbarSelectionActive=false;
+            window.richMobileHeldSelection=null;
             window.richSelectionRange=null;
             window.richOpacitySpan=null;
             const slider=document.getElementById('richOpacityRange');
@@ -12571,8 +12573,19 @@ viewer.style.visibility='';
 
         window.richToolbarSelectionActive=false;
         window.richKeepToolbarSelection=function(){
-            const e=document.getElementById('editDescription'),r=window.richSelectionRange;
-            return !!(window.isMobileEditingDevice?.()&&window.richToolbarSelectionActive&&e&&r&&!r.collapsed&&e.contains(r.commonAncestorContainer));
+            const e=document.getElementById('editDescription'),r=window.richSelectionRange,held=window.richMobileHeldSelection;
+            return !!(window.isMobileEditingDevice?.()&&window.richToolbarSelectionActive&&e&&((held?.root===e&&held.end>held.start)||(r&&!r.collapsed&&e.contains(r.commonAncestorContainer))));
+        };
+        window.richQueueMobileSelectionRestore=function(){
+            if(!window.richKeepToolbarSelection()||window._richMobileRestoreQueued)return;
+            window._richMobileRestoreQueued=true;
+            requestAnimationFrame(()=>requestAnimationFrame(()=>{
+                window._richMobileRestoreQueued=false;
+                const held=window.richMobileHeldSelection;
+                if(!window.richKeepToolbarSelection()||!held||held.root!==document.getElementById('editDescription'))return;
+                window.richRestoreMobileBookmark(held.root,held);
+                window.richRememberSelection();
+            }));
         };
         document.addEventListener('pointerdown',event=>{
             if(!window.isMobileEditingDevice?.())return;
@@ -12580,18 +12593,24 @@ viewer.style.visibility='';
             if(toolbar){
                 window.richRememberSelection?.();
                 window.richToolbarSelectionActive=true;
+                const root=document.getElementById('editDescription'),r=window.richSelectionRange;
+                if(root&&r&&!r.collapsed&&root.contains(r.commonAncestorContainer))window.richMobileHeldSelection={root,...window.richMobileSelectionBookmark(root,r)};
                 if(event.target?.closest?.('button'))event.preventDefault();
-            }else window.richToolbarSelectionActive=false;
+            }else{window.richToolbarSelectionActive=false;window.richMobileHeldSelection=null;}
         },true);
+        for(const type of ['pointerup','click'])document.addEventListener(type,event=>{
+            if(event.target?.closest?.('.rich-format-toolbar'))window.richQueueMobileSelectionRestore();
+        });
         window.richRememberSelection = function() {
             const e=document.getElementById('editDescription'),sel=window.getSelection();
-            if(!e||!sel?.rangeCount){if(window.richKeepToolbarSelection())return;window.richSelectionRange=null;window.richSyncSelectionOnlyControls?.(false);window.richSyncOpacityControl?.();return;}
+            if(!e||!sel?.rangeCount){if(window.richKeepToolbarSelection()){window.richQueueMobileSelectionRestore();return;}window.richSelectionRange=null;window.richSyncSelectionOnlyControls?.(false);window.richSyncOpacityControl?.();return;}
             const r=sel.getRangeAt(0);
             if(r.collapsed||!e.contains(r.commonAncestorContainer)){
-                if(window.richKeepToolbarSelection())return;
+                if(window.richKeepToolbarSelection()){window.richQueueMobileSelectionRestore();return;}
                 window.richSelectionRange=null;window.richOpacitySpan=null;window.richSyncSelectionOnlyControls?.(false);window.clearSelectedFormatFeedback?.('rich');window.richSyncOpacityControl?.();return;
             }
             window.richSelectionRange=r.cloneRange();window.richSyncSelectionOnlyControls?.(true);
+            if(window.isMobileEditingDevice?.()&&window.richToolbarSelectionActive)window.richMobileHeldSelection={root:e,...window.richMobileSelectionBookmark(e,r)};
             const state=window.getUniformSelectedFontSizeReadOnly?.(e,r),preset=document.getElementById('richFontSizePreset');
             if(preset){if(!state?.valid||state.mixed)preset.value='';else{const v=(Math.round(state.size*10)/10)+'px';preset.value=[...preset.options].some(o=>o.value===v)?v:'';}}
             window.richSyncSelectedFormatFeedback?.();window.richSyncOpacityControl?.();
@@ -12609,7 +12628,7 @@ viewer.style.visibility='';
                         return;
                     }
                 }
-                if(window.richKeepToolbarSelection())return;
+                if(window.richKeepToolbarSelection()){window.richQueueMobileSelectionRestore();return;}
                 window.richSelectionRange=null;window.richOpacitySpan=null;
                 window.richSyncSelectionOnlyControls?.(false);
                 window.richSyncOpacityControl?.();
@@ -12619,6 +12638,11 @@ viewer.style.visibility='';
 
         window.richRestoreSelection=function(){
             const e=document.getElementById('editDescription'), r=window.richSelectionRange;
+            const held=window.richMobileHeldSelection;
+            if(window.richKeepToolbarSelection()&&held?.root===e){
+                window.richRestoreMobileBookmark(e,held);
+                return !!window.richSelectionRange&&!window.richSelectionRange.collapsed;
+            }
             if(!e||!r) return false;
             try{
                 if(!e.contains(r.commonAncestorContainer)) return false;
