@@ -14245,7 +14245,7 @@ viewer.style.visibility='';
             let modal=document.getElementById(id);
             if(!modal){modal=document.createElement('div');modal.id=id;modal.className='fixed inset-0 bg-slate-900/75 backdrop-blur-md z-[150] hidden flex items-center justify-center p-4';document.body.appendChild(modal);}
             const heading=danger?`<div class="w-12 h-12 rounded-full bg-rose-100 text-rose-500 flex items-center justify-center text-xl mx-auto mb-3"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i></div><h3 id="${id}Title" class="font-bold text-slate-800 text-base mb-1 text-center">${title}</h3><p class="text-xs text-slate-500 mb-5 text-center leading-5">${description}</p>`:`<div class="flex items-center gap-3 mb-5 pr-7"><div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0"><i class="fa-solid ${id==='accountManageModal'?'fa-user-gear':'fa-pen'}" aria-hidden="true"></i></div><h3 id="${id}Title" class="font-bold text-slate-800 text-base">${title}</h3></div>`;
-            modal._accountCommitted=false;
+            modal._accountCommitted=false;modal._accountPasswordSubmitted=false;
             modal.innerHTML=`<div role="dialog" aria-modal="true" aria-labelledby="${id}Title" class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[90vh] overflow-y-auto p-6"><button type="button" data-account-close class="absolute right-4 top-4 w-8 h-8 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" aria-label="${id==='accountManageModal'?'关闭账号管理':'返回账号管理'}">×</button>${heading}${html}</div>`;
             modal.querySelector('[data-account-close]').onclick=()=>window.closeAccountDialog(id);
             modal.onkeydown=e=>{
@@ -14266,12 +14266,13 @@ viewer.style.visibility='';
             accountFocusByDialog.delete(id);
         };
         window.accountShow=function(modal){accountFocusByDialog.set(modal.id,document.activeElement);modal.classList.remove('hidden');setTimeout(()=>modal.querySelector('input,button')?.focus(),30);};
-        window.accountAfterChange=async function({showManager=true}={}){
+        window.accountAfterChange=async function({showManager=true,mode='identity'}={}){
             window.accountRefreshIdentityViews();
-            if(window.isCloudSynced){await window.refreshActivityLogsFromCloudBase?.();await window.refreshNotificationBadge?.();}
-            await Promise.all([...document.querySelectorAll('[data-comment-board]')].map(b=>window.commentLoadMessages?.(b)));
-            if(window.isCloudSynced)await loadTimelineFromCloudBase();
-            await window._accountPetRefresh;
+            if(mode==='rename'){
+                await Promise.all([window.isCloudSynced?window.refreshActivityLogsFromCloudBase?.():null,...[...document.querySelectorAll('[data-comment-board]')].map(b=>window.commentLoadMessages?.(b))]);
+            }else if(mode!=='password'){
+                await Promise.all([window.isCloudSynced?loadTimelineFromCloudBase():null,window.isCloudSynced?window.refreshNotificationBadge?.():null,...[...document.querySelectorAll('[data-comment-board]')].map(b=>window.commentLoadMessages?.(b)),window._accountPetRefresh]);
+            }
             await window.waitForCloudView?.();
             const manager=window.renderAccountManagement({loadHistory:false});if(showManager)manager.classList.remove('hidden');
         };
@@ -14297,7 +14298,13 @@ viewer.style.visibility='';
         window.accountPasswordRules=value=>({length:value.length>=8&&value.length<=16&&/^[0-9A-Za-z\p{P}\p{S}]+$/u.test(value),categories:[/[0-9]/,/[A-Za-z]/,/[\p{P}\p{S}]/u].filter(pattern=>pattern.test(value)).length>=2});
         window.accountUpdatePasswordRules=function(modal,value){
             const rules=window.accountPasswordRules(value);
-            for(const key of ['length','categories']){const row=modal.querySelector('[data-account-password-rule="'+key+'"]');if(!row)continue;row.classList.toggle('text-emerald-600',rules[key]);row.classList.toggle('text-slate-400',!rules[key]);row.dataset.satisfied=String(rules[key]);}
+            for(const key of ['length','categories']){
+                const row=modal.querySelector('[data-account-password-rule="'+key+'"]');if(!row)continue;
+                const failed=!!modal._accountPasswordSubmitted&&!rules[key],icon=row.querySelector('i');
+                row.classList.remove('text-emerald-600','text-slate-400');row.classList.toggle('text-slate-500',!failed);row.classList.toggle('text-rose-600',failed);
+                if(icon){icon.classList.toggle('text-emerald-600',rules[key]);icon.classList.toggle('text-slate-400',!rules[key]&&!failed);icon.classList.toggle('text-rose-600',failed);}
+                row.dataset.satisfied=String(rules[key]);
+            }
         };
         window.openAccountForm=function(mode,{confirmedDelete=false,verified=false}={}){
             if(mode==='delete'&&!confirmedDelete){void window.accountConfirmDelete();return;}
@@ -14314,9 +14321,9 @@ viewer.style.visibility='';
             if(['verifyRename','verifyPassword'].includes(mode))html+=field('currentPassword','当前密码','password','','current-password');
             if(mode==='password')html+=field('newPassword','新密码','password','','new-password')+field('confirmPassword','确认新密码','password','','new-password');
 
-            if(['register','password'].includes(mode))html+=`<div class="space-y-2 mb-4 text-[11px] leading-5" aria-live="polite"><p data-account-password-rule="length" class="flex items-start gap-2 text-slate-400"><i class="fa-regular fa-circle-check mt-1 shrink-0" aria-hidden="true"></i><span>密码由8-16位数字、字母或符号组成</span></p><p data-account-password-rule="categories" class="flex items-start gap-2 text-slate-400"><i class="fa-regular fa-circle-check mt-1 shrink-0" aria-hidden="true"></i><span>至少含两种以上字符</span></p></div>`;
+            if(['register','password'].includes(mode))html+=`<div class="space-y-2 mb-4 text-[11px] leading-5" aria-live="polite"><p data-account-password-rule="length" class="flex items-start gap-2 text-slate-500"><i class="fa-regular fa-circle-check mt-1 shrink-0" aria-hidden="true"></i><span>密码由8-16位数字、字母或符号组成</span></p><p data-account-password-rule="categories" class="flex items-start gap-2 text-slate-500"><i class="fa-regular fa-circle-check mt-1 shrink-0" aria-hidden="true"></i><span>至少含两种以上字符</span></p></div>`;
             const actions=mode==='delete'?`<div class="flex justify-center gap-3 mt-5"><button type="button" data-account-cancel class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button><button type="submit" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-medium shadow-sm">确认删除</button></div>`:`<div class="flex justify-end gap-3 mt-5"><button type="button" data-account-cancel class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button><button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium shadow-sm">${labels[mode]}</button></div>`;
-            const modal=window.accountDialog('account'+mode[0].toUpperCase()+mode.slice(1)+'Modal',titles[mode],`<form data-account-form>${html}<p data-account-error role="alert" class="hidden text-xs text-rose-500 mb-3"></p>${actions}</form>`,{danger:mode==='delete',description:mode==='delete'?'请重新输入当前ID和密码，确认后将删除账号。':''});
+            const modal=window.accountDialog('account'+mode[0].toUpperCase()+mode.slice(1)+'Modal',titles[mode],`<form data-account-form ${['register','password'].includes(mode)?'novalidate':''}>${html}<p data-account-error role="alert" class="hidden text-xs text-rose-500 mb-3"></p>${actions}</form>`,{danger:mode==='delete',description:mode==='delete'?'请重新输入当前ID和密码，确认后将删除账号。':''});
             if(mode==='delete')modal.dataset.accountDeleteConfirmed='1';
             if(['register','password'].includes(mode)){const input=modal.querySelector('[name="'+(mode==='password'?'newPassword':'password')+'"]');if(input){input.oninput=()=>window.accountUpdatePasswordRules(modal,input.value);window.accountUpdatePasswordRules(modal,input.value||'');}}
             modal.querySelector('[data-account-cancel]').onclick=()=>window.closeAccountDialog(modal.id);
@@ -14326,14 +14333,17 @@ viewer.style.visibility='';
             if(window._accountSubmitting)return;
             const form=modal.querySelector('form'),values=Object.fromEntries(new FormData(form)),error=modal.querySelector('[data-account-error]'),btn=form.querySelector('button[type=submit]');
             error.classList.add('hidden');
-            if(!modal._accountCommitted&&['register','password'].includes(mode)&&values.confirmPassword!==(mode==='password'?values.newPassword:values.password)){error.textContent='两次输入的密码不一致';error.classList.remove('hidden');return;}
-            if(!modal._accountCommitted&&['register','password'].includes(mode)){const pw=mode==='password'?values.newPassword:values.password;const rules=window.accountPasswordRules(pw);window.accountUpdatePasswordRules(modal,pw);if(!rules.length||!rules.categories)return;}
+            if(!modal._accountCommitted&&['register','password'].includes(mode)){
+                const pw=mode==='password'?values.newPassword:values.password;modal._accountPasswordSubmitted=true;
+                const rules=window.accountPasswordRules(pw);window.accountUpdatePasswordRules(modal,pw);if(!rules.length||!rules.categories)return;
+                if(values.confirmPassword!==pw){error.textContent='两次输入的密码不一致';error.classList.remove('hidden');return;}
+            }
             if(!modal._accountCommitted&&mode==='delete'&&window.normalizeEditorIdentityName(values.id).toLowerCase()!==window.normalizeEditorIdentityName(window.getCommonUserId()).toLowerCase()){error.textContent='请输入当前账号的ID';error.classList.remove('hidden');return;}
             window._accountSubmitting=true;
             const original=btn.textContent;
             try{
-                if(modal._accountCommitted){btn.textContent='正在刷新...';btn.setAttribute('aria-busy','true');await window.withCloudWriteOperation(async()=>{await window.accountAfterChange({showManager:false});});modal._accountCommitted=false;modal.classList.add('hidden');form.reset();window.accountShow(window.renderAccountManagement({loadHistory:false}));window.showToast?.('操作已完成','success');return;}
-                if(mode==='recoverDelete'){let completed=false;const ok=await window.deepAppConfirm({title:'确认继续删除账号？',desc:'将继续完成上次未完成的账号删除，此操作不可撤销。',confirmText:'继续删除',danger:true,busyText:'正在删除...',onConfirm:async()=>{await window.withCloudWriteOperation(async()=>{if(modal._accountCommitted){await window.accountAfterChange({showManager:false});modal._accountCommitted=false;modal.classList.add('hidden');form.reset();window.accountShow(window.renderAccountManagement({loadHistory:false}));completed=true;return;}let r;try{r=await timelineApiPost('accountDeleteResume',values,{auth:false,timeoutMs:30000});}catch(e){if(e.code==='account_delete_not_pending'){window.accountClearDeleteTask();modal._accountCommitted=true;await window.accountAfterChange({showManager:false});modal._accountCommitted=false;modal.classList.add('hidden');form.reset();window.accountShow(window.renderAccountManagement({loadHistory:false}));window.showToast?.(e.message,'info');return;}throw e;}localStorage.setItem(window.ACCOUNT_DELETE_KEY,r.deleteTicket);await window.accountFinishDelete(r.deleteTicket);modal._accountCommitted=true;await window.accountAfterChange({showManager:false});modal._accountCommitted=false;modal.classList.add('hidden');form.reset();window.accountShow(window.renderAccountManagement({loadHistory:false}));completed=true;});return completed;}});if(ok)window.showToast?.('账号已删除','success');return;}
+                if(modal._accountCommitted){btn.textContent='正在刷新...';btn.setAttribute('aria-busy','true');await window.withCloudWriteOperation(async()=>{await window.accountAfterChange({showManager:false,mode});});modal._accountCommitted=false;modal.classList.add('hidden');form.reset();window.accountShow(window.renderAccountManagement({loadHistory:false}));window.showToast?.('操作已完成','success');return;}
+                if(mode==='recoverDelete'){let completed=false;const ok=await window.deepAppConfirm({title:'确认继续删除账号？',desc:'将继续完成上次未完成的账号删除，此操作不可撤销。',confirmText:'继续删除',danger:true,busyText:'正在删除...',onConfirm:async()=>{await window.withCloudWriteOperation(async()=>{if(modal._accountCommitted){await window.accountAfterChange({showManager:false,mode});modal._accountCommitted=false;modal.classList.add('hidden');form.reset();window.accountShow(window.renderAccountManagement({loadHistory:false}));completed=true;return;}let r;try{r=await timelineApiPost('accountDeleteResume',values,{auth:false,timeoutMs:30000});}catch(e){if(e.code==='account_delete_not_pending'){window.accountClearDeleteTask();modal._accountCommitted=true;await window.accountAfterChange({showManager:false,mode});modal._accountCommitted=false;modal.classList.add('hidden');form.reset();window.accountShow(window.renderAccountManagement({loadHistory:false}));window.showToast?.(e.message,'info');return;}throw e;}localStorage.setItem(window.ACCOUNT_DELETE_KEY,r.deleteTicket);await window.accountFinishDelete(r.deleteTicket);modal._accountCommitted=true;await window.accountAfterChange({showManager:false,mode});modal._accountCommitted=false;modal.classList.add('hidden');form.reset();window.accountShow(window.renderAccountManagement({loadHistory:false}));completed=true;});return completed;}});if(ok)window.showToast?.('账号已删除','success');return;}
                 if(['verifyRename','verifyPassword'].includes(mode)){
                     btn.textContent='正在验证...';
                     const target=mode==='verifyRename'?'rename':'password',accountId=window.getCurrentAccountId();
@@ -14348,7 +14358,7 @@ viewer.style.visibility='';
                         localStorage.setItem(window.ACCOUNT_DELETE_PENDING_KEY,'1');
                         const r=await timelineApiPost('accountDelete',{id:values.id,password:values.password,confirm:true},{auth:false,timeoutMs:30000});
                         localStorage.setItem(window.ACCOUNT_DELETE_KEY,r.deleteTicket);window.accountClearSession();
-                        await window.accountFinishDelete(r.deleteTicket);modal._accountCommitted=true;await window.accountAfterChange({showManager:false});
+                        await window.accountFinishDelete(r.deleteTicket);modal._accountCommitted=true;await window.accountAfterChange({showManager:false,mode});
                     });
                     modal._accountCommitted=false;modal.classList.add('hidden');form.reset();window.accountShow(window.renderAccountManagement({loadHistory:false}));window.showToast?.('账号已删除，当前为游客','success');return;
                 }
@@ -14359,7 +14369,7 @@ viewer.style.visibility='';
                     if(['rename','password'].includes(mode)){const checked=accountVerifiedPasswords.get(mode);if(!checked||checked.accountId!==window.getCurrentAccountId())throw new Error('请先验证当前密码');payload.currentPassword=checked.password;}
                     const result=await timelineApiPost(actions[mode],payload,{auth:false,timeoutMs:55000});
                     accountVerifiedPasswords.clear();window.accountApply(result);
-                    modal._accountCommitted=true;await window.accountAfterChange({showManager:false});modal._accountCommitted=false;modal.classList.add('hidden');form.reset();window.accountShow(window.renderAccountManagement({loadHistory:false}));
+                    modal._accountCommitted=true;await window.accountAfterChange({showManager:false,mode});modal._accountCommitted=false;modal.classList.add('hidden');form.reset();window.accountShow(window.renderAccountManagement({loadHistory:false}));
                 });
                 window.showToast?.({login:'登录成功',register:'账号已创建',rename:'ID已修改',password:'密码已修改'}[mode],'success');
             }catch(e){if(mode==='login'&&e.code==='account_delete_in_progress'){localStorage.setItem(window.ACCOUNT_DELETE_PENDING_KEY,'1');window.renderAccountManagement();}if(mode==='delete'&&['account_bad_password','account_delete_id_mismatch','delete_confirmation_required','account_session_expired','accounts_not_initialized','account_busy','account_rate_limited'].includes(e.code)&&!localStorage.getItem(window.ACCOUNT_DELETE_KEY))window.accountClearDeleteTask();error.textContent=modal._accountCommitted?'操作已完成，页面刷新失败，请重试':(e.message||'操作失败，请稍后再试');error.classList.remove('hidden');}
@@ -16515,7 +16525,8 @@ let veryHungryWakeDrainUntil=0,veryHungryWakeDrainLast=0;
 let pet=null, speech=null, hud=null, inv=null, drag=null, suppressClickUntil=0, blinkTimer=0, behaviorTimer=0, syncTimer=0, stroke=null, behaviorTimeouts=[],dayNapUntil=0,nightWakeClicks=[],nightWakeProfile=null,nightAwakeUntil=0,nightWakePending=false,veryHungrySince=0,veryHungryMoved=false,veryHungryWalking=false,veryHungryAtCorner=false,lastWhisperCheck=0,lastDozeRoll=0;
 const baseOf=h=>h<=0?'饿晕':h<10?'很饿':h<40?'轻微饥饿':h<70?'普通':h<90?'较饱':'最饱';
 const owner=()=>String(window.getCurrentAccountId?.()||'').slice(0,200);
-window.addEventListener('timeline-account-changed',()=>{state.gui=0;state.zhi=0;updateHud();if(window.isCloudSynced)window._accountPetRefresh=cloudRead();});
+let petInventoryAccount=window.getCurrentAccountId?.()||'';
+window.addEventListener('timeline-account-changed',()=>{const id=window.getCurrentAccountId?.()||'';if(id===petInventoryAccount)return;petInventoryAccount=id;state.gui=0;state.zhi=0;updateHud();if(window.isCloudSynced)window._accountPetRefresh=cloudRead();});
 const isNight=()=>{const h=new Date().getHours();return h>=23||h<8};
 let qingerCloudReadInFlight=null;
 // 唯一解锁条件：整站首次云端同步成功。小晴儿不再维护第二套首次同步许可证。
