@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/png" href="xiaoqinger-favicon.png">
+    <link rel="icon" type="image/x-icon" href="./favicon.ico">
     <title>雨后天晴</title>
 <script>(function(){try{if(localStorage.getItem('qinger_visible')==='0')document.documentElement.classList.add('qinger-user-hidden')}catch(_){}})();</script>
 <style id="timeline-bundled-utilities">/*
@@ -1862,6 +1862,11 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
 .account-menu-icon{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;background:#f1f5f9;color:#64748b;flex-shrink:0}
 .account-menu-danger{color:#e11d48;border-radius:10px}.account-menu-danger:hover{background:#fff1f2}.account-menu-danger .account-menu-icon{background:#fff1f2;color:#e11d48}
 </style>
+<style>
+.timeline-toolbar-left{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.timeline-toolbar-left #zoomControlContainer{border-top:0;border-bottom:0;border-right:0;border-left:1px solid #e2e8f0;padding:0 0 0 12px;gap:12px}
+@media(max-width:639px){.timeline-toolbar-left{gap:10px}.timeline-toolbar-left #zoomControlContainer{padding-left:10px;gap:10px}}
+</style>
 </head>
 <!-- v35: head-motion branch from v32 -->
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
@@ -1903,7 +1908,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     <i class="fa-solid fa-download"></i>
                 </button>
 
-                <button id="shareCollabBtn" onclick="openShareModal()" title="仅编辑模式可使用" class="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-medium border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 flex items-center gap-1 transition-all shadow-sm">
+                <button id="shareCollabBtn" style="display:none" onclick="openShareModal()" title="仅编辑模式可使用" class="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-medium border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 flex items-center gap-1 transition-all shadow-sm">
                     <i class="fa-solid fa-share-nodes text-indigo-600"></i>
                     <span class="hidden md:inline">分享协同</span>
                 </button>
@@ -1929,11 +1934,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         </div>
 
         <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-6 bg-white p-3 sm:p-4 rounded-xl border border-slate-200 shadow-sm">
-            <div class="flex items-center gap-2 text-xs font-semibold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100">
-                <i class="fa-solid fa-timeline"></i>
-                <span>时间线视图</span>
-            </div>
-
+            <div class="timeline-toolbar-left">
             <div class="flex items-center gap-2 shrink-0">
                 <button id="helpOpenBtn" onclick="openHelpModal()" title="查看关于本站" class="relative px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 flex items-center gap-1.5 transition-all"><span id="helpNotificationDot" aria-label="有未读通知"></span>
                     <i class="fa-solid fa-circle-question"></i>
@@ -1953,6 +1954,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 </div>
             </div>
 
+            </div>
             <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs w-full sm:w-auto">
                 <i class="fa-solid fa-magnifying-glass text-slate-400"></i>
                 <input type="text" id="searchInput" oninput="handleSearch()" placeholder="搜索事件名…" class="bg-transparent outline-none text-slate-700 placeholder-slate-400 w-full sm:w-52">
@@ -4045,6 +4047,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             ['xiaoqingerDialogueEditorBtn','developerModeBtn','manualBackupBtn'].forEach(id=>document.getElementById(id)?.classList.toggle('hidden',!show));
             const dev=document.getElementById('developerModeBtn');
             if(dev){ dev.classList.toggle('text-indigo-500',show&&window.isDeveloperMode?.()); dev.title=window.isDeveloperMode?.()?'开发者模式已启用':'开发者模式'; }
+            const share=document.getElementById('shareCollabBtn');
+            if(share)share.style.display=window.isDeveloperMode?.()?'':'none';
             window.updateQingerTestPanelVisibility?.();
         };
         window.requestDeveloperMode = async function(){
@@ -16497,7 +16501,6 @@ let qingerCloudReadInFlight=null;
 const qingerInteractionReady=()=>window.isCloudSynced===true;
 /* Only pages opened during 23:00-08:00 start visually asleep before the first cloud sync.
    A page that stays open across 23:00 still follows the normal gradual bedtime flow. */
-const openedDuringNight=isNight();
 function clearBehaviorTimeouts(){behaviorTimeouts.forEach(clearTimeout);behaviorTimeouts=[]}function later(fn,ms){const id=setTimeout(fn,ms);behaviorTimeouts.push(id);return id}function touch(){state.lastInteraction=Date.now();if(['doze1','doze2','doze3','daynap'].includes(state.behavior)){state.behavior='wake';clearBehaviorTimeouts();setDozeZCount(0);render();bang();later(()=>{state.behavior='idle';render();scheduleBlink()},700)}}
 function layers(form,name){
  const table=form==='grabbed'?GRABBED:NORMAL;
@@ -16525,6 +16528,12 @@ function showLayers(form,name,override=null){
 }
 function render(name=state.base,form='normal'){
  state.base=baseOf(state.hunger); if(state.base!=='很饿'){cancelVeryHungryMove();veryHungryAtCorner=false;veryHungryMoved=false;clearVeryHungryVisuals()} pet?.classList.remove('pet-fainted','pet-sleeping','pet-excited','pet-sad','qinger-night-sleep-head-down');
+ if(!hasCloudSnapshot&&!state.testMode){pet.style.visibility='hidden';return}
+ pet.style.removeProperty('visibility');
+ if(state.base==='饿晕'){
+  clearBehaviorTimeouts();clearDozeVisualTimers();clearNightTransitionVisuals();clearTimeout(blinkTimer);stopFoodWakeSensor();state.behavior='idle';dozeMark('idle');
+  pet.classList.remove('pet-sad','pet-doze-nod1','pet-doze-nod2','pet-doze-nod3');pet.style.removeProperty('--pet-head-sway');pet.classList.add('qinger-head-reset');void pet.offsetWidth;showLayers('normal','饿晕');pet.classList.add('pet-fainted');requestAnimationFrame(()=>pet?.classList.remove('qinger-head-reset'));return
+ }
  // Dragging owns the visual form until pointerup/cancel. Background sync, blink and behavior ticks may not steal it.
  if(drag?.moved){
   if(state.behavior==='sleep'||state.behavior==='daynap'){showLayers('grabbed','睡觉');pet.classList.add('pet-sleeping');if(state.behavior==='sleep')pet.classList.add('qinger-night-sleep-head-down');return}
@@ -16536,7 +16545,6 @@ function render(name=state.base,form='normal'){
  if(['doze1','doze2','doze3'].includes(state.behavior)){if(dozeVisualOwnerStage===state.behavior&&dozeVisualPhase==='closed')showLayers('normal',state.base,closedLayersFor(state.base));else{showLayers('normal',state.base)}return}
  setDozeZCount(0);
  if(state.behavior==='wake'){showLayers('normal','惊醒');return}
- if(state.base==='饿晕'){clearDozeVisualTimers();pet.classList.remove('pet-sad','pet-doze-nod1','pet-doze-nod2','pet-doze-nod3');pet.style.removeProperty('--pet-head-sway');pet.classList.add('qinger-head-reset');void pet.offsetWidth;showLayers('normal','饿晕');pet.classList.add('pet-fainted');requestAnimationFrame(()=>pet?.classList.remove('qinger-head-reset'));return}
  if(state.base==='很饿'){showLayers('normal','很饿');pet.classList.add('pet-sad');return}
  showLayers(form,name||state.base); if(state.base==='最饱'&&form==='normal')pet.classList.add('pet-excited');
 }
@@ -16619,6 +16627,7 @@ function applyQingerPetCloudData(d,{live=false}={}){
  state.cloud=true;veryHungryDeepSleep=!!d.deepSleepLocked;
  if(live&&!document.hidden&&!window.__qingerSilentRestore&&hasCloudSnapshot&&!state.testMode){for(let i=0;i<(Number(d.naturalLost)||0);i++)setTimeout(()=>floatHungerChange(-1),i*420);for(let i=0;i<(Number(d.forcedDrainTicks)||0);i++)setTimeout(()=>floatHungerChange(-0.5),i*520)}
  const initialSnapshot=!hasCloudSnapshot;
+ if(initialSnapshot&&!state.testMode&&isNight()&&baseOf(state.hunger)!=='饿晕'){state.behavior='sleep';dozeMark('sleep');}
  hasCloudSnapshot=true;updateHud();syncRain();render();
  if(initialSnapshot&&!state.testMode&&state.base==='很饿'){
   cancelVeryHungryMove();clearTimeout(veryHungryCornerTimer);veryHungryCornerTimer=0;
@@ -16872,6 +16881,7 @@ function slowOpenNightEyes(form='normal',base=state.base,duration=900,{liftHead=
  setTimeout(()=>{if(token!==nightTransitionToken)return;nodes.forEach(n=>{n.getAnimations().forEach(a=>{try{a.cancel()}catch(_){}});n.style.removeProperty('display');n.style.removeProperty('opacity')});showLayers(form,base)},duration+60)
 }
 function startNightSleepTransition({test=false}={}){
+ if(baseOf(state.hunger)==='饿晕'){render();return false}
  clearBehaviorTimeouts();clearDozeVisualTimers();clearNightTransitionVisuals();const token=nightTransitionToken;dozeMark('idle');state.behavior='nightSleepTransition';render();
  pet?.classList.add('qinger-night-preparing');showLayers('normal',state.base);
  // 戴帽渐显结束后，才启动低头和闭眼的入睡动作。
@@ -16881,6 +16891,7 @@ function startNightSleepTransition({test=false}={}){
  later(()=>{if(token!==nightTransitionToken||state.behavior!=='nightSleepTransition'||(!test&&!isNight()))return;pet?.classList.remove('qinger-night-bedtime-2');state.behavior='sleep';dozeMark('sleep');render()},6500);return true
 }
 function naturalWakeNight(){
+ if(baseOf(state.hunger)==='饿晕'){render();return false}
  if(state.behavior!=='sleep')return false;clearBehaviorTimeouts();clearDozeVisualTimers();clearNightTransitionVisuals();const token=nightTransitionToken;dozeMark('idle');veryHungryDeepSleep=false;veryHungryWakeConfirmed=false;state.base=baseOf(state.hunger);nightSleepRise();state.behavior='nightWaking';pet?.classList.add('qinger-night-waking','qinger-night-sleep-head-down');showLayers('normal','睡觉');
  later(()=>{if(token!==nightTransitionToken||state.behavior!=='nightWaking')return;state.base=baseOf(state.hunger);showLayers('normal',state.base,closedLayersFor(state.base));slowOpenNightEyes('normal',state.base,950,{liftHead:true})},620);
  later(()=>{if(token!==nightTransitionToken||state.behavior!=='nightWaking')return;pet?.classList.remove('qinger-night-waking');state.behavior='idle';state.lastInteraction=Date.now();render();scheduleBlink()},1900);return true
@@ -17048,8 +17059,8 @@ function behaviorTick(){
  state.base=baseOf(state.hunger);syncRain();
  const now=Date.now(),idle=now-state.lastInteraction;
  /* 持续拖动属于互动：拖动期间不推进任何自动入睡/回睡判定。 */
+ if(state.base==='饿晕')return render();
  if(drag?.moved)return;
- if(state.base==='饿晕'){clearBehaviorTimeouts();clearDozeVisualTimers();state.behavior='idle';dozeMark('idle');return render()}
  if(state.base==='很饿'){
   clearTimeout(blinkTimer);
   /* 睡着期间即使饱食掉进“很饿”，也不凭空下雨/遮罩/走角落。先保持这次睡眠。 */
@@ -17177,8 +17188,6 @@ async function boot(){
  if(!created){petBootFailure();return;}
  let ready=false;try{ready=await preloadPetLayers();}catch(e){console.error(e);petBootFailure();return;}
  if(!ready){petBootFailure();return;}
- /* Avoid a daytime-looking flash while waiting for the first cloud state read at night. */
- if(openedDuringNight){state.behavior='sleep';dozeMark('sleep');}
  try{render();window.restoreXiaoqingerPosition?.();positionHud();}catch(e){console.error(e);petBootFailure();return;}
  try{bindPetInteractions();scheduleBlink();}catch(e){console.warn(e)}
  try{ensurePetChrome();inv=document.getElementById('qingerInventory');setupRain();setupFood();updateQingerTestPanelVisibility();updateHud();positionHud();window.applyQingerVisibility?.()}catch(e){console.warn(e)}
