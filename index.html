@@ -5348,11 +5348,16 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             if(type==='multi') window.openMultiTimeEventModal(); else window.openEditModal();
         };
 
+        window.getLocalTodayDate = function(){
+            const date = new Date();
+            return [String(date.getFullYear()).padStart(4, '0'), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+        };
+
         window.multiTimeDraft = [];
         window.multiTimeDeepEnabledDraft = true;
         window.multiEsc = function(v){ return escapeHtml(String(v ?? '')); };
         window.multiMediaId=()=>('mtm_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,9));
-        window.multiNewSegment = function(){ return { id:'mt_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7), date:new Date().toISOString().slice(0,10), subtitle:'', images:[], videos:[], links:[], description:'' }; };
+        window.multiNewSegment = function(){ return { id:'mt_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7), date:window.getLocalTodayDate(), subtitle:'', images:[], videos:[], links:[], description:'' }; };
         window.multiNormalizeImage=function(img){
             if(typeof img==='string')return {mediaId:window.multiMediaId(),originalFull:img,original:img,outer:img,inner:img,collection:img,crop:null,deepDescription:null,isAnimated:/\.gif(?:$|\?)/i.test(img)};
             const o={...(img||{})};o.mediaId=o.mediaId||window.multiMediaId();const src=o.originalFull||o.original||o.outer||o.inner||o.collection||'';o.originalFull=o.originalFull||src;o.original=o.original||o.originalFull;o.outer=o.outer||o.original;o.inner=o.inner||o.outer;o.collection=o.collection||o.outer;return o;
@@ -11717,7 +11722,7 @@ viewer.style.visibility='';
                 event = {
                     id: Date.now(),
                     title: '',
-                    date: new Date().toISOString().split('T')[0],
+                    date: window.getLocalTodayDate(),
                     type: 'minor',
                     tags: [],
                     images: [],
@@ -11728,7 +11733,7 @@ viewer.style.visibility='';
             }
 
             let isRangeDate = event.date && event.date.includes('至');
-            let startDateVal = isRangeDate ? event.date.split('至')[0] : (event.date || new Date().toISOString().split('T')[0]);
+            let startDateVal = isRangeDate ? event.date.split('至')[0] : (event.date || window.getLocalTodayDate());
             let endDateVal = isRangeDate ? event.date.split('至')[1] : '';
 
             window.editingImageFiles = (event.images ? event.images : []).map(img => {
