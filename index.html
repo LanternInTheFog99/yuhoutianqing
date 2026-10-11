@@ -1867,6 +1867,10 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
 .timeline-toolbar-left #zoomControlContainer{border-top:0;border-bottom:0;border-right:0;border-left:1px solid #e2e8f0;padding:0 0 0 12px;gap:12px}
 @media(max-width:639px){.timeline-toolbar-left{gap:10px}.timeline-toolbar-left #zoomControlContainer{padding-left:10px;gap:10px}}
 </style>
+<style>
+#lightboxModal.qinger-candy-view-only,#lightboxModal.qinger-candy-view-only #lightboxImg{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+#lightboxModal.qinger-candy-view-only #lightboxImg{-webkit-user-drag:none}
+</style>
 </head>
 <!-- v35: head-motion branch from v32 -->
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
@@ -11336,6 +11340,7 @@ viewer.style.visibility='';
             window.currentLightboxIndex=Array.isArray(imagesOrSrc)?index:0;
             const lb=document.getElementById('lightboxModal');if(!lb)return;
             delete lb._returnToQingerInventory;
+            lb.classList.remove('qinger-candy-view-only');
             lb.dataset.deepEventId=deepEventId||'';lb.dataset.deepType=deepType||'';lb.dataset.deepIndex=String(window.currentLightboxIndex);delete lb.dataset.multiDeepEventId;delete lb.dataset.multiDeepSegment;delete lb.dataset.multiDeepType;
             lb._openedAt = performance.now();
             window._resetLightboxImageNodeCache?.();
@@ -11410,6 +11415,15 @@ viewer.style.visibility='';
         // dblclick to the original #lightboxImg makes deep-description entry disappear after the
         // first replacement. Delegate from the stable modal instead so every current image node works.
         const _deepLightboxModal=document.getElementById('lightboxModal');
+        if(_deepLightboxModal){
+            const restrictCandySave=e=>{
+                if(!_deepLightboxModal.classList.contains('qinger-candy-view-only'))return;
+                e.preventDefault();e.stopPropagation();
+            };
+            _deepLightboxModal.addEventListener('contextmenu',restrictCandySave);
+            _deepLightboxModal.addEventListener('dragstart',restrictCandySave);
+        }
+
         if(_deepLightboxModal && !_deepLightboxModal.dataset.deepDblclickBound){
             _deepLightboxModal.dataset.deepDblclickBound='1';
             _deepLightboxModal.addEventListener('dblclick',e=>{
@@ -16759,7 +16773,7 @@ function setupFood(){
  document.querySelectorAll('.qinger-food').forEach(row=>{
   let suppressFoodClickUntil=0;
   const kind=row.dataset.food,src=kind==='gui'?FOOD_GUI:FOOD_ZHI;
-  const preview=()=>{if(!qingerInteractionReady())return;window.openLightbox?.([src],0);const lb=document.getElementById?.('lightboxModal');if(lb)lb._returnToQingerInventory=true;};
+  const preview=()=>{if(!qingerInteractionReady())return;window.openLightbox?.([src],0);const lb=document.getElementById?.('lightboxModal');if(lb){lb._returnToQingerInventory=true;lb.classList.add('qinger-candy-view-only');}};
   row.setAttribute('tabindex','0');row.setAttribute('role','button');row.setAttribute('aria-label',kind==='gui'?'查看龟糖大图，拖动可喂食':'查看直给糖大图，拖动可喂食');
   row.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();preview();}});
   // Pointer gestures own preview/feeding; never interpret the generated click after a drag.
