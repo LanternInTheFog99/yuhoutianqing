@@ -664,15 +664,15 @@ setTimeout(function(){if(!window.__appBootDone&&(!window.__appBootDomReady||!win
         .cloud-sync-mini-switch::after{content:'';position:absolute;width:10px;height:10px;border-radius:9999px;background:#fff;left:2px;top:2px;box-shadow:0 1px 2px rgba(15,23,42,.25);transition:.16s ease;}
         /* Keep the mode switch footprint stable while its icon/text state is refreshed. */
         #lockToggleBtn{width:104px;min-width:104px;justify-content:center;white-space:nowrap;flex:0 0 104px;}
-        /* 移动端顶部栏：同步、音乐、tag、模式、新建、账号；分享不占移动端空间。 */
+        /* 移动端顶部栏：同步、音乐、模式、新建、账号；筛选位于搜索旁。 */
         @media (any-pointer:coarse){#shareCollabBtn{display:none!important}}
         @media (any-pointer:coarse) and (min-width:640px){
             header>div.max-w-6xl{padding-left:12px!important;padding-right:12px!important;gap:8px!important}
             header>div.max-w-6xl>div:last-of-type{gap:5px!important;flex-wrap:nowrap!important;min-width:0;margin-left:auto;transform:none!important}
             #syncStatus{display:flex!important;font-size:11px!important;padding:5px 6px!important;white-space:nowrap}
-            header button[onclick="openMusicModal()"],header button[onclick="openTagModal()"],#lockToggleBtn,#addEventBtn,#userSettingsBtn{display:flex!important;width:auto!important;min-width:0!important;max-width:none!important;flex:0 0 auto!important;padding:8px 6px!important;gap:4px!important;white-space:nowrap}
+            header button[onclick="openMusicModal()"],#lockToggleBtn,#addEventBtn,#userSettingsBtn{display:flex!important;width:auto!important;min-width:0!important;max-width:none!important;flex:0 0 auto!important;padding:8px 6px!important;gap:4px!important;white-space:nowrap}
             #userSettingsBtn{position:static!important;transform:none!important;margin:0!important}
-            #mobileMusicLabel,#mobileTagLabel,#userSettingsBtn span,#lockToggleBtn span,#addEventBtn span{display:inline!important}
+            #mobileMusicLabel,#userSettingsBtn span,#lockToggleBtn span,#addEventBtn span{display:inline!important}
             #lockToggleBtn span.sm\:hidden{display:none!important}
         }
         @media(max-width:639px){
@@ -683,9 +683,9 @@ setTimeout(function(){if(!window.__appBootDone&&(!window.__appBootDomReady||!win
             #cloudSyncCluster{display:flex!important;align-items:center;flex:0 0 auto;margin:0}
             #syncStatus{display:flex!important;gap:3px!important;padding:4px!important;font-size:9px!important;white-space:nowrap}
             #syncStatus #syncDot{width:5px!important;height:5px!important}
-            header button[onclick="openMusicModal()"],header button[onclick="openTagModal()"],#lockToggleBtn,#addEventBtn,#userSettingsBtn{display:flex!important;width:32px!important;height:36px!important;min-width:32px!important;max-width:32px!important;flex:0 0 32px!important;padding:0!important;gap:0!important;justify-content:center!important;margin:0!important}
+            header button[onclick="openMusicModal()"],#lockToggleBtn,#addEventBtn,#userSettingsBtn{display:flex!important;width:32px!important;height:36px!important;min-width:32px!important;max-width:32px!important;flex:0 0 32px!important;padding:0!important;gap:0!important;justify-content:center!important;margin:0!important}
             #userSettingsBtn{position:static!important;transform:none!important}
-            #mobileMusicLabel,#mobileTagLabel,#userSettingsBtn span,#lockToggleBtn span,#addEventBtn span{display:none!important}
+            #mobileMusicLabel,#userSettingsBtn span,#lockToggleBtn span,#addEventBtn span{display:none!important}
             #editModal,#multiTimeEventModal{padding:12px 10px!important;top:var(--mobile-editor-top,0px)!important;bottom:auto!important;height:var(--mobile-editor-height,100dvh)!important;align-items:stretch!important}
             #editModal>div,#multiTimeEventModal>div{max-width:none!important;height:100%!important;max-height:100%!important;margin:0!important;border-radius:16px!important}
             #editScrollArea,#multiScrollArea{overscroll-behavior:contain;-webkit-overflow-scrolling:touch;scroll-padding-bottom:24px}
@@ -1871,6 +1871,43 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
 #lightboxModal.qinger-candy-view-only,#lightboxModal.qinger-candy-view-only #lightboxImg{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 #lightboxModal.qinger-candy-view-only #lightboxImg{-webkit-user-drag:none}
 </style>
+<style>
+.timeline-search-tools{display:flex;align-items:center;gap:8px;min-width:0;flex:0 1 340px}
+#timelineFilterBtn{flex-shrink:0;white-space:nowrap}
+.timeline-search-box{min-width:0;flex:1}
+.timeline-search-box input{width:100%;min-width:0}
+#tagModalShell{max-width:448px;max-height:calc(100dvh - 32px);overflow-y:auto;overscroll-behavior:contain}
+.timeline-date-filter{padding-top:14px;margin-top:14px;margin-bottom:16px;border-top:1px solid #e2e8f0}
+.timeline-filter-date-row{display:flex;align-items:flex-start;gap:12px;margin-top:10px}
+.timeline-filter-date-row>label{font-size:12px;color:#64748b;flex-shrink:0;padding-top:10px}
+@media(max-width:639px){.timeline-search-tools{width:100%;flex:0 1 auto}.timeline-search-box input{width:100%;min-width:0}#tagModalShell{padding:20px 16px}.timeline-filter-date-row{flex-direction:column;gap:5px}.timeline-filter-date-row>label{padding-top:0}}
+</style>
+<style>
+.filter-section-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.filter-section-heading h4{font-size:12px;font-weight:700;color:#334155}
+.filter-section-heading button{font-size:11px;color:#64748b;border:1px solid #e2e8f0;border-radius:8px;padding:4px 8px;background:#fff;white-space:nowrap}
+.filter-section-heading button:hover{background:#f8fafc}
+.filter-date-values{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:#4f46e5;font-variant-numeric:tabular-nums}
+.filter-date-value-divider{color:#94a3b8;font-size:11px}
+.filter-dual-range{height:42px;position:relative;margin:0 10px}
+.filter-range-track{position:absolute;left:0;right:0;top:19px;height:4px;border-radius:8px;background:#e2e8f0;pointer-events:none}
+#timelineDateRangeFill{height:100%;position:absolute;background:#6366f1;border-radius:8px}
+.filter-dual-range input[type=range]{position:absolute;width:calc(100% + 20px);left:-10px;top:0;height:40px;margin:0;background:transparent;appearance:none;-webkit-appearance:none;pointer-events:none;outline:none}
+.filter-dual-range input::-webkit-slider-runnable-track{height:4px;background:transparent}
+.filter-dual-range input::-moz-range-track{height:4px;background:transparent}
+.filter-dual-range input::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid #6366f1;box-shadow:0 1px 4px #0002;margin-top:-5px;pointer-events:auto;cursor:grab}
+.filter-dual-range input::-moz-range-thumb{width:10px;height:10px;border-radius:50%;background:#fff;border:2px solid #6366f1;box-shadow:0 1px 4px #0002;pointer-events:auto;cursor:grab}
+#timelineDateStartSlider{z-index:2;transform:translateY(-3px)}
+#timelineDateEndSlider{z-index:3;transform:translateY(3px)}
+.filter-dual-range input:focus-visible::-webkit-slider-thumb{outline:3px solid #c7d2fe;outline-offset:2px}
+.filter-dual-range input:focus-visible::-moz-range-thumb{outline:3px solid #c7d2fe;outline-offset:2px}
+.filter-dual-range input:disabled::-webkit-slider-thumb{border-color:#cbd5e1;cursor:default}
+.filter-date-expand{display:flex;align-items:center;gap:6px;font-size:11px;color:#64748b;padding:4px 0}
+.filter-date-expand i{font-size:9px;transition:transform .15s}
+#timelineDatePreciseFields{min-width:0;border:0;padding:0;margin:0}
+#timelineDatePreciseFields[hidden]{display:none}
+#timelineDatePreciseFields:disabled input{background:#f8fafc;color:#94a3b8;cursor:not-allowed}
+</style>
 </head>
 <!-- v35: head-motion branch from v32 -->
 <body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col antialiased">
@@ -1898,10 +1935,6 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     <span id="mobileMusicLabel" class="hidden md:inline">背景音乐</span>
                 </button>
 
-                <button title="Tag库" aria-label="Tag库" onclick="openTagModal()" class="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-medium border border-slate-300 hover:bg-slate-50 text-slate-700 flex items-center gap-1 transition-all">
-                    <i class="fa-solid fa-tags text-slate-500"></i>
-                    <span id="mobileTagLabel" class="hidden md:inline">Tag库</span>
-                </button>
 <button id="xiaoqingerDialogueEditorBtn" onclick="requestXiaoqingerDialogueEditor()" title="" aria-label="小晴儿台词编辑" class="hidden fixed left-[4.5rem] bottom-2 z-[80] w-7 h-7 rounded-full flex items-center justify-center text-[10px] text-slate-400/20 hover:text-slate-500/80 hover:bg-slate-200/60 transition-all opacity-25 hover:opacity-100">
                     <i class="fa-solid fa-comment-dots"></i>
                 </button>
@@ -1960,9 +1993,12 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             </div>
 
             </div>
-            <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs w-full sm:w-auto">
+            <div class="timeline-search-tools">
+                <button id="timelineFilterBtn" type="button" onclick="openTagModal()" title="筛选时间线" aria-label="筛选时间线" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 flex items-center gap-1.5 transition-all"><i class="fa-solid fa-filter text-indigo-600"></i><span>筛选</span></button>
+            <div class="timeline-search-box flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs w-full sm:w-auto">
                 <i class="fa-solid fa-magnifying-glass text-slate-400"></i>
                 <input type="text" id="searchInput" oninput="handleSearch()" placeholder="搜索事件名…" class="bg-transparent outline-none text-slate-700 placeholder-slate-400 w-full sm:w-52">
+            </div>
             </div>
         </div>
 
@@ -2062,13 +2098,14 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
                 <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
                     <i class="fa-solid fa-tags text-indigo-600"></i>
-                    <span>Tag库</span>
+                    <span>筛选</span>
                 </h3>
                 <button onclick="closeTagModal()" class="text-slate-400 hover:text-slate-600 w-8 h-8 rounded-full flex items-center justify-center">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
             <div id="tagListSection" class="mb-3">
+                <div class="filter-section-heading"><h4>Tag筛选</h4><button type="button" onclick="clearTimelineTagDraft()">清除Tag筛选</button></div>
                 <div id="tagFilterControls" class="mb-3">
                     <div class="text-xs font-bold text-slate-700 mb-2">筛选模式</div>
                     <div class="flex items-center gap-5 flex-wrap">
@@ -2081,7 +2118,6 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                             <button type="button" id="tagMatchAllBtn" onclick="setTagFilterDraftMatch('all')" class="px-3 py-1 rounded-md text-[11px] font-medium">全部</button>
                         </div>
                     </div>
-                    <p id="tagFilterHint" class="mt-2 text-[10px] leading-4 text-slate-400"></p>
                 </div>
             <div id="tagInputContainer" class="mb-3">
                 <label class="block text-xs font-bold text-slate-700 mb-2">新增Tag</label>
@@ -2093,8 +2129,23 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             </div>
 
 
-            <div id="tagFilterFooter" class="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
-                <button type="button" onclick="clearTagFilter()" class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 text-slate-600 hover:bg-slate-50">清除筛选</button>
+            <section class="timeline-date-filter">
+                <div class="filter-section-heading"><h4>日期范围</h4><button type="button" onclick="clearTimelineDateDraft()">清除日期筛选</button></div>
+                <div class="filter-date-values"><span id="timelineDateStartLabel">不限</span><span class="filter-date-value-divider">至</span><span id="timelineDateEndLabel">不限</span></div>
+                <div id="timelineDateSlider" class="filter-dual-range">
+                    <div class="filter-range-track"><div id="timelineDateRangeFill"></div></div>
+                    <input id="timelineDateStartSlider" type="range" min="0" max="1" step="1" value="0" aria-label="开始日期" oninput="changeTimelineDateSlider('start',this.value)">
+                    <input id="timelineDateEndSlider" type="range" min="0" max="1" step="1" value="1" aria-label="结束日期" oninput="changeTimelineDateSlider('end',this.value)">
+                </div>
+                <button id="timelineDateExpandBtn" type="button" aria-expanded="false" aria-controls="timelineDatePreciseFields" class="filter-date-expand" onclick="toggleTimelineDatePrecise()"><span>精确输入</span><i class="fa-solid fa-chevron-down"></i></button>
+                <fieldset id="timelineDatePreciseFields" hidden>
+                    <div class="timeline-filter-date-row"><label>开始日期</label><div id="timelineFilterStartFields"></div></div>
+                    <div class="timeline-filter-date-row"><label>结束日期</label><div id="timelineFilterEndFields"></div></div>
+                </fieldset>
+                <p id="timelineFilterDateError" role="alert" class="hidden text-xs text-rose-500 mt-2"></p>
+            </section>
+
+            <div id="tagFilterFooter" class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
                 <div class="flex gap-2">
                     <button type="button" onclick="closeTagModal()" class="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 text-slate-600 hover:bg-slate-50">取消</button>
                     <button type="button" onclick="applyTagFilter()" class="px-4 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm">确定筛选</button>
@@ -2335,7 +2386,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     <div><h4 class="font-bold text-slate-800 mb-1">3. 评论区与互动通知</h4><p>打开事件详情页后，点击右上方的“评论区”按钮即可查看关于该事件的评论；点击“发表评论”可以发布评论，支持匿名发布功能；可以点赞或回复自己与他人的评论，发布的评论被点赞或回复后会收到互动通知，点击对应通知可直接定位到相关评论区。</p></div>
                     <div><h4 class="font-bold text-slate-800 mb-1">4. 节点之间的逻辑关系</h4><p>部分事件之间存在逻辑连线。在时间线上查看相关节点时，可以结合节点之间显示的连线及相关信息来更深入地了解事件。</p></div>
                     <div><h4 class="font-bold text-slate-800 mb-1">5. 搜索事件</h4><p>使用屏幕右侧的搜索功能时，时间线上会显示与之相匹配的事件。</p></div>
-                    <div><h4 class="font-bold text-slate-800 mb-1">6. Tag功能</h4><p>打开Tag库后可以按Tag筛选时间线内容，并可选择“包含 / 排除”以及“任一 / 全部”等匹配方式，筛选生效后，时间线只会显示符合当前筛选条件的事件。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">6. Tag功能</h4><p>打开筛选窗口后可以按Tag筛选时间线内容，并可选择“包含 / 排除”以及“任一 / 全部”等匹配方式，筛选生效后，时间线只会显示符合当前筛选条件的事件。</p></div>
                     <div><h4 class="font-bold text-slate-800 mb-1">7. 背景音乐</h4><p>点击顶部的“背景音乐”入口，进入后可以播放网站设置的音乐。</p></div>
                     <div><h4 class="font-bold text-slate-800 mb-1">8. 小晴儿</h4><p><strong><em>“我女儿。” “我们的女儿！” “我们俩女儿我们俩女儿...”</em></strong><br>相关功能请自己探索噢~保留一些对小晴儿的新鲜感。</p></div>
                 </div>
@@ -2354,7 +2405,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
 
                     <div><h4 class="font-bold text-slate-800 mb-1">4. 选择节点类型</h4><p>节点类型会影响事件在时间线上的呈现方式。根据事件性质选择合适的节点类型即可，之后仍然可以重新编辑调整。</p></div>
 
-                    <div><h4 class="font-bold text-slate-800 mb-1">5. Tag功能</h4><p>Tag功能可以帮助整理和筛选事件。打开Tag库可以创建或编辑Tag，也可以在编辑事件时为该事件添加Tag。</p></div>
+                    <div><h4 class="font-bold text-slate-800 mb-1">5. Tag功能</h4><p>Tag功能可以帮助整理和筛选事件。打开筛选窗口可以创建或编辑Tag，也可以在编辑事件时为该事件添加Tag。</p></div>
 
                     <div><h4 class="font-bold text-slate-800 mb-1">6. 逻辑连线</h4><p>逻辑连线用于表示事件之间存在关联。编辑事件时，可以在对应区域选择要连接的其他事件或时间，并设置这条连线的方向，也可以填写连线文字作为关系的补充说明。</p></div>
 
@@ -2667,10 +2718,10 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             return Math.max(1, Math.min(20, v));
         })();
         window.activeHoverIntervals = {};
-        window.activeTagFilter = null;
         window.tagFilterMode = 'include';
         window.tagFilterMatch = 'any';
         window.tagFilterSelected = [];
+        window.timelineDateFilter = {start:'',end:''};
         window.tagFilterDraftMode = 'include';
         window.tagFilterDraftMatch = 'any';
         window.tagFilterDraftSelected = [];
@@ -5564,16 +5615,147 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             return window.events.find(e => String(e.id) === String(eventId)) || null;
         };
 
+        window.timelineDateBounds=function(value){
+            const normalized=window.normalizePartialDate(String(value||''));if(!normalized)return null;
+            const parts=normalized.split('-').map(Number),year=parts[0];if(!Number.isSafeInteger(year))return null;
+            const leap=year%4===0&&(year%100!==0||year%400===0);
+            const days=[31,leap?29:28,31,30,31,30,31,31,30,31,30,31];
+            const month=parts[1]||1,day=parts[2]||1,endMonth=parts[1]||12;
+            return {start:[year,month,day],end:[year,endMonth,parts[2]||days[endMonth-1]]};
+        };
+        window.compareTimelineDateBounds=function(a,b){for(let i=0;i<3;i++){if(a[i]!==b[i])return a[i]<b[i]?-1:1;}return 0;};
+        window.timelineEventDateIntervals=function(event){
+            const dates=event?.timeMode==='multi'&&Array.isArray(event.timeSegments)&&event.timeSegments.length
+                ?event.timeSegments.map(segment=>segment?.date):String(event?.date||'').split('、');
+            return dates.map(value=>{
+                const parts=String(value||'').split('至');if(parts.length>2)return null;
+                const first=window.timelineDateBounds(parts[0]),last=parts.length===2?window.timelineDateBounds(parts[1]):first;
+                if(!first||!last||window.compareTimelineDateBounds(first.start,last.end)>0)return null;
+                return {start:first.start,end:last.end};
+            }).filter(Boolean);
+        };
+        window.eventMatchesTimelineDateFilter=function(event,dates){
+            const start=dates.start?window.timelineDateBounds(dates.start)?.start:null;
+            const end=dates.end?window.timelineDateBounds(dates.end)?.end:null;
+            if((dates.start&&!start)||(dates.end&&!end))return false;
+            return window.timelineEventDateIntervals(event).some(interval=>(!start||window.compareTimelineDateBounds(interval.end,start)>=0)&&(!end||window.compareTimelineDateBounds(interval.start,end)<=0));
+        };
+        window.renderTimelineFilterDateFields=function(){
+            const dates=window.timelineDateDraft||{};
+            for(const [key,id] of [['start','timelineFilterStart'],['end','timelineFilterEnd']]){
+                const container=document.getElementById(id+'Fields');if(container)container.innerHTML=window.inlineDateFieldsHtml(id,dates[key]||'','window.syncTimelineDateDraftFromInputs()');
+            }
+            document.getElementById('timelineFilterDateError')?.classList.add('hidden');
+        };
+        window.readTimelineFilterDates=function(){
+            const dates={start:'',end:''};
+            for(const [key,id] of [['start','timelineFilterStart'],['end','timelineFilterEnd']]){
+                const wrap=document.querySelector(`[data-inline-date="${id}"]`),target=document.getElementById(id);
+                if(!wrap||!target)return null;
+                if(!window.syncInlineDateFields(id,wrap,''))return null;
+                dates[key]=target.value||'';
+                if(dates[key]&&!window.timelineDateBounds(dates[key])){window.showToast('年份超出支持范围','error');return null;}
+            }
+            const hint=document.getElementById('timelineFilterDateError');
+            if(dates.start&&dates.end&&window.compareTimelineDateBounds(window.timelineDateBounds(dates.start).start,window.timelineDateBounds(dates.end).end)>0){
+                if(hint){hint.textContent='开始日期不能晚于结束日期';hint.classList.remove('hidden');}return null;
+            }
+            hint?.classList.add('hidden');return dates;
+        };
+
+        // Gregorian day numbers avoid timezone shifts and support partial historic dates.
+        window.timelineDateToDay=function(tuple){
+            const [year,month,day]=tuple,previous=year-1;
+            let value=previous*365+Math.floor(previous/4)-Math.floor(previous/100)+Math.floor(previous/400);
+            const leap=year%4===0&&(year%100!==0||year%400===0),days=[31,leap?29:28,31,30,31,30,31,31,30,31,30,31];
+            for(let i=1;i<month;i++)value+=days[i-1];value+=day-1;
+            return Number.isSafeInteger(value)?value:null;
+        };
+        window.timelineDayToDate=function(value){
+            if(!Number.isSafeInteger(value)||value<0)return '';
+            let low=1,high=Math.floor(value/365)+2;
+            while(low+1<high){const mid=low+Math.floor((high-low)/2);if(window.timelineDateToDay([mid,1,1])<=value)low=mid;else high=mid;}
+            let month=1,rest=value-window.timelineDateToDay([low,1,1]);
+            const leap=low%4===0&&(low%100!==0||low%400===0),days=[31,leap?29:28,31,30,31,30,31,31,30,31,30,31];
+            while(month<12&&rest>=days[month-1]){rest-=days[month-1];month++;}
+            return `${String(low).padStart(4,'0')}-${String(month).padStart(2,'0')}-${String(rest+1).padStart(2,'0')}`;
+        };
+        window.timelineDateDraftDays=function(dates){
+            const first=dates.start?window.timelineDateBounds(dates.start):null,last=dates.end?window.timelineDateBounds(dates.end):null;
+            return {start:first?window.timelineDateToDay(first.start):null,end:last?window.timelineDateToDay(last.end):null};
+        };
+        window.timelineDateBaseDomain=function(){
+            let min=null,max=null;
+            for(const event of window.events||[])for(const interval of window.timelineEventDateIntervals(event)){
+                const start=window.timelineDateToDay(interval.start),end=window.timelineDateToDay(interval.end);
+                if(start===null||end===null)continue;
+                min=min===null?start:Math.min(min,start);max=max===null?end:Math.max(max,end);
+            }
+            return {min,max};
+        };
+        window.updateTimelineDateSlider=function(){
+            const dates=window.timelineDateDraft||{start:'',end:''},bounds=window.timelineDateDraftDays(dates);
+            // Recompute from the complete current timeline; never retain a loading-time fallback.
+            const domain=window.timelineDateBaseDomain();
+            const noEventDates=domain.min===null||domain.max===null;
+            const precise=document.getElementById('timelineDatePreciseFields');if(precise)precise.disabled=noEventDates;
+            for(const raw of noEventDates?[]:[dates.start,dates.end]){
+                const range=raw?window.timelineDateBounds(raw):null;if(!range)continue;
+                const first=window.timelineDateToDay(range.start),last=window.timelineDateToDay(range.end);
+                if(first===null||last===null)continue;
+                domain.min=domain.min===null?first:Math.min(domain.min,first);
+                domain.max=domain.max===null?last:Math.max(domain.max,last);
+            }
+            window.timelineDateSliderDomain=domain;
+            const empty=domain.min===null||domain.max===null,start=bounds.start??domain.min,end=bounds.end??domain.max;
+            const unsupported=!!((dates.start&&bounds.start===null)||(dates.end&&bounds.end===null));
+            for(const [key,value] of [['start',start],['end',end]]){
+                const slider=document.getElementById(key==='start'?'timelineDateStartSlider':'timelineDateEndSlider');if(!slider)continue;
+                slider.min=empty?0:domain.min;slider.max=empty?1:domain.max;slider.value=empty?(key==='start'?0:1):value;slider.disabled=empty||unsupported||domain.min===domain.max;
+                slider.setAttribute('aria-valuetext',dates[key]||(empty?'暂无日期':window.timelineDayToDate(value)));
+            }
+            const startLabel=document.getElementById('timelineDateStartLabel'),endLabel=document.getElementById('timelineDateEndLabel');
+            if(startLabel)startLabel.textContent=empty?'暂无日期':(dates.start||window.timelineDayToDate(start));
+            if(endLabel)endLabel.textContent=empty?'暂无日期':(dates.end||window.timelineDayToDate(end));
+            const fill=document.getElementById('timelineDateRangeFill'),span=empty?1:Math.max(1,domain.max-domain.min);
+            if(fill){fill.style.left=empty?'0%':(start-domain.min)/span*100+'%';fill.style.width=empty?'0%':Math.max(0,end-start)/span*100+'%';}
+        };
+        window.changeTimelineDateSlider=function(side,raw){
+            if(window.timelineDateBaseDomain().min===null)return;
+            const domain=window.timelineDateSliderDomain||window.timelineDateBaseDomain(),draft=window.timelineDateDraft||{start:'',end:''};
+            if(domain.min===null||domain.max===null)return;
+            const bounds=window.timelineDateDraftDays(draft),start=bounds.start??domain.min,end=bounds.end??domain.max;
+            let value=Math.round(Number(raw));if(!Number.isSafeInteger(value))return;
+            value=Math.max(domain.min,Math.min(domain.max,value));
+            const selected=side==='start'?Math.min(value,end):Math.max(value,start);
+            window.timelineDateDraft={start:side==='start'?window.timelineDayToDate(selected):(draft.start||window.timelineDayToDate(start)),end:side==='end'?window.timelineDayToDate(selected):(draft.end||window.timelineDayToDate(end))};
+            window.renderTimelineFilterDateFields();window.updateTimelineDateSlider();
+        };
+        window.syncTimelineDateDraftFromInputs=function(){
+            if(window.timelineDateBaseDomain().min===null)return;
+            if(window._timelineDateInputSyncing)return;
+            window._timelineDateInputSyncing=true;
+            try{const dates=window.readTimelineFilterDates();if(dates){window.timelineDateDraft=dates;window.updateTimelineDateSlider();}}
+            finally{window._timelineDateInputSyncing=false;}
+        };
+        window.toggleTimelineDatePrecise=function(){
+            const fields=document.getElementById('timelineDatePreciseFields'),button=document.getElementById('timelineDateExpandBtn');if(!fields||!button)return;
+            fields.hidden=!fields.hidden;button.setAttribute('aria-expanded',String(!fields.hidden));button.querySelector('i')?.classList.toggle('rotate-180',!fields.hidden);
+        };
+
         window.openTagModal = function() {
             window.tagManageCategory='all';
             document.getElementById('tagManageCategoryMenu')?.classList.add('hidden');
-            const tagInput=document.getElementById('tagInput'); if(tagInput) tagInput.value='';
             const shell=document.getElementById('tagModalShell');
             if(shell) shell.onclick=e=>{if(!e.target.closest('#tagManageControls'))document.getElementById('tagManageCategoryMenu')?.classList.add('hidden');};
             const inputContainer = document.getElementById('tagInputContainer');
             if (inputContainer) {
                 inputContainer.style.display = window.isLocked ? 'none' : 'block';
             }
+            window.timelineDateDraft={...(window.timelineDateFilter||{start:'',end:''})};
+            window.renderTimelineFilterDateFields();window.updateTimelineDateSlider();
+            const precise=document.getElementById('timelineDatePreciseFields');if(precise)precise.hidden=true;
+            const expand=document.getElementById('timelineDateExpandBtn');if(expand){expand.setAttribute('aria-expanded','false');expand.querySelector('i')?.classList.remove('rotate-180');}
             window.tagFilterDraftMode = window.tagFilterMode || 'include';
             window.tagFilterDraftMatch = window.tagFilterMatch || 'any';
             window.tagFilterDraftSelected = Array.isArray(window.tagFilterSelected) ? window.tagFilterSelected.slice() : [];
@@ -5600,7 +5782,6 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             const exc=document.getElementById('tagModeExcludeBtn');
             if(inc) inc.className=`px-3 py-1 rounded-md text-[11px] font-medium ${window.tagFilterDraftMode==='include'?active:idle}`;
             if(exc) exc.className=`px-3 py-1 rounded-md text-[11px] font-medium ${window.tagFilterDraftMode==='exclude'?active:idle}`;
-            window.updateTagFilterHint();
             window.renderTagModalList();
         };
 
@@ -5612,13 +5793,6 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             const allBtn=document.getElementById('tagMatchAllBtn');
             if(anyBtn) anyBtn.className=`px-3 py-1 rounded-md text-[11px] font-medium ${window.tagFilterDraftMatch==='any'?active:idle}`;
             if(allBtn) allBtn.className=`px-3 py-1 rounded-md text-[11px] font-medium ${window.tagFilterDraftMatch==='all'?active:idle}`;
-            window.updateTagFilterHint();
-        };
-
-        window.updateTagFilterHint = function() {
-            const hint = document.getElementById('tagFilterHint');
-            if (!hint) return;
-            hint.textContent = '已筛选成功';
         };
 
         window.toggleTagDraft = function(tag) {
@@ -5631,10 +5805,11 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         };
 
         window.applyTagFilter = function() {
+            const dates=window.readTimelineFilterDates();if(!dates)return;
+            window.timelineDateFilter=dates;
             window.tagFilterMode = window.tagFilterDraftMode === 'exclude' ? 'exclude' : 'include';
             window.tagFilterMatch = window.tagFilterDraftMatch === 'all' ? 'all' : 'any';
             window.tagFilterSelected = (window.tagFilterDraftSelected || []).slice();
-            window.activeTagFilter = window.tagFilterSelected.length === 1 ? window.tagFilterSelected[0] : null;
             window.closeTagModal();
             const timelineContainer = document.getElementById('timelineContainer');
             if (timelineContainer) timelineContainer.scrollLeft = 0;
@@ -5644,21 +5819,19 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 if (tc) tc.scrollLeft = 0;
                 window.scrollTimelineToFirstNode();
             }));
-            const n = window.tagFilterSelected.length;
-            if (n === 0) {
-                window.showToast('已清除Tag筛选', 'info');
-            } else {
-                window.showToast('已筛选成功', 'success');
-            }
             window.updateTagFilterBadge();
         };
 
         window.updateTagFilterBadge = function() {
             let badge = document.getElementById('tagFilterBadge');
-            const btn = document.querySelector('button[onclick="openTagModal()"]');
+            const btn = document.getElementById('timelineFilterBtn');
             if (!btn) return;
             const n = (window.tagFilterSelected || []).length;
-            if (n === 0) {
+            const dates=window.timelineDateFilter||{};
+            const dateActive=!!(dates.start||dates.end);
+            btn.setAttribute('aria-pressed',String(n>0||dateActive));
+            btn.title=n>0||dateActive?'筛选已启用':'筛选时间线';
+            if (n === 0 && !dateActive) {
                 if (badge) badge.remove();
                 return;
             }
@@ -5669,7 +5842,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 btn.appendChild(badge);
             }
             const prefix = (window.tagFilterMode === 'exclude' ? '排' : '含') + (window.tagFilterMatch === 'all' ? '全' : '');
-            badge.textContent = prefix + n;
+            badge.textContent = (n?prefix+n:'')+(dateActive?(n?'·日期':'日期'):'');
             badge.className = window.tagFilterMode === 'exclude'
                 ? 'ml-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-rose-600 text-white leading-none'
                 : 'ml-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-indigo-600 text-white leading-none';
@@ -5698,7 +5871,6 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     const replaceIn=a=>Array.isArray(a)?a.map(x=>x===tagName?name:x):a;
                     window.tagFilterDraftSelected=replaceIn(window.tagFilterDraftSelected);
                     window.tagFilterSelected=replaceIn(window.tagFilterSelected);
-                    if(window.activeTagFilter===tagName)window.activeTagFilter=name;
                     window.events.forEach(ev=>{if(Array.isArray(ev.tagIds)&&ev.tagIds.map(String).includes(stableId))ev.tags=ev.tagIds.map(id=>window.tagNameById?.get(String(id))).filter(Boolean);});
                     window.renderTagModalList();window.renderEvents?.();window.updateTagFilterBadge?.();
                     window.showToast('Tag名称已修改','success');
@@ -5763,7 +5935,6 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             window.tagRecords = (window.tagRecords||[]).filter(x=>String(x?.name||x)!==tagName);
             window.tagFilterDraftSelected=(window.tagFilterDraftSelected||[]).filter(t=>t!==tagName);
             window.tagFilterSelected=(window.tagFilterSelected||[]).filter(t=>t!==tagName);
-            if(window.activeTagFilter===tagName)window.activeTagFilter=null;
             if(deletedId){window.tagNameById?.delete(String(deletedId));window.tagIdByName?.delete(tagName);window.events.forEach(ev=>{if(Array.isArray(ev.tagIds))ev.tags=ev.tagIds.map(id=>window.tagNameById?.get(String(id))).filter(Boolean);});}
             window.renderTagModalList?.();window.updateTagFilterBadge?.();window.renderEvents?.();
             window.showToast(`已移除Tag: ${tagName}`, "info");
@@ -6008,6 +6179,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         };
 
         window.renderEvents = function() {
+            const filterModal=document.getElementById('tagModal');
+            if(filterModal&&!filterModal.classList.contains('hidden'))window.updateTimelineDateSlider?.();
             const filtered = window.getFilteredEvents();
             const emptyState = document.getElementById('emptyState');
             if (filtered.length === 0) {
@@ -6043,9 +6216,6 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                         return selected.some(t => tags.includes(t));
                     });
                 }
-            } else if (window.activeTagFilter) {
-                const tag = window.activeTagFilter;
-                list = list.filter(e => e.tags && e.tags.some(t => t === tag));
             }
             const query = String(document.getElementById('searchInput')?.value || '').trim().toLocaleLowerCase('zh-CN');
             if (query) {
@@ -6053,16 +6223,12 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 // 同期事件集合则按集合内每个事件自己的标题独立匹配。
                 list = list.filter(e => String(e?.title || '').toLocaleLowerCase('zh-CN').includes(query));
             }
+            const dates=window.timelineDateFilter||{};
+            if(dates.start||dates.end)list=list.filter(e=>window.eventMatchesTimelineDateFilter(e,dates));
             return list;
         };
 
         window.handleSearch = function() {
-            if ((document.getElementById('searchInput')?.value || '').trim()) {
-                window.activeTagFilter = null;
-                window.tagFilterSelected = [];
-                window.tagFilterDraftSelected = [];
-                if (typeof window.updateTagFilterBadge === 'function') window.updateTagFilterBadge();
-            }
             window.renderEvents();
         };
 
@@ -6080,21 +6246,13 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             if (container.scrollLeft < 0) container.scrollLeft = 0;
         };
 
-        window.clearTagFilter = function() {
-            window.activeTagFilter = null;
-            window.tagFilterSelected = [];
-            window.tagFilterDraftSelected = [];
-            window.tagFilterMode = 'include';
-            window.tagFilterDraftMode = 'include';
-            window.tagFilterMatch = 'any';
-            window.tagFilterDraftMatch = 'any';
-            window.updateTagFilterBadge();
-            window.renderTagModalList();
-            const timelineContainer = document.getElementById('timelineContainer');
-            if (timelineContainer) timelineContainer.scrollLeft = 0;
-            window.renderEvents();
-            requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTimelineToFirstNode()));
-            window.showToast('已清除Tag筛选', 'info');
+        window.clearTimelineTagDraft=function(){
+            window.tagFilterDraftSelected=[];
+            window.setTagFilterDraftMode('include');window.setTagFilterDraftMatch('any');
+        };
+        window.clearTimelineDateDraft=function(){
+            window.timelineDateDraft={start:'',end:''};
+            window.renderTimelineFilterDateFields();window.updateTimelineDateSlider();
         };
 
         window.scrollTimeline = function(amount) {
