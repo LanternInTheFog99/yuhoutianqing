@@ -4243,28 +4243,32 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             return window.deepDecodeLegacyWrappers(window.prepareEventForCloud(eventData));
         };
 
+        window.isTimelineAutoSyncPaused=function(){
+            if((Number(window._cloudWriteLockDepth)||0)>0||window._hasPendingTempUploads?.())return true;
+            if(typeof rearrangeState!=='undefined'&&rearrangeState.active)return true;
+            const editWindows=['editModal','multiTimeEventModal','deepDescriptionModal','connectionEditModal','newEventTypeModal','confirmSaveModal','savingModal','deletingModal','editAttachmentDeleteConfirmModal','cropModal','videoCropModal','videoEditDetailModal','gifCoverPickerModal','deepCropModal','deepUrlModal','timelineAppInputModal','musicModal','tagModal','xiaoqingerDialogueEditorModal'];
+            return editWindows.some(id=>{const modal=document.getElementById(id);return !!(modal&&!modal.classList.contains('hidden')&&getComputedStyle(modal).display!=='none'&&getComputedStyle(modal).visibility!=='hidden');});
+        };
         window.startTimelineVersionPolling = function() {
-            if(window._invalidRoomAccess) return;
-            if (window._timelineVersionPollTimer) clearInterval(window._timelineVersionPollTimer);
-            window._timelineVersionPollTimer = setInterval(async () => {
-                if (window.timelineCloudSource !== 'cloudbase') return;
-                try {
-                    const meta = await timelineApiFetch('/timeline/version', 10000);
-                    const nextVersion = String(meta?.version || '');
-                    if (!nextVersion || nextVersion === String(window._cloudbaseTimelineVersion || '')) return;
-
-                    // 有正在编辑的表单时不强行覆盖本地编辑状态；下一轮继续检查。
-                    if (!window.isLocked) return;
-
-                    await loadTimelineFromCloudBase();
-                    updateSyncStatus('synced', '已同步云端');
-                } catch (err) {
-                    console.warn('CloudBase 版本检查失败:', err);
-                }
-            }, 8000);
+            if(window._invalidRoomAccess)return;
+            if(window._timelineVersionPollTimer)clearInterval(window._timelineVersionPollTimer);
+            let checking=false;
+            window._timelineVersionPollTimer=setInterval(async()=>{
+                if(checking||window.timelineCloudSource!=='cloudbase'||window.isTimelineAutoSyncPaused())return;
+                checking=true;
+                try{
+                    const meta=await timelineApiFetch('/timeline/version',10000),nextVersion=String(meta?.version||'');
+                    if(!nextVersion||nextVersion===String(window._cloudbaseTimelineVersion||'')||window.isTimelineAutoSyncPaused())return;
+                    const loaded=await loadTimelineFromCloudBase({autoSync:true});
+                    if(loaded!==false)updateSyncStatus('synced','已同步云端');
+                }catch(err){console.warn('CloudBase 版本检查失败:',err);}
+                finally{checking=false;}
+            },8000);
         };
 
-        async function loadTimelineFromCloudBase() {
+        async function loadTimelineFromCloudBase({autoSync=false}={}) {
+            const syncStartVersion=String(window._cloudbaseTimelineVersion||''),syncAccount=window.getCurrentAccountId?.()||'';
+            if(autoSync&&window.isTimelineAutoSyncPaused())return false;
             if(!window.roomAccessToken){
                 window.invalidateRoomAccess?.();
                 return false;
@@ -4333,6 +4337,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             });
 
             const [meta, results, qingerPetData] = await Promise.all([metaPromise, sidePromise, qingerPetPromise]);
+            // Recheck after network awaits: a newly opened editor or local save must not be overwritten.
+            if(autoSync&&(window.isTimelineAutoSyncPaused()||String(window._cloudbaseTimelineVersion||'')!==syncStartVersion||(window.getCurrentAccountId?.()||'')!==syncAccount))return false;
             if (qingerPetData) {
                 window.__initialQingerPetData = qingerPetData;
                 window.__applyQingerPetCloudData?.(qingerPetData, {initial:true});
