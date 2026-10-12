@@ -1932,6 +1932,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         </div>
     </header>
 <main class="flex-grow max-w-6xl w-full mx-auto px-3 sm:px-6 py-6 sm:py-8">
+        <div id="testSpaceNotice" hidden style="margin-bottom:16px;padding:12px 16px;border:1px solid #fbbf24;border-radius:12px;background:#fffbeb;color:#92400e;font-size:13px">测试空间：事件、评论、小晴儿状态及上传文件独立；账号为全站共用，请在正式站管理账号</div>
         <div id="toastBox" class="hidden fixed top-20 right-4 z-[9999] bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl border border-slate-700 flex items-center gap-3 transition-all duration-300 transform translate-y-0 opacity-100">
             <i id="toastIcon" class="fa-solid fa-circle-info text-indigo-400 text-lg"></i>
             <span id="toastText" class="text-sm font-medium">提示信息</span>
@@ -2126,6 +2127,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
 
             <div class="mb-4">
                 <label class="block text-xs font-bold text-slate-700 mb-1">分享目标空间ID</label>
+                <button type="button" onclick="document.getElementById('shareRoomInput').value=window.TEST_ROOM_ID;generateSecureShareLink()" class="text-xs text-indigo-600 mb-2">生成测试空间链接</button>
                 <div class="flex gap-2">
                     <input type="text" id="shareRoomInput" placeholder="输入要分享的空间ID" class="flex-grow px-3 py-2 border border-slate-300 bg-white rounded-lg text-xs text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500">
                     <button type="button" onclick="generateSecureShareLink()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg text-xs font-medium shrink-0">生成链接</button>
@@ -2531,6 +2533,9 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         window.roomAccessToken = (urlParams.get('access') || '').trim();
         window.MAIN_EDIT_ROOM_ID = '07201218';
         window.isMainEditRoom = window.currentRoomId === window.MAIN_EDIT_ROOM_ID;
+        window.TEST_ROOM_ID = 'yht-test';
+        window.isTestRoom = window.currentRoomId === window.TEST_ROOM_ID;
+        const testNotice=document.getElementById('testSpaceNotice');if(testNotice)testNotice.hidden=!window.isTestRoom;
 
         window.invalidateRoomAccess = function(){
             window._invalidRoomAccess=true;
@@ -14175,9 +14180,9 @@ viewer.style.visibility='';
 
         /* === 全站账号管理 === */
         window.ACTIVITY_ANON_KEY='yuhoutianqing_activity_anonymous';
-        window.ACCOUNT_STORAGE_KEY='yuhoutianqing_account_session_v1';
-        window.ACCOUNT_DELETE_KEY='yuhoutianqing_account_delete_v1';
-        window.ACCOUNT_DELETE_PENDING_KEY='yuhoutianqing_account_delete_pending_v1';
+        window.ACCOUNT_STORAGE_KEY='yuhoutianqing_account_session_v1'+(window.isTestRoom?':yht-test':'');
+        window.ACCOUNT_DELETE_KEY='yuhoutianqing_account_delete_v1'+(window.isTestRoom?':yht-test':'');
+        window.ACCOUNT_DELETE_PENDING_KEY='yuhoutianqing_account_delete_pending_v1'+(window.isTestRoom?':yht-test':'');
         window.accountClearDeleteTask=function(){localStorage.removeItem(window.ACCOUNT_DELETE_KEY);localStorage.removeItem(window.ACCOUNT_DELETE_PENDING_KEY);};
         window.isActivityAnonymous=()=>{try{return localStorage.getItem(window.ACTIVITY_ANON_KEY)==='1'}catch(_){return false}};
         window.setActivityAnonymous=value=>{localStorage.setItem(window.ACTIVITY_ANON_KEY,value?'1':'0');const sw=document.getElementById('activityAnonymousSwitch');if(sw)sw.checked=!!value;};
@@ -14262,7 +14267,7 @@ viewer.style.visibility='';
         };
         window.renderAccountManagement=function(){
             const logged=!!window.getCurrentAccountId();let deleteTicket='',deletePending=false;try{deleteTicket=localStorage.getItem(window.ACCOUNT_DELETE_KEY)||'';deletePending=localStorage.getItem(window.ACCOUNT_DELETE_PENDING_KEY)==='1';}catch(_){}
-            const html=logged?`<button type="button" data-account-history aria-label="查看历史ID" class="account-profile w-full mb-4 text-left hover:border-indigo-200 transition-colors"><span class="min-w-0 flex-1"><span class="block text-[11px] text-slate-500 mb-1">当前账号</span><span class="flex items-center gap-3 min-w-0"><span class="min-w-0 flex-1 font-semibold text-slate-800 break-all leading-6">${accountEscape(window.getCommonUserId())}</span><i class="fa-solid fa-chevron-right shrink-0 text-[11px] text-slate-400" aria-hidden="true"></i></span></span></button><div class="account-menu">${accountButton('rename','修改ID')}${accountButton('password','修改密码')}${accountButton('logout','退出登录')}${accountButton('delete','删除账号',true)}</div>`:`<div class="account-profile mb-4"><div><p class="font-semibold text-slate-800">当前为游客</p><p class="text-xs text-slate-500 mt-1">登录后管理你的账号</p></div></div><div class="account-menu">${accountButton('login','登录账号')}${accountButton('register','创建账号')}</div>${deleteTicket||deletePending?`<div class="mt-4 pt-3 border-t border-slate-100">${deleteTicket?accountButton('resumeDelete','继续未完成的删除',true):accountButton('recoverDelete','继续未完成的删除',true)}</div>`:''}`;
+            const html=logged?`<button type="button" data-account-history aria-label="查看历史ID" class="account-profile w-full mb-4 text-left hover:border-indigo-200 transition-colors"><span class="min-w-0 flex-1"><span class="block text-[11px] text-slate-500 mb-1">当前账号</span><span class="flex items-center gap-3 min-w-0"><span class="min-w-0 flex-1 font-semibold text-slate-800 break-all leading-6">${accountEscape(window.getCommonUserId())}</span><i class="fa-solid fa-chevron-right shrink-0 text-[11px] text-slate-400" aria-hidden="true"></i></span></span></button><div class="account-menu">${window.isTestRoom?accountButton('logout','退出登录'):accountButton('rename','修改ID')+accountButton('password','修改密码')+accountButton('logout','退出登录')+accountButton('delete','删除账号',true)}</div>`:`<div class="account-profile mb-4"><div><p class="font-semibold text-slate-800">当前为游客</p><p class="text-xs text-slate-500 mt-1">登录后管理你的账号</p></div></div><div class="account-menu">${accountButton('login','登录账号')}${accountButton('register','创建账号')}</div>${deleteTicket||deletePending?`<div class="mt-4 pt-3 border-t border-slate-100">${deleteTicket?accountButton('resumeDelete','继续未完成的删除',true):accountButton('recoverDelete','继续未完成的删除',true)}</div>`:''}`;
             const m=window.accountDialog('accountManageModal','账号管理',html);
             m.querySelectorAll('[data-account-action]').forEach(b=>b.onclick=()=>{const action=b.dataset.accountAction;if(action==='logout')window.accountLogout(b);else if(action==='resumeDelete')window.accountResumeDelete(b);else window.openAccountForm(action);});
             if(logged){m.querySelector('[data-account-history]').onclick=()=>window.openAccountHistory();}
@@ -14290,6 +14295,7 @@ viewer.style.visibility='';
             }
         };
         window.openAccountForm=function(mode,{confirmedDelete=false,verified=false}={}){
+            if(window.isTestRoom&&['rename','password','delete','recoverDelete','verifyRename','verifyPassword'].includes(mode)){window.showToast?.('账号为全站共用，请在正式站管理账号','info');return;}
             if(mode==='delete'&&!confirmedDelete){void window.accountConfirmDelete();return;}
             if(['rename','password'].includes(mode)&&!verified){accountVerifiedPasswords.clear();window.openAccountForm(mode==='rename'?'verifyRename':'verifyPassword');return;}
 
