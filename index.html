@@ -1968,6 +1968,10 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
     #fullscreenViewer [data-detail-shell].detail-fixed-shell{--detail-inset:40px;}
     #fullscreenViewer [data-detail-shell].multi-detail-shell.detail-fixed-shell{--detail-inset:32px;}
 }
+#fullscreenViewer .multi-detail-shell #multiDetailScroller>section{width:78vw;box-sizing:border-box;}
+@media(min-width:640px){
+    #fullscreenViewer .multi-detail-shell #multiDetailScroller>section{width:calc((100% - 2rem) / 3);}
+}
 #fullscreenViewer.mobile-comments-open [data-detail-shell].detail-fixed-shell{overflow:hidden!important;}
 .media-library-thumb{position:relative;display:flex;align-items:center;justify-content:center;}
 .media-library-thumb img{position:absolute;inset:0;opacity:0;transition:opacity .12s;width:100%;height:100%;object-fit:cover;}
@@ -11775,7 +11779,7 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
                     const desc=String(seg.description||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/gi,' ').trim()?`<div class="event-description-html text-sm leading-7 text-slate-200">${window.prepareDescriptionForView?window.prepareDescriptionForView(seg.description):seg.description}</div>`:'';
                     const body=imagesBlock+videosBlock+links+desc;
                     const subtitle=String(seg.subtitle||'').trim();
-                    return `<section class="relative shrink-0 w-[78vw] sm:w-[360px] rounded-2xl border border-slate-700 bg-slate-900/80 p-4 self-start">${window.getMultiSegmentRelationMarks?.(event,seg.id)||''}<div class="text-xs font-mono text-indigo-300 ${subtitle?'mb-1':'mb-3'}">${window.formatDisplayDate(seg.date)}</div>${subtitle?`<h2 class="text-sm sm:text-base font-normal text-slate-200 mb-3">${escapeHtml(subtitle)}</h2>`:''}<div class="space-y-3">${body||'<div class="text-xs text-slate-500">这个时间没有附加内容</div>'}</div></section>`;
+                    return `<section class="relative shrink-0 rounded-2xl border border-slate-700 bg-slate-900/80 p-4 self-start">${window.getMultiSegmentRelationMarks?.(event,seg.id)||''}<div class="text-xs font-mono text-indigo-300 ${subtitle?'mb-1':'mb-3'}">${window.formatDisplayDate(seg.date)}</div>${subtitle?`<h2 class="text-sm sm:text-base font-normal text-slate-200 mb-3">${escapeHtml(subtitle)}</h2>`:''}<div class="space-y-3">${body||'<div class="text-xs text-slate-500">这个时间没有附加内容</div>'}</div></section>`;
                 }).join('');
                 viewer.innerHTML=`<div data-detail-shell class="multi-detail-shell max-w-6xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-8 shadow-2xl relative"><div class="detail-window-dragbar" data-detail-drag-handle><i class="fa-solid fa-grip-lines"></i><span>点击此处拖动详情页</span></div><button type="button" onclick="window.openEventCommentWindow('${event.id}')" class="detail-window-comments-btn"><i class="fa-regular fa-comments"></i><span>评论区</span></button><button onclick="closeReadOnlyFullscreen('${fromStackDate?fromStackDate.replace(/'/g,"\\'"):''}')" class="absolute top-3 right-4 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full"><i class="fa-solid fa-xmark"></i></button><h1 class="text-xl sm:text-2xl font-bold mb-5 pr-12">${escapeHtml(event.title)}</h1><div id="multiDetailScroller" class="flex gap-4 overflow-x-auto overflow-y-visible pb-3 cursor-grab select-none" style="touch-action:pan-x pan-y;overscroll-behavior-x:contain;scroll-snap-type:none;scroll-behavior:auto;">${cols}</div>${detailTagHtml}</div>`;
                 viewer.classList.remove('hidden');window.bindDetailVideoBehavior(viewer,event.id);window.initMultiDetailScroller?.();window.initFloatingDetailWindow(viewer);return;
