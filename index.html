@@ -2843,44 +2843,6 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             return srcs;
         };
 
-        window.setPreviewSlideImage = function(img, item, keepHidden = false) {
-            return new Promise((resolve) => {
-                if (!img || !item) { resolve(); return; }
-                const src = item.src || item.cover || '';
-                const finish = () => {
-                    try { window.applyPreviewImageStyle(img, item); } catch (_) {}
-                    if (keepHidden) {
-                        img.style.opacity = '0';
-                        img.classList.add('hidden');
-                    } else {
-                        img.style.opacity = '1';
-                        img.classList.remove('hidden');
-                    }
-                    resolve();
-                };
-                img.style.opacity = '0';
-                if (!keepHidden) img.classList.remove('hidden');
-                if (!src) { finish(); return; }
-                const token = String(Date.now()) + Math.random();
-                img.dataset.previewLoadToken = token;
-                const done = () => {
-                    if (img.dataset.previewLoadToken !== token) return;
-                    img.removeEventListener('load', done);
-                    img.removeEventListener('error', done);
-                    finish();
-                };
-                img.addEventListener('load', done, { once: true });
-                img.addEventListener('error', done, { once: true });
-                const prev = img.getAttribute('src') || '';
-                if (prev === src && img.complete && img.naturalWidth > 0) {
-                    done();
-                    return;
-                }
-                img.src = src;
-                if (img.complete && img.naturalWidth > 0) done();
-            });
-        };
-
         window._previewAnimatedDurationCache = window._previewAnimatedDurationCache || new Map();
         window.parseGifDurationMs = function(input) { const bytes=input instanceof Uint8Array?input:new Uint8Array(input||0); if(bytes.length<13)return 0; const sig=String.fromCharCode(...bytes.subarray(0,6)); if(sig!=='GIF87a'&&sig!=='GIF89a')return 0; let pos=13,totalCs=0,pendingCs=10,saw=false; const packed=bytes[10]||0; if(packed&0x80)pos+=3*(1<<((packed&7)+1)); const skip=()=>{while(pos<bytes.length){const n=bytes[pos++];if(!n)break;pos+=n;}}; while(pos<bytes.length){const b=bytes[pos++];if(b===0x3B)break;if(b===0x21){const label=bytes[pos++];if(label===0xF9&&bytes[pos]===4&&pos+5<bytes.length){pos++;pos++;const d=bytes[pos]|(bytes[pos+1]<<8);pos+=2;pos+=2;pendingCs=d>0?d:10;}else skip();}else if(b===0x2C){if(pos+9>bytes.length)break;const ip=bytes[pos+8];pos+=9;if(ip&0x80)pos+=3*(1<<((ip&7)+1));if(pos>=bytes.length)break;pos++;skip();totalCs+=pendingCs;pendingCs=10;saw=true;}else break;} return saw&&totalCs>0?Math.max(50,totalCs*10):0; };
 
@@ -2971,543 +2933,182 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         var isAnimatedImageItem = window.isAnimatedImageItem;
 
         window.startPreviewSlideshow = function(rootEl, opts) {
-            if (!rootEl) return;
-            const calm = !!(opts && opts.calm);
-            const noCrossfade = !!(opts && opts.noCrossfade);
-            if (rootEl._previewRunning && rootEl._previewCalm === calm && rootEl._previewNoCrossfade === noCrossfade && rootEl._previewRunToken) {
-                return;
-            }
-            window.stopPreviewSlideshow(rootEl, false);
-            const runToken = (rootEl._previewRunToken || 0) + 1;
-            rootEl._previewRunToken = runToken;
-            rootEl._previewRunning = true;
-            rootEl._previewCalm = calm;
-            rootEl._previewNoCrossfade = noCrossfade;
-            if (noCrossfade) rootEl.classList.add('preview-no-crossfade');
-            else rootEl.classList.remove('preview-no-crossfade');
-            const stackGeneration = rootEl._stackPreviewGeneration;
-            const isStillRunning = () => rootEl.isConnected && rootEl._previewRunning === true && rootEl._previewRunToken === runToken && (stackGeneration == null || stackGeneration === window._stackPreviewGeneration);
-            const imgs = Array.from(rootEl.querySelectorAll('.preview-slide-img'));
-            if (!imgs.length) return;
-            const timers = [];
-            const videoEls = [];
-            rootEl._previewPreloadVideos=[];
-            const imageHold = calm ? 4200 : 2200;
-            const defaultVideoHold = calm ? 5000 : 4000;
-            const ANIMATED_FALLBACK_SEC = 3;
-            const PRELOAD_WAIT_MS = 60;
-            const MEDIA_COVER_MIN_HOLD_MS = calm ? 600 : 500;
-            const MEDIA_COVER_MAX_HOLD_MS = calm ? 3200 : 2600;
-
-            // Animated-image detection is shared by the detail carousel and timeline preview.
-            // Keep it on window because timeline rendering also calls it outside this function scope.
-            window.isAnimatedImageItem = window.isAnimatedImageItem || function(item) {
-                if (!item || item.type !== 'image') return false;
-                if (item.isAnimated) return true;
-                const src = String(item.src || item.cover || '');
-                return /\.gif(?:[?#]|$)/i.test(src) || /^data:image\/gif/i.test(src);
+            if(!rootEl)return;
+            const calm=!!opts?.calm,noCrossfade=!!opts?.noCrossfade;
+            if(rootEl._previewRunning&&rootEl._previewCalm===calm&&rootEl._previewNoCrossfade===noCrossfade)return;
+            window.stopPreviewSlideshow(rootEl,false);
+            const token=(rootEl._previewRunToken||0)+1,stackGeneration=rootEl._stackPreviewGeneration;
+            rootEl._previewRunToken=token;rootEl._previewRunning=true;
+            rootEl._previewCalm=calm;rootEl._previewNoCrossfade=noCrossfade;
+            rootEl.classList.toggle('preview-no-crossfade',noCrossfade);
+            const alive=()=>rootEl.isConnected&&rootEl._previewRunning&&rootEl._previewRunToken===token&&(stackGeneration==null||stackGeneration===window._stackPreviewGeneration);
+            const timers=rootEl._previewSlideTimers=new Set(),cancels=rootEl._previewCancelCallbacks=new Set();
+            const videos=rootEl._previewVideoEls=[];
+            const imageHold=calm?4200:2200;
+            const later=(fn,ms)=>{const id=setTimeout(()=>{timers.delete(id);fn();},ms);timers.add(id);return id;};
+            const wait=ms=>!alive()?Promise.resolve(false):new Promise(resolve=>{
+                let id;const finish=()=>{clearTimeout(id);timers.delete(id);cancels.delete(finish);resolve(alive());};
+                cancels.add(finish);id=later(finish,ms);
+            });
+            const bounded=(promise,ms,fallback)=>!alive()?Promise.resolve(fallback):new Promise(resolve=>{
+                let done=false,id;const finish=value=>{if(done)return;done=true;clearTimeout(id);timers.delete(id);cancels.delete(cancel);resolve(value);};
+                const cancel=()=>finish(fallback);cancels.add(cancel);id=later(cancel,ms);
+                Promise.resolve(promise).then(finish,()=>finish(fallback));
+            });
+            const readyElement=(el,eventNames,ready,start,timeout=8000)=>!alive()?Promise.resolve(false):new Promise(resolve=>{
+                let done=false,id;
+                const finish=ok=>{if(done)return;done=true;clearTimeout(id);timers.delete(id);cancels.delete(cancel);eventNames.forEach(e=>el.removeEventListener(e,onReady));el.removeEventListener('error',onError);resolve(!!ok&&alive());};
+                const onReady=()=>{if(ready())finish(true);},onError=()=>finish(false),cancel=()=>finish(false);
+                eventNames.forEach(e=>el.addEventListener(e,onReady));el.addEventListener('error',onError);cancels.add(cancel);id=later(cancel,timeout);
+                try{start();onReady();}catch(_){finish(false);}
+            });
+            const loadImage=async src=>{
+                if(!src||!alive())return null;
+                const probe=new Image();probe.decoding='async';
+                const ok=await readyElement(probe,['load'],()=>probe.complete&&probe.naturalWidth>0,()=>{probe.src=src;});
+                if(!ok)return false;
+                if(probe.decode&&!(await bounded(Promise.resolve().then(()=>probe.decode()).then(()=>true),2000,false)))return false;
+                return alive()?probe:null;
             };
-            const isAnimatedImageItem = window.isAnimatedImageItem;
-            const isPlainPreviewImageItem = (item) => !!item && item.type === 'image' && !isAnimatedImageItem(item);
-
-            const schedule = (img) => {
-                const media = img._slideMedia || [];
-                if (!media.length) return;
-                let idx = 0;
-                let generation = 0;
-                let pendingBlackHandoff = null;
-                const stage = img.parentElement || img;
-                let video = stage.querySelector(':scope > .preview-inline-video');
-                if (!video) {
-                    video = document.createElement('video');
-                    video.className = 'preview-inline-video absolute inset-0 w-full h-full object-cover hidden';
-                    video.muted = true;
-                    video.playsInline = true;
-                    video.setAttribute('playsinline', '');
-                    video.setAttribute('webkit-playsinline', '');
-                    video.preload = 'auto';
-                    stage.classList.add('relative');
-                    stage.appendChild(video);
+            // Each stage has one serial playback loop. Loading and transitions never consume its display interval.
+            const run=async img=>{
+                const media=img._slideMedia||[];if(!media.length)return;
+                const stage=img.parentElement||img;
+                let current=null,activeVideo=null,displayed=img.complete&&img.naturalWidth>0;
+                stage.querySelectorAll('.preview-inline-video').forEach(v=>{try{v.pause();v.removeAttribute('src');v.load();v.remove();}catch(_){}});
+                const dropVideo=v=>{
+                    if(!v)return;try{v.pause();v.removeAttribute('src');v.load();v.remove();}catch(_){}
+                    const i=videos.indexOf(v);if(i>=0)videos.splice(i,1);
+                    if(activeVideo===v)activeVideo=null;
+                };
+                const revealImage=()=>{
+                    stage.classList.remove('preview-stage-black');img.classList.remove('hidden','preview-soft-fade');
+                    img.style.transition='none';img.style.visibility='visible';img.style.opacity='1';
+                };
+                const swapImage=async(item,prepared)=>{
+                    if(!alive()||!prepared?.complete||!prepared.naturalWidth)return false;
+                    // Put the already loaded/decoded node on stage instead of blanking a shared img.src.
+                    for(const attr of img.attributes){if(attr.name!=='src'&&attr.name!=='loading')prepared.setAttribute(attr.name,attr.value);}
+                    prepared._slideMedia=media;prepared.loading='eager';
+                    stage.replaceChild(prepared,img);img=prepared;
+                    dropVideo(activeVideo);revealImage();try{window.applyPreviewImageStyle(img,item);}catch(_){}displayed=true;return true;
+                };
+                const transition=async(item,swap)=>{
+                    if(!alive())return false;
+                    if(!current||!displayed||noCrossfade)return await swap();
+                    const plain=x=>x?.type==='image'&&!window.isAnimatedImageItem(x);
+                    const simple=plain(current)&&plain(item),fadeIn=simple?220:340,fadeOut=simple?260:380;
+                    const dim=document.createElement('div');dim.className='absolute inset-0 pointer-events-none preview-media-transition-overlay';dim.dataset.previewTransitionOverlay='1';
+                    Object.assign(dim.style,{zIndex:'9',background:'#000',opacity:'0',transition:`opacity ${fadeIn}ms cubic-bezier(.4,0,.6,1)`});stage.appendChild(dim);
+                    try{
+                        if(!await wait(16))return false;dim.style.opacity='1';if(!await wait(fadeIn))return false;
+                        if(!await swap()||!alive())return false;
+                        if(!await wait(16))return false;
+                        dim.style.transition=`opacity ${fadeOut}ms cubic-bezier(.4,0,.2,1)`;dim.style.opacity='0';
+                        return await wait(fadeOut);
+                    }finally{dim.remove();}
+                };
+                const showImage=async(src,item,fade)=>{
+                    const prepared=await loadImage(src);if(!prepared||!alive())return false;
+                    return fade?await transition(item,()=>swapImage(item,prepared)):await swapImage(item,prepared);
+                };
+                const hold=async(ms,video=null)=>{
+                    let elapsed=0,last=performance.now(),lastTime=Number(video?.currentTime)||0,stalled=0,pausedForVisibility=false;
+                    while(alive()&&elapsed<ms){
+                        if(!await wait(Math.min(150,ms-elapsed)))return false;
+                        const now=performance.now(),delta=Math.min(250,Math.max(0,now-last));last=now;
+                        if(document.visibilityState==='hidden'){
+                            if(video&&!video.paused){video.pause();pausedForVisibility=true;}
+                            lastTime=Number(video?.currentTime)||0;continue;
+                        }
+                        if(video&&pausedForVisibility){
+                            if(!await bounded(Promise.resolve().then(()=>video.play()).then(()=>true),4000,false))return false;
+                            pausedForVisibility=false;lastTime=Number(video.currentTime)||0;last=performance.now();continue;
+                        }
+                        if(video){
+                            if(video.error||video._previewPlayFailed)return false;
+                            const time=Number(video.currentTime)||0,played=Math.max(0,Math.min(.25,time-lastTime));lastTime=time;
+                            if(!video.paused&&video.readyState>=2)elapsed+=played*1000;
+                            stalled=played>0?0:stalled+delta;
+                            if(video.ended)return true;
+                            if(stalled>=8000)return false;
+                        }else elapsed+=delta;
+                    }
+                    return alive();
+                };
+                const prefetch=item=>{
+                    if(!item)return;
+                    const src=item.type==='video'?item.cover:(item.src||item.cover);
+                    if(src)window.prepareMediaImage(src).catch(()=>{});
+                    if(item.cover&&item.cover!==src)window.prepareMediaImage(item.cover).catch(()=>{});
+                };
+                const playVideo=async item=>{
+                    if(item.cover&&await showImage(item.cover,item,true))current=item;
+                    if(!alive())return false;
+                    const video=document.createElement('video');video.className='preview-inline-video absolute inset-0 w-full h-full object-cover hidden';
+                    video.muted=true;video.playsInline=true;video.preload='auto';video.setAttribute('playsinline','');video.setAttribute('webkit-playsinline','');
+                    stage.classList.add('relative');stage.appendChild(video);videos.push(video);
+                    const ready=await readyElement(video,['loadeddata','canplay'],()=>video.readyState>=2&&!video.error,()=>{video.src=item.src;video.load();});
+                    if(!ready){dropVideo(video);return false;}
+                    // Verify autoplay while the loaded cover/previous frame still remains visible.
+                    const started=await bounded(Promise.resolve().then(()=>video.play()).then(()=>true),4000,false);
+                    if(!started||!alive()){dropVideo(video);return false;}
+                    video.pause();
+                    const swap=async()=>{
+                        if(!alive())return false;
+                        dropVideo(activeVideo);activeVideo=video;
+                        video.style.opacity='1';video.style.visibility='visible';video.style.transition='none';video.classList.remove('hidden');
+                        img.classList.add('hidden');img.style.visibility='hidden';img.style.opacity='0';stage.classList.remove('preview-stage-black');
+                        video.play().catch(()=>{video._previewPlayFailed=true;});displayed=true;return true;
+                    };
+                    // A video's own cover hands directly to its decoded frame; other media retain the brief transition.
+                    const shown=current===item?await swap():await transition(item,swap);
+                    if(!shown){dropVideo(video);return false;}
+                    current=item;
+                    const seconds=window.normalizeVideoPreviewDuration(item.previewDuration,calm?5:4);
+                    const played=await hold(seconds*1000,video);video.pause();
+                    if(!played&&alive()&&item.cover)await showImage(item.cover,item,false);
+                    return played;
+                };
+                let idx=0;
+                while(alive()){
+                    const item=media[idx];let shown=false;
+                    prefetch(media[(idx+1)%media.length]);
+                    if(item.type==='video'&&item.src){
+                        shown=await playVideo(item);
+                    }else if(window.isAnimatedImageItem(item)){
+                        if(item.cover&&item.cover!==item.src){
+                            if(await showImage(item.cover,item,true)){current=item;if(!await wait(80))return;}
+                        }
+                        const duration=await bounded(window.getAnimatedImageDuration(item),8000,null);
+                        shown=await showImage(item.src||item.cover,item,current!==item);
+                        if(shown&&alive()){
+                            current=item;
+                            if(media.length===1)return; // A lone GIF loops naturally without being restarted.
+                            const seconds=Number.isFinite(duration)&&duration>0?Math.max(.3,duration-.35):3;
+                            await hold(seconds*1000);
+                        }
+                    }else{
+                        shown=await showImage(item.src||item.cover,item,true);
+                        if(shown&&alive()){current=item;await hold(imageHold);}
+                    }
+                    if(!alive())return;
+                    // A failed load leaves the last good frame/cover in place and never triggers rapid skips.
+                    if(!shown)await hold(imageHold);
+                    if(!alive()||media.length===1&&item.type!=='video')return;
+                    idx=(idx+1)%media.length;
                 }
-                videoEls.push(video);
-
-                const delayMs = (ms) => new Promise((resolve) => {
-                    timers.push(setTimeout(resolve, Math.max(0, ms)));
-                });
-
-                const clearVideo = () => {
-                    img.style.visibility='visible';
-                    try { video.pause(); } catch (_) {}
-                    video.onloadeddata = null;
-                    video.oncanplay = null;
-                    video.onerror = null;
-                    video.removeAttribute('src');
-                    try { video.load(); } catch (_) {}
-                    video.classList.add('hidden');
-                    video.style.opacity = '0';
-                    video.classList.remove('preview-soft-fade');
-                };
-
-                const preloadPromises = new Map();
-                const preloadKey = (item) => {
-                    if (!item) return '';
-                    if (item.type === 'video') return 'v:' + String(item.src || '');
-                    return 'i:' + String(item.src || item.cover || '');
-                };
-                const preloadNextItem = (item) => {
-                    if (!item) return Promise.resolve(true);
-                    const key = preloadKey(item);
-                    if (!key || key === 'v:' || key === 'i:') return Promise.resolve(true);
-                    if (preloadPromises.has(key)) return preloadPromises.get(key);
-                    const p = new Promise((resolve) => {
-                        try {
-                            if (item.type === 'video' && item.src) {
-                                const pre = document.createElement('video');
-                                pre.preload = 'metadata';
-                                rootEl._previewPreloadVideos.push(pre);
-                                pre.muted = true;
-                                pre.playsInline = true;
-                                pre.src = item.src;
-                                let finished=false;
-                                const done=()=>{if(finished)return;finished=true;pre.removeAttribute('src');try{pre.load();}catch(_){}resolve(true);};
-                                pre.addEventListener('loadedmetadata',done,{once:true});
-                                pre.addEventListener('error',done,{once:true});
-                                try { pre.load(); } catch (_) { resolve(true); }
-                                timers.push(setTimeout(done, 8000));
-                            } else {
-                                window.prepareMediaImage(item.src||item.cover||'').then(resolve);
-                            }
-                        } catch (_) {
-                            resolve(false);
-                        }
-                    });
-                    preloadPromises.set(key, p);
-                    return p;
-                };
-
-                const waitPreloadOrTimeout = async (item, ms) => {
-                    const p = preloadNextItem(item);
-                    let ready = false;
-                    await Promise.race([
-                        p.then((ok) => { ready = !!ok; }),
-                        delayMs(ms)
-                    ]);
-                    return ready;
-                };
-
-                // 封面是媒体起播前的短暂停留，同时承担加载遮罩。
-                // 最短停留与媒体间黑场转场保持接近（约半秒），避免‘播前封面很长、播后切换很短’的不平衡；
-                // 若媒体尚未就绪则继续保持封面，但这段等待不计入媒体实际播放时间。
-                const holdCoverUntil = async (readyPromise, gen, minHoldMs = MEDIA_COVER_MIN_HOLD_MS, maxHoldMs = MEDIA_COVER_MAX_HOLD_MS) => {
-                    const started = performance.now();
-                    let ready = false;
-                    Promise.resolve(readyPromise).then(() => { ready = true; }, () => { ready = true; });
-                    await delayMs(minHoldMs);
-                    while (isStillRunning() && gen === generation && !ready && performance.now() - started < maxHoldMs) {
-                        await delayMs(60);
-                    }
-                    return isStillRunning() && gen === generation;
-                };
-
-                const ensureCoverReady = async (item) => {
-                    const cover=String(item?.cover||''); if(!cover)return false;
-                    try{const pre=new Image();pre.src=cover;if(pre.decode)await Promise.race([pre.decode().catch(()=>{}),delayMs(1800)]);else await Promise.race([new Promise(r=>{pre.onload=pre.onerror=r;}),delayMs(1800)]);}catch(_){}
-                    return isStillRunning();
-                };
-
-                const showItemCover = (item) => {
-                    const cover = item?.cover || '';
-                    if (!cover) return false;
-                    stage.classList.remove('preview-stage-black');
-                    img.classList.remove('hidden');
-                    img.style.visibility = 'visible';
-                    img.style.opacity = '1';
-                    disableSoftFade(img);
-                    if ((img.getAttribute('src') || '') !== cover) img.src = cover;
-                    try { window.applyPreviewImageStyle(img, item); } catch (_) {}
-                    return true;
-                };
-
-                // 时间线预览媒体交接：只在 A 播放结束 → B 封面之间做一次很轻的“暗场呼吸”。
-                // 不让封面自身做 opacity 动画；仅在“一个媒体 → 下一个媒体”时让黑色遮罩较明显地升暗再退掉，
-                // 在最暗点完成底层封面替换，因此看起来是柔和淡出/淡入，而不是硬切或持续黑屏。
-                // 媒体 A → 媒体 B：黑场本身就是 B 的加载窗口。
-                // 如果 B 能在渐暗/短黑场内准备好，就直接从黑场进入 B 播放，不再额外展示封面；
-                // 只有 B 仍未就绪时，才在黑场后落到 B 封面继续等待。
-                const fadeIntoNextCover = async (nextItem, gen, currentItem = null, switchAtBlack = null) => {
-                    if (!nextItem || !isStillRunning() || gen !== generation) return false;
-                    if (noCrossfade) {
-                        try { await preloadNextItem(nextItem); } catch (_) {}
-                        if (!isStillRunning() || gen !== generation) return false;
-                        try { video.pause(); } catch (_) {}
-                        if (typeof switchAtBlack === 'function') switchAtBlack();
-                        return true;
-                    }
-                    // 现在只区分“图片→图片”和“其它所有组合”：
-                    // 图片→图片保持原来的短转场；只要任一侧是 GIF/视频，就统一使用较长转场。
-                    const isPlainImageToPlainImage =
-                        isPlainPreviewImageItem(currentItem) && isPlainPreviewImageItem(nextItem);
-                    const fadeInMs = isPlainImageToPlainImage ? 220 : 340;
-                    const fadeOutMs = isPlainImageToPlainImage ? 260 : 380;
-                    const readyGraceMs = isPlainImageToPlainImage ? 0 : 140;
-                    pendingBlackHandoff = null;
-
-                    let mediaReady = false;
-                    const readyPromise = (async()=>{
-                        try {
-                            if (nextItem.type === 'video' && nextItem.src) {
-                                if(!await preloadNextItem(nextItem))return false;
-                            } else if (isAnimatedImageItem(nextItem)) {
-                                await Promise.all([preloadNextItem(nextItem), window.getAnimatedImageDuration(nextItem).catch(()=>null)]);
-                            } else {
-                                await preloadNextItem(nextItem);
-                            }
-                            mediaReady = true;
-                            return true;
-                        } catch (_) { return false; }
-                    })();
-
-                    const dim = document.createElement('div');
-                    dim.className = 'absolute inset-0 pointer-events-none preview-media-transition-overlay';
-                    dim.dataset.previewTransitionOverlay = '1';
-                    Object.assign(dim.style, {
-                        zIndex:'9', background:'#000', opacity:'0',
-                        transition:`opacity ${fadeInMs}ms cubic-bezier(.4,0,.6,1)`
-                    });
-                    stage.appendChild(dim);
-                    await delayMs(16);
-                    if (!isStillRunning() || gen !== generation) { dim.remove(); return false; }
-                    dim.style.opacity='1';
-                    await delayMs(fadeInMs);
-                    if (!isStillRunning() || gen !== generation) { dim.remove(); return false; }
-
-                    try { video.pause(); } catch (_) {}
-
-                    // 100% 全黑时先彻底隐藏旧的共享图片层，再推进媒体。
-                    // 下一媒体的 presentItem 会自行恢复它；这样旧图片/GIF 不可能在退黑时冒出 1 帧。
-                    disableSoftFade(img);
-                    img.style.transition='none';
-                    img.style.opacity='0';
-                    img.style.visibility='hidden';
-                    img.classList.add('hidden');
-
-                    if (typeof switchAtBlack === 'function') {
-                        switchAtBlack();
-                        switchAtBlack = null;
-                    }
-
-                    // GIF/视频之间允许最多 140ms 的“快要好了”宽限。
-                    // 如果这点时间内 ready，就直接露真实媒体，不插封面；否则才用封面兜底。
-                    if (!mediaReady && readyGraceMs > 0) {
-                        await Promise.race([readyPromise, delayMs(readyGraceMs)]);
-                    }
-
-                    if (mediaReady) {
-                        img.dataset.previewNextPreloaded='1';
-                        if (nextItem.type === 'video') img.dataset.previewNextVideoReady='1';
-                    } else {
-                        delete img.dataset.previewNextPreloaded;
-                        delete img.dataset.previewNextVideoReady;
-                        // 注意：媒体已经在全黑点通过 switchAtBlack()/presentItem(next) 推进。
-                        // 转场函数此后不再写共享 img.src，也不再重新 show 当前/下一封面。
-                        // 下一媒体若未 ready，由 presentItem 自己的封面兜底逻辑负责；
-                        // 这样不会发生“next 已开始，旧转场逻辑又把上一张写回来”的竞争。
-                    }
-
-                    await delayMs(16);
-                    dim.style.transition=`opacity ${fadeOutMs}ms cubic-bezier(.4,0,.2,1)`;
-                    dim.style.opacity='0';
-                    await delayMs(fadeOutMs);
-                    try { dim.remove(); } catch (_) {}
-                    return true;
-                };
-
-                const revealPendingBlack = async () => {
-                    pendingBlackHandoff = null;
-                    return false;
-                };
-
-                const scheduleHold = (gen, holdSec, after, currentItem) => {
-                    if (!after || !isStillRunning() || gen !== generation) return;
-                    const ms = Math.max(50, Math.round(holdSec * 1000));
-                    // 整个区域只有一张 GIF：不做任何渐入渐出，也不做“切回自己”的轮播。
-                    // 让浏览器自然播放/循环这张 GIF。
-                    if (media.length === 1 && isAnimatedImageItem(currentItem)) return;
-                    const nextItem = media.length > 1 ? media[(idx + 1) % media.length] : media[0];
-                    if (nextItem) preloadNextItem(nextItem);
-                    timers.push(setTimeout(async () => {
-                        if (!isStillRunning() || gen !== generation) return;
-                        await fadeIntoNextCover(nextItem, gen, currentItem, after);
-                    }, ms));
-                };
-
-                const resolveImageHoldSec = async (item) => {
-                    if (!isAnimatedImageItem(item)) return imageHold / 1000;
-                    let duration = null;
-                    try {
-                        duration = await window.getAnimatedImageDuration(item);
-                    } catch (_) {
-                        duration = null;
-                    }
-                    if (!isStillRunning()) return null;
-                    if (Number.isFinite(duration) && duration > 0) {
-                        // 提前一点回收，避免浏览器在 GIF 循环边界先露出下一轮的一两帧。
-                        // 时间线在循环边界前 300ms 回收；所有 GIF 分支都必须使用同一个 guard。
-                        const endGuardSec = 0.35;
-                        return Math.max(0.3, duration - endGuardSec);
-                    }
-                    return ANIMATED_FALLBACK_SEC;
-                };
-
-                const disableSoftFade = (el) => { if (el) el.classList.remove('preview-soft-fade'); };
-
-                const applyImageItem = async (item, { hardHide = false } = {}) => {
-                    const src = item.src || item.cover || '';
-                    if (!video.classList.contains('hidden')) {
-                        clearVideo();
-                    } else {
-                        try { video.pause(); } catch (_) {}
-                    }
-                    if (!src) {showItemCover(item);return;}
-                    if (isAnimatedImageItem(item)) {
-                        const ready=await window.prepareMediaImage(src);
-                        if(!isStillRunning())return;
-                        if(!ready){showItemCover(item);return;}
-                        // 先在独立 Image 中把 GIF 解码到可显示，当前封面始终留在舞台上。
-                        if(!isStillRunning())return;
-                        // 封面 → GIF 属于同一媒体内部的起播，不做转场；资源就绪后直接替换。
-                        disableSoftFade(img);
-                        img.style.transition='none';
-                        img.style.opacity='1';
-                        // 计时必须从舞台里的这一个 GIF 真正完成 load / 开始渲染后再起算。
-                        // 仅预加载完成并不代表当前 <img> 已经从第 0 帧开始播放；若这里立即起计时，
-                        // 云端/缓存切换时会出现“播到约 90% 就开始转场，转场后又露出尾巴”的错位。
-                        await new Promise((resolve)=>{
-                            let done=false;
-                            const finish=()=>{if(done)return;done=true;img.removeEventListener('load',finish);img.removeEventListener('error',finish);resolve();};
-                            img.addEventListener('load',finish,{once:true});
-                            img.addEventListener('error',finish,{once:true});
-                            img.src=src;
-                            if(img.complete&&img.naturalWidth>0) requestAnimationFrame(()=>requestAnimationFrame(finish));
-                            timers.push(setTimeout(finish,MEDIA_COVER_MAX_HOLD_MS));
-                        });
-                        if(!isStillRunning())return;
-                        try { window.applyPreviewImageStyle(img, item); } catch (_) {}
-                        img.classList.remove('hidden');
-                    img.style.visibility='visible';
-                    img.style.opacity='1';
-                        // 再等两帧，让浏览器真正提交 GIF 首帧后，外层才开始计算完整播放时长。
-                        await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
-                    } else if (hardHide) {
-                        await window.setPreviewSlideImage(img, item, true);
-                    } else {
-                        const cur = img.getAttribute('src') || '';
-                        img.classList.remove('hidden');
-                        disableSoftFade(img);
-                        if (cur !== src) {
-                            await new Promise((resolve) => {
-                                const token = String(Date.now()) + Math.random();
-                                img.dataset.previewLoadToken = token;
-                                const done = () => {
-                                    if (img.dataset.previewLoadToken !== token) return;
-                                    img.removeEventListener('load', done);
-                                    img.removeEventListener('error', done);
-                                    resolve();
-                                };
-                                img.addEventListener('load', done);
-                                img.addEventListener('error', done);
-                                img.src = src;
-                                if (img.complete && img.naturalWidth > 0) {
-                                    timers.push(setTimeout(done, 0));
-                                }
-                                timers.push(setTimeout(done, 4000));
-                            });
-                        }
-                        img.style.opacity = '1';
-                        try { window.applyPreviewImageStyle(img, item); } catch (_) {}
-                    }
-                };
-
-                const showImageNow = () => {
-                    stage.classList.remove('preview-stage-black');
-                    img.classList.remove('hidden');
-                    // GIF handoff freezes the outgoing image with visibility:hidden while the black overlay is opaque.
-                    // Restore visibility before fading that overlay away, otherwise the overlay reveals an empty/black stage forever.
-                    img.style.visibility = 'visible';
-                    img.style.opacity = '1';
-                    disableSoftFade(img);
-                };
-
-                const playVideoThen = async (item, after, gen, useBlack) => {
-                    if (!item.src) { if (after) after(); return; }
-
-                    // 先把封面放在舞台上。视频在后台加载；只有 canplay（或兜底超时）后才从封面切到视频。
-                    const directFromBlack = !!(pendingBlackHandoff && pendingBlackHandoff.item === item);
-                    const transitionVideoReady = img.dataset.previewNextVideoReady === '1';
-                    delete img.dataset.previewNextVideoReady;
-                    delete img.dataset.previewNextPreloaded;
-                    if(!directFromBlack && item.cover && !transitionVideoReady) await ensureCoverReady(item);
-                    // A metadata preload is not a decoded video frame. Keep the cover visible until canplay.
-                    const hasCover=showItemCover(item);
-                    video.src = item.src;
-                    try { video.currentTime = 0; } catch (_) {}
-                    const readyPromise = new Promise((resolve) => {
-                        let settled=false;
-                        const done=()=>{if(settled)return;settled=true;video.removeEventListener('canplay',done);resolve();};
-                        video.addEventListener('canplay',done,{once:true});
-                        try { video.load(); } catch (_) { done(); }
-                        timers.push(setTimeout(done, 1800));
-                    });
-                    if (hasCover) {
-                        if (transitionVideoReady) {
-                            // 已在媒体切换阶段预加载：只等当前舞台 video 真正 canplay，不再重复封面最短展示时间。
-                            await readyPromise;
-                            if (!isStillRunning() || gen !== generation) return;
-                        } else {
-                            if (!(await holdCoverUntil(readyPromise, gen))) return;
-                        }
-                    } else {
-                        await readyPromise;
-                        if (!isStillRunning() || gen !== generation) return;
-                    }
-                    if (!isStillRunning() || gen !== generation) return;
-
-                    if(video.readyState<2||video.error){
-                        clearVideo();showItemCover(item);showImageNow();
-                        timers.push(setTimeout(()=>{if(isStillRunning()&&gen===generation){if(after)after();}},1800));
-                        return;
-                    }
-                    // 封面一直保留到视频真正显示的这一刻，因此加载慢也不会露出黑屏。
-                    // 封面 → 视频属于同一媒体内部的起播，不做转场；视频可播后直接接管画面。
-                    // 这里不再做任何第二层淡入/淡出：共享的媒体切换黑场已经完成视觉过渡。
-                    // video 和旧 poster 的显隐一次性提交，避免两个切换逻辑叠加造成退黑后闪一下。
-                    disableSoftFade(video);
-                    video.style.transition='none';
-                    video.style.opacity='1';
-                    video.style.visibility='visible';
-                    video.classList.remove('hidden');
-                    img.style.transition='none';
-                    img.style.opacity='0';
-                    img.style.visibility='hidden';
-                    img.classList.add('hidden');
-                    stage.classList.remove('preview-stage-black');
-                    video.play().catch(()=>{if(isStillRunning()&&gen===generation){clearVideo();showItemCover(item);showImageNow();}});
-                    if (directFromBlack) await revealPendingBlack(item);
-
-                    if (media.length > 1) preloadNextItem(media[(idx + 1) % media.length]);
-                    const playMs = Math.max(window.VIDEO_PREVIEW_MIN_SEC, Math.min(window.VIDEO_PREVIEW_MAX_SEC, Number(item.previewDuration) || (defaultVideoHold / 1000))) * 1000;
-                    timers.push(setTimeout(async () => {
-                        if (!isStillRunning() || gen !== generation) return;
-                        if (after) {
-                            const nextItem = media.length > 1 ? media[(idx + 1) % media.length] : media[0];
-                            await fadeIntoNextCover(nextItem, gen, item, after);
-                        } else clearVideo();
-                    }, playMs));
-                };
-
-                const presentItem = async (item, after, isFirst) => {
-                    if (!isStillRunning()) return;
-                    const gen = ++generation;
-                    const ready = isFirst ? true : await waitPreloadOrTimeout(item, PRELOAD_WAIT_MS);
-                    const useBlack = !isFirst && !ready;
-
-                    if (item.type === 'video' && item.src) {
-                        await playVideoThen(item, after, gen, useBlack);
-                        return;
-                    }
-
-                    // GIF：封面先出现，同时在后台加载 GIF；加载越慢，封面自动多停留，
-                    // 不再先淡到黑色再等 GIF，因此 A→B 的媒体切换由 B 的封面直接遮住等待过程。
-                    let animatedHoldSec = null;
-                    const directFromBlack = !!(pendingBlackHandoff && pendingBlackHandoff.item === item);
-                    if(isAnimatedImageItem(item) && directFromBlack){
-                        let duration=null;
-                        try { duration=await window.getAnimatedImageDuration(item); } catch(_){}
-                        animatedHoldSec=(Number.isFinite(duration)&&duration>0)?Math.max(0.3,duration-0.35):ANIMATED_FALLBACK_SEC;
-                        await applyImageItem(item,{hardHide:false});
-                        if(!isStillRunning()||gen!==generation)return;
-                        showImageNow();
-                        await revealPendingBlack(item);
-                    } else if(isAnimatedImageItem(item) && item.cover && item.cover !== item.src){
-                        await ensureCoverReady(item);
-                        if(!isStillRunning()||gen!==generation)return;
-                        showItemCover(item);
-                        const animatedSrc=item.src||'';
-                        const preloadGif=new Promise((resolve)=>{
-                            if(!animatedSrc){resolve();return;}
-                            const pre=new Image(); let done=false;
-                            const finish=()=>{if(done)return;done=true;resolve();};
-                            pre.onload=finish;pre.onerror=finish;pre.src=animatedSrc;
-                            timers.push(setTimeout(finish,MEDIA_COVER_MAX_HOLD_MS));
-                        });
-                        // 关键：GIF 的总时长也在“封面阶段”解析完。以前是在 GIF 已经开始显示后
-                        // 才 await 时长解析，大 GIF / 云端 GIF 解析慢时，这段等待会吃掉实际播放时间。
-                        // 现在封面等待、资源加载、时长解析都不计入 GIF 的播放计时。
-                        const durationPromise = window.getAnimatedImageDuration(item).catch(()=>null);
-                        // GIF 封面不再强制固定展示 500/600ms。
-                        // 只保留极短的 80ms 防同帧闪烁；之后完全按 GIF 本体 + 时长解析的实际加载时间决定。
-                        if (!(await holdCoverUntil(Promise.all([preloadGif, durationPromise]), gen, 80, calm ? 2200 : 1800))) return;
-                        let duration = null;
-                        try { duration = await durationPromise; } catch (_) { duration = null; }
-                        if (!isStillRunning() || gen !== generation) return;
-                        if (Number.isFinite(duration) && duration > 0) {
-                            animatedHoldSec = media.length === 1 ? duration : Math.max(0.3, duration - 0.35);
-                        }
-                        else animatedHoldSec = ANIMATED_FALLBACK_SEC;
-                        await applyImageItem(item, { hardHide: false });
-                        if (!isStillRunning() || gen !== generation) return;
-                        showImageNow();
-                    } else {
-                        // 普通图片直接切换；有下一项封面时不再强制经过黑屏阶段。
-                        await applyImageItem(item, { hardHide: false });
-                        if (!isStillRunning() || gen !== generation) return;
-                        showImageNow();
-                    }
-                    if (!isStillRunning() || gen !== generation) return;
-                    // GIF 从真正显示出来的这一刻才开始计时；封面展示和云端解析耗时不会再占用播放时长。
-                    const holdSec = animatedHoldSec != null ? animatedHoldSec : await resolveImageHoldSec(item);
-                    if (!isStillRunning() || gen !== generation || holdSec == null) return;
-                    scheduleHold(gen, holdSec, after, item);
-                };
-
-                const next = () => {
-                    if (!isStillRunning()) return;
-                    if (media.length <= 1) {
-                        const only = media[0];
-                        if (only && ((only.type === 'video' && only.src) || isAnimatedImageItem(only))) {
-                            presentItem(only, () => { if (isStillRunning()) next(); }, false);
-                        }
-                        return;
-                    }
-                    idx = (idx + 1) % media.length;
-                    presentItem(media[idx], next, false);
-                };
-
-                if (media.length > 1) {
-                    for (let i = 1; i < Math.min(media.length, 2); i++) {
-                        preloadNextItem(media[i]);
-                    }
-                }
-                if (media[0]) {
-                    try {
-                        const first=media[0];
-                        const firstStatic=first.type==='video'?(first.cover||first.src||''):(isAnimatedImageItem(first)?(first.cover||first.src||''):(first.src||first.cover||''));
-                        if(firstStatic && (img.getAttribute('src')||'')!==firstStatic) img.src=firstStatic;
-                        window.applyPreviewImageStyle(img,first);
-                    } catch (_) {}
-                }
-                presentItem(media[0], (media.length > 1 || (media[0]?.type === 'video' && media[0]?.src) || isAnimatedImageItem(media[0])) ? next : null, true);
             };
-            imgs.forEach(schedule);
-            rootEl._previewSlideTimers = timers;
-            rootEl._previewVideoEls = videoEls;
+            rootEl.querySelectorAll('.preview-slide-img').forEach(img=>{
+                run(img).catch(err=>{if(alive())console.warn('preview playback failed',err);});
+            });
         };
 
         window.stopPreviewSlideshow = function(rootEl, resetToFirst = true) {
             if (!rootEl) return;
-            (rootEl._previewPreloadVideos||[]).forEach(video=>{try{video.pause();video.removeAttribute('src');video.load();}catch(_){}});
-            rootEl._previewPreloadVideos=null;
             rootEl._previewRunning = false;
+            rootEl._previewCancelCallbacks?.forEach(cancel=>cancel());
+            rootEl._previewCancelCallbacks=null;
             rootEl._previewCalm = false;
             rootEl._previewNoCrossfade = false;
             rootEl.classList.remove('preview-no-crossfade');
@@ -7832,6 +7433,10 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
 
         window.adjustOverlappingPreviews = function(nodes) {
             const list = (nodes || []).filter(Boolean);
+            if (!window.isLocked) {
+                list.forEach(n => n.style.removeProperty('--preview-scale'));
+                return;
+            }
             if (window._edgeAutoScrollActive || window._pointerInEdgeZone) {
                 list.forEach(n => n?.style?.removeProperty('--preview-scale'));
                 return;
