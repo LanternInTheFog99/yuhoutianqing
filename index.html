@@ -1019,7 +1019,7 @@ SOFTWARE.
                 top:12px !important;
                 bottom:auto !important;
                 transform:none !important;
-                /* 详情页仅由 shell 纵向滚动；不再附加 Tag 专属滚动补丁。 */
+                /* 高度让出底部评论区，固定顶部及正文滚动由详情布局统一处理。 */
                 height:calc(50vh - 24px) !important;
                 height:calc(50dvh - 24px) !important;
                 max-height:none !important;
@@ -1960,9 +1960,15 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
 </style>
 
 <style id="detail-fixed-layout">
-#fullscreenViewer [data-detail-shell].detail-fixed-shell{display:flex;flex-direction:column;overflow:hidden!important;max-height:calc(100dvh - 44px);touch-action:auto;}
-#fullscreenViewer .detail-fixed-header{flex:none;position:relative;background:#0f172a;}
-#fullscreenViewer .detail-scroll-body{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y;padding-top:4px;}
+/* Padding belongs to each section so the scrolling viewport reaches the shell edges. */
+#fullscreenViewer [data-detail-shell].detail-fixed-shell{--detail-inset:20px;display:flex;flex-direction:column;min-height:0;padding:0!important;overflow:hidden!important;max-height:calc(100dvh - 44px);touch-action:auto;}
+#fullscreenViewer .detail-fixed-header{flex:none;position:relative;background:#0f172a;padding:var(--detail-inset) var(--detail-inset) 0;}
+#fullscreenViewer .detail-scroll-body{flex:1 1 auto;min-height:0;min-width:0;width:100%;box-sizing:border-box;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;padding:4px var(--detail-inset) var(--detail-inset);}
+@media(min-width:640px){
+    #fullscreenViewer [data-detail-shell].detail-fixed-shell{--detail-inset:40px;}
+    #fullscreenViewer [data-detail-shell].multi-detail-shell.detail-fixed-shell{--detail-inset:32px;}
+}
+#fullscreenViewer.mobile-comments-open [data-detail-shell].detail-fixed-shell{overflow:hidden!important;}
 .media-library-thumb{position:relative;display:flex;align-items:center;justify-content:center;}
 .media-library-thumb img{position:absolute;inset:0;opacity:0;transition:opacity .12s;width:100%;height:100%;object-fit:cover;}
 </style>
@@ -2891,11 +2897,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 const bytes = new Uint8Array(buffer);
                 if (bytes.length < 13 || String.fromCharCode(bytes[0],bytes[1],bytes[2]) !== 'GIF') throw new Error('Not GIF');
                 let pos = 13;
-                const width = bytes[6] | (bytes[7] << 8);
-                const height = bytes[8] | (bytes[9] << 8);
                 const packed = bytes[10];
                 if (packed & 0x80) pos += 3 * (2 ** ((packed & 7) + 1));
-                pos += 0;
                 let totalCs = 0;
                 let sawFrame = false;
                 while (pos < bytes.length) {
@@ -3899,7 +3902,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             const meta=await timelineApiPost('getMediaUploadMetadata',{
                 fileName:file.name||'file',mime:file.type||'application/octet-stream',size:file.size,
                 purpose:finalPurpose,
-                finalPurpose:'',coverEventLabel:String(options.coverEventLabel||''),
+                finalPurpose:'',
                 coverSourcePath:String(options?.coverSourcePath||''),
                 deepOwnerCloudPath:String(options?.deepOwnerCloudPath||''),
                 coverKind:String(options?.coverKind||''),
@@ -3923,7 +3926,6 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 if(file.type) xhr.setRequestHeader('Content-Type',file.type);
                 xhr.upload.onprogress=(ev)=>{
                     if(ev.lengthComputable){
-                        const pct=Math.max(0,Math.min(100,Math.round(ev.loaded/ev.total*100)));
                         uploadNotice('正在加载文件，请稍候…');
                     }
                 };
@@ -3953,7 +3955,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         window.uploadCoverBlobToCloudBase = async function(blob, prefix='cover', replaceCloudPath='', coverSourcePath='', coverKind='', silentNotice=false){
             if(!blob) throw new Error('COVER_BLOB_EMPTY');
             const file=new File([blob],`${prefix}_${Date.now()}.jpg`,{type:'image/jpeg'});
-            return await window.uploadLargeMediaToCloudBase(file,{purpose:'cover',replaceCloudPath,coverSourcePath,coverKind,silentNotice,coverEventLabel:String(document.getElementById('eventTitle')?.value||window.currentEditingEvent?.title||window.currentEditingEvent?.id||'event')});
+            return await window.uploadLargeMediaToCloudBase(file,{purpose:'cover',replaceCloudPath,coverSourcePath,coverKind,silentNotice});
         };
         window.canvasToCloudCover = async function(canvas,prefix='cover',quality=.84,replaceCloudPath='',coverSourcePath='',coverKind='',silentNotice=false){
             const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('封面生成失败')),'image/jpeg',quality));
@@ -4095,8 +4097,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             modal.innerHTML=`<div class="relative w-full max-w-3xl max-h-[86vh] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden" onclick="event.stopPropagation()"><div class="px-4 py-3 border-b flex items-center gap-2"><div class="font-bold text-slate-800"><i class="fa-solid fa-cloud text-indigo-600 mr-2"></i>云端数据库</div><button data-media-close type="button" class="ml-auto w-8 h-8 rounded-lg hover:bg-slate-100"><i class="fa-solid fa-xmark"></i></button></div><div class="px-4 py-3 border-b flex flex-wrap items-center gap-2"><div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-600"><button type="button" data-media-sort-direction class="text-indigo-500"><i data-media-sort-direction-icon class="fa-solid fa-arrow-down-wide-short text-[10px]"></i></button><button type="button" data-media-sort-toggle><span data-media-sort-label>按时间</span></button></div>${[['type','类型'],['status','状态'],['owner','归属']].map(([key,label])=>`<div class="relative"><button type="button" data-media-filter-btn="${key}" class="px-2.5 py-1.5 rounded-lg text-xs border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 flex items-center gap-1.5"><i class="fa-solid fa-filter text-[10px] text-indigo-500"></i>${label}<i class="fa-solid fa-chevron-down text-[8px] text-slate-400"></i></button><div data-media-filter-menu="${key}" class="hidden absolute left-0 top-full mt-1 z-30 w-[86px] rounded-lg border border-slate-200 bg-white p-1 shadow-xl"></div></div>`).join('')}<input data-media-search class="ml-auto min-w-[150px] flex-1 max-w-xs px-3 py-1.5 rounded-lg border text-xs" placeholder="搜索文件名"></div><div data-media-list class="p-4 overflow-y-auto min-h-[240px]"></div><div class="px-4 py-2.5 border-t bg-slate-50/70 text-[10px] text-slate-400">未引用文件会由系统定时清理。</div></div>`
             const close=()=>{modal.classList.add('hidden');};modal.onclick=e=>{if(e.target===modal)close();};modal.querySelector('[data-media-close]').onclick=close;
             const allowed=Array.isArray(allowedFolders)&&allowedFolders.length?new Set(allowedFolders.map(String).filter(x=>x!=='music')):null;
-            let current=folder==='music'?'all':folder,items=[];if(allowed&&current!=='all'&&!allowed.has(current))current=[...allowed][0]||'all';
-            modal._mediaType=current||'all';modal._mediaStatus='all';modal._mediaOwner='all';modal._mediaSort='time';modal._mediaSortDir='desc';
+            let items=[];let initialFolder=folder==='music'?'all':folder;if(allowed&&initialFolder!=='all'&&!allowed.has(initialFolder))initialFolder=[...allowed][0]||'all';
+            modal._mediaType=initialFolder||'all';modal._mediaStatus='all';modal._mediaOwner='all';modal._mediaSort='time';modal._mediaSortDir='desc';
             const canManage=a=>!!window.isDeveloperMode?.()||a?.editable===true;
             const filterDefs={type:[['all','fa-layer-group','全部'],['picture','fa-image','图片'],['gif','fa-film','动图'],['video','fa-video','视频']],status:[['all','fa-layer-group','全部'],['inuse','fa-link','使用中'],['unref','fa-link-slash','未引用']],owner:[['all','fa-layer-group','全部'],['mine','fa-user','我的'],['other','fa-users','其他']]};
             const syncCategoryUi=()=>{for(const [key,defs] of Object.entries(filterDefs)){const menu=modal.querySelector(`[data-media-filter-menu="${key}"]`);if(!menu)continue;const value=key==='type'?modal._mediaType:key==='status'?modal._mediaStatus:modal._mediaOwner;menu.innerHTML=defs.filter(([v])=>key!=='type'||v==='all'||!allowed||allowed.has(v)).map(([v,ic,t])=>`<button type="button" data-media-filter-choice="${key}:${v}" class="w-full text-left px-2 py-1.5 rounded-md text-[11px] ${v===value?'bg-indigo-50 text-indigo-700 font-semibold':'text-slate-600 hover:bg-slate-50'}"><i class="fa-solid ${ic} w-3.5 mr-1 text-indigo-400"></i>${t}</button>`).join('');}};
@@ -4134,7 +4136,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             if(!modal._mediaUploadRevealBound){modal._mediaUploadRevealBound=true;window.addEventListener('timeline:media-uploaded',e=>{window.invalidateMediaLibrary();if(!modal.classList.contains('hidden'))modal._mediaReload?.(String(e.detail?.cloudPath||''));});}
             const closeFilterMenus=except=>modal.querySelectorAll('[data-media-filter-menu]').forEach(m=>{if(m.dataset.mediaFilterMenu!==except)m.classList.add('hidden');});
             modal.querySelectorAll('[data-media-filter-btn]').forEach(btn=>btn.onclick=e=>{e.stopPropagation();const key=btn.dataset.mediaFilterBtn,menu=modal.querySelector(`[data-media-filter-menu="${key}"]`),wasHidden=menu.classList.contains('hidden');closeFilterMenus();if(wasHidden)menu.classList.remove('hidden');});
-            const mediaShell=modal.firstElementChild;mediaShell?.addEventListener('click',e=>{const choice=e.target.closest('[data-media-filter-choice]');if(choice){e.stopPropagation();const [key,value]=choice.dataset.mediaFilterChoice.split(':');if(key==='type'){modal._mediaType=value;current=value;}else if(key==='status')modal._mediaStatus=value;else modal._mediaOwner=value;syncCategoryUi();render();const list=modal.querySelector('[data-media-list]');if(list)list.scrollTop=0;closeFilterMenus();return;}if(!e.target.closest('[data-media-filter-menu]')&&!e.target.closest('[data-media-filter-btn]'))closeFilterMenus();});
+            const mediaShell=modal.firstElementChild;mediaShell?.addEventListener('click',e=>{const choice=e.target.closest('[data-media-filter-choice]');if(choice){e.stopPropagation();const [key,value]=choice.dataset.mediaFilterChoice.split(':');if(key==='type'){modal._mediaType=value;}else if(key==='status')modal._mediaStatus=value;else modal._mediaOwner=value;syncCategoryUi();render();const list=modal.querySelector('[data-media-list]');if(list)list.scrollTop=0;closeFilterMenus();return;}if(!e.target.closest('[data-media-filter-menu]')&&!e.target.closest('[data-media-filter-btn]'))closeFilterMenus();});
             const sortLabel=modal.querySelector('[data-media-sort-label]'),sortIcon=modal.querySelector('[data-media-sort-direction-icon]');modal.querySelector('[data-media-sort-toggle]').onclick=()=>{modal._mediaSort=modal._mediaSort==='time'?'name':'time';sortLabel.textContent=modal._mediaSort==='time'?'按时间':'按名称';render();};modal.querySelector('[data-media-sort-direction]').onclick=()=>{modal._mediaSortDir=modal._mediaSortDir==='asc'?'desc':'asc';sortIcon.className='fa-solid '+(modal._mediaSortDir==='asc'?'fa-arrow-up-short-wide':'fa-arrow-down-wide-short')+' text-[10px]';render();};let searchTimer;modal.querySelector('[data-media-search]').oninput=()=>{clearTimeout(searchTimer);searchTimer=setTimeout(render,120);};syncCategoryUi();render();modal.classList.remove('hidden');await load();return modal;
         };
         // 直接引用已有云端媒体时，继承该媒体在已保存事件中的展示信息。
@@ -11336,8 +11338,9 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             const videoRow=shell.querySelector('[data-detail-videos]');
             const imageCards=imageRow?[...imageRow.querySelectorAll('[data-detail-image-card]')]:[];
             const videoCards=videoRow?[...videoRow.querySelectorAll('[data-detail-video-card]')]:[];
-            const shellStyle=getComputedStyle(shell);
-            const shellWidth=Math.max(240,shell.clientWidth-(parseFloat(shellStyle.paddingLeft)||0)-(parseFloat(shellStyle.paddingRight)||0));
+            const mediaViewport=shell.querySelector('[data-detail-scroll]')||shell;
+            const viewportStyle=getComputedStyle(mediaViewport);
+            const shellWidth=Math.max(1,mediaViewport.clientWidth-(parseFloat(viewportStyle.paddingLeft)||0)-(parseFloat(viewportStyle.paddingRight)||0));
             const gap=12;
 
             // 详情页媒体采用固定纵向尺寸，由内容自然撑开窗口。
@@ -16807,18 +16810,16 @@ viewer.style.visibility='';
         };
         window.installHeaderModalBackdropClose();
 
-        // Keep the existing write overlay active through decode, upload and final rendering.
-        ['confirmVideoFrameCapture','canvasToCloudCover','addBgmByFile','multiAddFiles','handleLocalImageUpload','handleLocalVideoUpload'].forEach(name=>{
+        // One wrapper per entry point keeps writes locked through rendering and adapter synchronization.
+        const multiSharedActions=new Set(['confirmCropImage','confirmVideoFrameCapture','saveVideoEditModal','saveEditLinkModal']);
+        const cloudWriteActions=new Set(['canvasToCloudCover','addBgmByFile','multiAddFiles','handleLocalImageUpload','handleLocalVideoUpload',...multiSharedActions]);
+        cloudWriteActions.forEach(name=>{
             const original=window[name];if(typeof original!=='function')return;
-            window[name]=function(...args){return window.withCloudWriteOperation(()=>original.apply(this,args));};
-        });
-        ['confirmCropImage','confirmVideoFrameCapture','saveVideoEditModal','saveEditLinkModal'].forEach(name=>{
-            const original=window[name];if(typeof original!=='function')return;
-            window[name]=async function(...args){
+            window[name]=function(...args){
                 const segment=window._multiSharedSegmentIndex;
-                return await window.withCloudWriteOperation(async()=>{
+                return window.withCloudWriteOperation(async()=>{
                     try{return await original.apply(this,args);}
-                    finally{if(segment!=null&&window._multiSharedSegmentIndex===segment)window.multiFinishSharedMediaAction?.();}
+                    finally{if(multiSharedActions.has(name)&&segment!=null&&window._multiSharedSegmentIndex===segment)window.multiFinishSharedMediaAction?.();}
                 });
             };
         });
