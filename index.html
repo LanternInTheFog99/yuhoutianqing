@@ -533,6 +533,7 @@ SOFTWARE.
             #fullscreenViewer [data-detail-video-card],#fullscreenViewer [data-detail-video-stage]{position:relative !important;transform:none !important;contain:layout paint;touch-action:pan-y}
             #fullscreenViewer [data-detail-video-card] video{display:block !important;width:100% !important;height:auto !important;max-width:100% !important;max-height:none !important;object-fit:contain !important;position:relative !important;inset:auto !important;transform:none !important;touch-action:pan-y;-webkit-user-select:none;user-select:none}
             #fullscreenViewer [data-detail-image-card]{touch-action:pan-y}
+            #fullscreenViewer .multi-detail-shell [data-detail-image-card]{touch-action:pan-x pan-y}
             .mobile-detail-video-toggle{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:12;width:42px;height:42px;border:0;border-radius:9999px;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,.72);color:#fff;font-size:15px;box-shadow:0 4px 14px rgba(0,0,0,.28);pointer-events:auto;touch-action:manipulation}
             .mobile-detail-video-toggle.is-playing{opacity:.42}
         }
@@ -1275,7 +1276,7 @@ SOFTWARE.
             }
         }
 @media(max-width:639px){
-            #fullscreenViewer [data-detail-image-card]{max-width:calc(50% - 6px) !important}
+            #fullscreenViewer [data-detail-images] [data-detail-image-card]{max-width:calc(50% - 6px) !important}
             #fullscreenViewer [data-detail-video-card]{max-width:100% !important}
         }
 
@@ -3805,7 +3806,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         window.currentDeepOwnerPath=function(){return String(window.deepResolveTargetObject?.(window.deepCanvasTarget)?.cloudPath||'');};
         window.addCloudAssetToSingleImage=async function(a){if(!a)return;const deepDescription=await window.sharedDeepForReference(a);const inherited=window.cloudAssetInheritedImage(a);window.editingImageFiles.push({mediaId:'img_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,9),original:a.url,originalFull:a.url,outer:(a.folder==='picture'&&inherited.pictureCover)||a.url,inner:(a.folder==='picture'&&inherited.pictureCover)||a.url,collection:(a.folder==='picture'&&inherited.pictureCover)||a.url,isAnimated:a.folder==='gif',crop:inherited.crop,pictureCoverCloudPath:inherited.pictureCoverCloudPath||'',gifCrop:inherited.gifCrop,gifCoverCrop:inherited.gifCoverCrop,cloudPath:a.cloudPath||'',deepDescription,gifCover:inherited.gifCover,gifCoverCloudPath:inherited.gifCoverCloudPath,gifDurationMs:inherited.gifDurationMs,gifDurationSource:inherited.gifDurationSource});window.renderMicroPreviews?.();};
         window.addCloudAssetToSingleVideo=async function(a){if(!a)return;const deepDescription=await window.sharedDeepForReference(a);const inherited=window.cloudAssetInheritedVideo(a);window.editingVideos.push({mediaId:'vid_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,9),url:a.url,previewDuration:inherited.previewDuration,blobUrl:'',cover:inherited.cover,coverCloudPath:inherited.coverCloudPath,mime:a.mime||'video/mp4',name:a.originalName||'',title:'',deepDescription,cloudPath:a.cloudPath||''});window.renderVideoPreviews?.();};
-        window.addCloudAssetToMulti=async function(seg,kind,a){const s=window.multiTimeDraft?.[seg];if(!s||!a)return;const deepDescription=await window.sharedDeepForReference(a);if(kind==='image'){const inherited=window.cloudAssetInheritedImage(a);s.images.push(window.multiNormalizeImage({mediaId:window.multiMediaId(),originalFull:a.url,original:a.url,outer:(a.folder==='picture'&&inherited.pictureCover)||a.url,inner:(a.folder==='picture'&&inherited.pictureCover)||a.url,collection:(a.folder==='picture'&&inherited.pictureCover)||a.url,isAnimated:a.folder==='gif',crop:inherited.crop,pictureCoverCloudPath:inherited.pictureCoverCloudPath||'',gifCrop:inherited.gifCrop,gifCoverCrop:inherited.gifCoverCrop,gifCover:inherited.gifCover,gifCoverCloudPath:inherited.gifCoverCloudPath,gifDurationMs:inherited.gifDurationMs,gifDurationSource:inherited.gifDurationSource,deepDescription,cloudPath:a.cloudPath||''}));}else{const inherited=window.cloudAssetInheritedVideo(a);s.videos.push(window.multiNormalizeVideo({url:a.url,blobUrl:'',cover:inherited.cover,coverCloudPath:inherited.coverCloudPath,title:String(a.originalName||'').replace(/\.[^.]+$/,''),mime:a.mime||'',previewDuration:inherited.previewDuration,deepDescription,cloudPath:a.cloudPath||''}));}window.multiRenderCurrentPage?.();};
+        window.addCloudAssetToMulti=async function(seg,kind,a){const s=window.multiTimeDraft?.[seg];if(!s||!a)return;const deepDescription=await window.sharedDeepForReference(a);if(kind==='image'){const inherited=window.cloudAssetInheritedImage(a);s.images.push(window.multiNormalizeImage({mediaId:window.multiMediaId(),originalFull:a.url,original:a.url,outer:(a.folder==='picture'&&inherited.pictureCover)||a.url,inner:(a.folder==='picture'&&inherited.pictureCover)||a.url,collection:(a.folder==='picture'&&inherited.pictureCover)||a.url,isAnimated:a.folder==='gif',crop:inherited.crop,pictureCoverCloudPath:inherited.pictureCoverCloudPath||'',gifCrop:inherited.gifCrop,gifCoverCrop:inherited.gifCoverCrop,gifCover:inherited.gifCover,gifCoverCloudPath:inherited.gifCoverCloudPath,gifDurationMs:inherited.gifDurationMs,gifDurationSource:inherited.gifDurationSource,deepDescription,cloudPath:a.cloudPath||''}));}else{const inherited=window.cloudAssetInheritedVideo(a);s.videos.push(window.multiNormalizeVideo({url:a.url,blobUrl:'',cover:inherited.cover,coverCloudPath:inherited.coverCloudPath,title:String(a.originalName||'').replace(/\.[^.]+$/,''),mime:a.mime||'',previewDuration:inherited.previewDuration,deepDescription,cloudPath:a.cloudPath||''}));}window.multiRefreshAttachments?.(seg,[kind==='image'?'images':'videos']);};
 
         // 写入状态与“是否已连接云端”分离：保存期间仍保持编辑能力，避免按钮/功能被反复禁用。
         window._timelinePendingWrites = 0;
@@ -5204,8 +5205,24 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         window.multiSet=(i,k,v)=>{ if(window.multiTimeDraft[i])window.multiTimeDraft[i][k]=v; };
         window.multiSegmentDateFieldsHtml=function(i,date){const raw=String(date||'');const isRange=raw.includes('至');const parts=isRange?raw.split('至'):[raw,''];const start=parts[0]||'',end=parts[1]||'';return `<div id="multiSingleDate_${i}" class="grid grid-cols-1 sm:grid-cols-2 gap-2" style="display:${isRange?'none':'grid'}"><div><span class="block text-[10px] text-slate-500 mb-0.5">具体日期</span>${window.inlineDateFieldsHtml(`multiDateInput_${i}`,start,`multiSyncSegmentDate(${i})`)}</div></div><div id="multiRangeDate_${i}" class="grid grid-cols-2 gap-2" style="display:${isRange?'grid':'none'}"><div><span class="block text-[10px] text-slate-500 mb-0.5">开始日期</span>${window.inlineDateFieldsHtml(`multiStartDate_${i}`,start,`multiSyncSegmentDate(${i})`)}</div><div><span class="block text-[10px] text-slate-500 mb-0.5">结束日期</span>${window.inlineDateFieldsHtml(`multiEndDate_${i}`,end,`multiSyncSegmentDate(${i})`)}</div></div>`;};
         window.multiSyncSegmentDate=function(i){const seg=window.multiTimeDraft?.[i];if(!seg)return;const range=document.getElementById(`multiRangeToggle_${i}`)?.checked;if(range){const a=document.getElementById(`multiStartDate_${i}`)?.value||'',b=document.getElementById(`multiEndDate_${i}`)?.value||'';seg.date=a+(b?'至'+b:'');}else seg.date=document.getElementById(`multiDateInput_${i}`)?.value||seg.date||'';};
-        window.multiToggleDateRange=function(i,on){window.multiSyncSegmentDate(i);const seg=window.multiTimeDraft?.[i];if(!seg)return;const raw=String(seg.date||''),parts=raw.split('至');if(on){const start=parts[0]||'';seg.date=start+'至'+(parts[1]||start);}else seg.date=parts[0]||'';window.multiRenderCurrentPage();};
-        window.multiAddLink=(i)=>{const u=window.extractFirstHttpUrl?.(document.getElementById('multiLinkUrl_'+i)?.value)||'',t=document.getElementById('multiLinkTitle_'+i)?.value.trim();if(!u)return;window.multiTimeDraft[i].links.push({title:t||u,url:u});window.multiRenderCurrentPage?.();};
+        window.multiToggleDateRange=function(i,on){
+            const seg=window.multiTimeDraft?.[i];if(!seg)return;
+            const previous=String(seg.date||''),wasRange=previous.includes('至'),parts=previous.split('至');
+            const start=document.getElementById(`${wasRange?'multiStartDate_':'multiDateInput_'}${i}`)?.value||parts[0]||'';
+            const end=wasRange?(document.getElementById(`multiEndDate_${i}`)?.value||parts[1]||start):start;
+            window.setInlineDateValue?.(`multiDateInput_${i}`,start);
+            window.setInlineDateValue?.(`multiStartDate_${i}`,start);window.setInlineDateValue?.(`multiEndDate_${i}`,end);
+            const single=document.getElementById(`multiSingleDate_${i}`),range=document.getElementById(`multiRangeDate_${i}`);
+            if(single)single.style.display=on?'none':'grid';if(range)range.style.display=on?'grid':'none';
+            seg.date=on?start+'至'+end:start;
+        };
+        window.multiAddLink=function(i){
+            const title=document.getElementById('multiLinkTitle_'+i),url=document.getElementById('multiLinkUrl_'+i),segment=window.multiTimeDraft?.[i];
+            const value=window.extractFirstHttpUrl?.(url?.value)||'';if(!segment)return;
+            if(!value){window.showToast('请输入网址链接','error');return;}
+            segment.links.push({title:title?.value.trim()||value,url:value});
+            if(title)title.value='';if(url)url.value='';window.multiRefreshAttachments(i,['links']);
+        };
         window.multiAddFiles=async function(i,kind,files){
             for(const file of Array.from(files||[])){
                 try{
@@ -5214,30 +5231,31 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     const src=media.url;
                     if(kind==='image') window.multiTimeDraft[i].images.push(window.multiNormalizeImage({mediaId:window.multiMediaId(),originalFull:src,original:src,outer:src,inner:src,collection:src,isAnimated:/gif|webp/i.test(file.type||file.name||''),deepDescription:null,cloudPath:media.cloudPath||''}));
                     else window.multiTimeDraft[i].videos.push(window.multiNormalizeVideo({url:src,blobUrl:'',cover:'',title:'',mime:file.type||'',previewDuration:4,deepDescription:null,cloudPath:media.cloudPath||''}));
-                    window.multiRenderCurrentPage?.();
+                    window.multiRefreshAttachments?.(i,[kind==='image'?'images':'videos']);
                 }catch(err){ console.warn(err); window._cloudUploadNotice?.('',false); window.showToast(err?.message||'文件上传失败','error'); }
             }
         };
 
         /* Multi-time shared media adapter: reuse single-time media/editor modals and logic. */
         window._multiSharedSegmentIndex = null;
-        window.multiActivateSharedSegment=function(seg){
+        window.multiActivateSharedSegment=function(seg,key=null){
             const s=window.multiTimeDraft?.[seg];if(!s)return false;
-            window._multiSharedSegmentIndex=seg;
+            if(Number(window.multiTimePage)===Number(seg)+2)window.multiPersistCurrentPage?.();
+            window._multiSharedSegmentIndex=seg;window._multiSharedMediaKey=key;
             window.editingImageFiles=s.images;window.editingVideos=s.videos;window.editingLinks=s.links;
             return true;
         };
         window.multiFinishSharedMediaAction=function(){
             const seg=window._multiSharedSegmentIndex;
-            if(seg!=null&&window.multiTimeDraft?.[seg])window.multiRenderCurrentPage?.();
-            window._multiSharedSegmentIndex=null;
+            if(seg!=null&&window.multiTimeDraft?.[seg])window.multiRefreshAttachments?.(seg,window._multiSharedMediaKey?[window._multiSharedMediaKey]:undefined);
+            window._multiSharedSegmentIndex=null;window._multiSharedMediaKey=null;
         };
-        window.multiOpenCropModal=function(seg,index){if(!window.multiActivateSharedSegment(seg))return;window.openCropModal(index);};
-        window.multiOpenVideoCropModal=function(seg,index){if(!window.multiActivateSharedSegment(seg))return;window.openVideoCropModal(index);};
-        window.multiOpenVideoEdit=function(seg,index){if(!window.multiActivateSharedSegment(seg))return;window.openVideoEditModal(index);};
-        window.multiOpenLinkEdit=function(seg,index){if(!window.multiActivateSharedSegment(seg))return;window.openEditLinkModal(index);};
+        window.multiOpenCropModal=function(seg,index){if(!window.multiActivateSharedSegment(seg,'images'))return;window.openCropModal(index);};
+        window.multiOpenVideoCropModal=function(seg,index){if(!window.multiActivateSharedSegment(seg,'videos'))return;window.openVideoCropModal(index);};
+        window.multiOpenVideoEdit=function(seg,index){if(!window.multiActivateSharedSegment(seg,'videos'))return;window.openVideoEditModal(index);};
+        window.multiOpenLinkEdit=function(seg,index){if(!window.multiActivateSharedSegment(seg,'links'))return;window.openEditLinkModal(index);};
         window.multiOpenDeepDescriptionEditor=async function(segIndex,type,index){
-            if(!window.multiActivateSharedSegment(segIndex))return;
+            if(!window.multiActivateSharedSegment(segIndex,type==='image'?'images':'videos'))return;
             return await window.openDeepDescriptionEditor(type,index,{multi:true,segIndex,type,index});
         };
 
@@ -7817,7 +7835,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         window.closeDeepDescriptionEditor = async function(discard){
             window._deepOpenEpoch=(Number(window._deepOpenEpoch)||0)+1;
             window.deepStopAutosave?.();
-            const m=document.getElementById('deepDescriptionModal');
+            const m=document.getElementById('deepDescriptionModal'),closingTarget=window._deepEditSession?.target;
             if(discard&&window._deepEditSession){
                 const backupKey=window.deepBackupKey?.(window._deepEditSession.target);
                 const s=window._deepEditSession;
@@ -7830,7 +7848,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             if(m)m.classList.add('hidden');
             window._deepEditSession=null;
             window.deepCanvasTarget=null; window.deepDescriptionEnabledDraft=null;
-            window.renderMicroPreviews?.();  if(window._multiSharedSegmentIndex!=null)window.multiRenderCurrentPage?.();
+            if(closingTarget?.multi){window.multiRefreshAttachments?.(closingTarget.segIndex,[closingTarget.type==='image'?'images':'videos']);if(window._multiSharedSegmentIndex===closingTarget.segIndex){window._multiSharedSegmentIndex=null;window._multiSharedMediaKey=null;}}else window.renderMicroPreviews?.();
         };
         window.deepSyncEnabledToggle = function(){
             const enabled=!!window.deepDescriptionEnabledDraft;
@@ -8007,7 +8025,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                             const serialized=JSON.stringify(result.description||{});if(window._editMediaTxn)window._editMediaTxn.tempUploads=window._editMediaTxn.tempUploads.filter(x=>String(x.tempPath)===String(obj.cloudPath)||!serialized.includes(String(x.tempPath)));
                         }else{await window.promoteTempUploadsSince?.(window._deepEditSession?.tempMark||0,obj.deepDescription);}
                         window.saveDeepDraftSnapshot?.(target,obj.deepDescription);
-                        if(target.multi)window.multiRenderSegments();else if(target.type==='image')window.renderMicroPreviews();else window.renderVideoPreviews();
+                        if(!target.multi){if(target.type==='image')window.renderMicroPreviews();else window.renderVideoPreviews();}
                         await window.deepBackupDelete?.(window.deepBackupKey(target));await window.closeDeepDescriptionEditor(false);
                         window.showToast?.('深入描述已保存','success');return true;
                     }catch(e){if(!committed)obj.deepDescription=previous;console.error('shared deep save failed',e);throw e;}
@@ -10900,10 +10918,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 const viewer=card.closest('#fullscreenViewer');
                 if(!viewer||viewer.classList.contains('hidden'))return;
                 e.preventDefault();e.stopPropagation();
-                const cards=[...viewer.querySelectorAll('[data-detail-image-card]')];
-                const idx=Math.max(0,cards.indexOf(card));
-                const imgs=cards.map(c=>c.querySelector('[data-detail-image]')).map(img=>img?.dataset?.phoneSrc||img?.currentSrc||img?.src||'').filter(Boolean);
-                if(imgs.length) window.openLightbox(imgs,Math.min(idx,imgs.length-1),viewer.dataset?.eventId||null,'image');
+                window.openDetailImageCard(card);
             },true);
         }
         // v110: 移动端详情图片统一由 document capture 手势打开。
@@ -10927,16 +10942,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 const x=g;g=null;
                 if(!x||x.id!==e.pointerId||x.moved||performance.now()-x.t>700)return;
                 e.preventDefault();e.stopPropagation();e.stopImmediatePropagation?.();
-                const cards=[...x.viewer.querySelectorAll('[data-detail-image-card]')];
-                const idx=cards.indexOf(x.card);if(idx<0)return;
-                const list=cards.map(c=>{
-                    const img=c.querySelector('[data-detail-image]');
-                    return img?.dataset?.fullSrc||img?.dataset?.phoneSrc||img?.currentSrc||img?.src||'';
-                });
-                if(list[idx]){
-                    window.suspendMobileDetailVideosForOverlay?.();
-                    window.openLightbox(list,idx,x.viewer.dataset?.eventId||null,'image');
-                }
+                window.openDetailImageCard(x.card);
             },true);
         }
 
@@ -11352,6 +11358,53 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
             finally{viewer.style.visibility='';}
             window.fitEventDetailMedia(viewer);window.initDetailGifSequence(viewer);
         });};
+        window.detailMilestoneBadgeHtml=function(event){return event.type==='major'?'<span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full">重大里程碑</span>':'';};
+        window.detailContentSectionHtml=function(kind,body,{multi=false}={}){
+            if(!body)return '';
+            const labels={images:'事件配图',videos:'事件视频',links:'跳转网址'};
+            const icon=kind==='videos'?'<i class="fa-solid fa-video mr-1"></i>':kind==='links'?'<i class="fa-solid fa-link mr-1"></i>':'';
+            const marker=!multi&&(kind==='images'||kind==='videos')?` data-detail-${kind}`:'';
+            return `<div class="mb-6" data-detail-section="${kind}"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">${icon}${labels[kind]}</h4><div${marker}>${body}</div></div>`;
+        };
+        window.detailLinksHtml=function(links){
+            if(!Array.isArray(links)||!links.length)return '';
+            const items=links.map(l=>`<a href="${window.escapeHtml(l.url||'')}" target="_blank" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-indigo-300 hover:text-indigo-200 px-3 py-2 rounded-xl text-xs transition-colors min-w-0"><i class="fa-solid fa-globe shrink-0"></i><span class="font-medium break-words min-w-0">${window.escapeHtml(l.title||l.url||'')}</span></a>`).join('');
+            return window.detailContentSectionHtml('links',`<div class="flex flex-wrap gap-2">${items}</div>`);
+        };
+        window.detailDescriptionHtml=function(description){
+            if(!String(description||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/gi,' ').trim())return '';
+            return `<div data-detail-description class="border-t border-slate-800 pt-6 mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">事件经过与描述</h4><div class="event-description-html text-sm sm:text-base leading-relaxed whitespace-pre-wrap">${window.prepareDescriptionForView?window.prepareDescriptionForView(description):description}</div></div>`;
+        };
+        window.detailVideoCardHtml=function(value,index,{segmentIndex=null,deepEnabled=true}={}){
+            const v=typeof value==='string'?{url:value}:value||{},url=v.blobUrl||v.url||'',cover=v.cover||'',hasDeep=deepEnabled&&window.deepDescriptionIsEnabled(v.deepDescription);
+            const multi=segmentIndex!==null,esc=window.escapeHtml;
+            const marks=hasDeep?'<span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">🐢</span><span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">✌🏻</span>':'';
+            return `<div data-detail-video-card data-detail-video-index="${index}"${multi?` data-multi-segment-index="${segmentIndex}"`:''} data-detail-video-deep="${hasDeep?'1':'0'}" class="${multi?'w-full ':''}bg-black rounded-xl overflow-hidden border border-slate-800 ${hasDeep?'cursor-pointer':''}">${v.title?`<div data-detail-video-title class="px-3 py-2 bg-slate-900 text-xs font-semibold text-slate-200 border-b border-slate-800">${esc(v.title)}</div>`:''}<div data-detail-video-stage class="relative bg-black overflow-hidden"><video ${cover?`poster="${esc(cover)}"`:''} playsinline webkit-playsinline preload="none" class="block ${multi?'w-full max-h-80 ':''}bg-black object-contain"><source src="${esc(url)}" ${v.mime?`type="${esc(v.mime)}"`:''}></video>${marks}</div></div>`;
+        };
+        window.detailImageCardHtml=function(value,index,{segmentIndex=null,deepEnabled=true,height=null}={}){
+            const obj=typeof value==='object'&&value?value:{},full=typeof value==='string'?value:obj.originalFull||obj.original||obj.outer||obj.inner||obj.collection||'';
+            const animated=window.isAnimatedImageSource(full,obj),cover=animated?(obj.gifCover||''):'',shown=cover||window.imageDisplaySource(value),esc=window.escapeHtml;
+            const attrs=`data-detail-image data-full-src="${esc(full)}"${animated&&cover?` data-gif-src="${esc(full)}" data-gif-cover="${esc(cover)}" data-gif-duration="${obj.gifDurationSource==='gce'?Math.max(50,Number(obj.gifDurationMs)||5000):5000}" data-gif-duration-source="${esc(obj.gifDurationSource||'')}"`:''} loading="lazy" decoding="async"`;
+            const multi=segmentIndex!==null,crop=animated?(obj.gifCoverCrop||obj.gifCrop||obj.crop):null;
+            const imageClass=`block ${multi?'w-full h-full object-cover bg-transparent ':''}group-hover:scale-[1.02] transition-all duration-300`;
+            const image=crop?window.getDetailCroppedImageHtml(obj,shown,attrs,imageClass,crop):`<img ${attrs} src="${esc(shown)}" class="${imageClass}">`;
+            const hasDeep=deepEnabled&&window.deepDescriptionIsEnabled(obj.deepDescription);
+            return `<div data-detail-image-card data-detail-image-index="${index}"${multi?` data-multi-segment-index="${segmentIndex}"`:''} onpointerdown="if(window.isPhoneLikeDevice?.()){mobileDetailTapStart(event,this)}else if(event.isPrimary&&event.button===0){event.preventDefault();event.stopPropagation();openDetailImageCard(this)}" onpointermove="if(window.isPhoneLikeDevice?.())mobileDetailTapMove(event,this)" onpointerup="if(window.isPhoneLikeDevice?.()&&mobileDetailTapEnd(event,this)){event.preventDefault();event.stopPropagation();openDetailImageCard(this)}" onclick="if(window.isPhoneLikeDevice?.()){event.preventDefault();event.stopPropagation();openDetailImageCard(this)}" class="group relative bg-transparent rounded-xl overflow-hidden border border-slate-800 cursor-pointer shadow-md transition-colors"${height!==null?` style="height:${height}px;"`:''}>${image}${hasDeep?'<span class="absolute right-1.5 bottom-1.5 z-10 text-[13px] sm:text-sm opacity-0 group-hover:opacity-45 transition-opacity pointer-events-none select-none drop-shadow" aria-hidden="true">🐢✌🏻</span>':''}</div>`;
+        };
+        window.openDetailImageCard=function(card){
+            const viewer=card?.closest?.('#fullscreenViewer');if(!viewer||viewer.classList.contains('hidden'))return false;
+            const event=window.findEventById?.(viewer.dataset.eventId)||(window.events||[]).find(x=>String(x.id)===String(viewer.dataset.eventId));if(!event)return false;
+            const segment=card.dataset.multiSegmentIndex,index=Number(card.dataset.detailImageIndex??[...viewer.querySelectorAll('[data-detail-image-card]')].indexOf(card));
+            const open=()=>{
+                if(window.isPhoneLikeDevice?.())window.suspendMobileDetailVideosForOverlay?.();
+                if(segment!==undefined&&segment!==''){window.openMultiLightbox(event.id,Number(segment),index);return;}
+                const images=(event.images||[]).map(x=>typeof x==='string'?x:x.originalFull||x.original||x.outer||x.inner||x.collection||'');
+                if(images[index])window.openLightbox(images,index,event.id,'image');
+            };
+            if(window.isPhoneLikeDevice?.())return window.mobileDetailTapOpen(card,open);
+            open();return true;
+        };
+
         window.renderReadOnlyFullscreen = function(eventId, fromStackDate = null) {
             document.body.classList.add('mobile-detail-open');
             window.syncXiaoqingerForDetail?.(true);
@@ -11366,36 +11419,25 @@ const videos=[...viewer.querySelectorAll('[data-detail-video-card] video')];
                     const imageCount=imageList.length;
                     const imageCols=Math.min(2,Math.max(1,imageCount));
                     const imageHeight=imageCount===1?290:185;
-                    const imgs=imageList.map((im,ii)=>{
-                        const animated=window.isAnimatedImageSource(im.originalFull||im.original,im);const thumb=animated?(im.gifCover||window.multiGetImageThumb(im)):window.imageDisplaySource(im);
-                        const gifAttrs=animated&&im.gifCover?`data-detail-image data-gif-src="${window.multiEsc(im.originalFull||im.original||im.outer||'')}" data-gif-cover="${window.multiEsc(im.gifCover)}" data-gif-duration="${Number(im.gifDurationMs)||5000}" data-gif-duration-source="${im.gifDurationSource||''}"`:'data-detail-image';
-                        const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(im?.deepDescription);
-                        return `<div class="group relative rounded-xl overflow-hidden border border-slate-800 cursor-pointer bg-transparent shadow-md transition-colors" style="height:${imageHeight}px;" onpointerdown="if(window.isPhoneLikeDevice?.()){mobileDetailTapStart(event,this)}else if(event.isPrimary&&event.button===0){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openMultiLightbox('${event.id}',${si},${ii}))}" onpointermove="if(window.isPhoneLikeDevice?.())mobileDetailTapMove(event,this)" onpointerup="if(window.isPhoneLikeDevice?.()&&mobileDetailTapEnd(event,this)){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openMultiLightbox('${event.id}',${si},${ii}),this._mobileOpenedAt=performance.now())}" onclick="if(window.isPhoneLikeDevice?.()){event.preventDefault();event.stopPropagation();mobileDetailTapOpen(this,()=>{window.suspendMobileDetailVideosForOverlay?.();openMultiLightbox('${event.id}',${si},${ii})})}">${(animated&&(im?.gifCrop||im?.gifCoverCrop||im?.crop))?window.getDetailCroppedImageHtml(im,thumb,gifAttrs+' loading="lazy" decoding="async"','block group-hover:scale-[1.02] transition-all duration-300',im?.gifCrop||im?.gifCoverCrop||im?.crop):`<img ${gifAttrs} loading="lazy" decoding="async" src="${window.multiEsc(thumb)}" class="block w-full h-full object-cover bg-transparent group-hover:scale-[1.02] transition-all duration-300">`}${hasDeep?'<span class="absolute right-1.5 bottom-1.5 text-sm opacity-0 group-hover:opacity-45">🐢✌🏻</span>':''}</div>`;
-                    }).join('');
-                    const imagesBlock=imageCount
-                        ? `<div class="grid gap-2" style="grid-template-columns:repeat(${imageCols},minmax(0,1fr));">${imgs}</div>`
-                        : '';
-                    const vids=(seg.videos||[]).map((v,vi)=>{
-                        const url=v.blobUrl||v.url||'',cover=v.cover||'',hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(v?.deepDescription);
-                        return `<div data-detail-video-card data-detail-video-index="${vi}" data-multi-segment-index="${si}" data-detail-video-deep="${hasDeep?'1':'0'}" class="w-full bg-black rounded-xl overflow-hidden border border-slate-800"><div data-detail-video-stage class="relative bg-black"><video ${cover?`poster="${window.multiEsc(cover)}"`:''} playsinline webkit-playsinline preload="none" class="block w-full max-h-80 object-contain bg-black"><source src="${window.multiEsc(url)}" ${v.mime?`type="${window.multiEsc(v.mime)}"`:''}></video></div>${v.title?`<div class="px-3 py-2 text-xs text-slate-300 bg-slate-900">${window.multiEsc(v.title)}</div>`:''}</div>`;
-                    }).join('');
-                    const videosBlock=vids?`<div class="space-y-3">${vids}</div>`:'';
-                    const links=(seg.links||[]).map(l=>`<a href="${l.url}" target="_blank" class="block px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-indigo-300 text-xs truncate"><i class="fa-solid fa-link mr-1"></i>${escapeHtml(l.title||l.url)}</a>`).join('');
-                    const desc=String(seg.description||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/gi,' ').trim()?`<div class="event-description-html text-sm leading-7 text-slate-200">${window.prepareDescriptionForView?window.prepareDescriptionForView(seg.description):seg.description}</div>`:'';
-                    const body=imagesBlock+videosBlock+links+desc;
+                    const segmentIndex=event.timeSegments.indexOf(seg),options={segmentIndex,deepEnabled:event.deepDescriptionEnabled!==false};
+                    const imgs=imageList.map((im,ii)=>window.detailImageCardHtml(im,ii,{...options,height:imageHeight})).join('');
+                    const imagesBlock=imageCount?window.detailContentSectionHtml('images',`<div class="grid gap-2" style="grid-template-columns:repeat(${imageCols},minmax(0,1fr));">${imgs}</div>`,{multi:true}):'';
+                    const vids=(seg.videos||[]).map((v,vi)=>window.detailVideoCardHtml(v,vi,options)).join('');
+                    const videosBlock=vids?window.detailContentSectionHtml('videos',`<div class="space-y-3">${vids}</div>`,{multi:true}):'';
+                    const body=imagesBlock+videosBlock+window.detailLinksHtml(seg.links)+window.detailDescriptionHtml(seg.description);
                     const subtitle=String(seg.subtitle||'').trim();
                     return `<section class="relative shrink-0 rounded-2xl border border-slate-700 bg-slate-900/80 p-4 self-start">${window.getMultiSegmentRelationMarks?.(event,seg.id)||''}<div class="text-xs font-mono text-indigo-300 ${subtitle?'mb-1':'mb-3'}">${window.formatDisplayDate(seg.date)}</div>${subtitle?`<h2 class="text-sm sm:text-base font-normal text-slate-200 mb-3">${escapeHtml(subtitle)}</h2>`:''}<div class="space-y-3">${body||'<div class="text-xs text-slate-500">这个时间没有附加内容</div>'}</div></section>`;
                 }).join('');
-                viewer.innerHTML=`<div data-detail-shell class="multi-detail-shell max-w-6xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-8 shadow-2xl relative"><div class="detail-window-dragbar" data-detail-drag-handle><i class="fa-solid fa-grip-lines"></i><span>点击此处拖动详情页</span></div><button type="button" onclick="window.openEventCommentWindow('${event.id}')" class="detail-window-comments-btn"><i class="fa-regular fa-comments"></i><span>评论区</span></button><button onclick="closeReadOnlyFullscreen('${fromStackDate?fromStackDate.replace(/'/g,"\\'"):''}')" class="absolute top-3 right-4 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full"><i class="fa-solid fa-xmark"></i></button><h1 class="text-xl sm:text-2xl font-bold mb-5 pr-12">${escapeHtml(event.title)}</h1><div id="multiDetailScroller" class="flex gap-4 overflow-x-auto overflow-y-visible pb-3 cursor-grab select-none" style="touch-action:pan-x pan-y;overscroll-behavior-x:contain;scroll-snap-type:none;scroll-behavior:auto;">${cols}</div>${detailTagHtml}</div>`;
+                viewer.innerHTML=`<div data-detail-shell class="multi-detail-shell max-w-6xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-8 shadow-2xl relative"><div class="detail-window-dragbar" data-detail-drag-handle><i class="fa-solid fa-grip-lines"></i><span>点击此处拖动详情页</span></div><button type="button" onclick="window.openEventCommentWindow('${event.id}')" class="detail-window-comments-btn"><i class="fa-regular fa-comments"></i><span>评论区</span></button><button onclick="closeReadOnlyFullscreen('${fromStackDate?fromStackDate.replace(/'/g,"\\'"):''}')" class="absolute top-3 right-4 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full"><i class="fa-solid fa-xmark"></i></button>${event.type==='major'?`<div class="mb-2">${window.detailMilestoneBadgeHtml(event)}</div>`:''}<h1 class="text-xl sm:text-2xl font-bold mb-5 pr-12">${escapeHtml(event.title)}</h1><div id="multiDetailScroller" class="flex gap-4 overflow-x-auto overflow-y-visible pb-3 cursor-grab select-none" style="touch-action:pan-x pan-y;overscroll-behavior-x:contain;scroll-snap-type:none;scroll-behavior:auto;">${cols}</div>${detailTagHtml}</div>`;
                 viewer.classList.remove('hidden');window.bindDetailVideoBehavior(viewer,event.id);window.initMultiDetailScroller?.();window.initFloatingDetailWindow(viewer);return;
             }
-            const detailHasImages=Array.isArray(event.images)&&event.images.length>0,detailHasVideos=Array.isArray(event.videos)&&event.videos.length>0,detailDescriptionText=String(event.description||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/gi,' ').trim(),detailHasDescription=!!detailDescriptionText;
+            const detailHasImages=Array.isArray(event.images)&&event.images.length>0,detailHasVideos=Array.isArray(event.videos)&&event.videos.length>0;
             let viewer=document.getElementById('fullscreenViewer');if(!viewer){viewer=document.createElement('div');viewer.id='fullscreenViewer';viewer.className='fixed inset-0 bg-slate-950/90 text-white z-50 overflow-y-auto backdrop-blur-md p-3 sm:p-8 flex flex-col items-center';viewer.addEventListener('click',e=>{if(e.target===viewer)window.closeReadOnlyFullscreen(viewer.dataset.fromStackDate||'');});document.body.appendChild(viewer);}viewer.dataset.fromStackDate=fromStackDate||'';viewer.dataset.eventId=String(event.id||'');
-            let imagesHtml='';if(detailHasImages){const fullSrcList=event.images.map(imgObj=>typeof imgObj==='string'?imgObj:(imgObj.originalFull||imgObj.original||imgObj.outer||imgObj.inner||imgObj.collection||''));imagesHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">事件配图</h4><div data-detail-images>${event.images.map((imgObj,idx)=>{const thumbSrc=window.imageDisplaySource(imgObj);const listStr=JSON.stringify(fullSrcList).replace(/"/g,'&quot;');const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(imgObj?.deepDescription);return `<div data-detail-image-card onpointerdown="if(window.isPhoneLikeDevice?.()){mobileDetailTapStart(event,this)}else if(event.isPrimary&&event.button===0){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openLightbox(${listStr},${idx},'${event.id}','image'),this._mobileOpenedAt=performance.now())}" onpointermove="if(window.isPhoneLikeDevice?.())mobileDetailTapMove(event,this)" onpointerup="if(window.isPhoneLikeDevice?.()&&mobileDetailTapEnd(event,this)){event.preventDefault();event.stopPropagation();(window.isPhoneLikeDevice?.()&&window.suspendMobileDetailVideosForOverlay?.(),openLightbox(${listStr},${idx},'${event.id}','image'))}" onclick="if(window.isPhoneLikeDevice?.()){event.preventDefault();event.stopPropagation();mobileDetailTapOpen(this,()=>{window.suspendMobileDetailVideosForOverlay?.();openLightbox(${listStr},${idx},'${event.id}','image')})}" class="group relative bg-transparent rounded-xl overflow-hidden border border-slate-800 cursor-pointer shadow-md transition-colors">${(()=>{const gif=window.isAnimatedImageSource(thumbSrc,imgObj),cover=typeof imgObj==='object'?(imgObj.gifCover||''):'';const staticCover=!gif?window.imageDisplaySource(imgObj):'';const shown=gif&&cover?cover:(staticCover||thumbSrc);const attrs=`data-detail-image data-full-src="${fullSrcList[idx]||thumbSrc}" ${gif&&cover?`data-gif-src="${fullSrcList[idx]||thumbSrc}" data-gif-cover="${cover}" data-gif-duration="${imgObj?.gifDurationSource==='gce'?Math.max(50,Number(imgObj?.gifDurationMs)||5000):5000}" data-gif-duration-source="${imgObj?.gifDurationSource||''}"`:''} loading="lazy" decoding="async"`;const boundCrop=staticCover?null:(imgObj?.gifCoverCrop||imgObj?.gifCrop||imgObj?.crop);return boundCrop?window.getDetailCroppedImageHtml(imgObj,shown,attrs,'block group-hover:scale-[1.02] transition-all duration-300',boundCrop):`<img ${attrs} src="${shown}" class="block group-hover:scale-[1.02] transition-all duration-300">`;})()}${hasDeep?'<span class="absolute right-1.5 bottom-1.5 z-10 text-[13px] sm:text-sm opacity-0 group-hover:opacity-45 transition-opacity pointer-events-none select-none drop-shadow" aria-hidden="true">🐢✌🏻</span>':''}</div>`;}).join('')}</div></div>`;}
-            let videosHtml='';if(detailHasVideos){videosHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-video mr-1"></i>事件视频</h4><div data-detail-videos>${event.videos.map((v,vidx)=>{const vUrl=typeof v==='object'?(v.blobUrl||v.url):v,vCover=typeof v==='object'?(v.cover||''):'',vTitle=typeof v==='object'?(v.title||''):'',vType=typeof v==='object'&&v.mime?`type="${v.mime}"`:'';const hasDeep=event.deepDescriptionEnabled!==false&&window.deepDescriptionIsEnabled(v?.deepDescription);return `<div data-detail-video-card data-detail-video-index="${vidx}" data-detail-video-deep="${hasDeep?'1':'0'}" class="bg-black rounded-xl overflow-hidden border border-slate-800 ${hasDeep?'cursor-pointer':''}">${vTitle?`<div data-detail-video-title class="px-3 py-2 bg-slate-900 text-xs font-semibold text-slate-200 border-b border-slate-800">${escapeHtml(vTitle)}</div>`:''}<div data-detail-video-stage class="relative bg-black overflow-hidden"><video ${vCover?`poster="${vCover}"`:''} playsinline webkit-playsinline preload="none" class="block bg-black object-contain"><source src="${vUrl}" ${vType}></video>${hasDeep?'<span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">🐢</span><span data-detail-video-deep-mark class="absolute z-10 items-center justify-center opacity-0 transition-opacity pointer-events-none select-none" aria-hidden="true">✌🏻</span>':''}</div></div>`;}).join('')}</div></div>`;}
-            let linksHtml='';if(event.links&&event.links.length>0){linksHtml=`<div class="mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3"><i class="fa-solid fa-link mr-1"></i>跳转网址</h4><div class="flex flex-wrap gap-2">${event.links.map(l=>`<a href="${l.url}" target="_blank" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-indigo-300 hover:text-indigo-200 px-3 py-2 rounded-xl text-xs transition-colors"><i class="fa-solid fa-globe"></i><span class="font-medium">${l.title||l.url}</span></a>`).join('')}</div></div>`;}
-            const descriptionHtml=detailHasDescription?`<div data-detail-description class="border-t border-slate-800 pt-6 mb-6"><h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">事件经过与描述</h4><div class="event-description-html text-sm sm:text-base leading-relaxed whitespace-pre-wrap">${window.prepareDescriptionForView?window.prepareDescriptionForView(event.description):event.description}</div></div>`:'';
-            viewer.innerHTML=`<div data-detail-shell class="${event.type==='major'?'detail-has-major ':''}${/(?:\d{4}[./-]\d{1,2}(?:[./-]\d{1,2})?|\d{1,2}[./-]\d{1,2})\s*(?:–|—|~|～|至|\s+-\s+)\s*(?:\d{4}[./-]\d{1,2}(?:[./-]\d{1,2})?|\d{1,2}[./-]\d{1,2})/.test(String(event.date||''))?'detail-has-range ':''}max-w-3xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-10 shadow-2xl relative"><div class="detail-window-dragbar" data-detail-drag-handle><i class="fa-solid fa-grip-lines"></i><span>点击此处拖动详情页</span></div><button type="button" onclick="window.openEventCommentWindow('${event.id}')" class="detail-window-comments-btn"><i class="fa-regular fa-comments"></i><span>评论区</span></button><button onclick="closeReadOnlyFullscreen('${fromStackDate?fromStackDate.replace(/'/g,"\\'"):''}')" class="absolute top-3 right-4 sm:top-4 sm:right-6 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full flex items-center justify-center transition-colors"><i class="fa-solid fa-xmark text-lg"></i></button><div class="flex items-center gap-3 mb-2"><span class="text-xs font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full font-semibold">${window.formatDisplayDate(event.date)}</span>${event.type==='major'?'<span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full">重大里程碑</span>':''}</div><h1 class="text-xl sm:text-2xl font-bold text-white mb-3 tracking-wide">${event.title}</h1><div data-detail-body>${imagesHtml}${videosHtml}${linksHtml}${descriptionHtml}${detailTagHtml}</div></div>`;
+            const detailOptions={deepEnabled:event.deepDescriptionEnabled!==false};
+            const imagesHtml=detailHasImages?window.detailContentSectionHtml('images',event.images.map((im,i)=>window.detailImageCardHtml(im,i,detailOptions)).join('')):'';
+            const videosHtml=detailHasVideos?window.detailContentSectionHtml('videos',event.videos.map((v,i)=>window.detailVideoCardHtml(v,i,detailOptions)).join('')):'';
+            const linksHtml=window.detailLinksHtml(event.links),descriptionHtml=window.detailDescriptionHtml(event.description);
+            viewer.innerHTML=`<div data-detail-shell class="${event.type==='major'?'detail-has-major ':''}${/(?:\d{4}[./-]\d{1,2}(?:[./-]\d{1,2})?|\d{1,2}[./-]\d{1,2})\s*(?:–|—|~|～|至|\s+-\s+)\s*(?:\d{4}[./-]\d{1,2}(?:[./-]\d{1,2})?|\d{1,2}[./-]\d{1,2})/.test(String(event.date||''))?'detail-has-range ':''}max-w-3xl w-full bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-10 shadow-2xl relative"><div class="detail-window-dragbar" data-detail-drag-handle><i class="fa-solid fa-grip-lines"></i><span>点击此处拖动详情页</span></div><button type="button" onclick="window.openEventCommentWindow('${event.id}')" class="detail-window-comments-btn"><i class="fa-regular fa-comments"></i><span>评论区</span></button><button onclick="closeReadOnlyFullscreen('${fromStackDate?fromStackDate.replace(/'/g,"\\'"):''}')" class="absolute top-3 right-4 sm:top-4 sm:right-6 text-slate-400 hover:text-white bg-slate-800/80 w-10 h-10 rounded-full flex items-center justify-center transition-colors"><i class="fa-solid fa-xmark text-lg"></i></button><div class="flex items-center gap-3 mb-2"><span class="text-xs font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full font-semibold">${window.formatDisplayDate(event.date)}</span>${window.detailMilestoneBadgeHtml(event)}</div><h1 class="text-xl sm:text-2xl font-bold text-white mb-3 tracking-wide">${event.title}</h1><div data-detail-body>${imagesHtml}${videosHtml}${linksHtml}${descriptionHtml}${detailTagHtml}</div></div>`;
             // 首次打开详情时先完成媒体布局，再让整个详情页参与绘制，避免媒体以块级默认宽度闪现一帧。
             viewer.style.visibility='hidden';
             viewer.classList.remove('hidden');
@@ -12405,6 +12447,8 @@ viewer.style.visibility='';
             if (modal) modal.classList.add('hidden');
             if (player) { player.pause(); if(player._cloudCropObjectUrl){try{URL.revokeObjectURL(player._cloudCropObjectUrl)}catch(_){} player._cloudCropObjectUrl='';} if(player._captureSafeObjectUrl){try{URL.revokeObjectURL(player._captureSafeObjectUrl)}catch(_){} player._captureSafeObjectUrl='';} }
             activeVideoCropIndex = -1;
+        
+            if(window._multiSharedSegmentIndex!=null)window.multiFinishSharedMediaAction?.();
         };
 
         window.waitForVideoCropFrame = function(player) {
@@ -13096,7 +13140,7 @@ viewer.style.visibility='';
                 const arr=array(d),from=arr?.indexOf(d.value);if(!Array.isArray(arr)||from<0)return;
                 let to=Math.max(0,Math.min(arr.length-1,d.target));if(to===from)return;
                 const [value]=arr.splice(from,1);arr.splice(to,0,value);
-                if(type==='multi')window.multiRenderCurrentPage();else if(type==='image')window.renderMicroPreviews();else if(type==='link')window.renderLinkPreviews();else window.renderVideoPreviews();
+                if(type==='multi')window.multiRefreshAttachments(d.seg,[d.key]);else if(type==='image')window.renderMicroPreviews();else if(type==='link')window.renderLinkPreviews();else window.renderVideoPreviews();
             };
             all().forEach(item=>{item.draggable=!mobile;item.querySelectorAll('img,video,a').forEach(child=>child.draggable=false);});
             const dragstart=e=>{if(mobile){e.preventDefault();return;}const item=e.target.closest?.(selector);begin(item);if(!session){e.preventDefault();return;}try{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',String(session.index));}catch(_){} };
@@ -13152,7 +13196,9 @@ viewer.style.visibility='';
                 <p class="text-[10px] text-slate-400">范围 0.5～10 秒，步进 0.5 秒；点击“确认修改”后才会应用。</p>`;
             modal.classList.remove('hidden');
         };
-        window.closeVideoEditModal=function(){document.getElementById('videoEditDetailModal')?.classList.add('hidden');};
+        window.closeVideoEditModal=function(){document.getElementById('videoEditDetailModal')?.classList.add('hidden');
+            if(window._multiSharedSegmentIndex!=null)window.multiFinishSharedMediaAction?.();
+        };
         window.saveVideoEditModal=function(){
             const modal=document.getElementById('videoEditDetailModal'),i=Number(modal?.dataset.index);
             if(!Number.isInteger(i)||!window.editingVideos[i])return;
@@ -13267,6 +13313,8 @@ viewer.style.visibility='';
         window.closeEditLinkModal = function() {
             const modal = document.getElementById('editLinkModal');
             if (modal) modal.classList.add('hidden');
+        
+            if(window._multiSharedSegmentIndex!=null)window.multiFinishSharedMediaAction?.();
         };
 
         window.saveEditLinkModal = function(index) {
@@ -13880,6 +13928,8 @@ viewer.style.visibility='';
             const targetImg = document.getElementById('cropTargetImg');
             if (targetImg) targetImg.onload = null;
             document.getElementById('cropModal')?.classList.add('hidden');
+        
+            if(window._multiSharedSegmentIndex!=null)window.multiFinishSharedMediaAction?.();
         };
 
         window.confirmCropImage = async function() {
@@ -13941,7 +13991,6 @@ viewer.style.visibility='';
                 target.collection = target.collection || target.originalFull;
                 window.showToast('截选完成并已应用', 'success');
                 window.renderMicroPreviews();
-                if (window._multiSharedSegmentIndex != null) window.multiRenderCurrentPage?.();
                 window.closeCropModal();
                 return;
             }
@@ -13976,8 +14025,7 @@ viewer.style.visibility='';
                     if(target._localPreview){try{URL.revokeObjectURL(target._localPreview);}catch(_){}delete target._localPreview;}
                     window.showToast("截选完成并已应用", "success");
                     window.renderMicroPreviews();
-                    if (window._multiSharedSegmentIndex != null) window.multiRenderCurrentPage?.();
-                    window.closeCropModal();
+                        window.closeCropModal();
                 }catch(err){
                     window.showToast?.('图片截选保存失败：'+(err?.message||err),'error');
                 }finally{setSaving(false);}
@@ -15203,7 +15251,7 @@ viewer.style.visibility='';
         window.multiTimePage = 0;
 
         /* Multi-time-only segment operations: shared dialogs are reused wherever possible. */
-        window.multiRemoveMedia=function(i,k,j){const kind=k==='images'?'image':k==='videos'?'video':'link';window.confirmEditAttachmentDelete?.(kind,()=>{window.multiTimeDraft[i]?.[k]?.splice(j,1);window.multiRenderCurrentPage();});};
+        window.multiRemoveMedia=function(i,k,j){const kind=k==='images'?'image':k==='videos'?'video':'link';window.confirmEditAttachmentDelete?.(kind,()=>{window.multiTimeDraft[i]?.[k]?.splice(j,1);window.multiRefreshAttachments(i,[k]);});};
         window.multiPendingDeleteSegmentIndex = null;
         window.multiRemoveSegment = function(i) {
             if (window.multiTimeDraft.length <= 1) {
@@ -15223,10 +15271,11 @@ viewer.style.visibility='';
                 window.closeMultiSegmentDeleteModal();
                 return;
             }
+            window.multiPersistCurrentPage();
             window.multiTimeDraft.splice(i, 1);
-            window.multiTimePage = Math.max(0, Math.min(window.multiTimePage, window.multiTimeDraft.length));
+            window.multiTimePage = window.multiTimePage>1?Math.max(2,Math.min(window.multiTimePage,window.multiTimeDraft.length+1)):window.multiTimePage;
             window.closeMultiSegmentDeleteModal();
-            window.multiRenderEditorShell();
+            window.multiRenderCurrentPage();
         };
         window.multiBindDrag=function(){window.bindAttachmentSorting(document.getElementById('multiPageBody'),'multi');};
 
@@ -15304,12 +15353,34 @@ viewer.style.visibility='';
             </div>`;
         };
 
+        window.multiAttachmentListHtml=function(segIndex,key){
+            const s=window.multiTimeDraft?.[segIndex];if(!s)return '';
+            if(key==='images'){
+                return (s.images||[]).map((im,j)=>`<div draggable="true" data-multi-drag data-seg="${segIndex}" data-key="images" data-index="${j}" class="media-drag-item relative w-20 h-16 rounded-lg overflow-hidden border border-slate-200 bg-slate-900 group cursor-grab">${window.isAnimatedImageSource(im.originalFull||im.original,im)&&window.resolveMediaCover(im,'gif').url?window.getAnimatedCoverCropPreviewHtml({...im,gifCover:window.resolveMediaCover(im,'gif').url}):`<img src="${window.multiEsc(window.multiGetImageThumb(im))}" class="w-full h-full object-cover" draggable="false">`}<span class="absolute top-1 left-1 text-white/80 text-[9px]"><i class="fa-solid fa-grip-vertical"></i></span><div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1"><button type="button" onclick="event.stopPropagation();multiOpenCropModal(${segIndex},${j})" class="w-6 h-6 rounded-full bg-indigo-600 text-white" title="截选"><i class="fa-solid fa-crop text-[10px]"></i></button>${window.multiTimeDeepEnabledDraft?`<button type="button" data-deep-edit-btn onclick="event.stopPropagation();multiOpenDeepDescriptionEditor(${segIndex},'image',${j})" class="w-6 h-6 rounded-full bg-violet-600 text-white" title="深入描述"><i class="fa-solid fa-feather-pointed text-[10px]"></i></button>`:''}<button type="button" onclick="event.stopPropagation();multiRemoveMedia(${segIndex},'images',${j})" class="w-6 h-6 rounded-full bg-rose-600 text-white" title="删除"><i class="fa-solid fa-xmark text-[10px]"></i></button></div></div>`).join('');
+            }
+            if(key==='videos'){
+                (s.videos||[]).forEach(v=>{const c=window.resolveMediaCover(v,'video');if(c.url){v.cover=c.url;v.coverCloudPath=c.path;}});
+                return (s.videos||[]).map((v,j)=>`<div draggable="true" data-multi-drag data-seg="${segIndex}" data-key="videos" data-index="${j}" class="media-drag-item video-edit-card border border-slate-200 rounded-lg px-2.5 py-2 flex items-center gap-2 cursor-grab bg-white"><i class="fa-solid fa-grip-vertical text-slate-300 text-[10px]"></i>${v.cover?`<img src="${window.multiEsc(v.cover)}" class="w-10 h-7 object-cover rounded">`:`<div class="w-10 h-7 bg-slate-100 rounded text-[9px] text-slate-400 flex items-center justify-center">视频</div>`}<div class="min-w-0 flex-1"><div class="text-xs font-semibold truncate text-slate-700">${window.multiEsc(v.title||'未命名视频')}</div></div><span class="text-[10px] text-indigo-500">${Number(v.previewDuration)||4}s</span><button type="button" onclick="multiOpenVideoCropModal(${segIndex},${j})" class="px-2 py-1 bg-slate-100 text-slate-600 rounded text-[10px]">截选</button><button type="button" onclick="multiOpenVideoEdit(${segIndex},${j})" class="px-2 py-1 bg-indigo-50 text-indigo-600 rounded text-[10px]">编辑</button>${window.multiTimeDeepEnabledDraft?`<button type="button" data-deep-edit-btn onclick="multiOpenDeepDescriptionEditor(${segIndex},'video',${j})" class="px-2 py-1 bg-violet-50 text-violet-600 rounded text-[10px]">深入描述</button>`:''}<button type="button" onclick="multiRemoveMedia(${segIndex},'videos',${j})" class="text-rose-500 w-6 h-6"><i class="fa-solid fa-xmark"></i></button></div>`).join('');
+            }
+            if(key==='links'){
+                return (s.links||[]).map((l,j)=>`<div draggable="true" data-multi-drag data-seg="${segIndex}" data-key="links" data-index="${j}" class="flex items-center gap-2 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs cursor-grab bg-white"><i class="fa-solid fa-grip-vertical text-slate-300"></i><div class="min-w-0 flex-1 text-left truncate text-slate-700"><i class="fa-solid fa-globe text-indigo-500 mr-1"></i>${window.multiEsc(l.title||l.url)}</div><button type="button" onclick="event.stopPropagation();multiOpenLinkEdit(${segIndex},${j})" class="text-slate-400 hover:text-indigo-600 w-6 h-6" title="编辑"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="event.stopPropagation();multiRemoveMedia(${segIndex},'links',${j})" class="text-rose-500 w-6 h-6" title="删除"><i class="fa-solid fa-xmark"></i></button></div>`).join('');
+            }
+            return '';
+        };
+        window.multiRefreshAttachments=function(segIndex=Number(window.multiTimePage)-2,keys=['images','videos','links']){
+            if(Number(window.multiTimePage)!==Number(segIndex)+2)return;
+            const scroll=document.getElementById('multiScrollArea'),top=scroll?.scrollTop,left=scroll?.scrollLeft;
+            const empty={images:'暂无图片',videos:'暂无视频',links:'暂无网址'};
+            for(const key of keys){
+                const list=document.getElementById(`multiAttachments_${segIndex}_${key}`);if(!list)continue;
+                list.innerHTML=window.multiAttachmentListHtml(segIndex,key)||`<span class="text-[11px] text-slate-400">${empty[key]}</span>`;
+            }
+            window.multiBindDrag?.();
+            if(scroll){scroll.scrollTop=top;scroll.scrollLeft=left;}
+        };
         window.multiSegmentPageHtml=function(segIndex){
             const s=window.multiTimeDraft[segIndex];if(!s)return'';
-            const images=(s.images||[]).map((im,j)=>`<div draggable="true" data-multi-drag data-seg="${segIndex}" data-key="images" data-index="${j}" class="media-drag-item relative w-20 h-16 rounded-lg overflow-hidden border border-slate-200 bg-slate-900 group cursor-grab">${window.isAnimatedImageSource(im.originalFull||im.original,im)&&window.resolveMediaCover(im,'gif').url?window.getAnimatedCoverCropPreviewHtml({...im,gifCover:window.resolveMediaCover(im,'gif').url}):`<img src="${window.multiEsc(window.multiGetImageThumb(im))}" class="w-full h-full object-cover" draggable="false">`}<span class="absolute top-1 left-1 text-white/80 text-[9px]"><i class="fa-solid fa-grip-vertical"></i></span><div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1"><button type="button" onclick="event.stopPropagation();multiOpenCropModal(${segIndex},${j})" class="w-6 h-6 rounded-full bg-indigo-600 text-white" title="截选"><i class="fa-solid fa-crop text-[10px]"></i></button>${window.multiTimeDeepEnabledDraft?`<button type="button" data-deep-edit-btn onclick="event.stopPropagation();multiOpenDeepDescriptionEditor(${segIndex},'image',${j})" class="w-6 h-6 rounded-full bg-violet-600 text-white" title="深入描述"><i class="fa-solid fa-feather-pointed text-[10px]"></i></button>`:''}<button type="button" onclick="event.stopPropagation();multiRemoveMedia(${segIndex},'images',${j})" class="w-6 h-6 rounded-full bg-rose-600 text-white" title="删除"><i class="fa-solid fa-xmark text-[10px]"></i></button></div></div>`).join('');
-            (s.videos||[]).forEach(v=>{const c=window.resolveMediaCover(v,'video');if(c.url){v.cover=c.url;v.coverCloudPath=c.path;}});
-            const videos=(s.videos||[]).map((v,j)=>`<div draggable="true" data-multi-drag data-seg="${segIndex}" data-key="videos" data-index="${j}" class="media-drag-item video-edit-card border border-slate-200 rounded-lg px-2.5 py-2 flex items-center gap-2 cursor-grab bg-white"><i class="fa-solid fa-grip-vertical text-slate-300 text-[10px]"></i>${v.cover?`<img src="${window.multiEsc(v.cover)}" class="w-10 h-7 object-cover rounded">`:`<div class="w-10 h-7 bg-slate-100 rounded text-[9px] text-slate-400 flex items-center justify-center">视频</div>`}<div class="min-w-0 flex-1"><div class="text-xs font-semibold truncate text-slate-700">${window.multiEsc(v.title||'未命名视频')}</div></div><span class="text-[10px] text-indigo-500">${Number(v.previewDuration)||4}s</span><button type="button" onclick="multiOpenVideoCropModal(${segIndex},${j})" class="px-2 py-1 bg-slate-100 text-slate-600 rounded text-[10px]">截选</button><button type="button" onclick="multiOpenVideoEdit(${segIndex},${j})" class="px-2 py-1 bg-indigo-50 text-indigo-600 rounded text-[10px]">编辑</button>${window.multiTimeDeepEnabledDraft?`<button type="button" data-deep-edit-btn onclick="multiOpenDeepDescriptionEditor(${segIndex},'video',${j})" class="px-2 py-1 bg-violet-50 text-violet-600 rounded text-[10px]">深入描述</button>`:''}<button type="button" onclick="multiRemoveMedia(${segIndex},'videos',${j})" class="text-rose-500 w-6 h-6"><i class="fa-solid fa-xmark"></i></button></div>`).join('');
-            const links=(s.links||[]).map((l,j)=>`<div draggable="true" data-multi-drag data-seg="${segIndex}" data-key="links" data-index="${j}" class="flex items-center gap-2 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs cursor-grab bg-white"><i class="fa-solid fa-grip-vertical text-slate-300"></i><div class="min-w-0 flex-1 text-left truncate text-slate-700"><i class="fa-solid fa-globe text-indigo-500 mr-1"></i>${window.multiEsc(l.title||l.url)}</div><button type="button" onclick="event.stopPropagation();multiOpenLinkEdit(${segIndex},${j})" class="text-slate-400 hover:text-indigo-600 w-6 h-6" title="编辑"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="event.stopPropagation();multiRemoveMedia(${segIndex},'links',${j})" class="text-rose-500 w-6 h-6" title="删除"><i class="fa-solid fa-xmark"></i></button></div>`).join('');
+            const images=window.multiAttachmentListHtml(segIndex,'images'),videos=window.multiAttachmentListHtml(segIndex,'videos'),links=window.multiAttachmentListHtml(segIndex,'links');
             return `<div class="space-y-3.5">
                 <div>
                     <label class="block text-xs font-bold text-slate-700 mb-1">时间名称</label>
@@ -15325,19 +15396,19 @@ viewer.style.visibility='';
                     <div class="space-y-2">
                         <span class="block text-[11px] font-bold text-slate-600">添加图片</span>
                         <div class="flex gap-2"><button type="button" onclick="document.getElementById('multiImageFile_${segIndex}').click()" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-xs text-slate-700 flex items-center gap-1"><i class="fa-solid fa-upload text-indigo-600"></i> 本地上传图片</button><button type="button" onclick="openCloudMediaLibrary({folder:'all',allowedFolders:['picture','gif'],onSelect:a=>addCloudAssetToMulti(${segIndex},'image',a)})" class="px-2.5 py-1.5 bg-white border rounded-lg text-[11px] text-indigo-600"><i class="fa-solid fa-cloud mr-1"></i>云端选择</button><input type="file" id="multiImageFile_${segIndex}" multiple accept="image/*" class="hidden" onchange="multiAddFiles(${segIndex},'image',this.files);this.value=''"></div>
-                        <div class="flex flex-wrap gap-2">${images||'<span class="text-[11px] text-slate-400">暂无图片</span>'}</div>
+                        <div id="multiAttachments_${segIndex}_images" class="flex flex-wrap gap-2">${images||'<span class="text-[11px] text-slate-400">暂无图片</span>'}</div>
                     </div>
                     <div class="space-y-2 pt-2 border-t border-slate-200">
                         <span class="block text-[11px] font-bold text-slate-600">添加视频</span>
                         <div class="flex flex-col gap-2">
                             <div class="flex gap-2"><button type="button" onclick="document.getElementById('multiVideoFile_${segIndex}').click()" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-xs text-slate-700 flex items-center gap-1"><i class="fa-solid fa-upload text-indigo-600"></i> 本地上传视频</button><button type="button" onclick="openCloudMediaLibrary({folder:'video',allowedFolders:['video'],onSelect:a=>addCloudAssetToMulti(${segIndex},'video',a)})" class="px-2.5 py-1.5 bg-white border rounded-lg text-[11px] text-indigo-600"><i class="fa-solid fa-cloud mr-1"></i>云端选择</button><input type="file" id="multiVideoFile_${segIndex}" multiple accept="video/*" class="hidden" onchange="multiAddFiles(${segIndex},'video',this.files);this.value=''"></div>
                         </div>
-                        <div class="space-y-1.5">${videos||'<span class="text-[11px] text-slate-400">暂无视频</span>'}</div>
+                        <div id="multiAttachments_${segIndex}_videos" class="space-y-1.5">${videos||'<span class="text-[11px] text-slate-400">暂无视频</span>'}</div>
                     </div>
                     <div class="space-y-2 pt-2 border-t border-slate-200">
                         <span class="block text-[11px] font-bold text-slate-600">添加相关网址链接</span>
                         <div class="flex gap-1.5"><input id="multiLinkTitle_${segIndex}" placeholder="网址标题" class="w-1/3 px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs outline-none"><input id="multiLinkUrl_${segIndex}" type="url" placeholder="https://..." class="flex-grow px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs outline-none"><button onclick="multiAddLink(${segIndex})" type="button" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium shrink-0"><span class="editor-add-link-label-wide">添加网址</span><span class="editor-add-link-label-narrow">添加</span></button></div>
-                        <div class="space-y-1.5">${links||'<span class="text-[11px] text-slate-400">暂无网址</span>'}</div>
+                        <div id="multiAttachments_${segIndex}_links" class="space-y-1.5">${links||'<span class="text-[11px] text-slate-400">暂无网址</span>'}</div>
                     </div>
                 </div>
                 <div>
@@ -15385,7 +15456,7 @@ viewer.style.visibility='';
             const total=window.multiTimeDraft.length+2;
             host.innerHTML=Array.from({length:total},(_,i)=>{const label=i===0?'总设置':i===1?'权限设置':String(i-1),permissionAllowed=i!==1||window.canOpenEventPermissionSettings?.(window.multiTimePermissionDraft||{},!window.multiTimeIsEdit);return `<button type="button" ${permissionAllowed?`onclick="multiSwitchPage(${i})"`:'disabled aria-disabled="true" title="仅事件创建者可查看和设置权限"'} title="${permissionAllowed?(i===0?'总设置':i===1?'权限设置':'时间 '+(i-1)):''}" class="${!permissionAllowed?'min-w-10 px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 cursor-not-allowed':i===window.multiTimePage?'min-w-10 px-3 py-2 rounded-lg text-xs font-semibold bg-white text-indigo-700 shadow-sm border border-indigo-100':'min-w-10 px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-700'}">${label}</button>`;}).join('');
         };
-        window.multiSwitchPage=function(p){p=Number(p)||0;if(p===1&&!window.canOpenEventPermissionSettings?.(window.multiTimePermissionDraft||{},!window.multiTimeIsEdit))return;window.multiPersistCurrentPage();window.richResetOpacitySelection?.();const sel=window.getSelection?.();try{sel?.removeAllRanges();}catch(_){}window.multiTimePage=Math.max(0,Math.min(Number(p)||0,window.multiTimeDraft.length+1));window.multiRenderCurrentPage();};
+        window.multiSwitchPage=function(p){p=Number(p)||0;if(p===window.multiTimePage)return;if(p===1&&!window.canOpenEventPermissionSettings?.(window.multiTimePermissionDraft||{},!window.multiTimeIsEdit))return;window.multiPersistCurrentPage();window.richResetOpacitySelection?.();const sel=window.getSelection?.();try{sel?.removeAllRanges();}catch(_){}window.multiTimePage=Math.max(0,Math.min(Number(p)||0,window.multiTimeDraft.length+1));window.multiRenderCurrentPage();};
         window.multiRenderCurrentPage=function(){const b=document.getElementById('multiPageBody');if(!b)return;window.richResetOpacitySelection?.();window.richSelectionRange=null;window.richOpacitySpan=null;const page=window.multiTimePage;b.innerHTML=page===0?window.multiGeneralPageHtml(window.multiTimeGeneralDraft):page===1?window.eventPermissionSettingsHtml(window.multiTimePermissionDraft||{},!window.multiTimeIsEdit):window.multiSegmentPageHtml(page-2);const lbl=document.getElementById('multiPageTitle');if(lbl)lbl.textContent=page===0?'总设置':page===1?'权限设置':`时间 ${page-1}`;window.multiRenderPageTabs();const maxPage=(window.multiTimeDraft?.length||0)+1;const prevBtn=document.getElementById('multiPrevPageBtn'),nextBtn=document.getElementById('multiNextPageBtn'),saveBtn=document.getElementById('multiSaveBtn');if(prevBtn)prevBtn.classList.toggle('hidden',page<=0);if(nextBtn)nextBtn.classList.toggle('hidden',page>=maxPage);if(saveBtn)saveBtn.classList.toggle('hidden',page<maxPage);if(page===0){window.multiRenderConnections();}else if(page===1){window.initPermissionPage?.();}else{window.richResetOpacitySelection?.();const ed=document.getElementById('editDescription');if(ed)ed.addEventListener('input',window.richEditorInput);window.richSyncDecorationGeometry?.();}window.multiBindDrag();window.enhanceWebSelects?.(b);};
         window.multiRenderEditorShell=function(){
             const modal=document.getElementById('multiTimeEventModal');if(!modal)return;const isEdit=window.multiTimeIsEdit;
@@ -15410,7 +15481,7 @@ viewer.style.visibility='';
             </div>`;
             window.multiRenderCurrentPage();
         };
-        window.multiAddSegment=function(){window.multiPersistCurrentPage();window.multiTimeDraft.push(window.multiNewSegment());window.multiTimePage=window.multiTimeDraft.length+1;window.multiRenderEditorShell();};
+        window.multiAddSegment=function(){window.multiPersistCurrentPage();window.multiTimeDraft.push(window.multiNewSegment());window.multiTimePage=window.multiTimeDraft.length+1;window.multiRenderCurrentPage();};
 
         window.closeMultiTimeEventModal=function(){
             window._deepOpenEpoch=(Number(window._deepOpenEpoch)||0)+1;window.deepSetMediaLoading?.(false);
@@ -15462,11 +15533,10 @@ viewer.style.visibility='';
                 }
             }
             window.multiTimeDeepEnabledDraft=!!enabled;
-            window.multiRenderCurrentPage?.();
+            window.multiRefreshAttachments?.();
         };
         window.saveMultiTimeEvent=function(){window.multiPersistCurrentPage();const title=String(window.multiTimeGeneralDraft?.title||'').trim();if(window.eventTitleExists(title,window.multiTimeEditingId)){window.multiTimePage=0;window.multiRenderCurrentPage();window.updateEventTitleDuplicateHint(document.getElementById('multiEventTitle'),'multiTitleDuplicateHint',window.multiTimeEditingId);window.showToast('该名称已存在','error');return;}if(!title){window.showToast('请填写事件名称','error');window.multiTimePage=0;window.multiRenderCurrentPage();return;}const segs=window.multiNormalizeDraft(JSON.parse(JSON.stringify(window.multiTimeDraft||[])));for(let si=0;si<segs.length;si++){const seg=segs[si];const rawDate=String(seg.date||'');if(rawDate.includes('至')){const [a0,b0]=rawDate.split('至');const a=window.normalizePartialDate(a0),b=window.normalizePartialDate(b0);if(!a||!b){window.showToast('请为每个时间填写有效日期范围','error');return;}seg.date=a+'至'+b;}else{const d=window.normalizePartialDate(rawDate);if(!d){window.showToast('请为每个时间填写有效日期','error');return;}seg.date=d;}seg.subtitle=String(seg.subtitle||'').trim();seg.description=String(seg.description||'');}segs.sort((a,b)=>String(a.date).localeCompare(String(b.date)));const date=window.getMultiEventDisplayDate(segs);const timelineSortSegmentId=segs.some(x=>String(x.id)===String(window.multiTimeGeneralDraft?.timelineSortSegmentId||''))?String(window.multiTimeGeneralDraft.timelineSortSegmentId):'';const existing=window.findEventById(window.multiTimeEditingId);window.pendingSaveData={id:window.multiTimeEditingId,title,date,type:window.multiTimeGeneralDraft.type||'minor',tags:window.multiTimeGeneralDraft.tags||[],tagIds:window.tagIdsForNames?.(window.multiTimeGeneralDraft.tags||[])||[],timeMode:'multi',timeSegments:segs,timelineSortSegmentId,deepDescriptionEnabled:!!window.multiTimeDeepEnabledDraft,images:[],videos:[],links:[],description:'',connections:window.multiTimeConnections||[],editPermissionMode:window.multiTimePermissionDraft?.editPermissionMode||'all',allowedEditorProfileIds:window.multiTimePermissionDraft?.allowedEditorProfileIds||[],developerLocked:!!window.multiTimePermissionDraft?.developerLocked,developerAllowedProfileIds:window.multiTimePermissionDraft?.developerAllowedProfileIds||[],creatorOwned:window.multiTimeIsEdit?window.multiTimePermissionDraft?.creatorOwned===true:true,_isEdit:!!window.multiTimeIsEdit};if(existing&&Number.isFinite(Number(existing.stackOrder)))window.pendingSaveData.stackOrder=existing.stackOrder;document.getElementById('confirmSaveModal')?.classList.remove('hidden');};
 
-        window.multiRenderSegments=function(){ window.multiRenderCurrentPage?.(); };
 
     
 
@@ -16419,18 +16489,11 @@ viewer.style.visibility='';
         };
         window.installHeaderModalBackdropClose();
 
-        // One wrapper per entry point keeps writes locked through rendering and adapter synchronization.
-        const multiSharedActions=new Set(['confirmCropImage','confirmVideoFrameCapture','saveVideoEditModal','saveEditLinkModal']);
-        const cloudWriteActions=new Set(['canvasToCloudCover','addBgmByFile','multiAddFiles','handleLocalImageUpload','handleLocalVideoUpload',...multiSharedActions]);
-        cloudWriteActions.forEach(name=>{
+        // Shared dialogs refresh their mapped attachment list when they close, including cancellation.
+        // Validation failures keep both the dialog and its segment mapping available for a retry.
+        ['canvasToCloudCover','addBgmByFile','multiAddFiles','handleLocalImageUpload','handleLocalVideoUpload','confirmCropImage','confirmVideoFrameCapture','saveVideoEditModal','saveEditLinkModal'].forEach(name=>{
             const original=window[name];if(typeof original!=='function')return;
-            window[name]=function(...args){
-                const segment=window._multiSharedSegmentIndex;
-                return window.withCloudWriteOperation(async()=>{
-                    try{return await original.apply(this,args);}
-                    finally{if(multiSharedActions.has(name)&&segment!=null&&window._multiSharedSegmentIndex===segment)window.multiFinishSharedMediaAction?.();}
-                });
-            };
+            window[name]=function(...args){return window.withCloudWriteOperation(()=>original.apply(this,args));};
         });
 
 </script>
