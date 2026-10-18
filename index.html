@@ -6,7 +6,11 @@
     <link rel="icon" type="image/x-icon" href="./favicon.ico">
     <title>雨后天晴</title>
 <script>(function(){try{if(localStorage.getItem('qinger_visible')==='0')document.documentElement.classList.add('qinger-user-hidden')}catch(_){}})();</script>
-<style id="app-boot-critical">html:not(.app-ready) #xiaoqingerSimplePet,html.app-pet-settling #xiaoqingerSimplePet,html:not(.app-ready) #xiaoqingerSimplePet *,html.app-pet-settling #xiaoqingerSimplePet *,html:not(.app-ready) #qingerInventory,html.app-pet-settling #qingerInventory,html:not(.app-ready) #qingerInventory *,html.app-pet-settling #qingerInventory *{animation:none!important;transition:none!important} html:not(.app-ready) body>*:not(#appBootScreen){visibility:hidden!important}#appBootScreen{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;background:#fff;color:#4b5563;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}#appBootScreen .app-boot-inner{display:flex;opacity:0;transition:opacity .18s ease;flex-direction:column;align-items:center;gap:12px;padding:24px;text-align:center}#appBootScreen.app-boot-visible .app-boot-inner{opacity:1}#appBootScreen .app-boot-spinner{width:26px;height:26px;border:3px solid #e5e7eb;border-top-color:#64748b;border-radius:50%;animation:appBootSpin .8s linear infinite}#appBootScreen .app-boot-text{font-size:14px;line-height:1.6}#appBootScreen .app-boot-retry{display:none;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#334155;padding:7px 14px;font:inherit;cursor:pointer}#appBootScreen.app-boot-failed .app-boot-spinner{display:none}#appBootScreen.app-boot-failed .app-boot-retry{display:inline-block}@keyframes appBootSpin{to{transform:rotate(360deg)}}</style>
+<style id="app-boot-critical">html:not(.app-ready) #xiaoqingerSimplePet,html.app-pet-settling #xiaoqingerSimplePet,html:not(.app-ready) #xiaoqingerSimplePet *,html.app-pet-settling #xiaoqingerSimplePet *,html:not(.app-ready) #qingerInventory,html.app-pet-settling #qingerInventory,html:not(.app-ready) #qingerInventory *,html.app-pet-settling #qingerInventory *{animation:none!important;transition:none!important} html:not(.app-ready) body>*:not(#appBootScreen){visibility:hidden!important}#appBootScreen{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;background:#fff;color:#4b5563;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}#appBootScreen .app-boot-inner{display:flex;opacity:0;transition:opacity .18s ease;flex-direction:column;align-items:center;gap:12px;padding:24px;text-align:center}#appBootScreen.app-boot-visible .app-boot-inner{opacity:1}#appBootScreen .app-boot-spinner{width:26px;height:26px;border:3px solid #e5e7eb;border-top-color:#64748b;border-radius:50%;animation:appBootSpin .8s linear infinite}#appBootScreen .app-boot-text{font-size:14px;line-height:1.6}#appBootScreen .app-boot-retry{display:none;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#334155;padding:7px 14px;font:inherit;cursor:pointer}#appBootScreen.app-boot-failed .app-boot-spinner{display:none}#appBootScreen.app-boot-failed .app-boot-retry{display:inline-block}@keyframes appBootSpin{to{transform:rotate(360deg)}}
+        [data-editor-src]:not([data-editor-state="loaded"]) { visibility:hidden; }
+        .media-drag-item:has([data-editor-state="error"]) { position:relative; }
+        .media-drag-item:has([data-editor-state="error"])::after { content:"加载失败"; position:absolute; bottom:0; left:0; padding:0 4px; color:#94a3b8; font-size:10px; background:#0f172a; pointer-events:none; }
+</style>
 <script>(function(){
 window.__appBootDomReady=false;window.__appBootPetReady=false;window.__appBootCloudReady=false;window.__appBootDone=false;
 window.addEventListener('error',function(e){if(window.__appBootDone||!e.error)return;window.__appBootFailure?.('页面启动出错，请重新加载')});
@@ -3732,7 +3736,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             pumpMediaImages();return task;
         };
         document.addEventListener('error',event=>{
-            const img=event.target;if(!(img instanceof HTMLImageElement))return;
+            const img=event.target;if(!(img instanceof HTMLImageElement)||img.dataset.editorSrc)return;
             const failed=img.getAttribute('src')||'';const original=failed.includes('_media_retry=')?(img.dataset.retryOriginal||failed):failed;
             if(img.dataset.retryOriginal!==original){img.dataset.retryCount='0';}
             if(!original||original.startsWith('data:')||img.dataset.retryCount==='2'||img._retryPending)return;
@@ -7928,7 +7932,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                         <button id="deepAlignRightBtn" type="button" disabled data-deep-text-control data-deep-selection-only class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs" title="右对齐" onclick="deepApplyTextStyle('align','right')"><i class="fa-solid fa-align-right"></i></button>
                     </div>
                     <div class="relative"><button id="deepTextColorBtn" type="button" disabled data-deep-text-control data-deep-selection-only onpointerdown="event.preventDefault();deepRememberTextSelection()" onclick="deepOpenColorPalette('text')" class="deep-selection-text-control px-2.5 py-1.5 bg-white border rounded-lg text-xs"><span id="deepTextColorSwatch" class="inline-block w-3 h-3 rounded-full mr-1 align-[-1px]" style="background:#334155"></span>文字颜色</button><div id="deepTextColorPalette" class="hidden absolute left-0 top-9 z-[260] w-64 p-3 bg-white border border-slate-200 rounded-xl shadow-xl"><div class="text-[10px] font-semibold text-slate-500 mb-2">固定色 / 自定义</div><div class="grid grid-cols-7 gap-2">${['#0f172a','#334155','#64748b','#dc2626','#ea580c','#f59e0b','#16a34a','#059669','#0284c7','#2563eb','#4f46e5','#7c3aed','#db2777','#ffffff'].map(c=>`<button type="button" onclick="deepPickColor('text','${c}')" class="w-6 h-6 rounded-full border border-slate-200 deep-color-choice" style="background:${c}" title="${c}"></button>`).join('')}</div><div class="flex items-center gap-2 mt-3 pt-2 border-t"><span class="text-[10px] text-slate-500">自定义</span><input id="deepTextCustomColor" type="color" value="#334155" onchange="deepPickColor('text',this.value)" class="w-7 h-7 p-0 border-0"><button type="button" onclick="deepPickColor('text',document.getElementById('deepTextCustomColor').value)" class="ml-auto px-2 py-1 rounded bg-indigo-600 text-white text-[10px]">使用</button></div></div></div>
-                    <label class="text-[10px] text-slate-500 flex items-center gap-1">透明度<input id="deepTextOpacity" data-deep-text-control data-deep-selection-only type="range" min="0" max="100" value="100" disabled oninput="deepApplyTextStyle('opacity',this.value)" class="deep-selection-text-control w-16"><span id="deepTextOpacityValue" class="w-5 text-right font-mono text-slate-400">—</span></label>
+                    <label class="text-[10px] text-slate-500 flex items-center gap-1">透明度<input id="deepTextOpacity" data-deep-text-control data-deep-selection-only type="range" min="0" max="100" value="100" disabled onpointerdown="deepBeginOpacityGesture()" onpointerup="deepEndOpacityGesture()" onpointercancel="deepEndOpacityGesture()" onkeydown="if(!window._deepOpacityGesture)deepBeginOpacityGesture()" onkeyup="deepEndOpacityGesture()" onblur="deepEndOpacityGesture()" oninput="deepApplyTextStyle('opacity',this.value)" class="deep-selection-text-control w-16"><span id="deepTextOpacityValue" class="w-5 text-right font-mono text-slate-400">—</span></label>
                     </div>
                     <button type="button" onclick="deepDeleteSelected()" class="px-2.5 py-1.5 bg-rose-50 border border-rose-200 text-rose-600 rounded-lg text-xs">删除选中</button>
                     <span id="deepBackupStatus" class="deep-backup-status">自动备份 · 等待首次备份</span>
@@ -9218,7 +9222,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 const live=sel.getRangeAt(0);
                 if(!live.collapsed&&content.contains(live.commonAncestorContainer))r=live;
             }
-            if(!r&&content)r=window.deepRangeFromTextSelectionSnapshot?.(content);
+            if(content&&(window._deepOpacityGesture||!r))r=window.deepRangeFromTextSelectionSnapshot?.(content);
             if(!content||!r){slider.disabled=true;slider.value='100';out.textContent='—';window.deepTextOpacitySpan=null;return;}
             const os=window.deepGetSelectionOpacity?.(r,content);
             if(!os?.valid){slider.disabled=true;slider.value='100';out.textContent='—';window.deepTextOpacitySpan=null;return;}
@@ -9289,7 +9293,18 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             });
         };
 
+        window.deepBeginOpacityGesture=function(){
+            window.deepCaptureTextSelectionSnapshot?.();
+            const snap=window.deepSavedTextSelectionSnapshot;
+            window._deepOpacityGesture=snap?{...snap}:null;
+        };
+        window.deepEndOpacityGesture=function(){
+            const snap=window._deepOpacityGesture;if(!snap)return;
+            window.deepSavedTextSelectionSnapshot={...snap};
+            window._deepOpacityGesture=null;window.deepRestoreTextSelection?.();
+        };
         window.deepCaptureTextSelectionSnapshot=function(){
+            if(window._deepOpacityGesture){window.deepSavedTextSelectionSnapshot={...window._deepOpacityGesture};return true;}
             const sel=window.getSelection?.();
             const it=window.deepCanvasState?.items?.find(x=>x.id===window.deepCanvasSelected);
             if(!sel?.rangeCount||!it||it.type!=='text')return false;
@@ -9312,8 +9327,9 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             return true;
         };
         window.deepRangeFromTextSelectionSnapshot=function(root){
-            const snap=window.deepSavedTextSelectionSnapshot;
+            const snap=window._deepOpacityGesture||window.deepSavedTextSelectionSnapshot;
             if(!root||!snap||snap.start===snap.end)return null;
+            const owner=root.closest?.('[data-deep-id]');if(owner&&owner.dataset.deepId!==snap.itemId)return null;
             const pointAt=offset=>{
                 const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
                 let remain=Math.max(0,Number(offset)||0),node,last=null;
@@ -9350,8 +9366,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         };
         window.deepClearSavedSelectionHighlight=function(){try{CSS?.highlights?.delete?.('deep-saved-selection');}catch(_){}};
         window.deepRememberTextSelection=function(e){
-            if(window._deepSelectionRestoring)return !!window.deepSavedTextSelectionSnapshot;
-            if(e?.target?.closest?.('#deepTextTools'))return !!window.deepSavedTextSelectionSnapshot;
+            if(window._deepOpacityGesture||window._deepSelectionRestoring)return !!window.deepSavedTextSelectionSnapshot;
+            if(e?.target?.closest?.('#deepTextTools')||document.activeElement?.closest?.('#deepTextTools'))return !!window.deepSavedTextSelectionSnapshot;
             if(window.deepCaptureTextSelectionSnapshot?.()){
                 const it=window.deepCanvasState?.items?.find(x=>x.id===window.deepCanvasSelected);
                 window.deepSyncSelectionOnlyTextControls?.(true);
@@ -9376,6 +9392,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             const r=window.deepRangeFromTextSelectionSnapshot?.(root);
             const sel=window.getSelection?.();
             if(!sel||!r||window.isOtherEditorInputFocused?.(root,'#deepTextTools,#deepTextColorPalette'))return false;
+            if(window._deepOpacityGesture){window.deepSavedTextRange=r.cloneRange();window.deepSavedTextId=it.id;window.deepSyncSavedSelectionHighlight?.(true);return true;}
             try{
                 sel.removeAllRanges();sel.addRange(r);
                 window.deepSavedTextRange=r.cloneRange();window.deepSavedTextId=it.id;
@@ -9394,6 +9411,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         if(!window._deepTextOutsideSelectionBound){
             window._deepTextOutsideSelectionBound=true;
             document.addEventListener('pointerup',()=>{
+                window.deepEndOpacityGesture?.();
                 if(!window.deepTextSelectionDragActive)return;
                 window.deepTextSelectionDragActive=false;
                 window.deepSuppressBlankTextClickUntil=Date.now()+300;
@@ -9465,7 +9483,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 const live=sel.getRangeAt(0);
                 if(!live.collapsed&&content.contains(live.commonAncestorContainer))r=live;
             }
-            if(!r&&content)r=window.deepRangeFromTextSelectionSnapshot?.(content);
+            if(content&&(window._deepOpacityGesture||!r))r=window.deepRangeFromTextSelectionSnapshot?.(content);
             if(r){
                 const state=window.getUniformSelectedFontSizeReadOnly?.(content,r);
                 if(state?.valid){mixed=!!state.mixed;if(!mixed&&Number.isFinite(state.size))size=state.size;}
@@ -9715,13 +9733,13 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 range=sel.getRangeAt(0);
             }
             if(!range||range.collapsed||!editingEl.contains(range.commonAncestorContainer))return;
-            const bookmark=window.deepSavedTextSelectionSnapshot?{...window.deepSavedTextSelectionSnapshot}:null;
+            const bookmark=window._deepOpacityGesture?{...window._deepOpacityGesture}:window.deepSavedTextSelectionSnapshot?{...window.deepSavedTextSelectionSnapshot}:null;
             const restoreBookmark=()=>{
                 if(!bookmark)return;
                 window.deepSavedTextSelectionSnapshot={...bookmark};
                 if(window.isMobileEditingDevice?.())editingEl.focus({preventScroll:true});
                 window.deepRestoreTextSelection();
-                window.deepRememberTextSelection();
+                if(!window._deepOpacityGesture)window.deepRememberTextSelection();
             };
             if(kind==='opacity'){
                 const slider=document.getElementById('deepTextOpacity');if(slider?.disabled)return;
@@ -13330,7 +13348,7 @@ viewer.style.visibility='';
             const template=document.createElement('template');template.innerHTML=markup;
             template.content.querySelectorAll('img,image').forEach(node=>{
                 const attr=node.nodeName.toLowerCase()==='image'?'href':'src',src=node.getAttribute(attr);if(!src)return;
-                node.dataset.editorSrc=src;node.removeAttribute(attr);
+                node.dataset.editorSrc=src;node.dataset.editorState='idle';node.removeAttribute(attr);
                 if(animated||/\.(?:gif|webp)(?:[?#]|$)|^data:image\/(?:gif|webp)/i.test(src))node.dataset.editorAnimated='1';
                 if(attr==='src'){node.setAttribute('decoding','async');node.setAttribute('loading','lazy');}
             });
@@ -13349,10 +13367,11 @@ viewer.style.visibility='';
                         const node=queue.shift();node._editorPreviewQueued=false;
                         if(!node.isConnected||!root.contains(node)||!node._editorPreviewNear||node._editorPreviewState!=='idle')continue;
                         const src=node.dataset.editorSrc;node._editorPreviewSource=src;node._editorPreviewState='loading';active++;
-                        const attr=node.nodeName.toLowerCase()==='image'?'href':'src';let done=false,timer;
-                        const finish=state=>{if(done)return;done=true;clearTimeout(timer);node.removeEventListener('load',loaded);node.removeEventListener('error',failed);node._editorPreviewCancel=null;node._editorPreviewState=state;active--;pump();};
-                        const loaded=()=>finish('loaded'),failed=()=>finish('error');node._editorPreviewCancel=()=>finish('idle');
-                        node.addEventListener('load',loaded,{once:true});node.addEventListener('error',failed,{once:true});timer=setTimeout(failed,20000);
+                        const attr=node.nodeName.toLowerCase()==='image'?'href':'src';let done=false,timer,attempt=0,decoding=false;node.dataset.editorState='loading';
+                        const finish=state=>{if(done)return;done=true;clearTimeout(timer);node.removeEventListener('load',loaded);node.removeEventListener('error',failed);node._editorPreviewCancel=null;node._editorPreviewState=state;node.dataset.editorState=state;active--;pump();};
+                        const loaded=()=>{if(done||decoding)return;decoding=true;if(typeof node.decode==='function'){Promise.resolve().then(()=>node.decode()).then(()=>finish('loaded'),()=>{decoding=false;failed();});}else finish('loaded');};
+                        const failed=()=>{if(done)return;decoding=false;clearTimeout(timer);node.dataset.editorState='loading';if(attempt>=2||/^(?:data:|blob:)/i.test(src)){finish('error');return;}const retry=++attempt;timer=setTimeout(()=>{if(done)return;try{const url=new URL(src,location.href);url.searchParams.set('_media_retry',String(retry));timer=setTimeout(()=>finish('error'),20000);node.setAttribute(attr,url.href);}catch(_){finish('error');}},retry*700);};node._editorPreviewCancel=()=>finish('idle');
+                        node.addEventListener('load',loaded);node.addEventListener('error',failed);timer=setTimeout(failed,20000);
                         node.setAttribute(attr,src);
                         if(attr==='src'&&node.complete&&node.naturalWidth>0)loaded();
                     }
@@ -13362,7 +13381,7 @@ viewer.style.visibility='';
                     node._editorPreviewNear=on;
                     if(on)enqueue(node);
                     else if(node.dataset.editorAnimated==='1'){
-                        stop(node);node.removeAttribute(node.nodeName.toLowerCase()==='image'?'href':'src');node._editorPreviewState='idle';
+                        stop(node);node.removeAttribute(node.nodeName.toLowerCase()==='image'?'href':'src');node._editorPreviewState='idle';node.dataset.editorState='idle';
                     }
                 };
                 const scan=()=>{frame=0;if(disposed)return;nodes.forEach(node=>near(node,visible(node)));pump();};
@@ -13373,12 +13392,12 @@ viewer.style.visibility='';
                     sync(){
                         nodes.forEach(node=>{if(!root.contains(node)){stop(node);node.removeAttribute(node.nodeName.toLowerCase()==='image'?'href':'src');observer?.unobserve(node);nodes.delete(node);}});
                         root.querySelectorAll('[data-editor-src]').forEach(node=>{
-                            if(nodes.has(node)&&node._editorPreviewSource!==node.dataset.editorSrc){stop(node);node._editorPreviewState='idle';}
-                            if(!nodes.has(node)){nodes.add(node);node._editorPreviewState='idle';node._editorPreviewSource=node.dataset.editorSrc;observer?.observe(node);}
+                            if(nodes.has(node)&&node._editorPreviewSource!==node.dataset.editorSrc){stop(node);node._editorPreviewState='idle';node.dataset.editorState='idle';}
+                            if(!nodes.has(node)){nodes.add(node);node._editorPreviewState='idle';node.dataset.editorState='idle';node._editorPreviewSource=node.dataset.editorSrc;observer?.observe(node);}
                         });
                         if(!observer)schedule();else{nodes.forEach(node=>{if(node._editorPreviewNear)enqueue(node);});pump();}
                     },
-                    dispose(){disposed=true;observer?.disconnect();if(frame)cancelAnimationFrame(frame);root.removeEventListener('scroll',schedule,true);window.removeEventListener('resize',schedule);queue.length=0;nodes.forEach(node=>{stop(node);node.removeAttribute(node.nodeName.toLowerCase()==='image'?'href':'src');node._editorPreviewState='idle';});nodes.clear();root._editorMediaLoader=null;}
+                    dispose(){disposed=true;observer?.disconnect();if(frame)cancelAnimationFrame(frame);root.removeEventListener('scroll',schedule,true);window.removeEventListener('resize',schedule);queue.length=0;nodes.forEach(node=>{stop(node);node.removeAttribute(node.nodeName.toLowerCase()==='image'?'href':'src');node._editorPreviewState='idle';node.dataset.editorState='idle';});nodes.clear();root._editorMediaLoader=null;}
                 };
             }
             loader.sync();
@@ -13422,8 +13441,8 @@ viewer.style.visibility='';
             const keepDeferred=!!next.dataset.editorSrc&&current.dataset.editorSrc===next.dataset.editorSrc;
             const keepRetry=current.nodeName==='IMG'&&!!logicalSource&&current.dataset.retryOriginal===logicalSource;
             // Never rewrite unchanged src/style attributes: loaded media stays in place.
-            Array.from(current.attributes).forEach(attr=>{if(!next.hasAttribute(attr.name)&&!(keepDeferred&&['src','href'].includes(attr.name))&&!(current.nodeName==='IMG'&&(attr.name==='style'||keepRetry&&['data-retry-original','data-retry-count'].includes(attr.name))))current.removeAttribute(attr.name);});
-            Array.from(next.attributes).forEach(attr=>{if(!(keepRetry&&attr.name==='src')&&current.getAttribute(attr.name)!==attr.value)current.setAttribute(attr.name,attr.value);});
+            Array.from(current.attributes).forEach(attr=>{if(!next.hasAttribute(attr.name)&&!(keepDeferred&&['src','href','data-editor-state'].includes(attr.name))&&!(current.nodeName==='IMG'&&(attr.name==='style'||keepRetry&&['data-retry-original','data-retry-count'].includes(attr.name))))current.removeAttribute(attr.name);});
+            Array.from(next.attributes).forEach(attr=>{if(!(keepRetry&&attr.name==='src')&&!(keepDeferred&&attr.name==='data-editor-state')&&current.getAttribute(attr.name)!==attr.value)current.setAttribute(attr.name,attr.value);});
             for(const property of ['onclick','onchange','oninput','onkeydown','onpointerdown','onmouseenter','onmouseleave']){
                 if(!next.hasAttribute(property)&&(typeof next[property]==='function'||typeof current[property]==='function'))current[property]=next[property]||null;
             }
