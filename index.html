@@ -3399,7 +3399,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 }
                 const response = await fetch(TIMELINE_API_BASE + '/timeline', {
                     method:'POST', cache:'no-store', signal:controller.signal, headers,
-                    body: JSON.stringify({ room: window.currentRoomId || 'default', accessToken: window.roomAccessToken || '', action, ...payload, ...(window.isDeveloperMode?.() ? {developerToken:window.getDeveloperToken()} : {}) })
+                    body: JSON.stringify({ room: window.currentRoomId || 'default', accessToken: window.roomAccessToken || '', action, ...payload, ...(['upsertEvent','saveMediaDeep','mediaEditLock','deleteMediaAsset','getMediaUploadMetadata'].includes(action)?{mediaEditSession:payload.mediaEditSession||window._editMediaTxn?.sessionId||''}:{}), ...(window.isDeveloperMode?.() ? {developerToken:window.getDeveloperToken()} : {}) })
                 });
                 const raw = await response.text();
                 let data = null;
@@ -3431,7 +3431,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 if(['getOwnComments','getNotifications','getOwnIdentityHistory','listMediaAssets','getMediaDeep','getMediaAssetSizes'].includes(action)&&requestedAccountSession!==(window.getAccountSessionToken?.()||''))throw Object.assign(new Error('账号状态已变化，请重新打开'),{code:'account_state_changed'});
                 mutation?.confirm();
                 if (data.version) window._cloudbaseTimelineVersion = String(data.version);
-                if(['getMediaUploadMetadata','finalizeMediaUpload','activatePendingMedia','copyMediaAsset','renameMediaAsset','deleteMediaAsset','upsertEvent','deleteEvent','accountLogout','accountLogin','accountRename','saveMediaDeep'].includes(action))window.invalidateMediaLibrary?.();
+                if(['getMediaUploadMetadata','finalizeMediaUpload','copyMediaAsset','renameMediaAsset','deleteMediaAsset','upsertEvent','deleteEvent','accountLogout','accountLogin','accountRename','saveMediaDeep'].includes(action))window.invalidateMediaLibrary?.();
                 return data;
             } finally {
                 clearTimeout(timer);
@@ -3636,6 +3636,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             try{
                 const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('封面生成失败')),'image/jpeg',quality));
                 stage='上传封面';
+                if(coverSourcePath&&!(await window.acquireMediaEditLock(coverSourcePath)))throw new Error('无法获取媒体编辑锁，请重新打开后截选');
                 return await window.uploadCoverBlobToCloudBase(blob,prefix,replaceCloudPath,coverSourcePath,coverKind,silentNotice);
             }catch(error){const err=error instanceof Error?error:new Error(String(error));err.coverStage=err.coverStage||stage;throw err;}
         };
@@ -3880,7 +3881,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         window.applySharedMediaDeep=function(path,description,revision){
             const seen=new WeakSet();const walk=value=>{if(!value||typeof value!=='object'||seen.has(value))return;seen.add(value);
                 if(!Array.isArray(value)&&String(value.cloudPath||'')===path){value.deepDescription=window.deepClone(description);value.deepMediaRevision=revision;window._savedDeepDraftsByObject?.delete?.(value);}
-                for(const [key,child] of Object.entries(value))if(key!=='deepDescription')walk(child);
+                for(const [key,child] of Object.entries(value))if(key!=='deepDescription'||String(value.cloudPath||'')!==path)walk(child);
             };
             [window.events,window.editingImageFiles,window.editingVideos,window.multiTimeDraft,window._editMediaTxn?.images,window._editMediaTxn?.videos].forEach(walk);
         };
@@ -4308,6 +4309,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     return {
                         mediaId: v.mediaId ? String(v.mediaId) : '',
                         url: v.url || '',
+                        cloudPath:v.cloudPath||window.mediaPathOf(v.url)||'',
+                        coverCrop:v.coverCrop,sourceWidth:v.sourceWidth,sourceHeight:v.sourceHeight,
                         cover: window.resolveMediaCover(v,'video').url,
                         coverCloudPath: v.coverCloudPath || '',
                         mime: v.mime || '',
@@ -4353,6 +4356,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                         return {
                             mediaId: v?.mediaId ? String(v.mediaId) : '',
                             url: v?.url || '',
+                            cloudPath:v?.cloudPath||window.mediaPathOf(v?.url)||'',
+                            coverCrop:v?.coverCrop,sourceWidth:v?.sourceWidth,sourceHeight:v?.sourceHeight,
                             cover: v?.cover || '',
                             coverCloudPath: v?.coverCloudPath || '',
                             mime: v?.mime || '',
@@ -4399,6 +4404,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 if(saveResult?.documentId) eventData.__cloudDocId=String(saveResult.documentId);
                 if(Number.isFinite(Number(saveResult?.revision))) eventData.revision=Number(saveResult.revision);
                 eventData._deepSavedRevisions=saveResult?.deepRevisions||{};
+                for(const [path,binding]of Object.entries(saveResult?.mediaCovers||{}))window.applySharedMediaCover(path,binding,eventData);
                 if(saveResult?.connectionsCommitted&&Array.isArray(eventData.connections)){window.connections=(window.connections||[]).filter(c=>String(c.sourceId)!==String(eventData.id)&&String(c.targetId)!==String(eventData.id));window.connections.push(...eventData.connections.map(c=>({...c})));window.renderSvgConnections?.();}
                 delete eventData.connections;
                 // 云端确认成功后才更新正式本地事件，避免保存失败时页面提前显示未落云的版本。
@@ -5355,6 +5361,18 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 committed:false
             };
         };
+        window.acquireMediaEditLock=async function(path){
+            path=window.mediaPathOf(path);if(!path)return true;window.beginEditMediaTxn?.();const tx=window._editMediaTxn;if(!tx)return false;
+            if(tx.mediaLocks?.has(path))return true;
+            try{await timelineApiPost('mediaEditLock',{mode:'acquire',cloudPath:path,mediaEditSession:tx.sessionId},{auth:'edit',timeoutMs:12000});if(window._editMediaTxn!==tx){void timelineApiPost('mediaEditLock',{mode:'release',cloudPath:path,mediaEditSession:tx.sessionId},{auth:'edit',timeoutMs:8000});return false;}(tx.mediaLocks||=new Set()).add(path);
+                if(!tx.mediaLockTimer)tx.mediaLockTimer=setInterval(async()=>{for(const p of tx.mediaLocks||[])try{await timelineApiPost('mediaEditLock',{mode:'heartbeat',cloudPath:p,mediaEditSession:tx.sessionId},{auth:'edit',timeoutMs:10000});}catch(e){if(e.code==='media_lock_lost'){tx.mediaLocks.delete(p);window.showToast?.('媒体编辑锁已失效，请重新打开后编辑','error');}}},30000);return true;
+            }catch(e){window.showToast?.(e.message||'暂时无法获取媒体编辑锁','error');return false;}
+        };
+        window.releaseMediaEditLocks=async function(tx=window._editMediaTxn){if(!tx)return;clearInterval(tx.mediaLockTimer);tx.mediaLockTimer=null;const paths=[...(tx.mediaLocks||[])];tx.mediaLocks?.clear();await Promise.allSettled(paths.map(cloudPath=>timelineApiPost('mediaEditLock',{mode:'release',cloudPath,mediaEditSession:tx.sessionId},{auth:'edit',timeoutMs:8000})));};
+        window.applySharedMediaCover=function(path,binding,extra=null){
+            const seen=new WeakSet(),walk=v=>{if(!v||typeof v!=='object'||seen.has(v))return;seen.add(v);if(window.mediaPathOf(v.cloudPath||v.originalFull||v.original||v.url||v.src||'')===path){const p=binding.coverCloudPath||'',url=p?window.cloudMediaPublicUrl(p):'',kind=path.split('/')[0];if(kind==='video'){v.cover=url;v.coverCloudPath=p;}else if(kind==='gif'){v.gifCover=url;v.gifCoverCloudPath=p;}else{v.pictureCoverCloudPath=p;v.outer=v.inner=v.collection=url||v.originalFull||v.original||v.src||'';}v.mediaCoverRevision=binding.coverRevision||0;for(const key of ['pictureCoverCrop','gifCoverCrop','coverCrop','sourceWidth','sourceHeight','gifDurationMs','gifDurationSource']){if(Object.hasOwn(binding.coverPresentation||{},key))v[key]=window.deepClone(binding.coverPresentation[key]);else if(['pictureCoverCrop','gifCoverCrop','coverCrop'].includes(key))delete v[key];}}Object.values(v).forEach(walk);};
+            [window.events,window.editingImageFiles,window.editingVideos,window.multiTimeDraft,window._editMediaTxn?.images,window._editMediaTxn?.videos,extra].forEach(walk);if(window._mediaCoverIndex?.has(path))Object.assign(window._mediaCoverIndex.get(path),binding);
+        };
         window.isPendingEditMedia=function(path){return !!path&&!!window._editMediaTxn?.tempUploads?.some(item=>String(item.tempPath)===String(path));};
         window.getTempUploadMark=function(){return window._editMediaTxn?.tempUploads?.length||0;};
         window.trackUnsavedMediaUpload=function(path,meta={}){
@@ -5387,6 +5405,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         window.finishEditMediaTxn=async function(eventData){
             await window._deepBackupWriteQueue;
             const tx=window._editMediaTxn;if(!tx)return;
+            await window.releaseMediaEditLocks?.(tx);
             const referenced=new Set(),seen=new WeakSet();
             const visit=value=>{
                 if(typeof value==='string'){const path=window.mediaPathOf(value);if(path)referenced.add(path);return;}
@@ -5405,6 +5424,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         };
         window.rollbackEditMediaTxn=async function(){
             const tx=window._editMediaTxn;if(!tx)return;
+            void window.releaseMediaEditLocks?.(tx);
             window.editingImageFiles=tx.images||[];
             window.editingVideos=tx.videos||[];
             // 正式媒体的未提交深入描述由备份保留；临时源媒体仍随本轮编辑一起清理。
@@ -5899,6 +5919,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
 
         window.makeAutoFirstFrameCover=async function(src,kind,replaceCloudPath='',coverSourcePath=''){
             src=String(src||'');if(!src)return null;
+            if(!(await window.acquireMediaEditLock(coverSourcePath||src)))throw new Error('无法获取媒体编辑锁，请重新打开后保存');
             let stage='读取媒体',media=null,ownedUrl='';
             try{
             if(kind==='video'&&/^video\//.test(coverSourcePath))src=await window.getCloudMediaCaptureStreamUrl(coverSourcePath);
@@ -7942,6 +7963,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             const target=targetOverride||{type,index};
             const obj=window.deepResolveTargetObject(target); if(!obj)return;
             const openEpoch=window._deepOpenEpoch=(Number(window._deepOpenEpoch)||0)+1;
+            if(!(await window.acquireMediaEditLock(obj.cloudPath||obj.originalFull||obj.url||obj.src))||openEpoch!==window._deepOpenEpoch)return;
             let sharedState=null;
             if(obj.cloudPath&&!window.isPendingEditMedia(obj.cloudPath)&&!obj.deepDescription?._editCommitId){
                 window.deepSetMediaLoading?.(true,'正在读取深入描述…');
@@ -12592,6 +12614,7 @@ viewer.style.visibility='';
         window.openVideoCropModal=async function(index){
             const item=window.editingVideos[index],modal=document.getElementById('videoCropModal'),player=document.getElementById('videoCropPlayer');
             if(!item||!modal||!player)return;
+            if(!(await window.acquireMediaEditLock(item.cloudPath||item.url)))return;
             activeVideoCropIndex=index;player._cropEventCleanup?.();
             const token=player._cropOpenToken=(player._cropOpenToken||0)+1;
             const current=()=>player._cropOpenToken===token&&activeVideoCropIndex===index;
@@ -13826,6 +13849,7 @@ viewer.style.visibility='';
         window.openGifCoverPicker=async function(src,cloudPath,coverCloudPath,onSaved,onCrop,fileID,crop=null,options={}){
             window.beginEditMediaTxn?.();
             src=String(src||''); if(!src)return;
+            if(!(await window.acquireMediaEditLock(cloudPath||src)))return;
             let modal=document.getElementById('gifCoverPickerModal');
             if(!modal){modal=document.createElement('div');modal.id='gifCoverPickerModal';modal.className='fixed inset-0 z-[490] hidden bg-slate-950/90 flex items-center justify-center p-3 sm:p-6';document.body.appendChild(modal);}
             modal.classList.remove('hidden');
@@ -13992,6 +14016,8 @@ viewer.style.visibility='';
             window.beginEditMediaTxn?.();
             const imgObj = window.editingImageFiles[index];
             if (!imgObj) return;
+            const lockOpenToken=cropState.openToken=(cropState.openToken||0)+1;
+            if(!(await window.acquireMediaEditLock(imgObj.cloudPath||imgObj.originalFull||imgObj.original))||cropState.openToken!==lockOpenToken)return false;
             const mediaId = String(imgObj.mediaId || '');
             if (!mediaId) return;
 
