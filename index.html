@@ -3439,7 +3439,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             return TIMELINE_API_BASE+'/media?'+qs.toString();
         };
         // cloudPath 只接受当前 canonical 物理目录；生命周期由 mediaAssets 字段表达。
-        window.resolveGifCloudPath = function(src,cloudPath){
+        window.resolveGifCloudPath = function(cloudPath){
             const explicit=String(cloudPath||'').replace(/^\/+/, '');
             return /^gif\/[^?#]+$/i.test(explicit)?explicit:'';
         };
@@ -3496,7 +3496,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             return new Blob(parts,{type:first.type||'application/octet-stream'});
         };
         window.getGifDecodeFetchRequest = async function(src,cloudPath,fileID){
-            const resolved=window.resolveGifCloudPath(src,cloudPath);
+            const resolved=window.resolveGifCloudPath(cloudPath);
             if(!resolved) throw new Error('这个动图缺少云端路径，无法逐帧读取');
             const fid=String(fileID||'').trim();
             const data=await timelineApiPost('createGifReadTicket',{cloudPath:resolved,...(fid?{fileID:fid}:{})},{timeoutMs:15000});
@@ -3625,7 +3625,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         };
 
         // 所有新上传媒体统一进入 CloudBase。旧事件中的 Base64 仅作历史兼容，后续由一次性迁移处理。
-        window.localOrCloudMediaUrl = async function(file,{compressStaticImage=false}={}){
+        window.localOrCloudMediaUrl = async function(file){
             if(!file) throw new Error('NO_FILE');
             try{
                 const uploaded=await window.uploadLargeMediaToCloudBase(file);
@@ -3929,14 +3929,14 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             const context=String(window.currentRoomId||'')+':'+(window.getCurrentAccountId?.()||'');
             if(window._permissionIdentityContext!==context){window._permissionIdentityCache=null;window._permissionIdentityAt=0;window._permissionIdentityContext=context;}
             if(!force&&window._permissionIdentityCache&&Date.now()-window._permissionIdentityAt<30000)return window._permissionIdentityCache;
-            if(window._permissionIdentityPending)return window._permissionIdentityPending;
+            if(window._permissionIdentityPending&&window._permissionIdentityPendingContext===context)return window._permissionIdentityPending;
             const pending=(async()=>{
                 const r=await timelineApiFetch('/timeline?type=identities',12000);
                 const users=Array.isArray(r?.items)?r.items:[];
                 if(window._permissionIdentityContext===context){window._permissionIdentityCache=users;window._permissionIdentityAt=Date.now();}
                 return users;
             })();
-            window._permissionIdentityPending=pending;
+            window._permissionIdentityPending=pending;window._permissionIdentityPendingContext=context;
             try{return await pending;}finally{if(window._permissionIdentityPending===pending)window._permissionIdentityPending=null;}
         };
         window.permissionModeOf=function(ev){return ['all','creator','specified'].includes(String(ev?.editPermissionMode))?String(ev.editPermissionMode):(ev?.creatorOnlyEdit===true?'creator':'all');};
@@ -4351,6 +4351,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
 
         window.saveEventToCloud = async function(eventData, isNew=false, {render=true}={}) {
             const index = window.events.findIndex(e => String(e.id) === String(eventData.id));
+            const existingEvent=index>=0?window.events[index]:null;
             const baseRevision = index >= 0 ? Math.max(0, Number(window.events[index]?.revision)||0) : 0;
             const existingDocumentId = index >= 0 ? String(window.events[index]?.__cloudDocId || '') : '';
             if(existingDocumentId && !eventData.__cloudDocId) eventData.__cloudDocId = existingDocumentId;
@@ -4374,7 +4375,9 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 }
                 const requireEditLock=!isNew && String(window._activeEditLockEventId||'')===String(eventData.id);
                 const saveResult = await window.timelineApiWrite('upsertEvent', { event: cloudEvent, isNew:isNew===true, accountId:window.getCurrentAccountId?.()||'', ...(!isNew?{baseRevision,requireEditLock}: {}) });
-                if(isNew) eventData.creatorOwned=true;
+                // These view flags come from the loaded event, not the editable form.
+                eventData.hasCreator=isNew||existingEvent?.hasCreator===true||existingEvent?.creatorOwned===true;
+                eventData.creatorOwned=isNew||existingEvent?.creatorOwned===true;
                 if(saveResult?.documentId) eventData.__cloudDocId=String(saveResult.documentId);
                 if(Number.isFinite(Number(saveResult?.revision))) eventData.revision=Number(saveResult.revision);
                 // 云端确认成功后才更新正式本地事件，避免保存失败时页面提前显示未落云的版本。
@@ -5374,7 +5377,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         };
         // Flat lifecycle: paths are stable. Existing function names stay in place so the
         // original save-button control flow is not rewritten.
-        window.promoteTempUploadsSince=async function(mark,root){
+        window.promoteTempUploadsSince=async function(mark){
             const tx=window._editMediaTxn;if(!tx)return;
             const cut=Math.max(0,Number(mark)||0),selected=tx.tempUploads.slice(cut);
             if(!selected.length)return;
@@ -5383,11 +5386,6 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 pendingOwner:String(tx.sessionId||'')
             },{auth:'edit',timeoutMs:30000});
             tx.tempUploads.splice(cut,selected.length);
-        };
-        window.promoteTempUploads=async function(eventData){
-            // Big-save activation is intentionally performed by saveEventToCloud's existing
-            // reference-delta transaction, after the event DB write succeeds.
-            return true;
         };
 
         window.handleNewEventClick = function() {
@@ -5985,12 +5983,10 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 try {
                     if (progressBar) setTimeout(() => progressBar.style.width = '60%', 400);
                     
-                    if(window._hasPendingTempUploads?.())await window.promoteTempUploads?.(eventData);
                     // Existing cloud references may lack a cover too; inspect every media slot.
                     saveStage='准备媒体封面';
                     await window.ensureAutomaticFirstFrameCovers(eventData);
                     saveStage='确认媒体上传';
-                    if(window._hasPendingTempUploads?.())await window.promoteTempUploads?.(eventData);
                     const desiredConnections = eventData.connections || [];
                     const connectionsChanged = !isEdit || window._connectionListFingerprint(previousConnections)!==window._connectionListFingerprint(desiredConnections);
                     delete eventData.connections;
@@ -8162,7 +8158,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                             committed=true;window._deepEditSession.sharedRevision=result.revision;
                             window.applySharedMediaDeep(obj.cloudPath,result.description,result.revision);obj.deepDescription=window.deepClone(result.description);
                             const serialized=JSON.stringify(result.description||{});if(window._editMediaTxn)window._editMediaTxn.tempUploads=window._editMediaTxn.tempUploads.filter(x=>String(x.tempPath)===String(obj.cloudPath)||!serialized.includes(String(x.tempPath)));
-                        }else{await window.promoteTempUploadsSince?.(window._deepEditSession?.tempMark||0,obj.deepDescription);}
+                        }else{await window.promoteTempUploadsSince?.(window._deepEditSession?.tempMark||0);}
                         window.saveDeepDraftSnapshot?.(target,obj.deepDescription);
                         await window.deepBackupDelete?.(window.deepBackupKey(target));await window.closeDeepDescriptionEditor(false);
                         window.showToast?.('深入描述已保存','success');return true;
@@ -9376,7 +9372,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             window.deepCommitFontSizeControl?.(value);
         };
 
-        window.deepApplyCanonicalTextBoxStyle=function(contentEl,{editing=false,height=null}={}){
+        window.deepApplyCanonicalTextBoxStyle=function(contentEl,{height=null}={}){
             if(!contentEl)return;
             contentEl.style.width='100%';
             contentEl.style.padding='4px';
@@ -9526,7 +9522,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             host.style.width=targetW+'px';
             host.style.height=targetH+'px';
 
-            window.deepApplyCanonicalTextBoxStyle(contentEl,{editing:false,height:targetH});
+            window.deepApplyCanonicalTextBoxStyle(contentEl,{height:targetH});
 
             let next=window.deepStableFontForBox(item,contentEl,targetW,targetH,true);
 
@@ -9551,7 +9547,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             host.dataset.fontSize=String(next);
             contentEl.style.fontSize=next+'px';
             contentEl.style.textAlign=item.textAlign||'left';
-            window.deepApplyCanonicalTextBoxStyle(contentEl,{editing:false,height:targetH});
+            window.deepApplyCanonicalTextBoxStyle(contentEl,{height:targetH});
             window.deepSyncFontSizeControls(item);
         };
 
@@ -9696,7 +9692,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             requestAnimationFrame(()=>window.deepAutoFitTextItem(item,contentEl));
         };
 
-        window.deepStartTextEdit=function(item,el){
+        window.deepStartTextEdit=function(item){
             if(!item||item.type!=='text')return;
             window.deepSetDrawing(false); window.deepConnectMode=false; window.deepConnectPending=[];
              window.deepCanvasSelected=item.id; item.editing=true; window.deepTextTool=true; document.getElementById('deepTextToolBtn')?.classList.add('active'); window.deepSetTextToolsExpanded?.(true);
@@ -9843,11 +9839,11 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 });
                 t?.addEventListener('dblclick',e=>{
                     e.preventDefault(); e.stopPropagation();
-                    if(Date.now()<(Number(item._suppressTextEditUntil)||0)||moved)return; if(item.type==='text' && !item.editing && window.deepCanvasSelected===item.id){ window.deepStartTextEdit(item,el); }
+                    if(Date.now()<(Number(item._suppressTextEditUntil)||0)||moved)return; if(item.type==='text' && !item.editing && window.deepCanvasSelected===item.id){ window.deepStartTextEdit(item); }
                 });
                 el.addEventListener('dblclick',e=>{
                     e.preventDefault(); e.stopPropagation();
-                    if(Date.now()<(Number(item._suppressTextEditUntil)||0)||moved)return; if(item.type==='text' && !item.editing && window.deepCanvasSelected===item.id){ window.deepStartTextEdit(item,el); }
+                    if(Date.now()<(Number(item._suppressTextEditUntil)||0)||moved)return; if(item.type==='text' && !item.editing && window.deepCanvasSelected===item.id){ window.deepStartTextEdit(item); }
                 });
                 t?.addEventListener('input',()=>{item.text=t.innerText||'';item.html=t.innerHTML||window.deepEsc(item.text);window.deepFitTypingBox(item,t);window.deepSyncOpacityControl?.();});
                 t?.addEventListener('mouseup',()=>window.deepRememberTextSelection?.());
@@ -9876,7 +9872,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             const begin=()=>{ try{video.currentTime=Math.max(0,Number(startTime)||0);}catch(_){} video.play().catch(()=>{}); };
             if(video.readyState>=1) begin(); else video.addEventListener('loadedmetadata',begin,{once:true});
         };
-        window.deepRenderVideoCover=function(host,item,readOnly=false){
+        window.deepRenderVideoCover=function(host,item){
             if(!host||!item)return;
             const cover=document.createElement('div');cover.className='deep-video-cover-layer';
             if(item.cover)cover.innerHTML=`<img src="${window.deepEsc(item.cover)}" alt="视频封面">`;
@@ -10151,7 +10147,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 Array.from(st.childNodes).forEach(node=>{if(!Array.from(preservedItems.values()).includes(node)&&!node.matches?.('svg.deep-connector-layer,[data-deep-draw-layer],[data-deep-draw-selection-control]'))node.remove();});
                 st.style.width=(window.deepCanvasState.width||2200)+'px';st.style.height=(window.deepCanvasState.height||1400)+'px';
             }
-            else {window.deepCanvasState.items.forEach(it=>{const el=st.querySelector(`[data-deep-id="${CSS.escape(it.id)}"]`);if(el){el.style.left=it.x+'px';el.style.top=it.y+'px';el.style.width=it.w+'px';el.style.height=it.h+'px';if(it.type==='text'){const fs=Math.max(6,Math.min(240,Number(it.fontSize)||18));el.style.fontSize=fs+'px';el.dataset.fontSize=(Math.round(fs*10)/10).toString();const tc=el.querySelector('.deep-text-content');if(tc){window.deepApplyCanonicalTextBoxStyle(tc,{editing:!!it.editing,height:it.h});tc.style.fontSize=fs+'px';tc.style.textAlign=it.textAlign||'left';}}}}); const selectedText=window.deepCanvasState.items.find(x=>x.id===window.deepCanvasSelected&&x.type==='text');if(selectedText)window.deepSyncFontSizeControls(selectedText); window.deepRenderDrawPaths?.(); window.deepUpdateConnectors(); window.deepUpdateTextToolControls?.(); window.deepSyncOpacityControl?.(); window.deepPositionTextTools?.(); return;}
+            else {window.deepCanvasState.items.forEach(it=>{const el=st.querySelector(`[data-deep-id="${CSS.escape(it.id)}"]`);if(el){el.style.left=it.x+'px';el.style.top=it.y+'px';el.style.width=it.w+'px';el.style.height=it.h+'px';if(it.type==='text'){const fs=Math.max(6,Math.min(240,Number(it.fontSize)||18));el.style.fontSize=fs+'px';el.dataset.fontSize=(Math.round(fs*10)/10).toString();const tc=el.querySelector('.deep-text-content');if(tc){window.deepApplyCanonicalTextBoxStyle(tc,{height:it.h});tc.style.fontSize=fs+'px';tc.style.textAlign=it.textAlign||'left';}}}}); const selectedText=window.deepCanvasState.items.find(x=>x.id===window.deepCanvasSelected&&x.type==='text');if(selectedText)window.deepSyncFontSizeControls(selectedText); window.deepRenderDrawPaths?.(); window.deepUpdateConnectors(); window.deepUpdateTextToolControls?.(); window.deepSyncOpacityControl?.(); window.deepPositionTextTools?.(); return;}
             window.deepUpdateConnectors();
             window.deepCanvasState.items.forEach(item=>{
                 if(item.type==='draw')return;
@@ -10159,8 +10155,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 const el=reusedItem||document.createElement('div');
                 if(reusedItem){ preservedItems.delete(item.id); }
                 el.className='deep-canvas-item '+(item.type==='media'?'deep-canvas-media ':'')+(item.type==='text'?'deep-canvas-text ':'')+(item.type==='link'?'deep-canvas-link ':'')+(item.id===window.deepCanvasSelected?' deep-canvas-selected ':'')+(item.type==='text' && (window.deepTextTool||item.editing)?' tool-visible':''); el.dataset.deepId=item.id; el.style.left=item.x+'px';el.style.top=item.y+'px';el.style.width=item.w+'px';el.style.height=item.h+'px'; if(['media','text','link'].includes(item.type))el.style.zIndex=String(20+(Number(item.layer)||0)); if(window.deepConnectPending?.includes(item.id))el.classList.add('deep-connect-pending');
-                if(item.type==='text'){el.classList.toggle('has-border',!!item.border);el.classList.toggle('editing',!!item.editing);el.dataset.fontSize=(Math.round((Number(item.fontSize)||18)*10)/10).toString();el.style.borderColor=item.borderColor||'#3b82f6';el.style.fontSize=(item.fontSize||18)+'px';el.style.color=item.color||'#334155';el.style.textAlign=item.textAlign||'left';el.style.opacity='1';el.style.fontWeight=item.bold?'700':'400';el.style.fontStyle=item.italic?'italic':'normal';el.style.textDecoration='none';let tc=el.querySelector('.deep-text-content');if(!tc){tc=document.createElement('div');tc.className='deep-text-content';el.appendChild(tc);}const html=item.html||window.deepEsc(item.text||'');if(tc.innerHTML!==html)tc.innerHTML=html; if(tc) tc.contentEditable=item.editing?'true':'false'; if(tc){window.deepApplyCanonicalTextBoxStyle(tc,{editing:!!item.editing,height:item.h});tc.style.fontSize=(item.fontSize||18)+'px';tc.style.opacity=item.opacity??1;tc.style.textAlign=item.textAlign||'left';tc.style.textDecoration=[item.underline?'underline':'',item.strike?'line-through':''].filter(Boolean).join(' ')||'none';tc.style.textDecorationColor='currentColor';tc.style.textDecorationSkipInk='none';window.deepSyncDecorationGeometry?.(tc);requestAnimationFrame(()=>{const live=document.querySelector(`[data-deep-id="${CSS.escape(item.id)}"] .deep-text-content`);if(live){window.deepSyncDecorationGeometry?.(live);if(!item._manualResizing)window.deepAutoFitTextItem(item,live);if(item.editing)window.deepBindTextAutoFit(item,live);}});}}
-                else if(item.type==='media'){const c=item.crop||{scale:1,offsetX:0,offsetY:0,stretchX:1,stretchY:1};if(item.mediaKind==='video'){if(!reusedMedia){el.innerHTML='';window.deepRenderVideoCover(el,item,false);}}else{const deepAnimated=window.isAnimatedImageSource(item.src,item),deepShown=deepAnimated?(item.gifCover||item.src):window.imageDisplaySource(item);if(!reusedMedia||!el.firstElementChild||el.firstElementChild.getAttribute('src')!==deepShown){el.innerHTML=`<img src="${window.deepEsc(deepShown)}" alt="深入描述媒体">`;}const md=el.firstElementChild;const applyMedia=()=>{if(!md)return;const scale=Math.max(0.001,Number(c.scale)||1);md.style.width='auto';md.style.height='auto';md.style.left='50%';md.style.top='50%';const stretchX=Math.max(.85,Math.min(1.15,Number(c.stretchX)||1)),stretchY=Math.max(.85,Math.min(1.15,Number(c.stretchY)||1));md.style.transform=`translate(-50%,-50%) translate(${Number(c.offsetX)||0}px,${Number(c.offsetY)||0}px) scale(${scale}) scale(${stretchX},${stretchY})`;};if(md.complete)applyMedia();else md.addEventListener('load',applyMedia,{once:true});}}else if(item.type==='link'){const safeUrl=window.deepEsc(item.url||'');const safeLabel=window.deepEsc(item.label||item.url||'网址');const holder=document.createElement('template');holder.innerHTML=`<div class="deep-link-inner"><span class="deep-link-icon"><i class="fa-solid fa-globe"></i></span><span class="deep-link-copy"><span class="deep-link-label">${safeLabel}</span><span class="deep-link-url">${safeUrl}</span></span><i class="fa-solid fa-arrow-up-right-from-square text-[11px] text-slate-400"></i></div>`;const inner=el.querySelector('.deep-link-inner');if(inner)window.patchAttachmentNode(inner,holder.content.firstElementChild);else el.prepend(holder.content.firstElementChild);el.title='双击编辑网址';}else if(item.type==='connector'){ el.remove(); return; }
+                if(item.type==='text'){el.classList.toggle('has-border',!!item.border);el.classList.toggle('editing',!!item.editing);el.dataset.fontSize=(Math.round((Number(item.fontSize)||18)*10)/10).toString();el.style.borderColor=item.borderColor||'#3b82f6';el.style.fontSize=(item.fontSize||18)+'px';el.style.color=item.color||'#334155';el.style.textAlign=item.textAlign||'left';el.style.opacity='1';el.style.fontWeight=item.bold?'700':'400';el.style.fontStyle=item.italic?'italic':'normal';el.style.textDecoration='none';let tc=el.querySelector('.deep-text-content');if(!tc){tc=document.createElement('div');tc.className='deep-text-content';el.appendChild(tc);}const html=item.html||window.deepEsc(item.text||'');if(tc.innerHTML!==html)tc.innerHTML=html; if(tc) tc.contentEditable=item.editing?'true':'false'; if(tc){window.deepApplyCanonicalTextBoxStyle(tc,{height:item.h});tc.style.fontSize=(item.fontSize||18)+'px';tc.style.opacity=item.opacity??1;tc.style.textAlign=item.textAlign||'left';tc.style.textDecoration=[item.underline?'underline':'',item.strike?'line-through':''].filter(Boolean).join(' ')||'none';tc.style.textDecorationColor='currentColor';tc.style.textDecorationSkipInk='none';window.deepSyncDecorationGeometry?.(tc);requestAnimationFrame(()=>{const live=document.querySelector(`[data-deep-id="${CSS.escape(item.id)}"] .deep-text-content`);if(live){window.deepSyncDecorationGeometry?.(live);if(!item._manualResizing)window.deepAutoFitTextItem(item,live);if(item.editing)window.deepBindTextAutoFit(item,live);}});}}
+                else if(item.type==='media'){const c=item.crop||{scale:1,offsetX:0,offsetY:0,stretchX:1,stretchY:1};if(item.mediaKind==='video'){if(!reusedMedia){el.innerHTML='';window.deepRenderVideoCover(el,item);}}else{const deepAnimated=window.isAnimatedImageSource(item.src,item),deepShown=deepAnimated?(item.gifCover||item.src):window.imageDisplaySource(item);if(!reusedMedia||!el.firstElementChild||el.firstElementChild.getAttribute('src')!==deepShown){el.innerHTML=`<img src="${window.deepEsc(deepShown)}" alt="深入描述媒体">`;}const md=el.firstElementChild;const applyMedia=()=>{if(!md)return;const scale=Math.max(0.001,Number(c.scale)||1);md.style.width='auto';md.style.height='auto';md.style.left='50%';md.style.top='50%';const stretchX=Math.max(.85,Math.min(1.15,Number(c.stretchX)||1)),stretchY=Math.max(.85,Math.min(1.15,Number(c.stretchY)||1));md.style.transform=`translate(-50%,-50%) translate(${Number(c.offsetX)||0}px,${Number(c.offsetY)||0}px) scale(${scale}) scale(${stretchX},${stretchY})`;};if(md.complete)applyMedia();else md.addEventListener('load',applyMedia,{once:true});}}else if(item.type==='link'){const safeUrl=window.deepEsc(item.url||'');const safeLabel=window.deepEsc(item.label||item.url||'网址');const holder=document.createElement('template');holder.innerHTML=`<div class="deep-link-inner"><span class="deep-link-icon"><i class="fa-solid fa-globe"></i></span><span class="deep-link-copy"><span class="deep-link-label">${safeLabel}</span><span class="deep-link-url">${safeUrl}</span></span><i class="fa-solid fa-arrow-up-right-from-square text-[11px] text-slate-400"></i></div>`;const inner=el.querySelector('.deep-link-inner');if(inner)window.patchAttachmentNode(inner,holder.content.firstElementChild);else el.prepend(holder.content.firstElementChild);el.title='双击编辑网址';}else if(item.type==='connector'){ el.remove(); return; }
                 if(!reusedItem)st.appendChild(el);
                 el._deepBoundItem=item;el._deepMediaSignature=JSON.stringify([item.src,item.mediaKind,item.crop,item.cover,item.gifCover,item.pictureCoverCloudPath,item.outer]);
                 if(!reusedItem){window.deepBindItem(el,item); el.addEventListener('click',e=>{e.stopPropagation(); if(el._deepConnectPicked){el._deepConnectPicked=false;return;} if(window.deepConnectMode){window.deepHandleConnectPick(item);return;} window.deepCanvasSelected=item.id; window.deepRefreshSelectionVisual?.(); if(item.type==='text' && window.deepTextTool) window.renderDeepCanvas(false); else window.deepPositionTextTools?.();});
@@ -10801,7 +10797,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     host.querySelector(':scope > .deep-video-controls')?.remove();
                     video.remove();
                     const readItem=host._deepReadMediaItem;
-                    if(readItem)window.deepRenderVideoCover(host,readItem,true);
+                    if(readItem)window.deepRenderVideoCover(host,readItem);
                 });
             };
 
@@ -10854,7 +10850,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     if(item.border){el.classList.add('has-border');el.style.borderColor=item.borderColor||'#6366f1';}
                     el.innerHTML=`<div class="deep-text-content">${item.html||window.deepEsc(item.text||'')}</div>`;
                     const readText=el.querySelector('.deep-text-content');
-                    if(readText){window.deepApplyCanonicalTextBoxStyle(readText,{editing:false,height:item.h});readText.style.fontSize=(item.fontSize||18)+'px';readText.style.color=item.color||'#334155';readText.style.textAlign=item.textAlign||'left';}
+                    if(readText){window.deepApplyCanonicalTextBoxStyle(readText,{height:item.h});readText.style.fontSize=(item.fontSize||18)+'px';readText.style.color=item.color||'#334155';readText.style.textAlign=item.textAlign||'left';}
                 }else if(item.type==='media'){
                     el.className+=' deep-canvas-media';
                     el.style.cursor='zoom-in';
@@ -10862,7 +10858,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     if(item.mediaKind==='video'){
                         el.innerHTML='';
                         el._deepReadMediaItem=item;
-                        window.deepRenderVideoCover(el,item,true);
+                        window.deepRenderVideoCover(el,item);
                         let readVideoClickTimer=null;
                         const toggleReadVideo=()=>{
                             const active=el.querySelector(':scope > video');
@@ -11264,7 +11260,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 if(window._mobileVideoHistoryPushed&&m&&!m.classList.contains('hidden')) window.closeMobileVideoOverlay(true);
             });
         }
-        window.openMobileVideoPage=function(src,title){
+        window.openMobileVideoPage=function(src){
             if(!src)return;
             window.resetAllDetailVideos?.();
             let m=document.getElementById('mobileVideoOverlay');
@@ -11327,7 +11323,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             btn.addEventListener('click',e=>{
                 e.preventDefault();e.stopPropagation();
                 // 关键：原页面 video 从不调用 play()
-                window.openMobileVideoPage(src,'视频');
+                window.openMobileVideoPage(src);
             });
             holder.appendChild(btn);
             return true;
@@ -12437,7 +12433,7 @@ viewer.style.visibility='';
                 window.editingImageFiles.push(pending);
                 window.renderMicroPreviews();
                 try {
-                    const media=await window.localOrCloudMediaUrl(f,{compressStaticImage:!animated});
+                    const media=await window.localOrCloudMediaUrl(f);
                     const src=media.url;
                     pending.original=src; pending.originalFull=src; pending.outer=src; pending.inner=src; pending.collection=src;
                     pending.cloudPath=media.cloudPath||''; pending._uploadPending=false;
@@ -14727,7 +14723,7 @@ viewer.style.visibility='';
             const logged=!!window.getCurrentAccountId();let deleteTicket='',deletePending=false;try{deleteTicket=localStorage.getItem(window.ACCOUNT_DELETE_KEY)||'';deletePending=localStorage.getItem(window.ACCOUNT_DELETE_PENDING_KEY)==='1';}catch(_){}
             const html=logged?`<button type="button" data-account-history aria-label="查看历史ID" class="account-profile w-full mb-4 text-left hover:border-indigo-200 transition-colors"><span class="min-w-0 flex-1"><span class="block text-[11px] text-slate-500 mb-1">当前账号</span><span class="flex items-center gap-3 min-w-0"><span class="min-w-0 flex-1 font-semibold text-slate-800 break-all leading-6">${accountEscape(window.getCommonUserId())}</span><i class="fa-solid fa-chevron-right shrink-0 text-[11px] text-slate-400" aria-hidden="true"></i></span></span></button><div class="account-menu">${window.isTestRoom?accountButton('logout','退出登录'):accountButton('rename','修改ID')+accountButton('password','修改密码')+accountButton('logout','退出登录')+accountButton('delete','删除账号',true)}</div>`:`<div class="account-profile mb-4"><div><p class="font-semibold text-slate-800">当前为游客</p><p class="text-xs text-slate-500 mt-1">登录后管理你的账号</p></div></div><div class="account-menu">${accountButton('login','登录账号')}${accountButton('register','创建账号')}</div>${deleteTicket||deletePending?`<div class="mt-4 pt-3 border-t border-slate-100">${deleteTicket?accountButton('resumeDelete','继续未完成的删除',true):accountButton('recoverDelete','继续未完成的删除',true)}</div>`:''}`;
             const m=window.accountDialog('accountManageModal','账号管理',html);
-            m.querySelectorAll('[data-account-action]').forEach(b=>b.onclick=()=>{const action=b.dataset.accountAction;if(action==='logout')window.accountLogout(b);else if(action==='resumeDelete')window.accountResumeDelete(b);else window.openAccountForm(action);});
+            m.querySelectorAll('[data-account-action]').forEach(b=>b.onclick=()=>{const action=b.dataset.accountAction;if(action==='logout')window.accountLogout();else if(action==='resumeDelete')window.accountResumeDelete();else window.openAccountForm(action);});
             if(logged){m.querySelector('[data-account-history]').onclick=()=>window.openAccountHistory();}
             return m;
         };
@@ -14824,7 +14820,7 @@ viewer.style.visibility='';
             }catch(e){if(mode==='login'&&e.code==='account_delete_in_progress'){localStorage.setItem(window.ACCOUNT_DELETE_PENDING_KEY,'1');window.renderAccountManagement();}if(mode==='delete'&&['account_bad_password','account_delete_id_mismatch','delete_confirmation_required','account_session_expired','accounts_not_initialized','account_busy','account_rate_limited'].includes(e.code)&&!localStorage.getItem(window.ACCOUNT_DELETE_KEY))window.accountClearDeleteTask();error.textContent=modal._accountCommitted?'操作已完成，页面刷新失败，请重试':(e.message||'操作失败，请稍后再试');error.classList.remove('hidden');}
             finally{window._accountSubmitting=false;btn.textContent=modal._accountCommitted?'重新刷新':original;btn.removeAttribute('aria-busy');}
         };
-        window.accountLogout=async function(btn){
+        window.accountLogout=async function(){
             if(window._accountLogoutPending)return;window._accountLogoutPending=true;
             try{
                 let loggedOut=false;
@@ -14835,7 +14831,7 @@ viewer.style.visibility='';
             }catch(e){window.showToast?.(e.message||'退出失败','error');}finally{window._accountLogoutPending=false;}
         };
         window.accountFinishDelete=async function(ticket){let r;do{r=await timelineApiPost('accountDeleteContinue',{deleteTicket:ticket},{auth:false,timeoutMs:55000});if(r.pending)await new Promise(resolve=>setTimeout(resolve,150));}while(r.pending);window.accountClearDeleteTask();window.accountClearSession();};
-        window.accountResumeDelete=async function(btn){
+        window.accountResumeDelete=async function(){
             if(window._accountResumeDeletePending)return;window._accountResumeDeletePending=true;
             let deletionComplete=false;
             try{const ok=await window.deepAppConfirm({title:'确认继续删除账号？',desc:'将继续完成上次未完成的账号删除，此操作不可撤销。',confirmText:'继续删除',danger:true,busyText:'正在删除...',onConfirm:async()=>{
@@ -15742,7 +15738,7 @@ viewer.style.visibility='';
             const ev=old||{id:Date.now(),title:'',type:'minor',tags:[],timeMode:'multi',timeSegments:[window.multiNewSegment()],deepDescriptionEnabled:false};
             window.multiTimeEditingId=ev.id;window.multiTimeIsEdit=isEdit;window.multiTimeDeepEnabledDraft=ev.deepDescriptionEnabled===true;
             window.multiTimeDraft=window.multiNormalizeDraft(JSON.parse(JSON.stringify((ev.timeSegments&&ev.timeSegments.length)?ev.timeSegments:[window.multiNewSegment()])));
-            window.multiTimeGeneralDraft={title:ev.title||'',type:ev.type||'minor',tags:Array.isArray(ev.tags)?ev.tags.slice():[],timelineSortSegmentId:String(ev.timelineSortSegmentId||'')};window.multiTimePermissionDraft={creatorOwned:ev.creatorOwned===true,editPermissionMode:window.permissionModeOf(ev),allowedEditorProfileIds:Array.isArray(ev.allowedEditorProfileIds)?ev.allowedEditorProfileIds.slice():[],developerLocked:ev.developerLocked===true,developerAllowedProfileIds:Array.isArray(ev.developerAllowedProfileIds)?ev.developerAllowedProfileIds.slice():[]};
+            window.multiTimeGeneralDraft={title:ev.title||'',type:ev.type||'minor',tags:Array.isArray(ev.tags)?ev.tags.slice():[],timelineSortSegmentId:String(ev.timelineSortSegmentId||'')};window.multiTimePermissionDraft={hasCreator:ev.hasCreator===true||ev.creatorOwned===true,creatorOwned:ev.creatorOwned===true,editPermissionMode:window.permissionModeOf(ev),allowedEditorProfileIds:Array.isArray(ev.allowedEditorProfileIds)?ev.allowedEditorProfileIds.slice():[],developerLocked:ev.developerLocked===true,developerAllowedProfileIds:Array.isArray(ev.developerAllowedProfileIds)?ev.developerAllowedProfileIds.slice():[]};
             window.multiTimeConnections=isEdit?window.getEditingConnectionsForEvent(ev.id):[];window.multiTimePage=0;
             window.richResetOpacitySelection?.();window.richSelectionRange=null;window.richOpacitySpan=null;
             const singleEdit=document.getElementById('editModal');if(singleEdit){window.releaseEditorPreviews?.(singleEdit);singleEdit.classList.add('hidden');singleEdit.innerHTML='';}
