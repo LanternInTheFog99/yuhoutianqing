@@ -5371,13 +5371,23 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 committed:false
             };
         };
+        window.mediaNeedsSharedLock=function(path){
+            if(window._editMediaTxn?.tempUploads?.some(x=>x.tempPath===path))return false;
+            let count=null;const seen=new WeakSet(),walk=v=>{if(!v||typeof v!=='object'||seen.has(v))return;seen.add(v);if(window.mediaPathOf(v.cloudPath||v.originalFull||v.original||v.url||v.src||'')===path&&Number.isFinite(v.mediaReferenceCount))count=Math.max(count??0,v.mediaReferenceCount);for(const [key,x]of Object.entries(v))if(!key.startsWith('_'))walk(x);};
+            [window.editingImageFiles,window.editingVideos,window.multiTimeDraft].forEach(walk);
+            return count===null?null:count>1;
+        };
         window.acquireMediaEditLock=async function(path){
             path=window.mediaPathOf(path);if(!path)return true;window.beginEditMediaTxn?.();const tx=window._editMediaTxn;if(!tx)return false;
-            if(tx.mediaLocks?.has(path))return true;
-            await window.retryMediaLockReleases?.(path);
-            try{await timelineApiPost('mediaEditLock',{mode:'acquire',cloudPath:path,mediaEditSession:tx.sessionId},{auth:'edit',timeoutMs:12000});if(window._editMediaTxn!==tx){void timelineApiPost('mediaEditLock',{mode:'release',cloudPath:path,mediaEditSession:tx.sessionId},{auth:'edit',timeoutMs:8000});return false;}(tx.mediaLocks||=new Set()).add(path);
+            if(tx.mediaLocks?.has(path)||tx.mediaUnlocked?.has(path)||window.mediaNeedsSharedLock?.(path)===false)return true;
+            if(tx.mediaLockRequests?.has(path))return tx.mediaLockRequests.get(path);
+            const request=(async()=>{
+            const notice=setTimeout(()=>window._cloudUploadNotice?.('正在检查共享媒体的编辑状态，请稍候…'),450);
+            try{await window.retryMediaLockReleases?.(path);const result=await timelineApiPost('mediaEditLock',{mode:'acquire',cloudPath:path,mediaEditSession:tx.sessionId},{auth:'edit',timeoutMs:12000});if(window._editMediaTxn!==tx){if(!result.skipped)void timelineApiPost('mediaEditLock',{mode:'release',cloudPath:path,mediaEditSession:tx.sessionId},{auth:'edit',timeoutMs:8000});return false;}if(result.skipped){(tx.mediaUnlocked||=new Set()).add(path);return true;}(tx.mediaLocks||=new Set()).add(path);
                 if(!tx.mediaLockTimer)tx.mediaLockTimer=setInterval(async()=>{for(const p of tx.mediaLocks||[])try{await timelineApiPost('mediaEditLock',{mode:'heartbeat',cloudPath:p,mediaEditSession:tx.sessionId},{auth:'edit',timeoutMs:10000});}catch(e){if(e.code==='media_lock_lost'){tx.mediaLocks.delete(p);window.showToast?.('媒体编辑锁已失效，请重新打开后编辑','error');}}},30000);return true;
             }catch(e){window.showToast?.(e.message||'暂时无法获取媒体编辑锁','error');return false;}
+            finally{clearTimeout(notice);window._cloudUploadNotice?.('',false);tx.mediaLockRequests?.delete(path);}
+            })();(tx.mediaLockRequests||=new Map()).set(path,request);return request;
         };
         window.mediaReleaseStorageKey=()=>['timeline_media_release',window.currentRoomId||'default',window.getCurrentAccountId?.()||'guest'].join('::');
         window.retryMediaLockReleases=async function(path=''){
