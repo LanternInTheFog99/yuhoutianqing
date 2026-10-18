@@ -3428,7 +3428,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     if(data?.retryAfterMs!=null) err.retryAfterMs=Number(data.retryAfterMs)||0;
                     throw err;
                 }
-                if(['getOwnComments','getNotifications','getOwnIdentityHistory','listMediaAssets','getMediaDeep'].includes(action)&&requestedAccountSession!==(window.getAccountSessionToken?.()||''))throw Object.assign(new Error('账号状态已变化，请重新打开'),{code:'account_state_changed'});
+                if(['getOwnComments','getNotifications','getOwnIdentityHistory','listMediaAssets','getMediaDeep','getMediaAssetSizes'].includes(action)&&requestedAccountSession!==(window.getAccountSessionToken?.()||''))throw Object.assign(new Error('账号状态已变化，请重新打开'),{code:'account_state_changed'});
                 mutation?.confirm();
                 if (data.version) window._cloudbaseTimelineVersion = String(data.version);
                 if(['getMediaUploadMetadata','finalizeMediaUpload','activatePendingMedia','copyMediaAsset','renameMediaAsset','deleteMediaAsset','upsertEvent','deleteEvent','accountLogout','accountLogin','accountRename','saveMediaDeep'].includes(action))window.invalidateMediaLibrary?.();
@@ -3586,6 +3586,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             const up=meta?.upload||{};
             if(!up.url||!up.authorization||!up.token||!up.cosFileID||!meta.cloudPath) throw new Error('上传凭证不完整');
             const folder=meta.mediaFolder||String(meta.cloudPath).split('/')[0]||'云存储';
+            // Track the reserved path before PUT/finalize so interrupted uploads remain cleanable.
+            if(useTemp&&!options?.standaloneTemp)window.trackUnsavedMediaUpload?.(meta.cloudPath,{url:window.cloudMediaPublicUrl(meta.cloudPath),finalPurpose,name:file.name||'',mime:file.type||'',size:file.size,coverSourcePath:String(options?.coverSourcePath||''),coverKind:String(options?.coverKind||'')});
             uploadNotice('正在加载文件，请稍候…');
             // v105: CloudBase getUploadMetadata returns COS PUT credentials.
             // Upload the raw File body directly; do not use the old multipart/form-data POST flow.
@@ -5360,7 +5362,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             window.beginEditMediaTxn?.();
             const tx=window._editMediaTxn;
             if(!tx)return;
-            if(!tx.tempUploads.some(x=>x.tempPath===path))tx.tempUploads.push({tempPath:path,tempUrl:meta.url||window.cloudMediaPublicUrl?.(path)||'',finalPurpose:meta.finalPurpose||'',name:meta.name||'',mime:meta.mime||'',pendingOwner:meta.pendingOwner||tx.sessionId,coverSourcePath:meta.coverSourcePath||'',coverKind:meta.coverKind||''});
+            if(!tx.tempUploads.some(x=>x.tempPath===path))tx.tempUploads.push({tempPath:path,tempUrl:meta.url||window.cloudMediaPublicUrl?.(path)||'',finalPurpose:meta.finalPurpose||'',name:meta.name||'',mime:meta.mime||'',size:Number(meta.size)||0,pendingOwner:meta.pendingOwner||tx.sessionId,coverSourcePath:meta.coverSourcePath||'',coverKind:meta.coverKind||''});
         };
         window.tempCleanupStorageKey=()=>['timeline_temp_cleanup',window.currentRoomId||'default',window.getCurrentAccountId?.()||'guest'].join('::');
         window.tempCleanupQueue=function(){try{return JSON.parse(localStorage.getItem(window.tempCleanupStorageKey())||'[]');}catch(_){return [];}};
@@ -5920,7 +5922,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             }catch(error){const err=error instanceof Error?error:new Error(String(error));err.coverStage=err.coverStage||stage;throw err;}finally{try{if(kind==='video'){media.pause();media.removeAttribute('src');media.load();}else media.removeAttribute('src');}catch(_){}if(ownedUrl)URL.revokeObjectURL(ownedUrl);}
         };
         window.ensureAutomaticFirstFrameCovers=async function(eventData){
-            const jobs=[],queued=new WeakSet(),counts={picture:0,gif:0,video:0};
+            const jobs=[],queued=new WeakSet(),counts={picture:0,gif:0,video:0},picturePaths=new Set();let pictureSizes={};
             const addJob=(obj,kind,run)=>jobs.push({run,kind,index:++counts[kind],cloudPath:String(obj.cloudPath||''),mediaId:String(obj.mediaId||obj.id||'')});
             const addGif=obj=>{if(!obj||typeof obj!=='object'||obj.gifCover||queued.has(obj))return;queued.add(obj);const src=obj.originalFull||obj.original||obj.outer||obj.src||'';if(!src||!window.isAnimatedImageSource?.(src,obj))return;addJob(obj,'gif',async()=>{const up=await window.makeAutoFirstFrameCover(src,'gif',obj.gifCoverCloudPath||'',obj.cloudPath||'');if(up){window.trackUnsavedMediaUpload?.(up.cloudPath||'');obj.gifCover=up.url;obj.gifCoverCloudPath=up.cloudPath||'';obj.sourceWidth=up.sourceWidth||obj.sourceWidth;obj.sourceHeight=up.sourceHeight||obj.sourceHeight;}});};
             const pictureJobs=new Map();
@@ -5929,13 +5931,16 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 const src=obj.originalFull||obj.original||obj.outer||obj.src||'';
                 if(window.isAnimatedImageSource?.(src,obj)){addGif(obj);return;}
                 if(!src)return;queued.add(obj);
+                const sourcePath=window.captureCloudPath(obj,src);if(sourcePath&&!window.resolveMediaCover(obj,'picture').url&&!Number(obj.sourceSize||obj.size||window._editMediaTxn?.tempUploads?.find(x=>x.tempPath===sourcePath)?.size))picturePaths.add(sourcePath);
                 addJob(obj,'picture',async()=>{
                     let cover=window.resolveMediaCover(obj,'picture');
                     if(!cover.url){
-                        const path=window.captureCloudPath(obj,src),key=path||src;
+                        const path=sourcePath,key=path||src;
+                        const size=Number(pictureSizes[path]||obj.sourceSize||obj.size||window._editMediaTxn?.tempUploads?.find(x=>x.tempPath===path)?.size)||0;
+                        if(size>0&&size<=1024*1024)return;
                         let pending=pictureJobs.get(key);
-                        if(!pending){pending=window.makeAutoFirstFrameCover(obj._localPreview||src,'picture','',path).then(up=>{if(!up)throw new Error('图片封面生成失败');window.trackUnsavedMediaUpload?.(up.cloudPath||'');return {url:up.url,path:up.cloudPath||'',sourceWidth:up.sourceWidth,sourceHeight:up.sourceHeight};});pictureJobs.set(key,pending);}
-                        cover=await pending;
+                        if(!pending){pending=(async()=>{let source=obj._localPreview||src,owned='';try{if(!size){const blob=path?await window.readCloudMediaBlob(path):await fetch(source).then(r=>{if(!r.ok)throw new Error('图片读取失败');return r.blob();});if(blob.size<=1024*1024)return null;owned=URL.createObjectURL(blob);source=owned;}return await window.makeAutoFirstFrameCover(source,'picture','',path);}finally{if(owned)URL.revokeObjectURL(owned);}})().then(up=>{if(up===null)return null;if(!up)throw new Error('图片封面生成失败');window.trackUnsavedMediaUpload?.(up.cloudPath||'');return {url:up.url,path:up.cloudPath||'',sourceWidth:up.sourceWidth,sourceHeight:up.sourceHeight};});pictureJobs.set(key,pending);}
+                        cover=await pending;if(!cover)return;
                     }
                     obj.outer=obj.inner=obj.collection=cover.url;
                     obj.pictureCoverCloudPath=cover.path||'';
@@ -5948,6 +5953,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             const seen=new WeakSet(),walk=o=>{if(!o||typeof o!=='object'||seen.has(o))return;seen.add(o);if(Array.isArray(o)){o.forEach(walk);return;}if(o.type==='media'){if(o.mediaKind==='video')addVideo(o);else addImage(o);}Object.values(o).forEach(walk);};
             (eventData.images||[]).forEach(x=>walk(x?.deepDescription));(eventData.videos||[]).forEach(x=>walk(x?.deepDescription));walk(eventData.deepDescription);
             (eventData.timeSegments||[]).forEach(seg=>{if(Array.isArray(seg.images))seg.images=seg.images.map(x=>typeof x==='string'?window.multiNormalizeImage(x):x);(seg.images||[]).forEach(addImage);(seg.videos||[]).forEach(addVideo);(seg.images||[]).forEach(x=>walk(x?.deepDescription));(seg.videos||[]).forEach(x=>walk(x?.deepDescription));walk(seg.deepDescription);});
+            const paths=[...picturePaths];for(let i=0;i<paths.length;i+=100){const result=await timelineApiPost('getMediaAssetSizes',{paths:paths.slice(i,i+100)},{auth:'edit',timeoutMs:15000});Object.assign(pictureSizes,result.sizes||{});}
             for(const job of jobs){
                 try{await job.run();}
                 catch(error){
