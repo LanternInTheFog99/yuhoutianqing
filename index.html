@@ -391,13 +391,15 @@ SOFTWARE.
             box-shadow: none !important;
         }
         
-        #editDescription.rich-editor [data-rich-reveal] {
+        #editDescription.rich-editor [data-rich-reveal],
+        #deepDescriptionModal .deep-text-content [data-rich-reveal] {
             opacity: 0.28 !important;
             transition: opacity 0.18s ease;
             border-bottom: 1px dotted rgba(99, 102, 241, 0.55) !important;
             border-radius: 2px;
         }
-        #editDescription.rich-editor [data-rich-reveal]:hover {
+        #editDescription.rich-editor [data-rich-reveal]:hover,
+        #deepDescriptionModal .deep-text-content [data-rich-reveal]:hover {
             opacity: 1 !important;
         }
         
@@ -412,13 +414,15 @@ SOFTWARE.
             text-underline-offset: 0.13em !important;
             text-decoration-skip-ink: auto;
         }
-        .event-description-html [data-rich-reveal] {
+        .event-description-html [data-rich-reveal],
+        #deepReadCanvasModal .deep-text-content [data-rich-reveal] {
             opacity: 0 !important;
             transition: opacity 0.2s ease;
             border-bottom: 1px dotted rgba(148, 163, 184, 0.45);
             cursor: default;
         }
-        .event-description-html [data-rich-reveal]:hover {
+        .event-description-html [data-rich-reveal]:hover,
+        #deepReadCanvasModal .deep-text-content [data-rich-reveal]:hover {
             opacity: 1 !important;
         }
         .stack-description-html [data-rich-reveal] {
@@ -548,9 +552,8 @@ SOFTWARE.
             position:absolute; inset:0; overflow:hidden; background:#0f172a;
         }
         .deep-video-cover-layer > img {
-            width:100% !important; height:100% !important; inset:0 !important;
-            max-width:none !important; max-height:none !important;
-            object-fit:cover; position:absolute !important; transform:none !important;
+            width:auto; height:auto; left:50%; top:50%;
+            max-width:none; max-height:none; position:absolute; transform-origin:center center;
             background:#0f172a;
         }
         .deep-video-cover-placeholder {
@@ -3364,11 +3367,21 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             return id;
         };
 
+        window.timelineMutationRequest=async function(action,payload){
+            const actions=new Set(['upsertEvent','deleteEvent','saveStackOrder','replaceEventConnections','upsertTag','renameTag','deleteTag','upsertBgm','deleteBgm','commentAdd','commentDelete','copyMediaAsset','xiaoqingerFeed','xiaoqingerForcedWakeStart','updateXiaoqinger']);if(!actions.has(action))return null;
+            const scope=[window.currentRoomId||'default',window.getCurrentAccountId?.()||'guest'].join('::'),storageKey='timeline_pending_mutations::'+scope;
+            let records=[];try{records=JSON.parse(localStorage.getItem(storageKey)||'[]');}catch(_){}
+            const canonical=v=>Array.isArray(v)?v.map(canonical):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,canonical(v[k])])):v;
+            const encoded=new TextEncoder().encode(JSON.stringify([action,canonical(payload)]));const fingerprint=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',encoded)),x=>x.toString(16).padStart(2,'0')).join('');records=records.filter(x=>Date.now()-x.at<48*3600000);let entry=records.find(x=>x.fingerprint===fingerprint);
+            if(!entry){entry={fingerprint,id:crypto.randomUUID(),at:Date.now()};records.push(entry);}records=records.slice(-64);try{localStorage.setItem(storageKey,JSON.stringify(records));}catch(_){}
+            return {id:entry.id,confirm:()=>{try{const latest=JSON.parse(localStorage.getItem(storageKey)||'[]');localStorage.setItem(storageKey,JSON.stringify(latest.filter(x=>x.id!==entry.id)));}catch(_){}}};
+        };
         async function timelineApiPost(action, payload = {}, { auth = 'edit', timeoutMs = 25000 } = {}) {
             if(window._invalidRoomAccess) throw Object.assign(new Error('此链接无效'),{code:'invalid_room_link'});
             if(['auth','xiaoqingerAuth','backupAuth','developerAuth'].includes(String(action||''))){
                 payload={...payload,clientId:window.getTimelineAuthClientId?.()||''};
             }
+            const mutation=await window.timelineMutationRequest?.(String(action),payload);if(mutation)payload={...payload,operationId:mutation.id};
             const requestedAccountSession=window.getAccountSessionToken?.()||'';
             const controller = new AbortController();
             window._invalidRoomControllers.add(controller);
@@ -3416,6 +3429,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     throw err;
                 }
                 if(['getOwnComments','getNotifications','getOwnIdentityHistory','listMediaAssets','getMediaDeep'].includes(action)&&requestedAccountSession!==(window.getAccountSessionToken?.()||''))throw Object.assign(new Error('账号状态已变化，请重新打开'),{code:'account_state_changed'});
+                mutation?.confirm();
                 if (data.version) window._cloudbaseTimelineVersion = String(data.version);
                 if(['getMediaUploadMetadata','finalizeMediaUpload','activatePendingMedia','copyMediaAsset','renameMediaAsset','deleteMediaAsset','upsertEvent','deleteEvent','accountLogout','accountLogin','accountRename','saveMediaDeep'].includes(action))window.invalidateMediaLibrary?.();
                 return data;
@@ -3555,7 +3569,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             window.beginCloudWriteLock?.();
             try {
             const useTemp=!options?.bypassTemp;
-            if(useTemp)window.beginEditMediaTxn?.();
+            if(useTemp&&!options?.standaloneTemp)window.beginEditMediaTxn?.();
             const finalPurpose=String(options?.purpose||'');
             const meta=await timelineApiPost('getMediaUploadMetadata',{
                 fileName:file.name||'file',mime:file.type||'application/octet-stream',size:file.size,
@@ -3565,7 +3579,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 deepOwnerCloudPath:String(options?.deepOwnerCloudPath||''),
                 coverKind:String(options?.coverKind||''),
                 temporary:useTemp,
-                pendingOwner:String(window._editMediaTxn?.sessionId||''),
+                pendingOwner:String(options?.pendingOwner||window._editMediaTxn?.sessionId||''),
                 replaceCloudPath:String(options?.replaceCloudPath||''),
                 accountId:window.getCurrentAccountId?.()||''
             },{auth:'edit',timeoutMs:25000});
@@ -3605,7 +3619,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             uploadNotice('正在加载文件，请稍候…');
             if(!options?.deferNoticeHide)uploadNotice('',false);
             const result={url,cloudPath:meta.cloudPath,mediaFolder:folder,fileID:meta.fileID||'',mime:file.type||'',name:file.name||''};
-            if(useTemp)window.trackUnsavedMediaUpload?.(meta.cloudPath,{url,finalPurpose,name:file.name||'',mime:file.type||'',coverSourcePath:String(options?.coverSourcePath||''),coverKind:String(options?.coverKind||'')});
+            if(useTemp&&!options?.standaloneTemp)window.trackUnsavedMediaUpload?.(meta.cloudPath,{url,finalPurpose,name:file.name||'',mime:file.type||'',coverSourcePath:String(options?.coverSourcePath||''),coverKind:String(options?.coverKind||'')});
             window.dispatchEvent(new CustomEvent('timeline:media-uploaded',{detail:{cloudPath:meta.cloudPath}}));
             return result;
             } catch(error){uploadNotice('',false);throw error;} finally { window.endCloudWriteLock?.(); }
@@ -3756,7 +3770,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             if(!window.hasTimelineEditToken?.()){window.showToast?.('请先解锁编辑模式','error');return null;}
             let modal=document.getElementById('cloudMediaLibraryModal');
             if(!modal){modal=document.createElement('div');modal.id='cloudMediaLibraryModal';modal.className='fixed inset-0 z-[470] hidden bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5';document.body.appendChild(modal);}
-            modal.innerHTML=`<div class="relative w-full max-w-3xl max-h-[86vh] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden" onclick="event.stopPropagation()"><div class="px-4 py-3 border-b flex items-center gap-2"><div class="font-bold text-slate-800"><i class="fa-solid fa-cloud text-indigo-600 mr-2"></i>云端数据库</div><button data-media-close type="button" class="ml-auto w-8 h-8 rounded-lg hover:bg-slate-100"><i class="fa-solid fa-xmark"></i></button></div><div class="px-4 py-3 border-b flex flex-wrap items-center gap-2"><div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-600"><button type="button" data-media-sort-direction class="text-indigo-500"><i data-media-sort-direction-icon class="fa-solid fa-arrow-down-wide-short text-[10px]"></i></button><button type="button" data-media-sort-toggle><span data-media-sort-label>按时间</span></button></div>${[['type','类型'],['status','状态'],['owner','归属']].map(([key,label])=>`<div class="relative"><button type="button" data-media-filter-btn="${key}" class="px-2.5 py-1.5 rounded-lg text-xs border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 flex items-center gap-1.5"><i class="fa-solid fa-filter text-[10px] text-indigo-500"></i>${label}<i class="fa-solid fa-chevron-down text-[8px] text-slate-400"></i></button><div data-media-filter-menu="${key}" class="hidden absolute left-0 top-full mt-1 z-30 w-[86px] rounded-lg border border-slate-200 bg-white p-1 shadow-xl"></div></div>`).join('')}<input data-media-search class="ml-auto min-w-[150px] flex-1 max-w-xs px-3 py-1.5 rounded-lg border text-xs" placeholder="搜索文件名"></div><div data-media-list class="p-4 overflow-y-auto min-h-[240px]"></div><div class="px-4 py-2.5 border-t bg-slate-50/70 text-[10px] text-slate-400">未引用文件会由系统定时清理。</div></div>`
+            modal.innerHTML=`<div class="relative w-full max-w-3xl max-h-[86vh] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden" onclick="event.stopPropagation()"><div class="px-4 py-3 border-b flex items-center gap-2"><div class="font-bold text-slate-800"><i class="fa-solid fa-cloud text-indigo-600 mr-2"></i>云端数据库</div><button type="button" onclick="openDeepBackupManager(true)" class="px-2 py-1 border rounded-lg text-xs">深入描述备份</button><button data-media-close type="button" class="ml-auto w-8 h-8 rounded-lg hover:bg-slate-100"><i class="fa-solid fa-xmark"></i></button></div><div class="px-4 py-3 border-b flex flex-wrap items-center gap-2"><div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-600"><button type="button" data-media-sort-direction class="text-indigo-500"><i data-media-sort-direction-icon class="fa-solid fa-arrow-down-wide-short text-[10px]"></i></button><button type="button" data-media-sort-toggle><span data-media-sort-label>按时间</span></button></div>${[['type','类型'],['status','状态'],['owner','归属']].map(([key,label])=>`<div class="relative"><button type="button" data-media-filter-btn="${key}" class="px-2.5 py-1.5 rounded-lg text-xs border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 flex items-center gap-1.5"><i class="fa-solid fa-filter text-[10px] text-indigo-500"></i>${label}<i class="fa-solid fa-chevron-down text-[8px] text-slate-400"></i></button><div data-media-filter-menu="${key}" class="hidden absolute left-0 top-full mt-1 z-30 w-[86px] rounded-lg border border-slate-200 bg-white p-1 shadow-xl"></div></div>`).join('')}<input data-media-search class="ml-auto min-w-[150px] flex-1 max-w-xs px-3 py-1.5 rounded-lg border text-xs" placeholder="搜索文件名"></div><div data-media-list class="p-4 overflow-y-auto min-h-[240px]"></div><div class="px-4 py-2.5 border-t bg-slate-50/70 text-[10px] text-slate-400">未引用文件会由系统定时清理。</div></div>`
             const opening=(modal._mediaOpening||0)+1;modal._mediaOpening=opening;let loadVersion=0;
             const close=()=>{modal.classList.add('hidden');};modal.onclick=e=>{if(e.target===modal)close();};modal.querySelector('[data-media-close]').onclick=close;
             const allowed=Array.isArray(allowedFolders)&&allowedFolders.length?new Set(allowedFolders.map(String).filter(x=>x!=='music')):null;
@@ -3772,8 +3786,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 if(!shown.length){list.innerHTML='<div class="text-sm text-slate-400 text-center py-12">这里还没有可用媒体</div>';return;}
                 if(!grid){list.innerHTML='<div data-media-grid class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>';grid=list.firstElementChild;}
                 const existing=new Map([...grid.children].map(el=>[el.dataset.mediaPath,el]));
-                shown.forEach((a,position)=>{const i=items.indexOf(a),url=window.cloudMediaPublicUrl(a.cloudPath),pending=a.unreferencedSince!=null?'<span class="text-amber-600">未引用</span>':'<span class="text-emerald-600">使用中</span>',manage=canManage(a),coverUrl=a.coverCloudPath?window.cloudMediaPublicUrl(a.coverCloudPath):(a.folder==='picture'?url:window.resolveMediaCover(a,a.folder).url);
-                    const signature=JSON.stringify([i,a.displayName,a.originalName,a.size,a.unreferencedSince,manage,coverUrl,!!window.isDeveloperMode?.()]);let card=existing.get(a.cloudPath);
+                shown.forEach((a,position)=>{const i=items.indexOf(a),url=window.cloudMediaPublicUrl(a.cloudPath),pending=a.deletionPending?'<span class="text-amber-600">删除待完成，可重试</span>':a.unreferencedSince!=null?'<span class="text-amber-600">未引用</span>':'<span class="text-emerald-600">使用中</span>',manage=canManage(a),coverUrl=a.coverCloudPath?window.cloudMediaPublicUrl(a.coverCloudPath):(a.folder==='picture'?url:window.resolveMediaCover(a,a.folder).url);
+                    const signature=JSON.stringify([i,a.displayName,a.originalName,a.size,a.unreferencedSince,a.deletionPending,manage,coverUrl,!!window.isDeveloperMode?.()]);let card=existing.get(a.cloudPath);
                     if(!card||card._mediaSignature!==signature){const holder=document.createElement('template');holder.innerHTML=`<div data-media-path="${window.escapeHtml(String(a.cloudPath||''))}" class="relative border rounded-xl p-3 flex gap-3 items-center group"><button data-media-preview="${i}" class="media-library-thumb w-11 h-11 rounded-lg bg-slate-100 overflow-hidden shrink-0"><i class="fa-solid ${a.folder==='video'?'fa-video':'fa-image'} text-slate-300" aria-hidden="true"></i>${coverUrl?`<img loading="lazy" decoding="async" src="${window.escapeHtml(coverUrl)}" alt="" onload="this.style.opacity='1'" onerror="this.style.opacity='0'">`:''}</button><div class="min-w-0 flex-1 pr-[126px]"><div class="text-xs font-semibold text-slate-700 truncate"${window.isDeveloperMode?.()?` title="${window.escapeHtml(String(a.cloudPath||''))}"`:''}>${window.escapeHtml(window.cloudMediaDisplayName(a))}</div><div class="text-[10px] mt-1 flex gap-2"><span class="text-slate-400">${window.cloudMediaFormatSize(a.size)}</span>${pending}</div></div><div class="absolute right-3 top-1/2 -translate-y-1/2 flex gap-1 items-center">${manage?`<button data-media-rename="${i}" class="w-7 h-7 p-0 rounded-lg border bg-white text-slate-500 inline-flex items-center justify-center leading-none" title="重命名"><i class="fa-solid fa-pen text-[10px] leading-none block"></i></button>`:''}<button data-media-use="${i}" class="w-7 h-7 p-0 rounded-lg border bg-white text-indigo-500 inline-flex items-center justify-center leading-none" title="引用"><i class="fa-solid fa-plus text-[10px] leading-none block"></i></button><button data-media-copy="${i}" class="w-7 h-7 p-0 rounded-lg border bg-white text-indigo-500 inline-flex items-center justify-center leading-none" title="复制"><i class="fa-solid fa-copy text-[10px] leading-none block"></i></button>${manage?`<button data-media-delete="${i}" class="w-7 h-7 p-0 rounded-lg border border-rose-200 bg-white text-rose-500 inline-flex items-center justify-center leading-none" title="删除"><i class="fa-solid fa-trash text-[10px] leading-none block"></i></button>`:''}</div></div>`;const next=holder.content.firstElementChild;card=card?window.patchAttachmentNode(card,next):next;card._mediaSignature=signature;}
                     if(grid.children[position]!==card)grid.insertBefore(card,grid.children[position]||null);existing.delete(a.cloudPath);
                 });existing.forEach(el=>el.remove());
@@ -3788,9 +3802,9 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     }catch(e){console.error('cloud media reference failed',e);window.showToast?.('媒体引用失败，请重试','error');}
                 });
                 list.querySelectorAll('[data-media-preview]').forEach(b=>b.onclick=()=>{const a=items[+b.dataset.mediaPreview];window.open(window.cloudMediaPublicUrl(a.cloudPath),'_blank');});
-                list.querySelectorAll('[data-media-copy]').forEach(b=>b.onclick=async()=>{const a=items[+b.dataset.mediaCopy];await window.deepAppConfirm({title:'确认复制文件？',desc:`将复制“${window.cloudMediaDisplayName(a)}”并生成独立副本。`,confirmText:'确认复制',busyText:'正在复制...',onConfirm:async()=>{const copied=await window.timelineApiCloudWritePost('copyMediaAsset',{cloudPath:a.cloudPath,accountId:window.getCurrentAccountId?.()||''},{auth:'edit',timeoutMs:60000});await load(String(copied?.cloudPath||copied?.item?.cloudPath||''));window.showToast?.('复制成功','success');return true;}});});
+                list.querySelectorAll('[data-media-copy]').forEach(b=>b.onclick=async()=>{const a=items[+b.dataset.mediaCopy];await window.deepAppConfirm({title:'确认复制文件？',desc:`将复制“${window.cloudMediaDisplayName(a)}”并生成独立副本。`,confirmText:'确认复制',busyText:'正在复制...',onConfirm:async()=>{const copied=b._copyReceipt||await window.timelineApiCloudWritePost('copyMediaAsset',{cloudPath:a.cloudPath,accountId:window.getCurrentAccountId?.()||''},{auth:'edit',timeoutMs:60000});b._copyReceipt=copied;const refreshed=await load(String(copied?.cloudPath||copied?.item?.cloudPath||''));if(refreshed===false){window.showToast?.('复制已完成，列表刷新失败；再次操作会先重试刷新','info');return true;}window.showToast?.('复制成功','success');delete b._copyReceipt;return true;}});});
                 list.querySelectorAll('[data-media-rename]').forEach(b=>b.onclick=async()=>{const a=items[+b.dataset.mediaRename];await window.timelineAppInput({title:'重命名文件',value:window.cloudMediaDisplayName(a),placeholder:'输入新的文件名称',confirmText:'保存',busyText:'正在保存...',duplicateCheck:v=>{const n=String(v||'').trim();return !!n&&items.some(x=>x!==a&&window.cloudMediaDisplayName(x)===n);},onConfirm:async v=>{const name=String(v||'').trim();if(!name)throw new Error('请输入新的文件名称');await window.timelineApiCloudWritePost('renameMediaAsset',{cloudPath:a.cloudPath,displayName:name,accountId:window.getCurrentAccountId?.()||''},{auth:'edit'});await load();window.showToast?.('已重命名','success');return name;}});});
-                list.querySelectorAll('[data-media-delete]').forEach(b=>b.onclick=async()=>{const a=items[+b.dataset.mediaDelete];await window.deepAppConfirm({title:'确认删除文件？',desc:`“${window.cloudMediaDisplayName(a)}”将从云端删除，此操作不可撤销。`,confirmText:'确认删除',danger:true,busyText:'正在删除...',onConfirm:async()=>{await window.timelineApiCloudWritePost('deleteMediaAsset',{cloudPath:a.cloudPath,eventId:window.editingEventId||'',accountId:window.getCurrentAccountId?.()||''},{auth:'edit',timeoutMs:30000});window.removeDeletedCloudMediaFromOpenEditor?.(a.cloudPath);await load();await loadTimelineFromCloudBase();window.removeDeletedCloudMediaFromOpenEditor?.(a.cloudPath);window.showToast?.('已删除，并已同步移除引用内容','success');return true;}});});
+                list.querySelectorAll('[data-media-delete]').forEach(b=>b.onclick=async()=>{const a=items[+b.dataset.mediaDelete];await window.deepAppConfirm({title:'确认删除文件？',desc:`“${window.cloudMediaDisplayName(a)}”将从云端删除，此操作不可撤销。`,confirmText:'确认删除',danger:true,busyText:'正在删除...',onConfirm:async()=>{await window.timelineApiCloudWritePost('deleteMediaAsset',{cloudPath:a.cloudPath,eventId:window.editingEventId||'',accountId:window.getCurrentAccountId?.()||''},{auth:'edit',timeoutMs:30000});window.removeDeletedCloudMediaFromOpenEditor?.(a.cloudPath);await load();try{await loadTimelineFromCloudBase();}catch(error){window._cloudbaseTimelineVersion='';console.warn('文件已删除，页面刷新待重试',error);window.showToast?.('文件已删除，页面刷新暂未完成','info');return true;}window.removeDeletedCloudMediaFromOpenEditor?.(a.cloudPath);window.showToast?.('已删除，并已同步移除引用内容','success');return true;}});});
             };
             const revealPath=path=>{if(!path)return;const list=modal.querySelector('[data-media-list]');const esc=window.CSS?.escape?CSS.escape(String(path)):String(path).replace(/[\"']/g,'\\$&');const el=list?.querySelector(`[data-media-path="${esc}"]`);if(!el)return;const lr=list.getBoundingClientRect(),er=el.getBoundingClientRect();if(er.top<lr.top||er.bottom>lr.bottom)el.scrollIntoView({block:'nearest',behavior:'smooth'});};
             const setMediaBusy=busy=>{modal.setAttribute('aria-busy',busy?'true':'false');};
@@ -3799,8 +3813,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 const current=()=>modal._mediaOpening===opening&&loadVersion===version;
                 setMediaBusy(true);
                 if(!list.querySelector('[data-media-grid]'))list.innerHTML='<div class="text-sm text-slate-400 text-center py-12"><i class="fa-solid fa-spinner fa-spin mr-2"></i>正在读取云端数据库…</div>';
-                try{const data=await readMediaLibrary();if(!current())return;items=data;render();list.scrollTop=scroll;if(reveal){await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));if(current())revealPath(reveal);}}
-                catch(e){if(!current())return;if(list.querySelector('[data-media-grid]'))window.showToast?.(e?.message||'读取失败','error');else{const error=document.createElement('div');error.className='text-sm text-rose-600 text-center py-12';error.textContent=e?.message||'读取失败';list.replaceChildren(error);}}
+                try{const data=await readMediaLibrary();if(!current())return;items=data;render();list.scrollTop=scroll;if(reveal){await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));if(current())revealPath(reveal);}return true;}
+                catch(e){if(!current())return false;if(list.querySelector('[data-media-grid]'))window.showToast?.(e?.message||'读取失败','error');else{const error=document.createElement('div');error.className='text-sm text-rose-600 text-center py-12';error.textContent=e?.message||'读取失败';list.replaceChildren(error);}return false;}
                 finally{if(current())setMediaBusy(false);}
             };
             modal._mediaReload=load;
@@ -3847,7 +3861,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         window.cloudAssetInheritedImage=function(a){
             const saved=window.getSavedCloudMediaPresentation(a?.cloudPath)||{},kind=a?.folder==='gif'?'gif':'picture';
             const cover=a?.coverCloudPath?{url:window.cloudMediaPublicUrl(a.coverCloudPath),path:a.coverCloudPath}:window.resolveMediaCover(saved,kind,false);
-            return {pictureCover:kind==='picture'?cover.url:'',pictureCoverCloudPath:kind==='picture'?cover.path:'',crop:saved.crop?structuredClone(saved.crop):null,gifCrop:(saved.gifCrop||saved.crop)?structuredClone(saved.gifCrop||saved.crop):null,gifCoverCrop:(saved.gifCoverCrop||saved.crop)?structuredClone(saved.gifCoverCrop||saved.crop):null,gifCover:kind==='gif'?cover.url:'',gifCoverCloudPath:kind==='gif'?cover.path:'',gifDurationMs:Number(saved.gifDurationMs)||0,gifDurationSource:saved.gifDurationSource||''};
+            return {pictureCoverCrop:kind==='picture'&&saved.pictureCoverCrop?structuredClone(saved.pictureCoverCrop):null,pictureCover:kind==='picture'?cover.url:'',pictureCoverCloudPath:kind==='picture'?cover.path:'',crop:saved.crop?structuredClone(saved.crop):null,gifCrop:(saved.gifCrop||saved.crop)?structuredClone(saved.gifCrop||saved.crop):null,gifCoverCrop:(saved.gifCoverCrop||saved.crop)?structuredClone(saved.gifCoverCrop||saved.crop):null,gifCover:kind==='gif'?cover.url:'',gifCoverCloudPath:kind==='gif'?cover.path:'',gifDurationMs:Number(saved.gifDurationMs)||0,gifDurationSource:saved.gifDurationSource||''};
         };
         window.cloudAssetInheritedVideo=function(a){const saved=window.getSavedCloudMediaPresentation(a?.cloudPath)||{},cover=a?.coverCloudPath?{url:window.cloudMediaPublicUrl(a.coverCloudPath),path:a.coverCloudPath}:window.resolveMediaCover(saved,'video',false);return {cover:cover.url,coverCloudPath:cover.path,previewDuration:window.normalizeVideoPreviewDuration(saved.previewDuration,4)};};
         window.prepareEditorMediaCovers=async function(event){
@@ -4279,6 +4293,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     if (img.gifCover) out.gifCover = String(img.gifCover);
                     if (img.gifCoverCloudPath) out.gifCoverCloudPath = String(img.gifCoverCloudPath);
                     if (img.pictureCoverCloudPath) out.pictureCoverCloudPath = String(img.pictureCoverCloudPath);
+                    if(img.pictureCoverCrop)out.pictureCoverCrop={...img.pictureCoverCrop};
                     if (Number(img.gifDurationMs) > 0) out.gifDurationMs = Number(img.gifDurationMs);
                     if (img.gifDurationSource) out.gifDurationSource = String(img.gifDurationSource);
                     if (img.deepDescription) out.deepDescription = vCloneDeepDescription(img.deepDescription);
@@ -4325,6 +4340,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                         if (img?.gifCover) out.gifCover = String(img.gifCover);
                         if (img?.gifCoverCloudPath) out.gifCoverCloudPath = String(img.gifCoverCloudPath);
                         if (img?.pictureCoverCloudPath) out.pictureCoverCloudPath = String(img.pictureCoverCloudPath);
+                        if(img?.pictureCoverCrop)out.pictureCoverCrop={...img.pictureCoverCrop};
                         if (Number(img?.gifDurationMs) > 0) out.gifDurationMs = Number(img.gifDurationMs);
                         if (img?.gifDurationSource) out.gifDurationSource = String(img.gifDurationSource);
                         if (img?.deepDescription) out.deepDescription = vCloneDeepDescription(img.deepDescription);
@@ -4365,7 +4381,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             }
 
             try {
-                const cloudEvent = window.prepareEventForCloudBase(eventData);
+                const cloudEvent = window.prepareEventForCloudBase(eventData);delete cloudEvent.connections;
                 const cloudBytes = new TextEncoder().encode(JSON.stringify(cloudEvent)).length;
                 if (cloudBytes > 5 * 1024 * 1024) {
                     const err = new Error('EVENT_TOO_LARGE');
@@ -4374,17 +4390,21 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     throw err;
                 }
                 const requireEditLock=!isNew && String(window._activeEditLockEventId||'')===String(eventData.id);
-                const saveResult = await window.timelineApiWrite('upsertEvent', { event: cloudEvent, isNew:isNew===true, accountId:window.getCurrentAccountId?.()||'', ...(!isNew?{baseRevision,requireEditLock}: {}) });
+                const saveResult = await window.timelineApiWrite('upsertEvent', { event: cloudEvent, ...(Array.isArray(eventData.connections)?{connections:eventData.connections}:{}),isNew:isNew===true, accountId:window.getCurrentAccountId?.()||'', ...(!isNew?{baseRevision,requireEditLock}: {}) });
                 // These view flags come from the loaded event, not the editable form.
                 eventData.hasCreator=isNew||existingEvent?.hasCreator===true||existingEvent?.creatorOwned===true;
                 eventData.creatorOwned=isNew||existingEvent?.creatorOwned===true;
                 if(saveResult?.documentId) eventData.__cloudDocId=String(saveResult.documentId);
                 if(Number.isFinite(Number(saveResult?.revision))) eventData.revision=Number(saveResult.revision);
+                eventData._deepSavedRevisions=saveResult?.deepRevisions||{};
+                if(saveResult?.connectionsCommitted&&Array.isArray(eventData.connections)){window.connections=(window.connections||[]).filter(c=>String(c.sourceId)!==String(eventData.id)&&String(c.targetId)!==String(eventData.id));window.connections.push(...eventData.connections.map(c=>({...c})));window.renderSvgConnections?.();}
+                delete eventData.connections;
                 // 云端确认成功后才更新正式本地事件，避免保存失败时页面提前显示未落云的版本。
                 const liveIndex=window.events.findIndex(e=>String(e?.id)===String(eventData.id));
                 if(liveIndex>=0) window.events[liveIndex]=eventData;
                 else window.events.push(eventData);
                 if(render&&!window._isEditingFromStack) window.renderEvents();
+                if(saveResult?.mediaLifecycle?.maintenancePending)window.showToast?.('事件已保存，媒体索引将自动重试同步','info');
                 return true;
             } catch (e) {
                 if (e?.code === 'EVENT_TOO_LARGE') {
@@ -4401,31 +4421,15 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             }
         };
 
-        window.deleteEventFromCloud = async function(eventId, beforeEvent=null) {
-            const oldEvents = window.events.slice();
-            const oldConnections = window.connections.slice();
-            // Fast-delete snapshot: capture the already-loaded event before local removal so
-            // the API can update media reference counts without re-reading the same event.
-            const deleteSnapshot = beforeEvent || oldEvents.find(e => String(e?.id) === String(eventId)) || null;
-            window.events = window.events.filter(e => String(e.id) !== String(eventId));
-            window.connections = window.connections.filter(c => String(c.sourceId) !== String(eventId) && String(c.targetId) !== String(eventId));
-            window.renderEvents();
-            window.renderSvgConnections();
-
-            if (!window.hasTimelineEditToken?.()) return false;
-            try {
-                const documentId=String(deleteSnapshot?.__cloudDocId||'');
-                const result=await window.timelineApiWrite('deleteEvent', { eventId, accountId:window.getCurrentAccountId?.()||'', ...(documentId?{documentId}:{}), ...(deleteSnapshot?{beforeEvent:deleteSnapshot}:{}) });
-                if(!(Number(result?.removed)>0)) throw new Error('event_delete_not_confirmed');
-                return true;
-            } catch (e) {
-                window.events = oldEvents;
-                window.connections = oldConnections;
-                    window.renderEvents();
-                window.renderSvgConnections();
-                window.showToast('事件删除失败，已恢复本机数据', 'error');
-                return false;
-            }
+        window.deleteEventFromCloud = async function(eventId,beforeEvent=null){
+            if(!window.hasTimelineEditToken?.())return false;
+            const snapshot=beforeEvent||(window.events||[]).find(e=>String(e.id)===String(eventId));
+            try{
+                const result=await window.timelineApiWrite('deleteEvent',{eventId,accountId:window.getCurrentAccountId?.()||'',...(snapshot?.__cloudDocId?{documentId:snapshot.__cloudDocId}:{}),...(snapshot?{beforeEvent:snapshot,baseRevision:Number(snapshot.revision)||0}:{})});
+                if(!(Number(result?.removed)>0))throw new Error('云端尚未确认删除');
+                window.events=window.events.filter(e=>String(e.id)!==String(eventId));window.connections=window.connections.filter(c=>String(c.sourceId)!==String(eventId)&&String(c.targetId)!==String(eventId));
+                window.renderEvents();window.renderSvgConnections();if(result.cleanupPending)window.showToast?.('事件已删除，关联记录清理会自动重试','info');return true;
+            }catch(e){window.showToast(e?.message||'事件删除未确认，请重试','error');return false;}
         };
 
         window.saveTagToCloud = async function(tagName) {
@@ -4442,7 +4446,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         window.deleteTagFromCloud = async function(tagName) {
             if (!window.hasTimelineEditToken?.()) return false;
             try {
-                await window.timelineApiWrite('deleteTag', { tag: String(tagName || '').trim(), accountId:window.getCurrentAccountId?.()||'' });
+                const saved=await window.timelineApiWrite('deleteTag', { tag: String(tagName || '').trim(), accountId:window.getCurrentAccountId?.()||'' });
+                window.events.forEach(ev=>{if(saved.revisions?.[String(ev.id)]!==undefined)ev.revision=saved.revisions[String(ev.id)];});
                 return true;
             } catch (e) {
                 window.showToast('Tag删除失败', 'error');
@@ -4748,6 +4753,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         };
 
         window.closeMusicModal = function() {
+            const pending=window._pendingBgmAdd;if(pending){void window.deleteTempCloudPath(pending.song.cloudPath,pending.owner);window._pendingBgmAdd=null;}
             document.getElementById('musicModal')?.classList.add('hidden');
         };
 
@@ -4804,10 +4810,12 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             if(window.bgmNameExists(finalName)){window.updateBgmNameDuplicateHint?.();window.showToast('该名称已存在','error');if(input)input.value='';return;}
             try{
                 window._cloudUploadNotice?.('正在加载文件，请稍候…',true);
-                const media=await window.uploadLargeMediaToCloudBase(file,{deferNoticeHide:true});
-                const newSong={id:'song_'+Date.now()+Math.random().toString(36).substr(2,5),name:finalName,url:media.url,cloudPath:media.cloudPath||'',owned:true};
+                const fingerprint=[file.name,file.size,file.lastModified,finalName].join('::');let pending=window._pendingBgmAdd;
+                if(pending&&pending.fingerprint!==fingerprint){await window.deleteTempCloudPath(pending.song.cloudPath,pending.owner);pending=null;}
+                if(!pending){const owner='bgm_'+crypto.randomUUID(),media=await window.uploadLargeMediaToCloudBase(file,{deferNoticeHide:true,standaloneTemp:true,pendingOwner:owner});pending={fingerprint,owner,song:{id:'song_'+crypto.randomUUID(),name:finalName,url:media.url,cloudPath:media.cloudPath||'',owned:true}};window._pendingBgmAdd=pending;}
+                const newSong=pending.song;
                 // 云端登记完成后再加入歌单，避免“正在加载”尚未结束时提前出现。
-                await window.timelineApiWrite('upsertBgm',{bgm:newSong,accountId:window.getCurrentAccountId?.()||''});
+                const saved=await window.timelineApiWrite('upsertBgm',{bgm:newSong,accountId:window.getCurrentAccountId?.()||''});newSong.revision=saved.revision;window._pendingBgmAdd=null;
                 await window.writeActivityLog?.('bgm_add',{resourceType:'bgm',resourceName:newSong.name});
                 window.bgmPlaylist.push(newSong);window.renderBgmPlaylist();
                 await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
@@ -4824,9 +4832,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             const can=window.isDeveloperMode?.()||song.owned===true;if(!can)return;
             await window.timelineAppInput({title:'修改背景音乐名称',value:song.name||'',placeholder:'输入新的音乐名称',confirmText:'保存',busyText:'正在保存...',duplicateCheck:v=>window.bgmNameExists(v,song.id),onConfirm:async v=>{
                 const name=String(v||'').trim();if(!name||name===song.name)return null;
-                const old=song.name;song.name=name;
-                try{await window.timelineApiWrite('upsertBgm',{bgm:song,accountId:window.getCurrentAccountId?.()||''});window.renderBgmPlaylist();window.showToast('背景音乐名称已修改','success');return name;}
-                catch(e){song.name=old;window.renderBgmPlaylist();throw Object.assign(e||new Error('背景音乐修改失败'),{message:e?.message||'背景音乐修改失败'});}
+                try{const result=await window.timelineApiWrite('upsertBgm',{bgm:{...song,name},baseRevision:Number(song.revision)||0,accountId:window.getCurrentAccountId?.()||''});song.name=name;song.revision=result.revision;window.renderBgmPlaylist();window.showToast('背景音乐名称已修改','success');return name;}
+                catch(e){throw Object.assign(e||new Error('背景音乐修改失败'),{message:e?.message||'背景音乐修改失败'});}
             }});
         };
 
@@ -4835,7 +4842,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             const targetSong = window.bgmPlaylist.find(s => s.id === songId);
             if(!targetSong)return;const can=window.isDeveloperMode?.()||targetSong.owned===true;if(!can)return;
             const deleted=await window.deepAppConfirm({title:'确认删除背景音乐？',desc:`“《${targetSong.name||'未命名音乐'}》”将从歌单中移除，此操作不可撤销。`,confirmText:'确认删除',danger:true,busyText:'正在删除...',onConfirm:async()=>{
-                await window.timelineApiWrite('deleteBgm', { bgmId: songId, accountId:window.getCurrentAccountId?.()||'' });
+                await window.timelineApiWrite('deleteBgm', { bgmId: songId, baseRevision:Number(targetSong.revision)||0,accountId:window.getCurrentAccountId?.()||'' });
                 await window.writeActivityLog?.('bgm_delete', { resourceType:'bgm', resourceName: targetSong?.name || '未命名音乐' });
                 return true;
             }});
@@ -5342,52 +5349,72 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 deep:clone(window.deepCanvasState||null),
                 sessionId:(crypto?.randomUUID?.()||('edit_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2))),
                 tempUploads:[],
+                deepBackupPaths:{},
                 committed:false
             };
         };
+        window.isPendingEditMedia=function(path){return !!path&&!!window._editMediaTxn?.tempUploads?.some(item=>String(item.tempPath)===String(path));};
         window.getTempUploadMark=function(){return window._editMediaTxn?.tempUploads?.length||0;};
         window.trackUnsavedMediaUpload=function(path,meta={}){
             path=String(path||'').trim();if(!path)return;
             window.beginEditMediaTxn?.();
             const tx=window._editMediaTxn;
             if(!tx)return;
-            if(!tx.tempUploads.some(x=>x.tempPath===path))tx.tempUploads.push({tempPath:path,tempUrl:meta.url||window.cloudMediaPublicUrl?.(path)||'',finalPurpose:meta.finalPurpose||'',name:meta.name||'',mime:meta.mime||'',coverSourcePath:meta.coverSourcePath||'',coverKind:meta.coverKind||''});
+            if(!tx.tempUploads.some(x=>x.tempPath===path))tx.tempUploads.push({tempPath:path,tempUrl:meta.url||window.cloudMediaPublicUrl?.(path)||'',finalPurpose:meta.finalPurpose||'',name:meta.name||'',mime:meta.mime||'',pendingOwner:meta.pendingOwner||tx.sessionId,coverSourcePath:meta.coverSourcePath||'',coverKind:meta.coverKind||''});
         };
+        window.tempCleanupStorageKey=()=>['timeline_temp_cleanup',window.currentRoomId||'default',window.getCurrentAccountId?.()||'guest'].join('::');
+        window.tempCleanupQueue=function(){try{return JSON.parse(localStorage.getItem(window.tempCleanupStorageKey())||'[]');}catch(_){return [];}};
         window.deleteTempCloudPath=async function(path,pendingOwner=''){
-            path=String(path||'').trim();if(!path)return false;
-            const owner=String(pendingOwner||window._editMediaTxn?.sessionId||'');
-            try{await window.timelineApiCloudWritePost('deleteMediaAsset',{cloudPath:path,temporary:true,pendingOwner:owner,accountId:window.getCurrentAccountId?.()||''},{auth:'edit',timeoutMs:20000});return true;}
-            catch(err){console.warn('pending 文件删除接口失败',path,err);return false;}
+            path=String(path||'').trim();if(!path)return true;
+            const owner=String(pendingOwner||window._editMediaTxn?.tempUploads?.find(x=>x.tempPath===path)?.pendingOwner||window._editMediaTxn?.sessionId||''),key=window.tempCleanupStorageKey(),queue=window.tempCleanupQueue();
+            if(!queue.some(x=>x.path===path))queue.push({path,pendingOwner:owner,at:Date.now()});try{localStorage.setItem(key,JSON.stringify(queue));}catch(_){}
+            const done=()=>{try{const latest=JSON.parse(localStorage.getItem(key)||'[]');localStorage.setItem(key,JSON.stringify(latest.filter(x=>x.path!==path)));}catch(_){}};
+            try{await timelineApiPost('deleteMediaAsset',{cloudPath:path,temporary:true,pendingOwner:owner,accountId:window.getCurrentAccountId?.()||''},{auth:'edit',timeoutMs:20000});done();return true;}
+            catch(error){if(['pending_delete_has_backup','pending_delete_is_referenced','pending_delete_requires_pending','pending_delete_has_saved_description'].includes(error?.code)){done();return true;}console.warn('临时文件清理未完成，已保留重试记录',path,error);return false;}
         };
+        window.retryTempCleanup=async function(){
+            if(window._tempCleanupRetryRunning||!window.getCurrentAccountId?.()||!window.hasTimelineEditToken?.()||window._editMediaTxn)return;
+            window._tempCleanupRetryRunning=true;try{for(const item of window.tempCleanupQueue().slice(0,5))await window.deleteTempCloudPath(item.path,item.pendingOwner);}finally{window._tempCleanupRetryRunning=false;}
+        };
+        if(!window._tempCleanupRetryBound){window._tempCleanupRetryBound=true;['online','focus'].forEach(type=>window.addEventListener(type,()=>void window.retryTempCleanup()));}
         window.discardTempUploadsSince=async function(mark=0){
             const tx=window._editMediaTxn;if(!tx)return;
             const cut=Math.max(0,Number(mark)||0), doomed=tx.tempUploads.splice(cut),sessionId=String(tx.sessionId||'');
-            await Promise.allSettled(doomed.map(x=>window.deleteTempCloudPath(x.tempPath,sessionId)));
+            await Promise.allSettled(doomed.map(x=>window.deleteTempCloudPath(x.tempPath,x.pendingOwner||sessionId)));
+        };
+        window.finishEditMediaTxn=async function(eventData){
+            await window._deepBackupWriteQueue;
+            const tx=window._editMediaTxn;if(!tx)return;
+            const referenced=new Set(),seen=new WeakSet();
+            const visit=value=>{
+                if(typeof value==='string'){const path=window.mediaPathOf(value);if(path)referenced.add(path);return;}
+                if(!value||typeof value!=='object'||seen.has(value))return;seen.add(value);Object.entries(value).filter(([key])=>!key.startsWith('_edit')).forEach(([,child])=>visit(child));
+            };
+            visit(eventData);
+            const keys=new Set();const collect=v=>{if(!v||typeof v!=='object')return;if(v._editBackupKey)keys.add(v._editBackupKey);Object.values(v).forEach(collect);};collect(eventData);
+            for(const key of keys){let backup=tx.deepBackupRecords?.[key];if(!backup)try{backup=await window.deepBackupGet(key);}catch(_){}try{await window.deepRemoveBackup(key,backup,false);for(const origin of backup?.origins||[])await window.deepRemoveBackup(origin.key,origin,false);}catch(error){console.warn('事件已保存，未覆盖其他页面的新备份',error);}delete tx.deepBackupPaths?.[key];}
+            const retained=new Set(Object.values(tx.deepBackupPaths||{}).flat());
+            const unused=tx.tempUploads.filter(item=>!referenced.has(String(item.tempPath))&&!retained.has(item.tempPath));
+            tx.tempUploads=unused;
+            const results=await Promise.allSettled(unused.map(item=>window.deleteTempCloudPath(item.tempPath,item.pendingOwner||tx.sessionId)));
+            if(window._editMediaTxn===tx)tx.tempUploads=unused.filter((_,i)=>results[i].status!=='fulfilled'||results[i].value!==true);
+            const clean=v=>{if(!v||typeof v!=='object')return;delete v._editBaseRevision;delete v._editCommitId;delete v._editBackupKey;delete v._editBackupOrigins;Object.values(v).forEach(clean);};
+            const publish=v=>{if(!v||typeof v!=='object')return;if(v.deepDescription?._editCommitId){const d=window.deepClone(v.deepDescription),revision=Number(eventData._deepSavedRevisions?.[window.mediaPathOf(v.cloudPath||v.originalFull||v.url||v.src||'')])||(Number(d._editBaseRevision)||0)+1;clean(d);window.applySharedMediaDeep?.(window.mediaPathOf(v.cloudPath||v.originalFull||v.url||v.src||''),d,revision);}Object.values(v).forEach(publish);};publish(eventData);clean(eventData);delete eventData._deepSavedRevisions;
         };
         window.rollbackEditMediaTxn=async function(){
             const tx=window._editMediaTxn;if(!tx)return;
             window.editingImageFiles=tx.images||[];
             window.editingVideos=tx.videos||[];
-            // 深入描述本身位于本轮事件编辑副本中；放弃外层编辑时直接丢弃副本即可。
+            // 正式媒体的未提交深入描述由备份保留；临时源媒体仍随本轮编辑一起清理。
             // WeakMap 草稿只服务当前编辑会话，结束事务后整体重置，避免旧草稿串入下一次编辑。
             window._savedDeepDraftsByObject=new WeakMap();
-            const doomed=[...(tx.tempUploads||[])],sessionId=String(tx.sessionId||'');
+            const retained=new Set(Object.values(tx.deepBackupPaths||{}).flat());
+            const doomed=(tx.tempUploads||[]).filter(x=>!retained.has(x.tempPath)),sessionId=String(tx.sessionId||'');
             window._editMediaTxn=null;
-            await Promise.allSettled(doomed.map(x=>window.deleteTempCloudPath(x.tempPath,sessionId)));
+            await window._deepBackupWriteQueue;
+            const protectedPaths=new Set(Object.values(tx.deepBackupPaths||{}).flat());
+            await Promise.allSettled(doomed.filter(x=>!protectedPaths.has(x.tempPath)).map(x=>window.deleteTempCloudPath(x.tempPath,x.pendingOwner||sessionId)));
         };
-        // Flat lifecycle: paths are stable. Existing function names stay in place so the
-        // original save-button control flow is not rewritten.
-        window.promoteTempUploadsSince=async function(mark){
-            const tx=window._editMediaTxn;if(!tx)return;
-            const cut=Math.max(0,Number(mark)||0),selected=tx.tempUploads.slice(cut);
-            if(!selected.length)return;
-            await window.timelineApiCloudWritePost('activatePendingMedia',{
-                cloudPaths:selected.map(x=>String(x.tempPath||'')).filter(Boolean),
-                pendingOwner:String(tx.sessionId||'')
-            },{auth:'edit',timeoutMs:30000});
-            tx.tempUploads.splice(cut,selected.length);
-        };
-
         window.handleNewEventClick = function() {
             if (window.isLocked) {
                 window.showToast("当前处于浏览模式，请先解锁密码", "error");
@@ -5690,7 +5717,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 onConfirm:async v=>{
                     const name=String(v||'').trim();
                     if(!name||name===tagName)return null;
-                    await window.timelineApiWrite('renameTag',{tag:tagName,newTag:name,accountId:window.getCurrentAccountId?.()||''});
+                    const saved=await window.timelineApiWrite('renameTag',{tag:tagName,newTag:name,accountId:window.getCurrentAccountId?.()||''});
+                    window.events.forEach(ev=>{if(saved.revisions?.[String(ev.id)]!==undefined)ev.revision=saved.revisions[String(ev.id)];});
                     window.availableTags=window.availableTags.map(x=>x===tagName?name:x);
                     const rec=window.tagRecordFor(tagName),stableId=String(rec?.id||'');
                     window.tagRecords=(window.tagRecords||[]).map(x=>String(x?.name||x)===tagName?{...x,name}:x);
@@ -5762,7 +5790,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             window.tagRecords = (window.tagRecords||[]).filter(x=>String(x?.name||x)!==tagName);
             window.tagFilterDraftSelected=(window.tagFilterDraftSelected||[]).filter(t=>t!==tagName);
             window.tagFilterSelected=(window.tagFilterSelected||[]).filter(t=>t!==tagName);
-            if(deletedId){window.tagNameById?.delete(String(deletedId));window.tagIdByName?.delete(tagName);window.events.forEach(ev=>{if(Array.isArray(ev.tagIds))ev.tags=ev.tagIds.map(id=>window.tagNameById?.get(String(id))).filter(Boolean);});}
+            if(deletedId){window.events.forEach(ev=>{if(Array.isArray(ev.tagIds))ev.tagIds=ev.tagIds.filter(id=>String(id)!==String(deletedId));if(Array.isArray(ev.tags))ev.tags=ev.tags.filter(name=>name!==tagName);});window.tagNameById?.delete(String(deletedId));window.tagIdByName?.delete(tagName);window.events.forEach(ev=>{if(Array.isArray(ev.tagIds))ev.tags=ev.tagIds.map(id=>window.tagNameById?.get(String(id))).filter(Boolean);});}
             window.renderTagModalList?.();window.updateTagFilterBadge?.();window.renderEvents?.();
             window.showToast(`已移除Tag: ${tagName}`, "info");
         };
@@ -5887,13 +5915,14 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 const w=kind==='video'?media.videoWidth:media.naturalWidth,h=kind==='video'?media.videoHeight:media.naturalHeight;
                 if(!w||!h)throw new Error('媒体首帧尺寸无效');
                 const maxSide=kind==='picture'?1200:1280,scale=Math.min(1,maxSide/w,maxSide/h),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(w*scale));canvas.height=Math.max(1,Math.round(h*scale));canvas.getContext('2d').drawImage(media,0,0,canvas.width,canvas.height);
-                return await window.canvasToCloudCover(canvas,kind+'_cover',kind==='video'?.84:kind==='picture'?.88:.86,replaceCloudPath||'',coverSourcePath||'',kind,true);
+                const cover=await window.canvasToCloudCover(canvas,kind+'_cover',kind==='video'?.84:kind==='picture'?.88:.86,replaceCloudPath||'',coverSourcePath||'',kind,true);
+                return {...cover,sourceWidth:w,sourceHeight:h};
             }catch(error){const err=error instanceof Error?error:new Error(String(error));err.coverStage=err.coverStage||stage;throw err;}finally{try{if(kind==='video'){media.pause();media.removeAttribute('src');media.load();}else media.removeAttribute('src');}catch(_){}if(ownedUrl)URL.revokeObjectURL(ownedUrl);}
         };
         window.ensureAutomaticFirstFrameCovers=async function(eventData){
             const jobs=[],queued=new WeakSet(),counts={picture:0,gif:0,video:0};
             const addJob=(obj,kind,run)=>jobs.push({run,kind,index:++counts[kind],cloudPath:String(obj.cloudPath||''),mediaId:String(obj.mediaId||obj.id||'')});
-            const addGif=obj=>{if(!obj||typeof obj!=='object'||obj.gifCover||queued.has(obj))return;queued.add(obj);const src=obj.originalFull||obj.original||obj.outer||obj.src||'';if(!src||!window.isAnimatedImageSource?.(src,obj))return;addJob(obj,'gif',async()=>{const up=await window.makeAutoFirstFrameCover(src,'gif',obj.gifCoverCloudPath||'',obj.cloudPath||'');if(up){window.trackUnsavedMediaUpload?.(up.cloudPath||'');obj.gifCover=up.url;obj.gifCoverCloudPath=up.cloudPath||'';}});};
+            const addGif=obj=>{if(!obj||typeof obj!=='object'||obj.gifCover||queued.has(obj))return;queued.add(obj);const src=obj.originalFull||obj.original||obj.outer||obj.src||'';if(!src||!window.isAnimatedImageSource?.(src,obj))return;addJob(obj,'gif',async()=>{const up=await window.makeAutoFirstFrameCover(src,'gif',obj.gifCoverCloudPath||'',obj.cloudPath||'');if(up){window.trackUnsavedMediaUpload?.(up.cloudPath||'');obj.gifCover=up.url;obj.gifCoverCloudPath=up.cloudPath||'';obj.sourceWidth=up.sourceWidth||obj.sourceWidth;obj.sourceHeight=up.sourceHeight||obj.sourceHeight;}});};
             const pictureJobs=new Map();
             const addImage=obj=>{
                 if(!obj||typeof obj!=='object'||queued.has(obj))return;
@@ -5905,14 +5934,15 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     if(!cover.url){
                         const path=window.captureCloudPath(obj,src),key=path||src;
                         let pending=pictureJobs.get(key);
-                        if(!pending){pending=window.makeAutoFirstFrameCover(obj._localPreview||src,'picture','',path).then(up=>{if(!up)throw new Error('图片封面生成失败');window.trackUnsavedMediaUpload?.(up.cloudPath||'');return {url:up.url,path:up.cloudPath||''};});pictureJobs.set(key,pending);}
+                        if(!pending){pending=window.makeAutoFirstFrameCover(obj._localPreview||src,'picture','',path).then(up=>{if(!up)throw new Error('图片封面生成失败');window.trackUnsavedMediaUpload?.(up.cloudPath||'');return {url:up.url,path:up.cloudPath||'',sourceWidth:up.sourceWidth,sourceHeight:up.sourceHeight};});pictureJobs.set(key,pending);}
                         cover=await pending;
                     }
                     obj.outer=obj.inner=obj.collection=cover.url;
                     obj.pictureCoverCloudPath=cover.path||'';
+                    obj.sourceWidth=cover.sourceWidth||obj.sourceWidth;obj.sourceHeight=cover.sourceHeight||obj.sourceHeight;
                 });
             };
-            const addVideo=obj=>{if(!obj||typeof obj!=='object'||obj.cover||queued.has(obj))return;queued.add(obj);const src=obj.url||obj.src||obj.outer||obj.original||'';if(!src)return;addJob(obj,'video',async()=>{const up=await window.makeAutoFirstFrameCover(src,'video',obj.coverCloudPath||'',obj.cloudPath||'');if(up){window.trackUnsavedMediaUpload?.(up.cloudPath||'');obj.cover=up.url;obj.coverCloudPath=up.cloudPath||'';}});};
+            const addVideo=obj=>{if(!obj||typeof obj!=='object'||obj.cover||queued.has(obj))return;queued.add(obj);const src=obj.url||obj.src||obj.outer||obj.original||'';if(!src)return;addJob(obj,'video',async()=>{const up=await window.makeAutoFirstFrameCover(src,'video',obj.coverCloudPath||'',obj.cloudPath||'');if(up){window.trackUnsavedMediaUpload?.(up.cloudPath||'');obj.cover=up.url;obj.coverCloudPath=up.cloudPath||'';obj.sourceWidth=up.sourceWidth||obj.sourceWidth;obj.sourceHeight=up.sourceHeight||obj.sourceHeight;}});};
             if(Array.isArray(eventData.images))eventData.images=eventData.images.map(x=>typeof x==='string'?window.multiNormalizeImage(x):x);
             (eventData.images||[]).forEach(addImage);(eventData.videos||[]).forEach(addVideo);
             const seen=new WeakSet(),walk=o=>{if(!o||typeof o!=='object'||seen.has(o))return;seen.add(o);if(Array.isArray(o)){o.forEach(walk);return;}if(o.type==='media'){if(o.mediaKind==='video')addVideo(o);else addImage(o);}Object.values(o).forEach(walk);};
@@ -5931,32 +5961,13 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             }
         };
 
-        window._connectionListFingerprint=function(list){
-            const normalize=value=>{
-                if(Array.isArray(value)) return value.map(normalize);
-                if(value&&typeof value==='object'){
-                    const out={};
-                    Object.keys(value).sort().forEach(key=>{
-                        const v=value[key];
-                        if(v===undefined||typeof v==='function')return;
-                        out[key]=normalize(v);
-                    });
-                    return out;
-                }
-                return value;
-            };
-            const connections=(Array.isArray(list)?list:[])
-                .map(c=>normalize(c))
-                .sort((a,b)=>String(a?.id??'').localeCompare(String(b?.id??'')));
-            return JSON.stringify(connections);
-        };
         window._hasPendingTempUploads=function(){return !!window._editMediaTxn?.tempUploads?.length;};
 
         window.confirmSaveEvent = async function() {
             if (window.pendingSaveData) {
-                const eventData = window.pendingSaveData;
-                const isEdit = window.pendingSaveData._isEdit;
-                (function stripPendingDeep(o){if(!o||typeof o!=='object')return;if(Array.isArray(o)){o.forEach(stripPendingDeep);return;}delete o._pendingOuterSave;Object.values(o).forEach(stripPendingDeep);})(eventData);
+                const pending=window.pendingSaveData;
+                const eventData={...pending};
+                const isEdit=pending._isEdit===true;
 
                 const previousEvent = isEdit
                     ? (window.findEventById?.(eventData.id) || window.events.find(e => String(e.id) === String(eventData.id)))
@@ -5988,17 +5999,15 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     await window.ensureAutomaticFirstFrameCovers(eventData);
                     saveStage='确认媒体上传';
                     const desiredConnections = eventData.connections || [];
-                    const connectionsChanged = !isEdit || window._connectionListFingerprint(previousConnections)!==window._connectionListFingerprint(desiredConnections);
-                    delete eventData.connections;
+                    eventData.connections=desiredConnections;
                     saveStage='保存事件';
                     const cloudSaved = await window.saveEventToCloud(eventData,!isEdit);
                     if (!cloudSaved) throw new Error('cloud save failed');
-                    if(window._editMediaTxn)window._editMediaTxn.tempUploads=[];
+                    pending._isEdit=true;pending.revision=eventData.revision;pending.__cloudDocId=eventData.__cloudDocId;
+                    await window.finishEditMediaTxn?.(eventData);
                     
                     if (progressBar) progressBar.style.width = '80%';
-                    // 关系没有变化时不再发 delete/upsertConnection 请求。
-                    saveStage='保存连线';
-                    if(connectionsChanged) await window.syncEditingConnections(eventData.id, desiredConnections);
+                    // 连线已与事件、深入描述在同一次云端事务中提交。
                     window._savedDeepDraftsByObject=new WeakMap();
                     
                     if (cloudSaved && (!isEdit || hasActualEditChange)) {
@@ -6018,6 +6027,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                         });
                     }
                 } catch (err) {
+                    if(err?.eventCommitted){pending._isEdit=true;pending.revision=eventData.revision;pending.__cloudDocId=eventData.__cloudDocId;}
                     if (savingModal) savingModal.classList.add('hidden');
                     console.error('[事件保存失败]',{stage:saveStage,eventId:String(eventData.id||''),...(err?.coverContext||{})},err);
                     window.showToast(`保存失败：${err?.coverContext?'':saveStage+'：'}${err?.message||String(err)||'未知错误'}`, 'error');
@@ -6793,9 +6803,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
 
                 setStackSaving(true);window.beginCloudWriteLock?.();
                 try {
-                    if (typeof window.saveEventToCloud === 'function') {
-                        for (const ev of items) await window.saveEventToCloud(ev,false,{render:false});
-                    }
+                    const result=await window.timelineApiWrite('saveStackOrder',{items:items.map(ev=>({id:ev.id,baseRevision:Number(ev.revision)||0}))});
+                    items.forEach(ev=>{const revision=result.revisions?.[String(ev.id)];if(Number.isFinite(Number(revision)))ev.revision=Number(revision);});
                     window._stackFocusIndex = to;
                     window.renderEvents();
                     window.restoreStackManager(items,to);
@@ -7726,6 +7735,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         };
         window.deepPushUndo = function(){
             if(!window.deepCanvasState)return;
+            window.deepCanvasState.enabled=window.deepDescriptionEnabledDraft!==false;
             window.deepCanvasUndo.push(window.deepClone(window.deepCanvasState));
             if(window.deepCanvasUndo.length>40) window.deepCanvasUndo.shift();
             window.deepCanvasRedo=[];
@@ -7739,7 +7749,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 Object.keys(old).forEach(key=>{if(!(key in item))delete old[key];});
                 Object.assign(old,item);return old;
             });
-            window.deepCanvasState=next;window.deepCanvasSelected=null;window.renderDeepCanvas();
+            window.deepCanvasState=next;window.deepDescriptionEnabledDraft=next.enabled!==false;window.deepSyncEnabledToggle?.();window.deepCanvasSelected=null;window.renderDeepCanvas();
         };
         window.deepUndo = function(){ if(!window.deepCanvasUndo.length)return; window.deepCanvasRedo.push(window.deepClone(window.deepCanvasState)); window.deepRestoreState(window.deepCanvasUndo.pop()); };
         window.deepRedo = function(){ if(!window.deepCanvasRedo.length)return; window.deepCanvasUndo.push(window.deepClone(window.deepCanvasState)); window.deepRestoreState(window.deepCanvasRedo.pop()); };
@@ -7831,7 +7841,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     <button type="button" id="deepRedoBtn" onclick="deepRedo()" class="px-2.5 py-1.5 border rounded-lg text-xs" title="重做"><i class="fa-solid fa-rotate-right"></i></button>
                     <button type="button" onclick="closeDeepDescriptionEditor(true)" class="px-3 py-1.5 border rounded-lg text-xs">取消</button>
                     <button type="button" onclick="deepClearCanvas()" class="px-3 py-1.5 border border-rose-200 bg-rose-50 text-rose-600 rounded-lg text-xs">清空</button>
-                    <button type="button" id="deepSaveBtn" onclick="saveDeepDescriptionEditor()" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold">保存</button>
+                    <button type="button" onclick="openDeepBackupManager()" class="px-3 py-1.5 border rounded-lg text-xs">备份管理</button>
+                    <button type="button" id="deepSaveBtn" onclick="saveDeepDescriptionEditor()" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold">完成编辑</button>
                 </div>
                 <div class="deep-canvas-toolbar shrink-0 border-b border-slate-200 bg-slate-50 px-3 py-2 flex flex-wrap gap-1.5 items-center">
                     <button type="button" onclick="deepOpenCanvasSize()" class="px-2.5 py-1.5 bg-white border rounded-lg text-xs" title="调整深入描述画布宽度与高度"><i class="fa-solid fa-maximize mr-1"></i>画布大小</button>
@@ -7858,6 +7869,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                         <button id="deepItalicBtn" type="button" disabled data-deep-text-control data-deep-selection-only onpointerdown="event.preventDefault();deepRememberTextSelection()" onclick="deepApplyTextStyle('italic')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs italic">I</button>
                         <button id="deepUnderlineBtn" type="button" disabled data-deep-text-control data-deep-selection-only onpointerdown="event.preventDefault();deepRememberTextSelection()" onclick="deepApplyTextStyle('underline')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs underline">U</button>
                         <button id="deepStrikeBtn" type="button" disabled data-deep-text-control data-deep-selection-only onpointerdown="event.preventDefault();deepRememberTextSelection()" onclick="deepApplyTextStyle('strike')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs line-through">S</button>
+                        <button id="deepRevealBtn" type="button" disabled data-deep-text-control data-deep-selection-only onpointerdown="event.preventDefault();deepRememberTextSelection()" onclick="deepApplyTextStyle('reveal')" class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs" title="悬停显现：选中文字后仅在鼠标悬停时显示">悬停</button>
                     </div>
                     <div class="deep-text-align-group" role="group" aria-label="文字对齐">
                         <button id="deepAlignLeftBtn" type="button" disabled data-deep-text-control data-deep-selection-only class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs" title="左对齐" onclick="deepApplyTextStyle('align','left')"><i class="fa-solid fa-align-left"></i></button>
@@ -7925,7 +7937,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             const obj=window.deepResolveTargetObject(target); if(!obj)return;
             const openEpoch=window._deepOpenEpoch=(Number(window._deepOpenEpoch)||0)+1;
             let sharedState=null;
-            if(obj.cloudPath){
+            if(obj.cloudPath&&!window.isPendingEditMedia(obj.cloudPath)&&!obj.deepDescription?._editCommitId){
                 window.deepSetMediaLoading?.(true,'正在读取深入描述…');
                 try{sharedState=await window.readSharedMediaDeep(obj.cloudPath);if(openEpoch!==window._deepOpenEpoch)return;obj.deepDescription=window.deepClone(sharedState.description);window._savedDeepDraftsByObject?.delete?.(obj);
                 }catch(e){console.error('shared deep read failed',e);window.showToast?.('深入描述读取失败，请重试','error');return;}finally{if(openEpoch===window._deepOpenEpoch)window.deepSetMediaLoading?.(false);}
@@ -7934,7 +7946,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             window.deepCanvasTarget={...target};
             window.beginEditMediaTxn?.();
             window._deepEditSession={
-                target:{...target},sharedRevision:sharedState?.revision||0,
+                target:{...target},sharedRevision:obj.deepDescription?._editBaseRevision??sharedState?.revision??0,
+                commitId:obj.deepDescription?._editCommitId||crypto.randomUUID(),
                 originalDeep:window.deepClone(obj.deepDescription),
                 originalEnabled:window.deepDescriptionIsEnabled(obj.deepDescription),
                 tempMark:window.getTempUploadMark?.()||0
@@ -7957,11 +7970,11 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             try{
                 const backupKey=window.deepBackupKey(target),backup=await window.deepBackupGetForTarget?.(target);
                 if(openEpoch!==window._deepOpenEpoch||m.classList.contains('hidden'))return;
-                if(backup?.state){
-                    const use=await window.deepAppConfirm({title:'检测到未保存的深入描述备份',desc:'发现上次意外退出前留下的自动备份。是否恢复这份备份？',confirmText:'恢复备份'});
+                if(backup?.state&&!obj.deepDescription?._editCommitId){
+                    const use=await window.deepAppConfirm({title:'检测到未保存的深入描述备份',desc:backup.remoteConflict?'另一页面已更新云端备份。是否恢复这份本地草稿，并在后续备份时替换云端备份？':'发现尚未通过事件保存提交的深入描述。是否恢复这份备份？',confirmText:'恢复备份'});
                     if(openEpoch!==window._deepOpenEpoch||m.classList.contains('hidden'))return;
-                    if(use&&window.deepRestoreBackup(backup,openEpoch))restoredBackup=backup;
-                    else await window.deepBackupDelete?.(backupKey);
+                    if(use&&window.deepRestoreBackup(backup,openEpoch)){restoredBackup=backup;window._deepEditSession.sharedRevision=backup.baseRevision??window._deepEditSession.sharedRevision;window._deepEditSession.commitId=backup.commitId||window._deepEditSession.commitId;window._deepEditSession.originBackups=[...(backup.origins||[]),...(backup.localKey&&backup.localKey!==window.deepBackupLocalKey(backupKey)?[{key:backup.key,cloudPath:backup.cloudPath,backupRevision:backup.backupRevision,localKey:backup.localKey,localOnly:true,uploads:backup.uploads||[],updatedAt:backup.updatedAt}]:[])];for(const item of backup.uploads||[])window.trackUnsavedMediaUpload(item.tempPath,{...item,url:item.tempUrl});if(window._editMediaTxn){window._editMediaTxn.deepBackupPaths[backupKey]=(backup.uploads||[]).map(x=>x.tempPath);(window._editMediaTxn.deepBackupRecords||={})[backupKey]=backup;}}
+                    else await window.deepRemoveBackup(backupKey,backup,true);
                 }
             }catch(err){console.warn('读取深入描述自动备份失败',err);}
             if(openEpoch!==window._deepOpenEpoch||m.classList.contains('hidden'))return;
@@ -7970,20 +7983,29 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         window.closeDeepDescriptionEditor = async function(discard){
             window._deepOpenEpoch=(Number(window._deepOpenEpoch)||0)+1;
             window.deepStopAutosave?.();
+            await window._deepBackupWriteQueue;
             const m=document.getElementById('deepDescriptionModal'),closingTarget=window._deepEditSession?.target;
             if(discard&&window._deepEditSession){
+                const current=window.deepResolveTargetObject(window._deepEditSession.target),pending=window.isPendingEditMedia(current?.cloudPath);
+                if(!pending&&!(await window.deepBackupNow(true))){window.deepStartAutosave?.();return false;}
                 const backupKey=window.deepBackupKey?.(window._deepEditSession.target);
                 const s=window._deepEditSession;
                 const obj=s.target?.multi?window.multiDeepMediaObject?.(s.target.segIndex,s.target.type,s.target.index):window.deepMediaObject?.(s.target?.type,s.target?.index);
                 if(obj)obj.deepDescription=window.deepClone(s.originalDeep);
                 window.deepDescriptionEnabledDraft=s.originalEnabled;
-                await window.discardTempUploadsSince?.(s.tempMark);
-                await window.deepBackupDelete?.(backupKey);
+                if(pending){await window.discardTempUploadsSince?.(s.tempMark);await window.deepBackupDelete?.(backupKey);}
             }
             if(m)m.classList.add('hidden');
             window._deepEditSession=null;
             window.deepCanvasTarget=null; window.deepDescriptionEnabledDraft=null;
             if(closingTarget?.multi){window.multiRefreshAttachments?.(closingTarget.segIndex,[closingTarget.type==='image'?'images':'videos']);if(window._multiSharedSegmentIndex===closingTarget.segIndex){window._multiSharedSegmentIndex=null;window._multiSharedMediaKey=null;}}else if(closingTarget){if(closingTarget.type==='video')window.renderVideoPreviews?.();else window.renderMicroPreviews?.();}
+        };
+        window.deepToggleDescriptionEnabled=function(){
+            if(!window.deepCanvasTarget||!window.deepCanvasState)return;
+            window.deepPushUndo?.();
+            window.deepDescriptionEnabledDraft=!window.deepDescriptionEnabledDraft;
+            window.deepCanvasState.enabled=window.deepDescriptionEnabledDraft;
+            window.deepSyncEnabledToggle();window.deepScheduleBackup?.();
         };
         window.deepSyncEnabledToggle = function(){
             const enabled=!!window.deepDescriptionEnabledDraft;
@@ -8065,17 +8087,23 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             const segId=target?.multi?String(window.multiTimeDraft?.[target.segIndex]?.id||target.segIndex):'single';
             return ['deep',encodeURIComponent(window.currentRoomId||'default'),encodeURIComponent(window.getCurrentAccountId?.()||'guest'),eventId,segId,String(target?.type||''),mediaId].join('::');
         };
+        window.deepBackupLocalKey=key=>key+'::local::'+(window._deepBackupInstanceId||=(crypto.randomUUID()));
+        window.deepBackupPutLocal=async function(record){const localKey=record.localKey||window.deepBackupLocalKey(record.key);record.localKey=localKey;await window.deepBackupPut({...record,key:localKey,logicalKey:record.key});};
+        window.deepBackupLocalRecords=async function(){
+            const db=await window.deepBackupDbOpen();return new Promise((resolve,reject)=>{const out=[],req=db.transaction('backups','readonly').objectStore('backups').openCursor();req.onsuccess=()=>{const c=req.result;if(!c){resolve(out);return;}const r=c.value;if(r.roomId===(window.currentRoomId||'default')&&r.accountId===(window.getCurrentAccountId?.()||'guest'))out.push({...r,key:r.logicalKey||r.key,localKey:c.key});c.continue();};req.onerror=()=>reject(req.error);});
+        };
         window.deepBackupGetForTarget=async function(target){
-            const key=window.deepBackupKey(target),current=await window.deepBackupGet(key);if(current)return current;
-            const object=window.deepResolveTargetObject?.(target);
-            const markedTest=window.currentRoomId===window.TEST_ROOM_ID&&/(?:^|\/)yht_test_[^/]+/.test(String(object?.cloudPath||''));
-            if(window.currentRoomId!==window.MAIN_EDIT_ROOM_ID&&!markedTest)return null;
-            const legacyKey=key.split('::').filter((_,i)=>i!==1&&i!==2).join('::');
-            const legacy=await window.deepBackupGet(legacyKey);if(!legacy)return null;
-            if(legacy.roomId&&legacy.roomId!==window.currentRoomId)return null;
-            if(legacy.accountId&&legacy.accountId!==(window.getCurrentAccountId?.()||'guest'))return null;
-            const migrated={...legacy,key,roomId:window.currentRoomId,accountId:window.getCurrentAccountId?.()||'guest'};
-            await window.deepBackupPut(migrated);await window.deepBackupDelete(legacyKey);return migrated;
+            const key=window.deepBackupKey(target),obj=window.deepResolveTargetObject(target);let local=null;
+            try{local=(await window.deepBackupLocalRecords()).filter(r=>r.key===key).sort((a,b)=>b.updatedAt-a.updatedAt)[0]||await window.deepBackupGet(key);}catch(_){}
+            try{const emergency=JSON.parse(localStorage.getItem('timeline_deep_emergency::'+(window.currentRoomId||'default')+'::'+(window.getCurrentAccountId?.()||'guest'))||'null');if(emergency?.key===key&&(!local||emergency.updatedAt>local.updatedAt))local=emergency;}catch(_){}
+            if(obj?.cloudPath&&!window.isPendingEditMedia(obj.cloudPath)){
+                try{const result=await timelineApiPost('mediaDeepBackup',{mode:'get',cloudPath:obj.cloudPath,key,accountId:window.getCurrentAccountId?.()||''},{auth:'edit',timeoutMs:15000});(window._deepBackupRemoteVersions||={})[key]=Number(result.revision)||0;
+                    if(local?.cloudPending)return {...local,remoteConflict:Number(result.revision||0)!==Number(local.backupRevision||0)};
+                    if(result.backup)return result.backup;
+                    if(local&&!local.cloudPending&&Number(local.backupRevision||0)<Number(result.revision||0))return null;
+                }catch(e){if(!local)throw e;console.warn('云端备份暂不可用，读取本地备份',e);}
+            }
+            return local;
         };
         window.deepRestoreBackup=function(backup,epoch=window._deepOpenEpoch){
             if(!backup?.state||!Array.isArray(backup.state.items)||epoch!==window._deepOpenEpoch)return false;
@@ -8098,12 +8126,14 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         window.deepBackupGet=async function(key){const db=await window.deepBackupDbOpen();return new Promise((resolve,reject)=>{const req=db.transaction('backups','readonly').objectStore('backups').get(key);req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error);});};
         window.deepBackupDelete=async function(key){if(!key)return;try{const db=await window.deepBackupDbOpen();await new Promise((resolve,reject)=>{const tx=db.transaction('backups','readwrite');tx.objectStore('backups').delete(key);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}catch(_){}};
         window.deepBackupDeleteForEvent=async function(eventId){
+            await window._deepBackupWriteQueue;
             if(eventId===null||eventId===undefined)return;
-            try{const db=await window.deepBackupDbOpen();const prefix=['deep',encodeURIComponent(window.currentRoomId||'default'),encodeURIComponent(window.getCurrentAccountId?.()||'guest'),String(eventId),''].join('::'),legacyPrefix='deep::'+String(eventId)+'::';await new Promise((resolve,reject)=>{const tx=db.transaction('backups','readwrite'),store=tx.objectStore('backups'),req=store.openCursor();req.onsuccess=()=>{const c=req.result;if(!c)return;if(String(c.key).startsWith(prefix)||(window.currentRoomId===window.MAIN_EDIT_ROOM_ID&&String(c.key).startsWith(legacyPrefix)))c.delete();c.continue();};tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}catch(_){}
+            try{const db=await window.deepBackupDbOpen();const prefix=['deep',encodeURIComponent(window.currentRoomId||'default'),encodeURIComponent(window.getCurrentAccountId?.()||'guest'),String(eventId),''].join('::'),legacyPrefix='deep::'+String(eventId)+'::';await new Promise((resolve,reject)=>{const tx=db.transaction('backups','readwrite'),store=tx.objectStore('backups'),req=store.openCursor();req.onsuccess=()=>{const c=req.result;if(!c)return;if((String(c.key).startsWith(prefix)||(window.currentRoomId===window.MAIN_EDIT_ROOM_ID&&String(c.key).startsWith(legacyPrefix)))&&c.value.pendingRoot===true)c.delete();c.continue();};tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}catch(_){}
         };
         window.deepBackupSetStatus=function(kind,at){
             const el=document.getElementById('deepBackupStatus');if(!el)return;
             if(kind==='saving'){el.textContent='自动备份 · 备份中…';el.className='deep-backup-status is-saving';return;}
+            if(kind==='local'){el.textContent='自动备份 · 已保留本地，云端待重试';el.className='deep-backup-status is-error';return;}
             if(kind==='error'){el.textContent='自动备份 · 备份失败';el.className='deep-backup-status is-error';return;}
             if(kind==='waiting'){el.textContent='自动备份 · 等待首次备份';el.className='deep-backup-status';return;}
             window._deepBackupLastAt=Number(at)||Date.now();
@@ -8115,14 +8145,40 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             const text=sec<45?'刚刚':sec<3600?Math.floor(sec/60)+'分钟前':Math.floor(sec/3600)+'小时前';
             el.textContent='自动备份 · '+text;el.className='deep-backup-status';
         };
-        window.deepBackupNow=async function(force=false){
-            const modal=document.getElementById('deepDescriptionModal');if(!modal||modal.classList.contains('hidden')||!window.deepCanvasState||!window.deepCanvasTarget)return false;
-            const key=window.deepBackupKey();const viewport=document.getElementById('deepCanvasStage')?.parentElement;const payload={state:window.deepClone(window.deepCanvasState),enabled:!!window.deepDescriptionEnabledDraft,view:{zoom:window.deepZoom||1,scrollLeft:viewport?.scrollLeft||0,scrollTop:viewport?.scrollTop||0}};
-            const fingerprint=JSON.stringify(payload);if(!force&&fingerprint===window._deepBackupFingerprint)return false;
-            window.deepBackupSetStatus('saving');
-            try{const at=Date.now();await window.deepBackupPut({key,roomId:window.currentRoomId||'default',accountId:window.getCurrentAccountId?.()||'guest',eventId:String(window.deepCanvasTarget?.multi?window.multiTimeEditingId:window.editingEventId||'new'),updatedAt:at,...payload});window._deepBackupFingerprint=fingerprint;window.deepBackupSetStatus('saved',at);return true;}
-            catch(err){console.warn('深入描述自动备份失败',err);window.deepBackupSetStatus('error');return false;}
+        window.deepRemoveBackup=async function(key,backup,discardFiles=false){
+            if(!backup)try{backup=await window.deepBackupGet(key);}catch(_){}
+            if(backup?.cloudPath&&!backup.pendingRoot&&!backup.localOnly){const result=await timelineApiPost('mediaDeepBackup',{mode:'delete',cloudPath:backup.cloudPath,key,baseRevision:Number(backup.backupRevision??window._deepBackupRemoteVersions?.[key])||0,accountId:window.getCurrentAccountId?.()||''},{auth:'edit',timeoutMs:20000});(window._deepBackupRemoteVersions||={})[key]=result.revision;}
+            await window.deepBackupDelete(backup?.localKey||key);try{const storageKey='timeline_deep_emergency::'+(window.currentRoomId||'default')+'::'+(window.getCurrentAccountId?.()||'guest'),emergency=JSON.parse(localStorage.getItem(storageKey)||'null');if(emergency?.key===key&&Number(emergency.updatedAt)<=Number(backup?.updatedAt||0))localStorage.removeItem(storageKey);}catch(_){}if(window._editMediaTxn){delete window._editMediaTxn.deepBackupPaths?.[key];delete window._editMediaTxn.deepBackupRecords?.[key];}
+            if(discardFiles)await Promise.allSettled((backup?.uploads||[]).map(x=>window.deleteTempCloudPath(x.tempPath,x.pendingOwner)));
         };
+        window.deepBackupBuildRecord=function(){
+            const target=window.deepCanvasTarget,obj=window.deepResolveTargetObject(target),session=window._deepEditSession;if(!target||!obj||!window.deepCanvasState)return null;
+            const key=window.deepBackupKey(target),viewport=document.getElementById('deepCanvasStage')?.parentElement,state=window.deepClone(window.deepCanvasState),paths=new Set();
+            const scan=v=>{if(typeof v==='string'){const p=window.mediaPathOf(v);if(p)paths.add(p);}else if(v&&typeof v==='object')Object.values(v).forEach(scan);};scan(state);
+            return {key,localKey:window.deepBackupLocalKey(key),roomId:window.currentRoomId||'default',accountId:window.getCurrentAccountId?.()||'guest',eventId:String(target.multi?window.multiTimeEditingId:window.editingEventId||'new'),target:{...target},cloudPath:obj.cloudPath||'',pendingRoot:window.isPendingEditMedia(obj.cloudPath),baseRevision:session?.sharedRevision||0,commitId:session?.commitId,origins:session?.originBackups||[],backupRevision:Number(window._deepBackupRemoteVersions?.[key])||0,updatedAt:Date.now(),uploads:(window._editMediaTxn?.tempUploads||[]).filter(x=>paths.has(x.tempPath)).map(x=>({...x})),state,enabled:!!window.deepDescriptionEnabledDraft,view:{zoom:window.deepZoom||1,scrollLeft:viewport?.scrollLeft||0,scrollTop:viewport?.scrollTop||0},cloudPending:true};
+        };
+        window.deepBackupNow=async function(force=false){
+            const modal=document.getElementById('deepDescriptionModal');if(!modal||modal.classList.contains('hidden'))return false;
+            const record=window.deepBackupBuildRecord();if(!record)return false;const fingerprint=JSON.stringify([record.state,record.enabled,record.view]);if(!force&&fingerprint===window._deepBackupFingerprint)return true;
+            const tx=window._editMediaTxn;
+            const write=async()=>{
+                window.deepBackupSetStatus('saving');let local=false,remote=false;
+                record.backupRevision=Number(window._deepBackupRemoteVersions?.[record.key])||0;
+                try{await window.deepBackupPutLocal(record);local=true;}catch(e){console.warn('本地备份失败',e);}
+                if(tx){(tx.deepBackupRecords||={})[record.key]=record;if(!record.pendingRoot)(tx.deepBackupPaths||={})[record.key]=record.uploads.map(x=>x.tempPath);}
+                if(!record.pendingRoot&&record.cloudPath)try{
+                    const result=await timelineApiPost('mediaDeepBackup',{mode:'put',cloudPath:record.cloudPath,key:record.key,backup:record,baseRevision:record.backupRevision,accountId:record.accountId},{auth:'edit',timeoutMs:15000});
+                    record.backupRevision=Number(result.revision)||0;record.cloudPending=false;(window._deepBackupRemoteVersions||={})[record.key]=record.backupRevision;remote=true;
+                    try{await window.deepBackupPutLocal(record);local=true;}catch(_){}
+                }catch(e){console.warn('云端备份未完成，本地备份独立保留',e);window.deepBackupSetStatus(local?'local':'error');if(e?.code==='deep_backup_conflict')window.showToast?.('另一页面已更新备份，当前草稿已在本地保留，请从备份管理中选择恢复','info');return false;}
+                if(local||remote){window._deepBackupFingerprint=fingerprint;window.deepBackupSetStatus('saved',record.updatedAt);return true;}window.deepBackupSetStatus('error');return false;
+            };
+            const task=(window._deepBackupWriteQueue||Promise.resolve()).then(write,write);window._deepBackupWriteQueue=task;return task;
+        };
+        if(!window._deepBackupLeaveBound){window._deepBackupLeaveBound=true;
+            document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')void window.deepBackupNow?.(true);});
+            window.addEventListener('beforeunload',event=>{const record=window.deepBackupBuildRecord?.();if(record){if(!record.pendingRoot)try{localStorage.setItem('timeline_deep_emergency::'+record.roomId+'::'+record.accountId,JSON.stringify(record));}catch(_){}event.preventDefault();event.returnValue='';}else if(window._editMediaTxn?.tempUploads?.length){event.preventDefault();event.returnValue='';}});
+        }
         window.deepScheduleBackup=function(){
             if(window._deepBackupDebounce)clearTimeout(window._deepBackupDebounce);
             window._deepBackupDebounce=setTimeout(()=>window.deepBackupNow?.(),2500);
@@ -8145,26 +8201,37 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         window.saveDeepDescriptionEditor=async function(){
             const target=window.deepCanvasTarget,obj=window.deepResolveTargetObject?.(target);if(!target||!obj)return;
             if(window.deepResolveTargetObject?.(window._deepEditSession?.target)!==obj){window.showToast?.('当前深入描述目标已变化，请重新打开后编辑','error');return;}
-            const shared=!!obj.cloudPath;
-            await window.deepAppConfirm({title:'确认保存深入描述？',desc:shared?'保存后，所有引用此媒体的位置都会同步使用当前深入描述。':'请检查画布内容是否无误，确认后将保存当前深入描述。',confirmText:'确认保存',busyText:'正在保存...',onConfirm:async()=>{
-                return await window.withCloudWriteOperation(async()=>{
-                    const previous=window.deepClone(obj.deepDescription);let committed=false;
-                    try{
-                        window.deepDescriptionEnabledDraft=window.deepDescriptionEnabledDraft!==false;
-                        await window.deepBackupNow?.(true);window.deepWriteCanvasToTarget?.();
-                        if(shared){
-                            await window.ensureAutomaticFirstFrameCovers({deepDescription:obj.deepDescription});
-                            const result=await timelineApiPost('saveMediaDeep',{cloudPath:obj.cloudPath,description:obj.deepDescription,baseRevision:window._deepEditSession?.sharedRevision||0,eventId:String(target.multi?window.multiTimeEditingId:window.editingEventId||'')},{auth:'edit',timeoutMs:55000});
-                            committed=true;window._deepEditSession.sharedRevision=result.revision;
-                            window.applySharedMediaDeep(obj.cloudPath,result.description,result.revision);obj.deepDescription=window.deepClone(result.description);
-                            const serialized=JSON.stringify(result.description||{});if(window._editMediaTxn)window._editMediaTxn.tempUploads=window._editMediaTxn.tempUploads.filter(x=>String(x.tempPath)===String(obj.cloudPath)||!serialized.includes(String(x.tempPath)));
-                        }else{await window.promoteTempUploadsSince?.(window._deepEditSession?.tempMark||0);}
-                        window.saveDeepDraftSnapshot?.(target,obj.deepDescription);
-                        await window.deepBackupDelete?.(window.deepBackupKey(target));await window.closeDeepDescriptionEditor(false);
-                        window.showToast?.('深入描述已保存','success');return true;
-                    }catch(e){if(!committed)obj.deepDescription=previous;console.error('shared deep save failed',e);throw e;}
-                });
-            }});
+            const button=document.getElementById('deepSaveBtn');if(button?.disabled)return;if(button)button.disabled=true;
+            try{await window.withCloudWriteOperation(async()=>{
+                if(!(await window.deepBackupNow(true)))throw new Error('备份失败，请重试后再完成编辑');
+                if(!window.deepWriteCanvasToTarget())throw new Error('深入描述目标已变化，请重新打开后重试');
+                obj.deepDescription=obj.deepDescription||{version:4,items:[],enabled:false};
+                obj.deepDescription._editBaseRevision=window._deepEditSession.sharedRevision;
+                obj.deepDescription._editCommitId=window._deepEditSession.commitId;
+                obj.deepDescription._editBackupKey=window.deepBackupKey(target);
+                obj.deepDescription._editBackupOrigins=window.deepClone(window._deepEditSession.originBackups||[]);
+                window.saveDeepDraftSnapshot(target,obj.deepDescription);
+                await window.closeDeepDescriptionEditor(false);
+                window.showToast?.('已完成编辑，保存事件后生效','success');
+            });}catch(e){console.error('深入描述草稿保存失败',e);window.showToast?.(e.message||'草稿保存失败，请重试','error');}
+            finally{if(button)button.disabled=false;}
+        };
+        window.openDeepBackupManager=async function(all=false){
+            const target=window.deepCanvasTarget,source=window.deepResolveTargetObject?.(target)?.cloudPath;
+            window.deepStopAutosave?.();let modal=document.getElementById('deepBackupManagerModal');if(!modal){modal=document.createElement('div');modal.id='deepBackupManagerModal';modal.className='fixed inset-0 bg-slate-950/50 flex items-center justify-center p-4';modal.style.zIndex='1200';document.body.appendChild(modal);}modal.classList.remove('hidden');
+            modal.innerHTML='<div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-4 flex flex-col" style="max-height:85vh"><div class="flex items-center justify-between gap-2 mb-3"><strong>深入描述备份</strong><button type="button" data-close class="px-3 py-1 border rounded-lg text-xs">关闭</button></div><p class="text-xs text-slate-500 mb-3">备份未发布。原事件已删除的备份，也可以在同一媒体的其他引用中恢复。</p><div data-list class="overflow-y-auto text-sm">正在读取…</div></div>';
+            const close=()=>{modal.classList.add('hidden');if(window.deepCanvasTarget)window.deepStartAutosave?.();};modal.querySelector('[data-close]').onclick=close;
+            try{
+                let remote=[],local=[],remoteError='';try{const result=await timelineApiPost('listMediaDeepBackups',{}, {auth:'edit',timeoutMs:15000});remote=result.items||[];}catch(e){remoteError=e.message||'云端备份暂不可用';console.warn('云端备份列表暂不可用',e);}
+                try{local=await window.deepBackupLocalRecords();}catch(_){}
+                const entries=[...remote.map(r=>({...r,remote:true})),...local.filter(r=>r.cloudPending).map(r=>({...r,localOnly:true}))].filter(r=>!r.pendingRoot&&(all||r.cloudPath===source));
+                const list=modal.querySelector('[data-list]');list.replaceChildren();if(!entries.length){list.textContent=remoteError?'云端备份暂时读取失败，请稍后重试；本地暂无备份。':'暂无未提交的备份';return;}if(remoteError){const notice=document.createElement('p');notice.className='text-xs text-amber-600 mb-2';notice.textContent='云端暂不可用，下面只显示本地草稿。';list.appendChild(notice);}
+                for(const entry of entries){const row=document.createElement('div');row.className='border rounded-lg p-3 mb-2 flex flex-wrap items-center gap-2';const label=document.createElement('div');label.className='flex-1 text-xs break-all';label.textContent=(entry.localOnly?'本地草稿 · ':'云端备份 · ')+String(entry.cloudPath)+' · '+new Date(entry.updatedAt||0).toLocaleString();row.appendChild(label);
+                    const read=async()=>{if(entry.state)return {...entry};const r=await timelineApiPost('mediaDeepBackup',{mode:'get',key:entry.key,cloudPath:entry.cloudPath},{auth:'edit',timeoutMs:15000});if(!r.backup)throw new Error('这份备份已被其他页面处理');return {...r.backup,backupRevision:r.revision};};
+                    if(source===entry.cloudPath&&target){const restore=document.createElement('button');restore.className='px-3 py-1 border rounded-lg text-xs';restore.textContent='恢复到当前画布';restore.onclick=async()=>{await window.deepAppConfirm({title:'恢复备份？',desc:'将替换当前画布，保存事件后才正式生效。',confirmText:'恢复',onConfirm:async()=>{if(window.deepCanvasTarget!==target||window.deepResolveTargetObject(target)?.cloudPath!==source)throw new Error('编辑目标已变化，请重新打开备份管理');const backup=await read(),currentKey=window.deepBackupKey(target);const latest=await timelineApiPost('mediaDeepBackup',{mode:'get',key:currentKey,cloudPath:source},{auth:'edit',timeoutMs:15000});(window._deepBackupRemoteVersions||={})[currentKey]=Number(latest.revision)||0;if(!window.deepRestoreBackup(backup))throw new Error('画布已变化，请重新打开');window._deepEditSession.sharedRevision=backup.baseRevision||0;window._deepEditSession.commitId=crypto.randomUUID();const origin={key:backup.key,cloudPath:backup.cloudPath,backupRevision:backup.backupRevision,localKey:backup.localKey,localOnly:entry.localOnly,uploads:backup.uploads||[],updatedAt:backup.updatedAt};window._deepEditSession.originBackups=[...(backup.origins||[]),...(backup.key!==currentKey||backup.localKey?[origin]:[])];for(const item of backup.uploads||[])window.trackUnsavedMediaUpload(item.tempPath,{...item,url:item.tempUrl});close();window.deepScheduleBackup();return true;}});};row.appendChild(restore);}
+                    const discard=document.createElement('button');discard.className='px-3 py-1 border rounded-lg text-xs text-rose-600';discard.textContent='丢弃';discard.onclick=async()=>{await window.deepAppConfirm({title:'丢弃这份备份？',desc:'只清理这份草稿专属上传、且没有被其他位置引用的文件。',confirmText:'丢弃',danger:true,onConfirm:async()=>{const backup=await read();await window.deepRemoveBackup(entry.key,{...backup,localOnly:entry.localOnly},true);row.remove();return true;}});};row.appendChild(discard);list.appendChild(row);
+                }
+            }catch(e){modal.querySelector('[data-list]').textContent=e.message||'备份读取失败';}
         };
         window.deepPositionTextTools=function(){
             const tools=document.getElementById('deepTextTools');
@@ -8410,7 +8477,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 const w=Math.max(80,Math.round(nw0*ratio)), h=Math.max(60,Math.round(nh0*ratio));
                 const pos=window.deepVisibleCanvasPlacement?.(w,h)||{x:120,y:120};
                 const x=pos.x,y=pos.y;
-                deepPushUndo(); window.deepCanvasState.items.push({id:'media_'+Date.now().toString(36),type:'media',x,y,w,h,src,mediaKind:kind,cloudPath:String(cloudPath||''),gifCover:presentation.gifCover||'',gifCoverCloudPath:presentation.gifCoverCloudPath||'',gifDurationMs:presentation.gifDurationMs||0,gifDurationSource:presentation.gifDurationSource||'',cover:presentation.cover||'',coverCloudPath:presentation.coverCloudPath||'',previewDuration:presentation.previewDuration||4,layer:0}); window.renderDeepCanvas(); window.deepSetMediaLoading?.(false);
+                deepPushUndo(); window.deepCanvasState.items.push({id:'media_'+Date.now().toString(36),type:'media',x,y,w,h,src,sourceWidth:nw0,sourceHeight:nh0,pictureCoverCrop:presentation.pictureCoverCrop||null,gifCoverCrop:presentation.gifCoverCrop||null,mediaKind:kind,cloudPath:String(cloudPath||''),gifCover:presentation.gifCover||'',gifCoverCloudPath:presentation.gifCoverCloudPath||'',gifDurationMs:presentation.gifDurationMs||0,gifDurationSource:presentation.gifDurationSource||'',cover:presentation.cover||'',coverCloudPath:presentation.coverCloudPath||'',previewDuration:presentation.previewDuration||4,layer:0}); window.renderDeepCanvas(); window.deepSetMediaLoading?.(false);
             };
             if(useLocal==='cloud'){
                 window.openCloudMediaLibrary({folder:'all',allowedFolders:['picture','gif','video'],onSelect:async a=>{
@@ -8791,22 +8858,20 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             if(!valid)palette?.classList.add('hidden');
         };
         window.deepOpenColorPalette=function(kind){
-            if(kind==='text'&&!window.deepSavedTextRange)return;
-            if(kind==='text' && !window.deepTextTool)return;
-            if(kind==='border'){
-                const it=window.deepCanvasState?.items?.find(x=>x.id===window.deepCanvasSelected);
-                if(!it||it.type!=='text')return;
-            }
-            const id='deep'+(kind==='text'?'Text':kind==='border'?'Border':'Draw')+'ColorPalette';
-            const p=document.getElementById(id); if(!p)return;
-            const wasOpen=!p.classList.contains('hidden');
-            ['text','border','draw'].forEach(k=>document.getElementById('deep'+(k==='text'?'Text':k==='border'?'Border':'Draw')+'ColorPalette')?.classList.add('hidden'));
+            const paletteIds={text:'deepTextColorPalette',border:'deepBorderColorPalette'};
+            if(!paletteIds[kind])return;
+            if(kind==='text'&&(!window.deepSavedTextRange||!window.deepTextTool))return;
+            const item=window.deepCanvasState?.items?.find(x=>x.id===window.deepCanvasSelected);
+            if(kind==='border'&&(!item||item.type!=='text'))return;
+            const palette=document.getElementById(paletteIds[kind]);if(!palette)return;
+            const wasOpen=!palette.classList.contains('hidden');
+            // Floating text/border palettes are separate from the inline drawing colors.
+            Object.values(paletteIds).forEach(id=>document.getElementById(id)?.classList.add('hidden'));
             if(wasOpen)return;
-            p.classList.remove('hidden');
+            palette.classList.remove('hidden');
             if(kind==='border')window.deepSyncBorderToggle?.();
-            p.querySelectorAll('.deep-color-choice').forEach(b=>b.classList.remove('is-picked'));
-            const current=kind==='draw'?(window.deepDrawColor||'#334155'):(()=>{const it=window.deepCanvasState?.items?.find(x=>x.id===window.deepCanvasSelected);return kind==='text'?(it?._lastTextColor||it?.color||'#334155'):(it?.borderColor||'#3b82f6');})();
-            p.querySelectorAll('.deep-color-choice').forEach(b=>{if((b.getAttribute('title')||'').toLowerCase()===String(current).toLowerCase())b.classList.add('is-picked');});
+            const current=kind==='text'?(item?._lastTextColor||item?.color||'#334155'):(item?.borderColor||'#3b82f6');
+            palette.querySelectorAll('.deep-color-choice').forEach(button=>button.classList.toggle('is-picked',(button.getAttribute('title')||'').toLowerCase()===String(current).toLowerCase()));
         };
         window.deepPickDrawColor=function(val,closePanel=false){
             window.deepDrawColor=val; const sw=document.getElementById('deepDrawColorSwatch'); if(sw)sw.style.background=val;
@@ -9592,6 +9657,12 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 const pct=Math.max(0,Math.min(100,Number(val)||0));
                 const fixed=window.applyExactOpacityToSelection?.(editingEl,range,'data-deep-text-opacity',pct);if(!fixed)return;
                 range=fixed;window.deepSavedTextRange=fixed.cloneRange();window.deepSavedTextId=it.id;window.deepSyncDecorationGeometry?.(editingEl);window.deepTextOpacitySpan=null;window.deepSyncSavedSelectionHighlight?.();
+            }else if(kind==='reveal'){
+                window.deepPushUndo?.();
+                const result=window.toggleTextReveal(editingEl,range);if(!result)return;
+                sel.removeAllRanges();sel.addRange(result.range);
+                window.deepSavedTextRange=result.range.cloneRange();window.deepSavedTextId=it.id;
+                window.showToast?.(result.enabled?'已设为悬停显现':'已取消悬停显现','success');
             }else if(['bold','italic','underline','strike'].includes(kind)){
                 const cmd={bold:'bold',italic:'italic',underline:'underline',strike:'strikeThrough'}[kind];
                 try{document.execCommand(cmd,false,null);}catch(_){}
@@ -9857,6 +9928,45 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             sec=Math.max(0,Number(sec)||0); const m=Math.floor(sec/60), s=Math.floor(sec%60); return m+':'+String(s).padStart(2,'0');
         };
         
+        window.deepMediaSourceSize=function(src,video=false){
+            const cache=window._deepSourceSizeCache||(window._deepSourceSizeCache=new Map());
+            const key=(video?'video:':'image:')+src;if(cache.has(key))return cache.get(key);
+            const run=async()=>await new Promise((resolve,reject)=>{
+                const media=video?document.createElement('video'):new Image();if(video)media.preload='metadata';
+                let finished=false;
+                const finish=error=>{if(finished)return;finished=true;clearTimeout(timer);media.onload=media.onloadedmetadata=media.onerror=null;const width=Number(media.videoWidth||media.naturalWidth),height=Number(media.videoHeight||media.naturalHeight);media.removeAttribute('src');if(video)media.load();error?reject(error):width&&height?resolve({width,height}):reject(new Error('媒体尺寸无效'));};
+                const timer=setTimeout(()=>finish(new Error('读取原媒体尺寸超时')),20000);
+                media[video?'onloadedmetadata':'onload']=()=>finish();media.onerror=()=>finish(new Error('读取原媒体尺寸失败'));media.src=src;
+                if(!video&&media.complete&&media.naturalWidth)finish();
+            });
+            // Older saved crops did not store the original dimensions. Resolve each original once,
+            // with one legacy migration decoder at a time; normal previews still display covers.
+            const pending=(window._deepSourceSizeQueue||Promise.resolve()).then(run);
+            window._deepSourceSizeQueue=pending.catch(()=>{});cache.set(key,pending);
+            pending.catch(()=>{if(cache.get(key)===pending)cache.delete(key);});
+            if(cache.size>128)cache.delete(cache.keys().next().value);
+            return pending;
+        };
+        window.deepApplyMediaCrop=function(media,item,isCover=false){
+            if(!media||!item)return;media._deepShowingCover=isCover;
+            const c=item.crop||{},rect=isCover?(item.mediaKind==='video'?item.coverCrop:(window.isAnimatedImageSource?.(item.src,item)?item.gifCoverCrop:item.pictureCoverCrop)):null;
+            if(isCover&&item.crop&&!c.sourceWidth&&!item.sourceWidth&&!rect?.naturalWidth&&item.src&&media.isConnected&&!media._deepSizePending){
+                media._deepSizePending=true;
+                window.deepMediaSourceSize(item.src,item.mediaKind==='video').then(size=>{
+                    item.sourceWidth=size.width;item.sourceHeight=size.height;
+                    if(media.isConnected)window.deepApplyMediaCrop(media,item,media._deepShowingCover);
+                }).catch(error=>console.warn('深入描述原媒体尺寸读取失败',error)).finally(()=>{media._deepSizePending=false;});
+            }
+
+            const width=Number(c.sourceWidth)||Number(item.sourceWidth)||Number(rect?.naturalWidth)||Number(media.videoWidth)||Number(media.naturalWidth)||0;
+            const height=Number(c.sourceHeight)||Number(item.sourceHeight)||Number(rect?.naturalHeight)||Number(media.videoHeight)||Number(media.naturalHeight)||0;
+            const fitted=width>0&&height>0?Math.min((Number(item.w)||width)/width,(Number(item.h)||height)/height):1;
+            const scale=Math.max(.001,Number(c.scale)||fitted),sx=Math.max(.85,Math.min(1.15,Number(c.stretchX)||1)),sy=Math.max(.85,Math.min(1.15,Number(c.stretchY)||1));
+            let w=width,h=height,dx=0,dy=0;
+            if(rect&&Number(rect.sw)>0&&Number(rect.sh)>0){w=Number(rect.sw);h=Number(rect.sh);dx=(Number(rect.sx)||0)+w/2-width/2;dy=(Number(rect.sy)||0)+h/2-height/2;}
+            media.style.width=w>0?w+'px':'auto';media.style.height=h>0?h+'px':'auto';media.style.left='50%';media.style.top='50%';
+            media.style.transform=`translate(-50%,-50%) translate(${(Number(c.offsetX)||0)+dx*scale*sx}px,${(Number(c.offsetY)||0)+dy*scale*sy}px) scale(${scale}) scale(${sx},${sy})`;
+        };
         window.deepActivateVideoPlayer=function(host,item,startTime=0){
             if(!host||!item||host.querySelector(':scope > video'))return;
             const old=host.querySelector('.deep-video-cover-layer');old?.remove();
@@ -9865,8 +9975,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             const video=document.createElement('video');
             video.src=item.src;video.playsInline=true;video.setAttribute('playsinline','');video.preload='metadata';
             host.insertBefore(video,host.firstChild);
-            const c=item.crop||{scale:1,offsetX:0,offsetY:0,stretchX:1,stretchY:1};
-            const apply=()=>{const scale=Math.max(.001,Number(c.scale)||1),sx=Math.max(.85,Math.min(1.15,Number(c.stretchX)||1)),sy=Math.max(.85,Math.min(1.15,Number(c.stretchY)||1));video.style.width='auto';video.style.height='auto';video.style.left='50%';video.style.top='50%';video.style.transform=`translate(-50%,-50%) translate(${Number(c.offsetX)||0}px,${Number(c.offsetY)||0}px) scale(${scale}) scale(${sx},${sy})`;};
+            
+            const apply=()=>window.deepApplyMediaCrop(video,item,false);
             video.addEventListener('loadedmetadata',apply,{once:true});apply();
             window.deepAttachVideoControls(host,video);
             const begin=()=>{ try{video.currentTime=Math.max(0,Number(startTime)||0);}catch(_){} video.play().catch(()=>{}); };
@@ -9878,6 +9988,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             if(item.cover)cover.innerHTML=`<img src="${window.deepEsc(item.cover)}" alt="视频封面">`;
             else cover.innerHTML=`<div class="deep-video-cover-placeholder"><span><i class="fa-solid fa-video mr-1"></i>视频</span></div>`;
             host.appendChild(cover);
+            const image=cover.querySelector('img');if(image){const apply=()=>window.deepApplyMediaCrop(image,item,true);if(image.complete)apply();else image.addEventListener('load',apply,{once:true});}
             const play=document.createElement('button');play.type='button';play.className='deep-video-cover-play';play.innerHTML='<i class="fa-solid fa-play"></i>';play.title='播放视频';
             play.addEventListener('pointerdown',e=>{e.stopPropagation();});
             play.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();window.deepActivateVideoPlayer(host,item);});
@@ -10156,7 +10267,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 if(reusedItem){ preservedItems.delete(item.id); }
                 el.className='deep-canvas-item '+(item.type==='media'?'deep-canvas-media ':'')+(item.type==='text'?'deep-canvas-text ':'')+(item.type==='link'?'deep-canvas-link ':'')+(item.id===window.deepCanvasSelected?' deep-canvas-selected ':'')+(item.type==='text' && (window.deepTextTool||item.editing)?' tool-visible':''); el.dataset.deepId=item.id; el.style.left=item.x+'px';el.style.top=item.y+'px';el.style.width=item.w+'px';el.style.height=item.h+'px'; if(['media','text','link'].includes(item.type))el.style.zIndex=String(20+(Number(item.layer)||0)); if(window.deepConnectPending?.includes(item.id))el.classList.add('deep-connect-pending');
                 if(item.type==='text'){el.classList.toggle('has-border',!!item.border);el.classList.toggle('editing',!!item.editing);el.dataset.fontSize=(Math.round((Number(item.fontSize)||18)*10)/10).toString();el.style.borderColor=item.borderColor||'#3b82f6';el.style.fontSize=(item.fontSize||18)+'px';el.style.color=item.color||'#334155';el.style.textAlign=item.textAlign||'left';el.style.opacity='1';el.style.fontWeight=item.bold?'700':'400';el.style.fontStyle=item.italic?'italic':'normal';el.style.textDecoration='none';let tc=el.querySelector('.deep-text-content');if(!tc){tc=document.createElement('div');tc.className='deep-text-content';el.appendChild(tc);}const html=item.html||window.deepEsc(item.text||'');if(tc.innerHTML!==html)tc.innerHTML=html; if(tc) tc.contentEditable=item.editing?'true':'false'; if(tc){window.deepApplyCanonicalTextBoxStyle(tc,{height:item.h});tc.style.fontSize=(item.fontSize||18)+'px';tc.style.opacity=item.opacity??1;tc.style.textAlign=item.textAlign||'left';tc.style.textDecoration=[item.underline?'underline':'',item.strike?'line-through':''].filter(Boolean).join(' ')||'none';tc.style.textDecorationColor='currentColor';tc.style.textDecorationSkipInk='none';window.deepSyncDecorationGeometry?.(tc);requestAnimationFrame(()=>{const live=document.querySelector(`[data-deep-id="${CSS.escape(item.id)}"] .deep-text-content`);if(live){window.deepSyncDecorationGeometry?.(live);if(!item._manualResizing)window.deepAutoFitTextItem(item,live);if(item.editing)window.deepBindTextAutoFit(item,live);}});}}
-                else if(item.type==='media'){const c=item.crop||{scale:1,offsetX:0,offsetY:0,stretchX:1,stretchY:1};if(item.mediaKind==='video'){if(!reusedMedia){el.innerHTML='';window.deepRenderVideoCover(el,item);}}else{const deepAnimated=window.isAnimatedImageSource(item.src,item),deepShown=deepAnimated?(item.gifCover||item.src):window.imageDisplaySource(item);if(!reusedMedia||!el.firstElementChild||el.firstElementChild.getAttribute('src')!==deepShown){el.innerHTML=`<img src="${window.deepEsc(deepShown)}" alt="深入描述媒体">`;}const md=el.firstElementChild;const applyMedia=()=>{if(!md)return;const scale=Math.max(0.001,Number(c.scale)||1);md.style.width='auto';md.style.height='auto';md.style.left='50%';md.style.top='50%';const stretchX=Math.max(.85,Math.min(1.15,Number(c.stretchX)||1)),stretchY=Math.max(.85,Math.min(1.15,Number(c.stretchY)||1));md.style.transform=`translate(-50%,-50%) translate(${Number(c.offsetX)||0}px,${Number(c.offsetY)||0}px) scale(${scale}) scale(${stretchX},${stretchY})`;};if(md.complete)applyMedia();else md.addEventListener('load',applyMedia,{once:true});}}else if(item.type==='link'){const safeUrl=window.deepEsc(item.url||'');const safeLabel=window.deepEsc(item.label||item.url||'网址');const holder=document.createElement('template');holder.innerHTML=`<div class="deep-link-inner"><span class="deep-link-icon"><i class="fa-solid fa-globe"></i></span><span class="deep-link-copy"><span class="deep-link-label">${safeLabel}</span><span class="deep-link-url">${safeUrl}</span></span><i class="fa-solid fa-arrow-up-right-from-square text-[11px] text-slate-400"></i></div>`;const inner=el.querySelector('.deep-link-inner');if(inner)window.patchAttachmentNode(inner,holder.content.firstElementChild);else el.prepend(holder.content.firstElementChild);el.title='双击编辑网址';}else if(item.type==='connector'){ el.remove(); return; }
+                else if(item.type==='media'){if(item.mediaKind==='video'){if(!reusedMedia){el.innerHTML='';window.deepRenderVideoCover(el,item);}}else{const deepAnimated=window.isAnimatedImageSource(item.src,item),deepShown=deepAnimated?(item.gifCover||item.src):window.imageDisplaySource(item);if(!reusedMedia||!el.firstElementChild||el.firstElementChild.getAttribute('src')!==deepShown){el.innerHTML=`<img src="${window.deepEsc(deepShown)}" alt="深入描述媒体">`;}const md=el.firstElementChild;const applyMedia=()=>window.deepApplyMediaCrop(md,item,deepShown!==item.src);if(md.complete)applyMedia();else md.addEventListener('load',applyMedia,{once:true});}}else if(item.type==='link'){const safeUrl=window.deepEsc(item.url||'');const safeLabel=window.deepEsc(item.label||item.url||'网址');const holder=document.createElement('template');holder.innerHTML=`<div class="deep-link-inner"><span class="deep-link-icon"><i class="fa-solid fa-globe"></i></span><span class="deep-link-copy"><span class="deep-link-label">${safeLabel}</span><span class="deep-link-url">${safeUrl}</span></span><i class="fa-solid fa-arrow-up-right-from-square text-[11px] text-slate-400"></i></div>`;const inner=el.querySelector('.deep-link-inner');if(inner)window.patchAttachmentNode(inner,holder.content.firstElementChild);else el.prepend(holder.content.firstElementChild);el.title='双击编辑网址';}else if(item.type==='connector'){ el.remove(); return; }
                 if(!reusedItem)st.appendChild(el);
                 el._deepBoundItem=item;el._deepMediaSignature=JSON.stringify([item.src,item.mediaKind,item.crop,item.cover,item.gifCover,item.pictureCoverCloudPath,item.outer]);
                 if(!reusedItem){window.deepBindItem(el,item); el.addEventListener('click',e=>{e.stopPropagation(); if(el._deepConnectPicked){el._deepConnectPicked=false;return;} if(window.deepConnectMode){window.deepHandleConnectPick(item);return;} window.deepCanvasSelected=item.id; window.deepRefreshSelectionVisual?.(); if(item.type==='text' && window.deepTextTool) window.renderDeepCanvas(false); else window.deepPositionTextTools?.();});
@@ -10539,6 +10650,11 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             };
             const syncScaleUI=()=>{scaleInput.value=crop.scale.toFixed(3);if(scaleNumber)scaleNumber.value=String(Number((crop.scale*100).toFixed(1)));if(scaleValue)scaleValue.textContent=Number((crop.scale*100).toFixed(1))+'%';};
             const paint=()=>{raf=0;crop.scale=Math.max(.01,Math.min(20,Number(crop.scale)||1));syncScaleUI();media.style.transform=`translate(-50%,-50%) translate(${crop.offsetX}px,${crop.offsetY}px) scale(${crop.scale}) scale(${crop.stretchX||1},${crop.stretchY||1})`;};
+            const fitOriginal=()=>{
+                const width=Number(media.videoWidth||media.naturalWidth),height=Number(media.videoHeight||media.naturalHeight);
+                if(!it.crop&&width>0&&height>0){crop.scale=Math.max(.01,Math.min(20,frame.w/width,frame.h/height));cropBase.scale=crop.scale;}
+                update();
+            };
             const update=()=>{if(!raf)raf=requestAnimationFrame(paint);};scaleInput.oninput=()=>{crop.scale=Math.max(.01,Math.min(20,Number(scaleInput.value)||1));update();};if(scaleNumber){const applyNumber=()=>{crop.scale=Math.max(.01,Math.min(20,(Number(scaleNumber.value)||100)/100));update();};scaleNumber.onchange=applyNumber;scaleNumber.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();applyNumber();scaleNumber.blur();}};}preview.onwheel=e=>{e.preventDefault();crop.scale=Math.max(.01,Math.min(20,crop.scale+(e.deltaY<0?.02:-.02)));update();};
             let drag=null;preview.onpointerdown=e=>{e.preventDefault();drag={sx:e.clientX,sy:e.clientY,ox:crop.offsetX,oy:crop.offsetY,id:e.pointerId};preview.setPointerCapture?.(e.pointerId);preview.style.cursor='grabbing';};preview.onpointermove=e=>{if(!drag)return;e.preventDefault();crop.offsetX=drag.ox+(e.clientX-drag.sx)/Math.max(.001,displayScale);crop.offsetY=drag.oy+(e.clientY-drag.sy)/Math.max(.001,displayScale);update();};const endDrag=()=>{drag=null;preview.style.cursor='grab';};preview.onpointerup=endDrag;preview.onpointercancel=endDrag;preview.style.cursor='grab';preview.style.touchAction='none';
             window.bindMobileTransformGestures(preview,{
@@ -10619,12 +10735,14 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     });
                 });
             };
+            media.addEventListener(tag==='video'?'loadedmetadata':'load',fitOriginal,{once:true});
+            if((tag==='video'?media.videoWidth:media.naturalWidth)>0)fitOriginal();
             startCropFit();
             document.getElementById('deepCropReset').onclick=()=>{crop.scale=cropBase.scale;crop.offsetX=cropBase.offsetX;crop.offsetY=cropBase.offsetY;crop.stretchX=cropBase.stretchX;crop.stretchY=cropBase.stretchY;frame.w=frameBase.w;frame.h=frameBase.h;lastAutoFill=null;if(undoAutoFillBtn)undoAutoFillBtn.disabled=true;fitFrame();update();};
             document.getElementById('deepCropAutoFill').onclick=()=>{const mw=tag==='video'?Number(media.videoWidth):Number(media.naturalWidth),mh=tag==='video'?Number(media.videoHeight):Number(media.naturalHeight);if(!(mw>0&&mh>0)){window.showToast('媒体尚未加载完成','info');return;}lastAutoFill={stretchX:Number(crop.stretchX)||1,stretchY:Number(crop.stretchY)||1};const baseScale=Math.max(.001,Number(crop.scale)||1),needW=Math.max(1,frame.w)+2*Math.abs(crop.offsetX),needH=Math.max(1,frame.h)+2*Math.abs(crop.offsetY);const needStretchX=needW/Math.max(1,mw*baseScale),needStretchY=needH/Math.max(1,mh*baseScale);crop.stretchX=Math.max(1,Math.min(1.15,needStretchX));crop.stretchY=Math.max(1,Math.min(1.15,needStretchY));if(undoAutoFillBtn)undoAutoFillBtn.disabled=false;update();};
             if(undoAutoFillBtn)undoAutoFillBtn.onclick=()=>{if(!lastAutoFill)return;crop.stretchX=lastAutoFill.stretchX;crop.stretchY=lastAutoFill.stretchY;lastAutoFill=null;undoAutoFillBtn.disabled=true;update();};
             document.getElementById('deepCropCancel').onclick=()=>{try{if(tag==='video')media.pause();}catch(_){}m.classList.add('hidden');m._deepCropRO?.disconnect?.();};
-            document.getElementById('deepCropOk').onclick=()=>{deepPushUndo();it.w=Math.max(40,Math.round(frame.w));it.h=Math.max(40,Math.round(frame.h));it.crop={scale:Number(crop.scale.toFixed(3)),offsetX:Math.round(crop.offsetX),offsetY:Math.round(crop.offsetY),stretchX:Number((crop.stretchX||1).toFixed(3)),stretchY:Number((crop.stretchY||1).toFixed(3))};try{if(tag==='video')media.pause();}catch(_){}m.classList.add('hidden');m._deepCropRO?.disconnect?.();window.renderDeepCanvas();};m.classList.remove('hidden');
+            document.getElementById('deepCropOk').onclick=()=>{deepPushUndo();it.w=Math.max(40,Math.round(frame.w));it.h=Math.max(40,Math.round(frame.h));it.crop={sourceWidth:Number(media.videoWidth||media.naturalWidth)||0,sourceHeight:Number(media.videoHeight||media.naturalHeight)||0,scale:Number(crop.scale.toFixed(3)),offsetX:Math.round(crop.offsetX),offsetY:Math.round(crop.offsetY),stretchX:Number((crop.stretchX||1).toFixed(3)),stretchY:Number((crop.stretchY||1).toFixed(3))};try{if(tag==='video')media.pause();}catch(_){}m.classList.add('hidden');m._deepCropRO?.disconnect?.();window.renderDeepCanvas();};m.classList.remove('hidden');
         };
         window.closeDeepMediaPreview = function(){ const m=document.getElementById('deepMediaPreviewModal'); if(!m)return; m.querySelectorAll('video').forEach(video=>{try{video.pause();video.currentTime=0;}catch(_){}}); m.classList.add('hidden'); m.innerHTML=''; };
         window.openDeepMediaPreview = function(type,index,eventId,startTime=0){
@@ -10854,7 +10972,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 }else if(item.type==='media'){
                     el.className+=' deep-canvas-media';
                     el.style.cursor='zoom-in';
-                    const c=item.crop||{scale:1,offsetX:0,offsetY:0,stretchX:1,stretchY:1};
+                    
                     if(item.mediaKind==='video'){
                         el.innerHTML='';
                         el._deepReadMediaItem=item;
@@ -10887,13 +11005,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                         const md=el.firstElementChild;
                         const deepGif=window.isAnimatedImageSource(item.src,item),deepCover=deepGif?String(item.gifCover||''):'';
                         bindDeepReadImage(md,deepGif?(deepCover||String(item.src||'')):window.imageDisplaySource(item));
-                        if(deepGif&&deepCover){md.dataset.gifSrc=String(item.src||'');md.dataset.gifCover=deepCover;md.addEventListener('mouseenter',()=>window.gifPreviewPlay(md));md.addEventListener('mouseleave',()=>window.gifPreviewStop(md));} 
-                        const applyMedia=()=>{
-                            if(!md)return;
-                            const scale=Math.max(0.001,Number(c.scale)||1);
-                            md.style.width='auto'; md.style.height='auto'; md.style.left='50%'; md.style.top='50%';
-                            const stretchX=Math.max(.85,Math.min(1.15,Number(c.stretchX)||1)),stretchY=Math.max(.85,Math.min(1.15,Number(c.stretchY)||1));md.style.transform=`translate(-50%,-50%) translate(${Number(c.offsetX)||0}px,${Number(c.offsetY)||0}px) scale(${scale}) scale(${stretchX},${stretchY})`;
-                        };
+                        if(deepGif&&deepCover){md.dataset.gifSrc=String(item.src||'');md.dataset.gifCover=deepCover;md.addEventListener('mouseenter',()=>{window.gifPreviewPlay(md);window.deepApplyMediaCrop(md,item,md.getAttribute('src')!==String(item.src));});md.addEventListener('mouseleave',()=>{window.gifPreviewStop(md);window.deepApplyMediaCrop(md,item,true);});} 
+                        const applyMedia=()=>window.deepApplyMediaCrop(md,item,deepGif?!!deepCover&&md.getAttribute('src')!==String(item.src):window.imageDisplaySource(item)!==item.src);
                         if(md.complete) applyMedia(); else md.addEventListener('load',applyMedia,{once:true});
                         el.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();openLarge(item);});
                     }
@@ -11919,39 +12032,6 @@ viewer.style.visibility='';
             });
         };
 
-        window.syncEditingConnections = async function(eventId, desiredConnections) {
-            const clone=v=>{try{return structuredClone(v);}catch(_){return JSON.parse(JSON.stringify(v));}};
-            const existing = (window.connections||[]).filter(c => String(c.sourceId) === String(eventId) || String(c.targetId) === String(eventId));
-            const desiredIds = new Set(desiredConnections.map(c => String(c.id)));
-            const removed = existing.filter(c => !desiredIds.has(String(c.id)));
-            const touchedDesired=[];
-            const removedDone=[];
-            try {
-                // 云端全部确认后才更新本地连线，避免同步失败时页面提前展示成功结果。
-                for (const c of removed) {
-                    await window.timelineApiWrite('deleteConnection', { connectionId: c.id });
-                    removedDone.push(c);
-                }
-                for (const c of desiredConnections) {
-                    await window.timelineApiWrite('upsertConnection', { connection: c });
-                    touchedDesired.push(c);
-                }
-                window.connections=(window.connections||[]).filter(c=>!existing.some(old=>String(old.id)===String(c.id)));
-                window.connections.push(...desiredConnections.map(clone));
-                window.renderSvgConnections();
-                return true;
-            } catch (err) {
-                // 多请求中途失败时尽力恢复云端到保存前的连线集合；恢复失败仍保持“保存失败”，绝不显示成功。
-                try{
-                    for(const c of touchedDesired) await window.timelineApiWrite('deleteConnection',{connectionId:c.id});
-                    for(const c of existing) await window.timelineApiWrite('upsertConnection',{connection:c});
-                }catch(rollbackErr){console.warn('逻辑关系云端回滚失败',rollbackErr);}
-                window.showToast('逻辑关系云端同步失败，请重试', 'error');
-                throw err;
-            }
-        };
-
-
         window._activeEditLockEventId = window._activeEditLockEventId || '';
         window._editLockHeartbeatTimer = window._editLockHeartbeatTimer || null;
         window.acquireEventEditLock = async function(eventId){
@@ -12065,6 +12145,7 @@ viewer.style.visibility='';
                     deepDescription: img.deepDescription ? JSON.parse(JSON.stringify(img.deepDescription)) : null,
                     cloudPath: img.cloudPath || '',
                     pictureCoverCloudPath: img.pictureCoverCloudPath || '',
+                    pictureCoverCrop:img.pictureCoverCrop?{...img.pictureCoverCrop}:null,
                     gifCover: window.isAnimatedImageSource(full,img)?window.resolveMediaCover(img,'gif').url:'',
                     gifCrop:img.gifCrop?{...img.gifCrop}:null,gifCoverCrop:img.gifCoverCrop?{...img.gifCoverCrop}:null,
                     gifCoverCloudPath: img.gifCoverCloudPath || '',
@@ -13059,50 +13140,31 @@ viewer.style.visibility='';
             const out=document.getElementById('richOpacityValue');if(out)out.textContent=pct+'%';
             window.richSyncOpacityControl?.();
         };
-        window.richToggleReveal = function() {
-            const e = document.getElementById('editDescription');
-            const btn=document.getElementById('richRevealBtn');
-            if (!e || btn?.disabled) return;
-            if (!window.richRestoreSelection()) {
-                const sel = window.getSelection();
-                if (!sel || !sel.rangeCount || !e.contains(sel.anchorNode)) {
-                    window.showToast('请先选中需要设为悬停显现的文字', 'info');
-                    return;
-                }
-            }
-            const sel = window.getSelection();
-            if (!sel || !sel.rangeCount || sel.isCollapsed) {
-                window.showToast('请先选中需要设为悬停显现的文字', 'info');
-                return;
-            }
-            const range = sel.getRangeAt(0);
-            let node = range.commonAncestorContainer;
-            if (node.nodeType === 3) node = node.parentElement;
-            const existing = node && node.closest ? node.closest('[data-rich-reveal]') : null;
-            if (existing && e.contains(existing)) {
+        window.toggleTextReveal=function(root,range){
+            if(!root||!range||range.collapsed||!root.contains(range.commonAncestorContainer))return null;
+            let node=range.commonAncestorContainer;
+            if(node.nodeType===3)node=node.parentElement;
+            const existing=node?.closest?.('[data-rich-reveal]');
+            if(existing&&root.contains(existing)){
                 existing.removeAttribute('data-rich-reveal');
-                if (!existing.getAttribute('style') && !existing.getAttribute('data-rich-opacity')) {
-                    existing.replaceWith(...Array.from(existing.childNodes));
-                }
-                window.richRememberSelection();
-                window.showToast('已取消悬停显现', 'success');
-                return;
+                if(!existing.getAttribute('style')&&!existing.getAttribute('data-rich-opacity')&&!existing.getAttribute('data-deep-text-opacity'))existing.replaceWith(...Array.from(existing.childNodes));
+                return {range:range.cloneRange(),enabled:false};
             }
-            const sp = document.createElement('span');
-            sp.setAttribute('data-rich-reveal', '1');
-            try {
-                range.surroundContents(sp);
-            } catch (_) {
-                const frag = range.extractContents();
-                sp.appendChild(frag);
-                range.insertNode(sp);
-            }
-            const nr = document.createRange();
-            nr.selectNodeContents(sp);
-            sel.removeAllRanges();
-            sel.addRange(nr);
-            window.richSelectionRange = nr.cloneRange();
-            window.showToast('已设为悬停显现', 'success');
+            const span=document.createElement('span');span.setAttribute('data-rich-reveal','1');
+            try{range.surroundContents(span);}catch(_){span.appendChild(range.extractContents());range.insertNode(span);}
+            const selected=document.createRange();selected.selectNodeContents(span);
+            return {range:selected,enabled:true};
+        };
+        window.richToggleReveal = function() {
+            const root=document.getElementById('editDescription'),button=document.getElementById('richRevealBtn');
+            if(!root||button?.disabled)return;
+            window.richRestoreSelection();
+            const selection=window.getSelection();
+            const result=selection?.rangeCount?window.toggleTextReveal(root,selection.getRangeAt(0)):null;
+            if(!result){window.showToast('请先选中需要设为悬停显现的文字','info');return;}
+            selection.removeAllRanges();selection.addRange(result.range);
+            window.richSelectionRange=result.range.cloneRange();window.richRememberSelection();
+            window.showToast(result.enabled?'已设为悬停显现':'已取消悬停显现','success');
         };
         window.richClearFormatting=function(){
             const e=document.getElementById('editDescription'),btn=document.getElementById('richClearFormattingBtn');
@@ -14242,6 +14304,7 @@ viewer.style.visibility='';
                     target.inner = freshCoverUrl;
                     target.collection = freshCoverUrl;
                     target.pictureCoverCloudPath = uploadedCover.cloudPath||'';
+                    target.pictureCoverCrop={sx,sy,sw,sh,naturalWidth:cropState.naturalWidth,naturalHeight:cropState.naturalHeight};
                     if(target._localPreview){try{URL.revokeObjectURL(target._localPreview);}catch(_){}delete target._localPreview;}
                     window.showToast("截选完成并已应用", "success");
                     if(window._multiSharedSegmentIndex==null)window.renderMicroPreviews();
@@ -16890,7 +16953,7 @@ const sanitize=x=>window.sanitizeXiaoqingerRichHtml(String(x||''));
 window.normalizeXiaoqingerStoredConfig=function(raw){
  if(raw==null)return null;
  if(!raw||typeof raw!=='object'||raw.schemaVersion!==5||!raw.dialogues||typeof raw.dialogues!=='object')return null;
- const cfg=empty();
+ const cfg=empty();cfg._revision=Number(raw._revision)||0;
  for(const k of KEYS){
   if(!Array.isArray(raw.dialogues[k])||raw.dialogues[k].some(x=>typeof x!=='string'))return null;
   cfg.dialogues[k]=raw.dialogues[k].map(sanitize).filter(plain);
@@ -16975,7 +17038,7 @@ window.saveXiaoqingerDialogues=async function(){
  if(!session){window.showToast?.('台词编辑会话无效，请重新打开','error');return;}
  if(!window.isCloudSynced||window._syncStatusType!=='synced'){window.showToast?.('云端未同步，禁止保存','error');return;}
  try{capture()}catch(err){console.error('[小晴儿台词] 读取失败',err);window.showToast?.('台词读取失败，未保存：'+err.message,'error');return;}
- const cfg=empty();
+ const cfg=empty();cfg._revision=Number(session.original._revision)||0;
  for(const k of KEYS){
   if(!Object.hasOwn(session.drafts,k)||!Array.isArray(session.drafts[k])){window.showToast?.('台词数据不完整，已阻止保存：'+LABELS[k],'error');return;}
   cfg.dialogues[k]=session.drafts[k].map(sanitize).filter(plain);
@@ -16986,7 +17049,7 @@ window.saveXiaoqingerDialogues=async function(){
  const btn=document.querySelector('#xiaoqingerDialogueEditorModal button[onclick="saveXiaoqingerDialogues()"]');
  if(btn){btn.disabled=true;btn.textContent='正在保存...';}
  try{
-  await window.timelineApiXiaoqingerWrite('updateXiaoqinger',{config:cfg});
+  const result=await window.timelineApiXiaoqingerWrite('updateXiaoqinger',{config:cfg});cfg._revision=Number(result.revision)||0;
   window.xiaoqingerDialogueConfig=clone(cfg);
   window.xiaoqingerSimpleDialogues=cfg.dialogues.normal.slice();
   window.closeXiaoqingerDialogueEditor();
