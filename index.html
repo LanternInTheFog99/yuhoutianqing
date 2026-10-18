@@ -3603,8 +3603,12 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             return await window.uploadLargeMediaToCloudBase(file,{purpose:'cover',replaceCloudPath,coverSourcePath,coverKind,silentNotice});
         };
         window.canvasToCloudCover = async function(canvas,prefix='cover',quality=.84,replaceCloudPath='',coverSourcePath='',coverKind='',silentNotice=false){
-            const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('封面生成失败')),'image/jpeg',quality));
-            return await window.uploadCoverBlobToCloudBase(blob,prefix,replaceCloudPath,coverSourcePath,coverKind,silentNotice);
+            let stage='编码封面';
+            try{
+                const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('封面生成失败')),'image/jpeg',quality));
+                stage='上传封面';
+                return await window.uploadCoverBlobToCloudBase(blob,prefix,replaceCloudPath,coverSourcePath,coverKind,silentNotice);
+            }catch(error){const err=error instanceof Error?error:new Error(String(error));err.coverStage=err.coverStage||stage;throw err;}
         };
 
         // 所有新上传媒体统一进入 CloudBase。旧事件中的 Base64 仅作历史兼容，后续由一次性迁移处理。
@@ -5854,35 +5858,38 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
 
         window.makeAutoFirstFrameCover=async function(src,kind,replaceCloudPath='',coverSourcePath=''){
             src=String(src||'');if(!src)return null;
+            let stage='读取媒体',media=null,ownedUrl='';
+            try{
             if(kind==='video'&&/^video\//.test(coverSourcePath))src=await window.getCloudMediaCaptureStreamUrl(coverSourcePath);
-            let ownedUrl='';
             if(kind==='picture'&&coverSourcePath&&!/^(blob:|data:)/i.test(src)){ownedUrl=URL.createObjectURL(await window.readCloudMediaBlob(coverSourcePath));src=ownedUrl;}
-            const media=kind==='video'?document.createElement('video'):new Image();
+            media=kind==='video'?document.createElement('video'):new Image();
             media.crossOrigin='anonymous';
             if(kind==='video'){media.muted=true;media.playsInline=true;media.preload='auto';}
-            try{
+            stage='解码媒体';
                 await new Promise((resolve,reject)=>{
                     const finish=error=>{clearTimeout(timer);media.onload=media.onloadeddata=media.onerror=null;error?reject(error):resolve();};
                     const timer=setTimeout(()=>finish(new Error('媒体首帧读取超时，请重试')),15000);
                     media[kind==='video'?'onloadeddata':'onload']=()=>finish();media.onerror=()=>finish(new Error(kind==='video'?'视频首帧读取失败':kind==='picture'?'图片读取失败':'动图首帧读取失败'));media.src=src;
                     if(kind!=='video'&&media.complete&&media.naturalWidth>0)finish();
                 });
+                stage='生成封面';
                 const w=kind==='video'?media.videoWidth:media.naturalWidth,h=kind==='video'?media.videoHeight:media.naturalHeight;
                 if(!w||!h)throw new Error('媒体首帧尺寸无效');
                 const maxSide=kind==='picture'?1200:1280,scale=Math.min(1,maxSide/w,maxSide/h),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(w*scale));canvas.height=Math.max(1,Math.round(h*scale));canvas.getContext('2d').drawImage(media,0,0,canvas.width,canvas.height);
                 return await window.canvasToCloudCover(canvas,kind+'_cover',kind==='video'?.84:kind==='picture'?.88:.86,replaceCloudPath||'',coverSourcePath||'',kind,true);
-            }finally{try{if(kind==='video'){media.pause();media.removeAttribute('src');media.load();}else media.removeAttribute('src');}catch(_){}if(ownedUrl)URL.revokeObjectURL(ownedUrl);}
+            }catch(error){const err=error instanceof Error?error:new Error(String(error));err.coverStage=err.coverStage||stage;throw err;}finally{try{if(kind==='video'){media.pause();media.removeAttribute('src');media.load();}else media.removeAttribute('src');}catch(_){}if(ownedUrl)URL.revokeObjectURL(ownedUrl);}
         };
         window.ensureAutomaticFirstFrameCovers=async function(eventData){
-            const jobs=[],queued=new WeakSet();
-            const addGif=obj=>{if(!obj||typeof obj!=='object'||obj.gifCover||queued.has(obj))return;queued.add(obj);const src=obj.originalFull||obj.original||obj.outer||obj.src||'';if(!src||!window.isAnimatedImageSource?.(src,obj))return;jobs.push(async()=>{const up=await window.makeAutoFirstFrameCover(src,'gif',obj.gifCoverCloudPath||'',obj.cloudPath||'');if(up){window.trackUnsavedMediaUpload?.(up.cloudPath||'');obj.gifCover=up.url;obj.gifCoverCloudPath=up.cloudPath||'';}});};
+            const jobs=[],queued=new WeakSet(),counts={picture:0,gif:0,video:0};
+            const addJob=(obj,kind,run)=>jobs.push({run,kind,index:++counts[kind],cloudPath:String(obj.cloudPath||''),mediaId:String(obj.mediaId||obj.id||'')});
+            const addGif=obj=>{if(!obj||typeof obj!=='object'||obj.gifCover||queued.has(obj))return;queued.add(obj);const src=obj.originalFull||obj.original||obj.outer||obj.src||'';if(!src||!window.isAnimatedImageSource?.(src,obj))return;addJob(obj,'gif',async()=>{const up=await window.makeAutoFirstFrameCover(src,'gif',obj.gifCoverCloudPath||'',obj.cloudPath||'');if(up){window.trackUnsavedMediaUpload?.(up.cloudPath||'');obj.gifCover=up.url;obj.gifCoverCloudPath=up.cloudPath||'';}});};
             const pictureJobs=new Map();
             const addImage=obj=>{
                 if(!obj||typeof obj!=='object'||queued.has(obj))return;
                 const src=obj.originalFull||obj.original||obj.outer||obj.src||'';
                 if(window.isAnimatedImageSource?.(src,obj)){addGif(obj);return;}
                 if(!src)return;queued.add(obj);
-                jobs.push(async()=>{
+                addJob(obj,'picture',async()=>{
                     let cover=window.resolveMediaCover(obj,'picture');
                     if(!cover.url){
                         const path=window.captureCloudPath(obj,src),key=path||src;
@@ -5894,13 +5901,23 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     obj.pictureCoverCloudPath=cover.path||'';
                 });
             };
-            const addVideo=obj=>{if(!obj||typeof obj!=='object'||obj.cover||queued.has(obj))return;queued.add(obj);const src=obj.url||obj.src||obj.outer||obj.original||'';if(!src)return;jobs.push(async()=>{const up=await window.makeAutoFirstFrameCover(src,'video',obj.coverCloudPath||'',obj.cloudPath||'');if(up){window.trackUnsavedMediaUpload?.(up.cloudPath||'');obj.cover=up.url;obj.coverCloudPath=up.cloudPath||'';}});};
+            const addVideo=obj=>{if(!obj||typeof obj!=='object'||obj.cover||queued.has(obj))return;queued.add(obj);const src=obj.url||obj.src||obj.outer||obj.original||'';if(!src)return;addJob(obj,'video',async()=>{const up=await window.makeAutoFirstFrameCover(src,'video',obj.coverCloudPath||'',obj.cloudPath||'');if(up){window.trackUnsavedMediaUpload?.(up.cloudPath||'');obj.cover=up.url;obj.coverCloudPath=up.cloudPath||'';}});};
             if(Array.isArray(eventData.images))eventData.images=eventData.images.map(x=>typeof x==='string'?window.multiNormalizeImage(x):x);
             (eventData.images||[]).forEach(addImage);(eventData.videos||[]).forEach(addVideo);
             const seen=new WeakSet(),walk=o=>{if(!o||typeof o!=='object'||seen.has(o))return;seen.add(o);if(Array.isArray(o)){o.forEach(walk);return;}if(o.type==='media'){if(o.mediaKind==='video')addVideo(o);else addImage(o);}Object.values(o).forEach(walk);};
             (eventData.images||[]).forEach(x=>walk(x?.deepDescription));(eventData.videos||[]).forEach(x=>walk(x?.deepDescription));walk(eventData.deepDescription);
             (eventData.timeSegments||[]).forEach(seg=>{if(Array.isArray(seg.images))seg.images=seg.images.map(x=>typeof x==='string'?window.multiNormalizeImage(x):x);(seg.images||[]).forEach(addImage);(seg.videos||[]).forEach(addVideo);(seg.images||[]).forEach(x=>walk(x?.deepDescription));(seg.videos||[]).forEach(x=>walk(x?.deepDescription));walk(seg.deepDescription);});
-            for(const job of jobs)await job();
+            for(const job of jobs){
+                try{await job.run();}
+                catch(error){
+                    const cause=error instanceof Error?error:new Error(String(error));
+                    const label=job.kind==='picture'?'图片':job.kind==='gif'?'动图':'视频';
+                    const stage=cause.coverStage||'准备封面';
+                    const err=new Error(`第${job.index}${job.kind==='video'?'个':'张'}${label}${stage}失败：${cause.message||'未知错误'}`);
+                    err.cause=cause;err.coverContext={kind:job.kind,index:job.index,cloudPath:job.cloudPath,mediaId:job.mediaId,stage};
+                    throw err;
+                }
+            }
         };
 
         window._connectionListFingerprint=function(list){
@@ -5951,22 +5968,27 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 if (progressBar) progressBar.style.width = '30%';
                 window.beginCloudWriteLock?.();
 
+                let saveStage='整理待上传文件';
                 try {
                     if (progressBar) setTimeout(() => progressBar.style.width = '60%', 400);
                     
                     if(window._hasPendingTempUploads?.())await window.promoteTempUploads?.(eventData);
                     // Existing cloud references may lack a cover too; inspect every media slot.
+                    saveStage='准备媒体封面';
                     await window.ensureAutomaticFirstFrameCovers(eventData);
+                    saveStage='确认媒体上传';
                     if(window._hasPendingTempUploads?.())await window.promoteTempUploads?.(eventData);
                     const desiredConnections = eventData.connections || [];
                     const connectionsChanged = !isEdit || window._connectionListFingerprint(previousConnections)!==window._connectionListFingerprint(desiredConnections);
                     delete eventData.connections;
+                    saveStage='保存事件';
                     const cloudSaved = await window.saveEventToCloud(eventData,!isEdit);
                     if (!cloudSaved) throw new Error('cloud save failed');
                     if(window._editMediaTxn)window._editMediaTxn.tempUploads=[];
                     
                     if (progressBar) progressBar.style.width = '80%';
                     // 关系没有变化时不再发 delete/upsertConnection 请求。
+                    saveStage='保存连线';
                     if(connectionsChanged) await window.syncEditingConnections(eventData.id, desiredConnections);
                     window._savedDeepDraftsByObject=new WeakMap();
                     
@@ -5974,6 +5996,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                         await Promise.resolve(window.writeActivityLog?.(isEdit ? 'edit' : 'create', eventData)).catch(err=>console.warn('活动日志写入失败',err));
                         await Promise.resolve(window.xiaoqingerClaimSaveReward?.(eventData)).catch(err=>console.warn('小晴儿食粮奖励结算失败',err));
                     }
+                    saveStage='刷新保存结果';
                     await window.waitForCloudView?.();
                     if (progressBar) progressBar.style.width = '100%';
                     if (savingModal) savingModal.classList.add('hidden');
@@ -5987,7 +6010,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     }
                 } catch (err) {
                     if (savingModal) savingModal.classList.add('hidden');
-                    window.showToast("保存失败，请重试", "error");
+                    console.error('[事件保存失败]',{stage:saveStage,eventId:String(eventData.id||''),...(err?.coverContext||{})},err);
+                    window.showToast(`保存失败：${err?.coverContext?'':saveStage+'：'}${err?.message||String(err)||'未知错误'}`, 'error');
                 } finally {
                     window.endCloudWriteLock?.();
                 }
