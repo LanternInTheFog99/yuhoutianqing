@@ -7932,7 +7932,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                         <button id="deepAlignRightBtn" type="button" disabled data-deep-text-control data-deep-selection-only class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs" title="右对齐" onclick="deepApplyTextStyle('align','right')"><i class="fa-solid fa-align-right"></i></button>
                     </div>
                     <div class="relative"><button id="deepTextColorBtn" type="button" disabled data-deep-text-control data-deep-selection-only onpointerdown="event.preventDefault();deepRememberTextSelection()" onclick="deepOpenColorPalette('text')" class="deep-selection-text-control px-2.5 py-1.5 bg-white border rounded-lg text-xs"><span id="deepTextColorSwatch" class="inline-block w-3 h-3 rounded-full mr-1 align-[-1px]" style="background:#334155"></span>文字颜色</button><div id="deepTextColorPalette" class="hidden absolute left-0 top-9 z-[260] w-64 p-3 bg-white border border-slate-200 rounded-xl shadow-xl"><div class="text-[10px] font-semibold text-slate-500 mb-2">固定色 / 自定义</div><div class="grid grid-cols-7 gap-2">${['#0f172a','#334155','#64748b','#dc2626','#ea580c','#f59e0b','#16a34a','#059669','#0284c7','#2563eb','#4f46e5','#7c3aed','#db2777','#ffffff'].map(c=>`<button type="button" onclick="deepPickColor('text','${c}')" class="w-6 h-6 rounded-full border border-slate-200 deep-color-choice" style="background:${c}" title="${c}"></button>`).join('')}</div><div class="flex items-center gap-2 mt-3 pt-2 border-t"><span class="text-[10px] text-slate-500">自定义</span><input id="deepTextCustomColor" type="color" value="#334155" onchange="deepPickColor('text',this.value)" class="w-7 h-7 p-0 border-0"><button type="button" onclick="deepPickColor('text',document.getElementById('deepTextCustomColor').value)" class="ml-auto px-2 py-1 rounded bg-indigo-600 text-white text-[10px]">使用</button></div></div></div>
-                    <label class="text-[10px] text-slate-500 flex items-center gap-1">透明度<input id="deepTextOpacity" data-deep-text-control data-deep-selection-only type="range" min="0" max="100" value="100" disabled onpointerdown="deepBeginOpacityGesture()" onpointerup="deepEndOpacityGesture()" onpointercancel="deepEndOpacityGesture()" onkeydown="if(!window._deepOpacityGesture)deepBeginOpacityGesture()" onkeyup="deepEndOpacityGesture()" onblur="deepEndOpacityGesture()" oninput="deepApplyTextStyle('opacity',this.value)" class="deep-selection-text-control w-16"><span id="deepTextOpacityValue" class="w-5 text-right font-mono text-slate-400">—</span></label>
+                    <label class="text-[10px] text-slate-500 flex items-center gap-1">透明度<input id="deepTextOpacity" data-deep-text-control data-deep-selection-only type="range" min="0" max="100" value="100" disabled oninput="deepApplyTextStyle('opacity',this.value)" class="deep-selection-text-control w-16"><span id="deepTextOpacityValue" class="w-5 text-right font-mono text-slate-400">—</span></label>
                     </div>
                     <button type="button" onclick="deepDeleteSelected()" class="px-2.5 py-1.5 bg-rose-50 border border-rose-200 text-rose-600 rounded-lg text-xs">删除选中</button>
                     <span id="deepBackupStatus" class="deep-backup-status">自动备份 · 等待首次备份</span>
@@ -9201,6 +9201,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             while((node=walker.nextNode())){
                 if(!(node.nodeValue||'').length)continue;
                 try{if(!range.intersectsNode(node))continue;}catch(_){continue;}
+                const start=node===range.startContainer?range.startOffset:0,end=node===range.endContainer?range.endOffset:node.nodeValue.length;
+                if(end<=start)continue;
                 const parent=node.parentElement;
                 const sp=parent?.closest?.('[data-deep-text-opacity]');
                 const owned=sp&&content.contains(sp)?sp:null;
@@ -9213,7 +9215,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         };
         window.deepSyncOpacityControl=function(){
             const slider=document.getElementById('deepTextOpacity'),out=document.getElementById('deepTextOpacityValue');
-            if(!slider||!out)return;
+            if(!slider||!out||document.activeElement===slider)return;
             const it=window.deepCanvasState?.items?.find(x=>x.id===window.deepCanvasSelected);
             const content=it?.type==='text'?document.querySelector(`[data-deep-id="${CSS.escape(it.id)}"] .deep-text-content`):null;
             const sel=window.getSelection?.();
@@ -9222,7 +9224,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 const live=sel.getRangeAt(0);
                 if(!live.collapsed&&content.contains(live.commonAncestorContainer))r=live;
             }
-            if(content&&(window._deepOpacityGesture||!r))r=window.deepRangeFromTextSelectionSnapshot?.(content);
+            if(content)r=window.deepRangeFromTextSelectionSnapshot?.(content)||r;
             if(!content||!r){slider.disabled=true;slider.value='100';out.textContent='—';window.deepTextOpacitySpan=null;return;}
             const os=window.deepGetSelectionOpacity?.(r,content);
             if(!os?.valid){slider.disabled=true;slider.value='100';out.textContent='—';window.deepTextOpacitySpan=null;return;}
@@ -9256,9 +9258,9 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     b.classList.remove('selected-text-format-active');b.setAttribute('aria-pressed','false');
                 });
             };
-            if(!content||!sel?.rangeCount){window.clearSelectedFormatFeedback?.('deep');clearAlign();return;}
-            const r=sel.getRangeAt(0);
-            if(r.collapsed||!content.contains(r.commonAncestorContainer)){window.clearSelectedFormatFeedback?.('deep');clearAlign();return;}
+            if(!content){window.clearSelectedFormatFeedback?.('deep');clearAlign();return;}
+            const r=window.deepRangeFromTextSelectionSnapshot?.(content)||(sel?.rangeCount?sel.getRangeAt(0):null);
+            if(!r||r.collapsed||!content.contains(r.commonAncestorContainer)){window.clearSelectedFormatFeedback?.('deep');clearAlign();return;}
             window.syncSelectedFormatFeedbackReadOnly?.(content,r,'deep');
             clearAlign();
             const state=window.deepGetSelectedAlignmentReadOnly?.(content,r);
@@ -9293,18 +9295,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             });
         };
 
-        window.deepBeginOpacityGesture=function(){
-            window.deepCaptureTextSelectionSnapshot?.();
-            const snap=window.deepSavedTextSelectionSnapshot;
-            window._deepOpacityGesture=snap?{...snap}:null;
-        };
-        window.deepEndOpacityGesture=function(){
-            const snap=window._deepOpacityGesture;if(!snap)return;
-            window.deepSavedTextSelectionSnapshot={...snap};
-            window._deepOpacityGesture=null;window.deepRestoreTextSelection?.();
-        };
         window.deepCaptureTextSelectionSnapshot=function(){
-            if(window._deepOpacityGesture){window.deepSavedTextSelectionSnapshot={...window._deepOpacityGesture};return true;}
+            if(document.activeElement?.closest?.('#deepTextTools,#deepTextColorPalette'))return !!window.deepSavedTextSelectionSnapshot;
             const sel=window.getSelection?.();
             const it=window.deepCanvasState?.items?.find(x=>x.id===window.deepCanvasSelected);
             if(!sel?.rangeCount||!it||it.type!=='text')return false;
@@ -9327,7 +9319,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             return true;
         };
         window.deepRangeFromTextSelectionSnapshot=function(root){
-            const snap=window._deepOpacityGesture||window.deepSavedTextSelectionSnapshot;
+            const snap=window.deepSavedTextSelectionSnapshot;
             if(!root||!snap||snap.start===snap.end)return null;
             const owner=root.closest?.('[data-deep-id]');if(owner&&owner.dataset.deepId!==snap.itemId)return null;
             const pointAt=offset=>{
@@ -9366,7 +9358,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         };
         window.deepClearSavedSelectionHighlight=function(){try{CSS?.highlights?.delete?.('deep-saved-selection');}catch(_){}};
         window.deepRememberTextSelection=function(e){
-            if(window._deepOpacityGesture||window._deepSelectionRestoring)return !!window.deepSavedTextSelectionSnapshot;
+            if(window._deepSelectionRestoring)return !!window.deepSavedTextSelectionSnapshot;
             if(e?.target?.closest?.('#deepTextTools')||document.activeElement?.closest?.('#deepTextTools'))return !!window.deepSavedTextSelectionSnapshot;
             if(window.deepCaptureTextSelectionSnapshot?.()){
                 const it=window.deepCanvasState?.items?.find(x=>x.id===window.deepCanvasSelected);
@@ -9385,14 +9377,14 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             window.deepSyncSelectedFormatFeedback?.();
             return false;
         };
-        window.deepRestoreTextSelection=function(){
+        window.deepRestoreTextSelection=function({native=true}={}){
             const snap=window.deepSavedTextSelectionSnapshot;
             const it=window.deepCanvasState?.items?.find(x=>x.id===(snap?.itemId||window.deepSavedTextId||window.deepCanvasSelected));
             const root=it?.type==='text'?document.querySelector(`[data-deep-id="${CSS.escape(it.id)}"] .deep-text-content`):null;
             const r=window.deepRangeFromTextSelectionSnapshot?.(root);
             const sel=window.getSelection?.();
             if(!sel||!r||window.isOtherEditorInputFocused?.(root,'#deepTextTools,#deepTextColorPalette'))return false;
-            if(window._deepOpacityGesture){window.deepSavedTextRange=r.cloneRange();window.deepSavedTextId=it.id;window.deepSyncSavedSelectionHighlight?.(true);return true;}
+            if(!native){window.deepSavedTextRange=r.cloneRange();window.deepSavedTextId=it.id;window.deepSyncSavedSelectionHighlight?.(true);return true;}
             try{
                 sel.removeAllRanges();sel.addRange(r);
                 window.deepSavedTextRange=r.cloneRange();window.deepSavedTextId=it.id;
@@ -9411,7 +9403,6 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         if(!window._deepTextOutsideSelectionBound){
             window._deepTextOutsideSelectionBound=true;
             document.addEventListener('pointerup',()=>{
-                window.deepEndOpacityGesture?.();
                 if(!window.deepTextSelectionDragActive)return;
                 window.deepTextSelectionDragActive=false;
                 window.deepSuppressBlankTextClickUntil=Date.now()+300;
@@ -9483,7 +9474,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 const live=sel.getRangeAt(0);
                 if(!live.collapsed&&content.contains(live.commonAncestorContainer))r=live;
             }
-            if(content&&(window._deepOpacityGesture||!r))r=window.deepRangeFromTextSelectionSnapshot?.(content);
+            if(content)r=window.deepRangeFromTextSelectionSnapshot?.(content)||r;
             if(r){
                 const state=window.getUniformSelectedFontSizeReadOnly?.(content,r);
                 if(state?.valid){mixed=!!state.mixed;if(!mixed&&Number.isFinite(state.size))size=state.size;}
@@ -9733,13 +9724,12 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 range=sel.getRangeAt(0);
             }
             if(!range||range.collapsed||!editingEl.contains(range.commonAncestorContainer))return;
-            const bookmark=window._deepOpacityGesture?{...window._deepOpacityGesture}:window.deepSavedTextSelectionSnapshot?{...window.deepSavedTextSelectionSnapshot}:null;
+            const bookmark=window.deepSavedTextSelectionSnapshot?{...window.deepSavedTextSelectionSnapshot}:null;
             const restoreBookmark=()=>{
                 if(!bookmark)return;
                 window.deepSavedTextSelectionSnapshot={...bookmark};
-                if(window.isMobileEditingDevice?.())editingEl.focus({preventScroll:true});
-                window.deepRestoreTextSelection();
-                if(!window._deepOpacityGesture)window.deepRememberTextSelection();
+                const inTools=!!document.activeElement?.closest?.('#deepTextTools,#deepTextColorPalette');
+                window.deepRestoreTextSelection({native:!inTools});
             };
             if(kind==='opacity'){
                 const slider=document.getElementById('deepTextOpacity');if(slider?.disabled)return;
@@ -9841,7 +9831,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             }else{return;}
             restoreBookmark();
             window.deepSyncDecorationGeometry?.(editingEl);it.html=editingEl.innerHTML;it.text=editingEl.innerText||'';
-            window.deepSyncFontSizeControls?.(it);window.deepSyncOpacityControl?.();window.deepSyncSelectedFormatFeedback?.();
+            window.deepSyncFontSizeControls?.(it);if(kind==='opacity'){const slider=document.getElementById('deepTextOpacity'),out=document.getElementById('deepTextOpacityValue'),pct=Math.max(0,Math.min(100,Number(val)||0));if(slider)slider.value=String(pct);if(out)out.textContent=pct+'%';}else window.deepSyncOpacityControl?.();window.deepSyncSelectedFormatFeedback?.();
         };
 
         window.deepBindTextAutoFit=function(item,contentEl){
