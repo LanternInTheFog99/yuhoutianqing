@@ -7788,8 +7788,38 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             if(undo)undo.disabled=!(window.deepCanvasUndo?.length);
             if(redo)redo.disabled=!(window.deepCanvasRedo?.length);
         };
+        window.deepEndTextHistoryGroup=function(){window._deepTextHistoryGroup=null;};
+        window.deepRecordTextChange=function(before,itemId,kind,merge=false){
+            if(!before||!window.deepCanvasState)return false;
+            const old=before.items?.find(x=>x.id===itemId),next=window.deepCanvasState.items?.find(x=>x.id===itemId);
+            if(!old||!next)return false;
+            const fields=['html','text','fontSize','color','bold','italic','underline','strike','opacity','textAlign','border','borderColor','w','h'];
+            const signature=o=>JSON.stringify(fields.map(k=>o[k]??null));
+            if(signature(old)===signature(next))return false;
+            const now=Date.now(),key=itemId+':'+kind,group=window._deepTextHistoryGroup,undo=window.deepCanvasUndo;
+            const joined=merge&&group?.key===key&&(kind==='format:opacity'||now-group.at<800)&&undo.length===group.depth&&undo[undo.length-1]===group.before&&group.after===signature(old);
+            if(!joined){undo.push(before);if(undo.length>40)undo.shift();}
+            window.deepCanvasRedo=[];
+            window._deepTextHistoryGroup=merge?{key,at:now,depth:undo.length,before:undo[undo.length-1],after:signature(next)}:null;
+            window.syncDeepHistoryButtons?.();return true;
+        };
+        window.deepBeforeTextInput=function(event,item,content){
+            if(window._deepTextFormatDepth||content._deepCompositionBefore)return;
+            if(event.inputType==='historyUndo'||event.inputType==='historyRedo'){
+                if(event.cancelable){event.preventDefault();if(event.inputType==='historyUndo')window.deepUndo();else window.deepRedo();}return;
+            }
+            content._deepHistoryBefore=window.deepClone(window.deepCanvasState);
+            content._deepHistoryKind=String(event.inputType||'insertText');
+        };
+        window.deepCommitTextInput=function(item,content,before){
+            const kind=content._deepHistoryKind||'insertText';content._deepHistoryBefore=null;content._deepHistoryKind=null;
+            if(window._deepTextFormatDepth||content._deepCompositionBefore)return;
+            const merge=/^(insertText|insertCompositionText|deleteContentBackward|deleteContentForward)$/.test(kind);
+            window.deepRecordTextChange(before,item.id,'input:'+kind,merge);
+        };
         window.deepPushUndo = function(){
             if(!window.deepCanvasState)return;
+            window.deepEndTextHistoryGroup?.();
             window.deepCanvasState.enabled=window.deepDescriptionEnabledDraft!==false;
             window.deepCanvasUndo.push(window.deepClone(window.deepCanvasState));
             if(window.deepCanvasUndo.length>40) window.deepCanvasUndo.shift();
@@ -7797,6 +7827,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             window.syncDeepHistoryButtons?.();
         };
         window.deepRestoreState = function(st){
+            const activeId=window.deepCanvasSelected,activeText=window.deepCanvasState?.items?.find(x=>x.id===activeId&&x.type==='text'&&x.editing);
             const next=window.deepClone(st),previous=new Map((window.deepCanvasState?.items||[]).map(item=>[item.id,item]));
             next.items=(next.items||[]).map(item=>{
                 const old=previous.get(item.id);
@@ -7804,10 +7835,10 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 Object.keys(old).forEach(key=>{if(!(key in item))delete old[key];});
                 Object.assign(old,item);return old;
             });
-            window.deepCanvasState=next;window.deepDescriptionEnabledDraft=next.enabled!==false;window.deepSyncEnabledToggle?.();window.deepCanvasSelected=null;window.renderDeepCanvas();
+            window.deepCanvasState=next;window.deepDescriptionEnabledDraft=next.enabled!==false;window.deepSyncEnabledToggle?.();window.deepCanvasSelected=activeText&&next.items.some(x=>x.id===activeId&&x.type==='text')?activeId:null;if(window.deepCanvasSelected){next.items.find(x=>x.id===activeId).editing=true;}window.renderDeepCanvas();
         };
-        window.deepUndo = function(){ if(!window.deepCanvasUndo.length)return; window.deepCanvasRedo.push(window.deepClone(window.deepCanvasState)); window.deepRestoreState(window.deepCanvasUndo.pop()); };
-        window.deepRedo = function(){ if(!window.deepCanvasRedo.length)return; window.deepCanvasUndo.push(window.deepClone(window.deepCanvasState)); window.deepRestoreState(window.deepCanvasRedo.pop()); };
+        window.deepUndo = function(){ window.deepEndTextHistoryGroup?.();if(!window.deepCanvasUndo.length)return; window.deepCanvasRedo.push(window.deepClone(window.deepCanvasState)); window.deepRestoreState(window.deepCanvasUndo.pop()); };
+        window.deepRedo = function(){ window.deepEndTextHistoryGroup?.();if(!window.deepCanvasRedo.length)return; window.deepCanvasUndo.push(window.deepClone(window.deepCanvasState)); window.deepRestoreState(window.deepCanvasRedo.pop()); };
         window.deepEsc = function(v){ return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
         window.deepCanvasHasContent = function(st){ return !!(st && Array.isArray(st.items) && st.items.some(x=>x && ['text','media','draw','connector','link'].includes(x.type))); };
         window.deepDefaultState = function(type,obj){
@@ -7932,7 +7963,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                         <button id="deepAlignRightBtn" type="button" disabled data-deep-text-control data-deep-selection-only class="deep-selection-text-control px-2 py-1 bg-white border rounded text-xs" title="右对齐" onclick="deepApplyTextStyle('align','right')"><i class="fa-solid fa-align-right"></i></button>
                     </div>
                     <div class="relative"><button id="deepTextColorBtn" type="button" disabled data-deep-text-control data-deep-selection-only onpointerdown="event.preventDefault();deepRememberTextSelection()" onclick="deepOpenColorPalette('text')" class="deep-selection-text-control px-2.5 py-1.5 bg-white border rounded-lg text-xs"><span id="deepTextColorSwatch" class="inline-block w-3 h-3 rounded-full mr-1 align-[-1px]" style="background:#334155"></span>文字颜色</button><div id="deepTextColorPalette" class="hidden absolute left-0 top-9 z-[260] w-64 p-3 bg-white border border-slate-200 rounded-xl shadow-xl"><div class="text-[10px] font-semibold text-slate-500 mb-2">固定色 / 自定义</div><div class="grid grid-cols-7 gap-2">${['#0f172a','#334155','#64748b','#dc2626','#ea580c','#f59e0b','#16a34a','#059669','#0284c7','#2563eb','#4f46e5','#7c3aed','#db2777','#ffffff'].map(c=>`<button type="button" onclick="deepPickColor('text','${c}')" class="w-6 h-6 rounded-full border border-slate-200 deep-color-choice" style="background:${c}" title="${c}"></button>`).join('')}</div><div class="flex items-center gap-2 mt-3 pt-2 border-t"><span class="text-[10px] text-slate-500">自定义</span><input id="deepTextCustomColor" type="color" value="#334155" onchange="deepPickColor('text',this.value)" class="w-7 h-7 p-0 border-0"><button type="button" onclick="deepPickColor('text',document.getElementById('deepTextCustomColor').value)" class="ml-auto px-2 py-1 rounded bg-indigo-600 text-white text-[10px]">使用</button></div></div></div>
-                    <label class="text-[10px] text-slate-500 flex items-center gap-1">透明度<input id="deepTextOpacity" data-deep-text-control data-deep-selection-only type="range" min="0" max="100" value="100" disabled oninput="deepApplyTextStyle('opacity',this.value)" class="deep-selection-text-control w-16"><span id="deepTextOpacityValue" class="w-5 text-right font-mono text-slate-400">—</span></label>
+                    <label class="text-[10px] text-slate-500 flex items-center gap-1">透明度<input id="deepTextOpacity" data-deep-text-control data-deep-selection-only type="range" min="0" max="100" value="100" disabled oninput="deepApplyTextStyle('opacity',this.value)" onchange="deepEndTextHistoryGroup()" class="deep-selection-text-control w-16"><span id="deepTextOpacityValue" class="w-5 text-right font-mono text-slate-400">—</span></label>
                     </div>
                     <button type="button" onclick="deepDeleteSelected()" class="px-2.5 py-1.5 bg-rose-50 border border-rose-200 text-rose-600 rounded-lg text-xs">删除选中</button>
                     <span id="deepBackupStatus" class="deep-backup-status">自动备份 · 等待首次备份</span>
@@ -9698,10 +9729,12 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
 
         window.deepApplyTextStyle = function(kind,val){
             const it=window.deepCanvasState?.items?.find(x=>x.id===window.deepCanvasSelected);
+            const historyBefore=window.deepCanvasState?window.deepClone(window.deepCanvasState):null;window._deepTextFormatDepth=(window._deepTextFormatDepth||0)+1;
+            try{
             if(kind==='borderToggle'||kind==='borderColor'){
                 if(!it||it.type!=='text'){window.showToast?.('请先选中文字框','info');return;}
                 window.deepConnectMode=false;window.deepConnectPending=[];
-                deepPushUndo();
+
                 if(kind==='borderToggle')it.border=!it.border;else it.borderColor=val;
                 window.renderDeepCanvas();
                 window.deepSyncBorderToggle?.();
@@ -9737,7 +9770,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 const fixed=window.applyExactOpacityToSelection?.(editingEl,range,'data-deep-text-opacity',pct);if(!fixed)return;
                 range=fixed;window.deepSavedTextRange=fixed.cloneRange();window.deepSavedTextId=it.id;window.deepSyncDecorationGeometry?.(editingEl);window.deepSyncSavedSelectionHighlight?.();
             }else if(kind==='reveal'){
-                window.deepPushUndo?.();
+
                 const result=window.toggleTextReveal(editingEl,range);if(!result)return;
                 sel.removeAllRanges();sel.addRange(result.range);
                 window.deepSavedTextRange=result.range.cloneRange();window.deepSavedTextId=it.id;
@@ -9832,12 +9865,18 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             restoreBookmark();
             window.deepSyncDecorationGeometry?.(editingEl);it.html=editingEl.innerHTML;it.text=editingEl.innerText||'';
             window.deepSyncFontSizeControls?.(it);if(kind==='opacity'){const slider=document.getElementById('deepTextOpacity'),out=document.getElementById('deepTextOpacityValue'),pct=Math.max(0,Math.min(100,Number(val)||0));if(slider)slider.value=String(pct);if(out)out.textContent=pct+'%';}else window.deepSyncOpacityControl?.();window.deepSyncSelectedFormatFeedback?.();
+            }finally{window._deepTextFormatDepth=Math.max(0,(window._deepTextFormatDepth||1)-1);if(it)window.deepRecordTextChange?.(historyBefore,it.id,'format:'+kind,kind==='opacity');}
         };
 
         window.deepBindTextAutoFit=function(item,contentEl){
             if(!item||!contentEl||contentEl.dataset.autoFitBound)return;
             contentEl.dataset.autoFitBound='1';
-            contentEl.addEventListener('keydown',e=>window.deepHandleTextEditorKeydown?.(e,item,contentEl));
+            contentEl.addEventListener('beforeinput',e=>window.deepBeforeTextInput(e,item,contentEl));
+            contentEl.addEventListener('pointerdown',()=>window.deepEndTextHistoryGroup?.());
+            contentEl.addEventListener('compositionstart',()=>{window.deepEndTextHistoryGroup?.();contentEl._deepCompositionBefore=window.deepClone(window.deepCanvasState);});
+            contentEl.addEventListener('compositionend',()=>{const before=contentEl._deepCompositionBefore;contentEl._deepCompositionBefore=null;contentEl._deepHistoryBefore=null;item.html=contentEl.innerHTML;item.text=contentEl.innerText||'';window.deepRecordTextChange(before,item.id,'composition',false);});
+            contentEl.addEventListener('blur',()=>window.deepEndTextHistoryGroup?.());
+            contentEl.addEventListener('keydown',e=>{if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(e.key))window.deepEndTextHistoryGroup?.();window.deepHandleTextEditorKeydown?.(e,item,contentEl);});
             ['mouseup','keyup','click','touchend'].forEach(type=>contentEl.addEventListener(type,()=>requestAnimationFrame(()=>window.deepRememberTextSelection?.())));
             requestAnimationFrame(()=>window.deepAutoFitTextItem(item,contentEl));
         };
@@ -10005,7 +10044,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     e.preventDefault(); e.stopPropagation();
                     if(window.deepInteractionSuppressed(el,item)||moved)return; if(item.type==='text' && !item.editing && window.deepCanvasSelected===item.id){ window.deepStartTextEdit(item); }
                 });
-                t?.addEventListener('input',()=>{item.text=t.innerText||'';item.html=t.innerHTML||window.deepEsc(item.text);window.deepFitTypingBox(item,t);window.deepSyncOpacityControl?.();});
+                t?.addEventListener('input',()=>{const before=t._deepHistoryBefore||window.deepClone(window.deepCanvasState);item.text=t.innerText||'';item.html=t.innerHTML||window.deepEsc(item.text);window.deepFitTypingBox(item,t);window.deepSyncOpacityControl?.();window.deepCommitTextInput(item,t,before);});
                 t?.addEventListener('mouseup',()=>window.deepRememberTextSelection?.());
                 t?.addEventListener('keyup',()=>window.deepRememberTextSelection?.());
                 t?.addEventListener('blur',()=>{ if(item.editing){ item.text=t.innerText||''; item.html=t.innerHTML||window.deepEsc(item.text); } });
