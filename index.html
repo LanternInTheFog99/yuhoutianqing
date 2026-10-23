@@ -3787,7 +3787,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             if(!window.hasTimelineEditToken?.()){window.showToast?.('请先解锁编辑模式','error');return null;}
             let modal=document.getElementById('cloudMediaLibraryModal');
             if(!modal){modal=document.createElement('div');modal.id='cloudMediaLibraryModal';modal.className='fixed inset-0 z-[470] hidden bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5';document.body.appendChild(modal);}
-            modal.innerHTML=`<div class="relative w-full max-w-3xl max-h-[86vh] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden" onclick="event.stopPropagation()"><div class="px-4 py-3 border-b flex items-center gap-2"><div class="font-bold text-slate-800"><i class="fa-solid fa-cloud text-indigo-600 mr-2"></i>云端数据库</div><button data-media-close type="button" class="ml-auto w-8 h-8 rounded-lg hover:bg-slate-100"><i class="fa-solid fa-xmark"></i></button></div><div class="px-4 py-3 border-b flex flex-wrap items-center gap-2"><div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-600"><button type="button" data-media-sort-direction class="text-indigo-500"><i data-media-sort-direction-icon class="fa-solid fa-arrow-down-wide-short text-[10px]"></i></button><button type="button" data-media-sort-toggle><span data-media-sort-label>按时间</span></button></div>${[['type','类型'],['status','状态'],['owner','归属']].map(([key,label])=>`<div class="relative"><button type="button" data-media-filter-btn="${key}" class="px-2.5 py-1.5 rounded-lg text-xs border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 flex items-center gap-1.5"><i class="fa-solid fa-filter text-[10px] text-indigo-500"></i>${label}<i class="fa-solid fa-chevron-down text-[8px] text-slate-400"></i></button><div data-media-filter-menu="${key}" class="hidden absolute left-0 top-full mt-1 z-30 w-[86px] rounded-lg border border-slate-200 bg-white p-1 shadow-xl"></div></div>`).join('')}<input data-media-search class="ml-auto min-w-[150px] flex-1 max-w-xs px-3 py-1.5 rounded-lg border text-xs" placeholder="搜索文件名"></div><div data-media-list class="p-4 overflow-y-auto min-h-[240px]"></div><div class="px-4 py-2.5 border-t bg-slate-50/70 text-[10px] text-slate-400">未引用文件会由系统定时清理。</div></div>`
+            modal.innerHTML=`<div class="relative w-full max-w-3xl max-h-[86vh] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden" onclick="event.stopPropagation()"><div class="px-4 py-3 border-b flex items-center gap-2"><div class="font-bold text-slate-800"><i class="fa-solid fa-cloud text-indigo-600 mr-2"></i>云端素材库</div><button data-media-close type="button" class="ml-auto w-8 h-8 rounded-lg hover:bg-slate-100"><i class="fa-solid fa-xmark"></i></button></div><div class="px-4 py-3 border-b flex flex-wrap items-center gap-2"><div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-600"><button type="button" data-media-sort-direction class="text-indigo-500"><i data-media-sort-direction-icon class="fa-solid fa-arrow-down-wide-short text-[10px]"></i></button><button type="button" data-media-sort-toggle><span data-media-sort-label>按时间</span></button></div>${[['type','类型'],['status','状态'],['owner','归属']].map(([key,label])=>`<div class="relative"><button type="button" data-media-filter-btn="${key}" class="px-2.5 py-1.5 rounded-lg text-xs border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 flex items-center gap-1.5"><i class="fa-solid fa-filter text-[10px] text-indigo-500"></i>${label}<i class="fa-solid fa-chevron-down text-[8px] text-slate-400"></i></button><div data-media-filter-menu="${key}" class="hidden absolute left-0 top-full mt-1 z-30 w-[86px] rounded-lg border border-slate-200 bg-white p-1 shadow-xl"></div></div>`).join('')}<input data-media-search class="ml-auto min-w-[150px] flex-1 max-w-xs px-3 py-1.5 rounded-lg border text-xs" placeholder="搜索文件名"></div><div data-media-list class="p-4 overflow-y-auto min-h-[240px]"></div><div class="px-4 py-2.5 border-t bg-slate-50/70 text-[10px] text-slate-400">未引用文件会由系统定时清理。</div></div>`
             const opening=(modal._mediaOpening||0)+1;modal._mediaOpening=opening;let loadVersion=0;
             const close=()=>{modal.classList.add('hidden');};modal.onclick=e=>{if(e.target===modal)close();};modal.querySelector('[data-media-close]').onclick=close;
             const allowed=Array.isArray(allowedFolders)&&allowedFolders.length?new Set(allowedFolders.map(String).filter(x=>x!=='music')):null;
@@ -3829,7 +3829,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 const version=++loadVersion,list=modal.querySelector('[data-media-list]'),scroll=list.scrollTop;
                 const current=()=>modal._mediaOpening===opening&&loadVersion===version;
                 setMediaBusy(true);
-                if(!list.querySelector('[data-media-grid]'))list.innerHTML='<div class="text-sm text-slate-400 text-center py-12"><i class="fa-solid fa-spinner fa-spin mr-2"></i>正在读取云端数据库…</div>';
+                if(!list.querySelector('[data-media-grid]'))list.innerHTML='<div class="text-sm text-slate-400 text-center py-12"><i class="fa-solid fa-spinner fa-spin mr-2"></i>正在读取云端素材库…</div>';
                 try{const data=await readMediaLibrary();if(!current())return;items=data;render();list.scrollTop=scroll;if(reveal){await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));if(current())revealPath(reveal);}return true;}
                 catch(e){if(!current())return false;if(list.querySelector('[data-media-grid]'))window.showToast?.(e?.message||'读取失败','error');else{const error=document.createElement('div');error.className='text-sm text-rose-600 text-center py-12';error.textContent=e?.message||'读取失败';list.replaceChildren(error);}return false;}
                 finally{if(current())setMediaBusy(false);}
@@ -5376,9 +5376,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             };
         };
         window.mediaNeedsSharedLock=function(path){
-            if(window._editMediaTxn?.tempUploads?.some(x=>x.tempPath===path))return false;
-            let shared=false;const seen=new WeakSet(),walk=v=>{if(!v||typeof v!=='object'||seen.has(v))return;seen.add(v);if(v.mediaShared===true&&window.mediaPathOf(v.cloudPath||v.originalFull||v.original||v.url||v.src||'')===path)shared=true;for(const [key,x]of Object.entries(v))if(!key.startsWith('_'))walk(x);};
-            [window.editingImageFiles,window.editingVideos,window.multiTimeDraft].forEach(walk);return shared;
+            const sharing=window.editorMediaSharing(path);return sharing.other||sharing.unknown;
         };
         window.acquireMediaEditLock=async function(path){
             path=window.mediaPathOf(path);if(!path)return true;window.beginEditMediaTxn?.();const tx=window._editMediaTxn;if(!tx)return false;
@@ -5715,14 +5713,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             window.tagFilterMatch = window.tagFilterDraftMatch === 'all' ? 'all' : 'any';
             window.tagFilterSelected = (window.tagFilterDraftSelected || []).slice();
             window.closeTagModal();
-            const timelineContainer = document.getElementById('timelineContainer');
-            if (timelineContainer) timelineContainer.scrollLeft = 0;
-            window.renderEvents();
-            requestAnimationFrame(() => requestAnimationFrame(() => {
-                const tc = document.getElementById('timelineContainer');
-                if (tc) tc.scrollLeft = 0;
-                window.scrollTimelineToFirstNode();
-            }));
+            window.renderTimelineQueryChange({first:true});
             window.updateTagFilterBadge();
         };
 
@@ -6143,7 +6134,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         };
 
         window.handleSearch = function() {
-            window.renderEvents();
+            window.renderTimelineQueryChange();
         };
 
         window.scrollTimelineToFirstNode = function() {
@@ -8033,6 +8024,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 }catch(e){console.error('shared deep read failed',e);window.showToast?.('深入描述读取失败，请重试','error');return;}
             }
             const m=window.deepEnsureModal();
+            window.showEditorSharedWarning(m,obj);
             window.deepCanvasTarget={...target};
             window.beginEditMediaTxn?.();
             window._deepEditSession={
@@ -8253,18 +8245,18 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         };
         window.deepBackupSetStatus=function(kind,at){
             const el=document.getElementById('deepBackupStatus');if(!el)return;
+            window._deepBackupStatusKind=kind;
             if(kind==='saving'){el.textContent='自动备份 · 备份中…';el.className='deep-backup-status is-saving';return;}
-            if(kind==='local'){el.textContent='自动备份 · 已保留本地，云端待重试';el.className='deep-backup-status is-error';return;}
-            if(kind==='error'){el.textContent='自动备份 · 备份失败';el.className='deep-backup-status is-error';return;}
+            if(kind==='local'){el.textContent='自动备份 · 仅本地';el.className='deep-backup-status is-error';return;}
+            if(kind==='error'){el.textContent='自动备份 · 失败';el.className='deep-backup-status is-error';return;}
             if(kind==='waiting'){el.textContent='自动备份 · 等待首次备份';el.className='deep-backup-status';return;}
             window._deepBackupLastAt=Number(at)||Date.now();
             window.deepBackupRefreshStatus?.();
         };
         window.deepBackupRefreshStatus=function(){
             const el=document.getElementById('deepBackupStatus');if(!el||!window._deepBackupLastAt)return;
-            const sec=Math.max(0,Math.floor((Date.now()-window._deepBackupLastAt)/1000));
-            const text=sec<45?'刚刚':sec<3600?Math.floor(sec/60)+'分钟前':Math.floor(sec/3600)+'小时前';
-            el.textContent='自动备份 · '+text;el.className='deep-backup-status';
+            if(window._deepBackupStatusKind!=='saved')return;
+            el.textContent='自动备份 · 已备份';el.className='deep-backup-status';
         };
         window.deepRemoveBackup=async function(key,backup,discardFiles=false){
             if(!backup)try{backup=await window.deepBackupGet(key);}catch(_){}
@@ -8295,7 +8287,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     record.backupRevision=Number(result.revision)||0;record.cloudPending=false;(window._deepBackupRemoteVersions||={})[record.key]=record.backupRevision;remote=true;if(session)session.backupWrittenAt=record.editedAt||record.updatedAt;
                     try{await window.deepBackupPutLocal(record);local=true;}catch(_){}
                 }catch(e){console.warn('云端备份未完成，本地备份独立保留',e);window.deepBackupSetStatus(local?'local':'error');if(e?.code==='deep_backup_conflict')window.showToast?.('另一页面已更新备份，当前修改已在本地保留，下次打开时会提示恢复','info');return false;}
-                if(local||remote){window._deepBackupFingerprint=fingerprint;window.deepBackupSetStatus('saved',record.updatedAt);return true;}window.deepBackupSetStatus('error');return false;
+                if(local||remote){window._deepBackupFingerprint=fingerprint;window.deepBackupSetStatus(remote?'saved':'local',record.updatedAt);return true;}window.deepBackupSetStatus('error');return false;
             };
             const task=(window._deepBackupWriteQueue||Promise.resolve()).then(write,write);window._deepBackupWriteQueue=task;return task;
         };
@@ -8309,16 +8301,14 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         };
         window.deepStartAutosave=function(restored=null){
             window.deepStopAutosave?.();window._deepBackupFingerprint='';window._deepBackupLastAt=Number(restored?.updatedAt)||0;
-            if(window._deepBackupLastAt)window.deepBackupRefreshStatus?.();else window.deepBackupSetStatus?.('waiting');
+            if(window._deepBackupLastAt)window.deepBackupSetStatus?.(restored?.cloudPending||restored?.pendingRoot||restored?.localOnly?'local':'saved',window._deepBackupLastAt);else window.deepBackupSetStatus?.('waiting');
             const modal=document.getElementById('deepDescriptionModal');
             window._deepBackupInputHandler=()=>window.deepScheduleBackup?.();
             ['input','change','pointerup','click'].forEach(type=>modal?.addEventListener(type,window._deepBackupInputHandler,true));
             window.deepAutosaveTimer=setInterval(()=>window.deepBackupNow?.(),60*1000);
-            window._deepBackupStatusTimer=setInterval(()=>window.deepBackupRefreshStatus?.(),30*1000);
         };
         window.deepStopAutosave=function(){
             if(window.deepAutosaveTimer){clearInterval(window.deepAutosaveTimer);window.deepAutosaveTimer=null;}
-            if(window._deepBackupStatusTimer){clearInterval(window._deepBackupStatusTimer);window._deepBackupStatusTimer=null;}
             if(window._deepBackupDebounce){clearTimeout(window._deepBackupDebounce);window._deepBackupDebounce=null;}
             const modal=document.getElementById('deepDescriptionModal');if(window._deepBackupInputHandler){['input','change','pointerup','click'].forEach(type=>modal?.removeEventListener(type,window._deepBackupInputHandler,true));window._deepBackupInputHandler=null;}
         };
@@ -8334,7 +8324,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 obj.deepDescription._editCommitId=window._deepEditSession.commitId;
                 obj.deepDescription._editBackupKey=window.deepBackupKey(target);
                 window.saveDeepDraftSnapshot(target,obj.deepDescription);
-                await window.closeDeepDescriptionEditor(false);
+                const closed=await window.closeDeepDescriptionEditor(false);
+                if(closed!==false&&window._eventEditStatus){window._eventEditStatus.deepCompleted=true;window._eventEditStatus.dirty=true;window.refreshEventEditStatus();}
                 window.showToast?.('已完成编辑，保存事件后生效','success');
             });}catch(e){console.error('深入描述草稿保存失败',e);window.showToast?.(e.message||'草稿保存失败，请重试','error');}
             finally{if(button)button.disabled=false;}
@@ -8531,10 +8522,10 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 }
                 modal.innerHTML=`<div class="w-full max-w-lg rounded-2xl bg-white border border-slate-200 shadow-2xl p-5 sm:p-6 text-slate-800" onclick="event.stopPropagation()">
                     <div class="text-base font-bold">插入媒体</div>
-                    <p class="mt-3 text-sm leading-6 text-slate-600">可以从本地上传，或从云端数据库复用已有文件。</p>
+                    <p class="mt-3 text-sm leading-6 text-slate-600">可以从本地上传，或从云端素材库复用已有文件。</p>
                     <div class="mt-5 flex justify-end gap-2">
                         <button type="button" data-deep-media-local class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold">本地上传</button>
-                        <button type="button" data-deep-media-cloud class="px-4 py-2 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 text-sm">云端选择</button>
+                        <button type="button" data-deep-media-cloud class="px-4 py-2 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 text-sm">云端素材库</button>
                     </div>
                 </div>`;
                 const finish=value=>{modal.classList.add('hidden');resolve(value);};
@@ -8783,7 +8774,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         };
         window.deepToggleDraw = function(){
             const panel=document.getElementById('deepDrawPanel');
-            if(window.deepDrawToolsActive&&panel?.classList.contains('hidden')){panel.classList.remove('hidden');window.deepSyncDrawPanel();return;}
+            if(window.deepDrawToolsActive&&window.deepDrawSubtool!=='select'&&panel?.classList.contains('hidden')){panel.classList.remove('hidden');window.deepSyncDrawPanel();return;}
             if(!window.deepDrawToolsActive){window.deepSetDrawSubtool(window.deepDrawSubtool||'pen');panel?.classList.remove('hidden');return;}
             window.deepDeactivateDrawTools();
         };
@@ -10675,6 +10666,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                         <div class="deep-crop-scale-row flex items-center gap-3 text-xs"><span class="font-semibold shrink-0">内容缩放</span><input id="deepCropScale" type="range" min="0.001" max="20" step="0.001" class="flex-1 h-2 accent-indigo-600 cursor-pointer" /><input id="deepCropScaleNumber" type="number" min="0.1" max="2000" step="0.1" class="w-20 px-2 py-1 border rounded-md font-mono text-xs text-right" /><span id="deepCropScaleValue" class="w-14 text-right font-mono text-slate-600">100%</span></div><div class="deep-crop-actions flex justify-between gap-2 mt-4"><div class="flex gap-2"><button id="deepCropAutoFill" class="px-4 py-2 border border-indigo-200 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-semibold">自动填充</button><button id="deepCropUndoAutoFill" class="px-3 py-2 border border-slate-200 bg-white text-slate-500 rounded-lg text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed" disabled>取消填充</button></div><div class="flex gap-2"><button id="deepCropCancel" class="px-4 py-2 border rounded-lg text-sm">取消</button><button id="deepCropReset" class="px-4 py-2 border rounded-lg text-sm">恢复原图</button><button id="deepCropOk" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold">确定</button></div></div>
                     </div>
                 </div>`;
+            window.showEditorSharedWarning(m,it,window.deepResolveTargetObject?.(window.deepCanvasTarget));
             const viewport=document.getElementById('deepCropViewport'),wrap=document.getElementById('deepCropPreviewWrap'),preview=document.getElementById('deepCropPreview');
             const old=it.crop||{},crop={scale:Number(old.scale)||1,offsetX:Number(old.offsetX)||0,offsetY:Number(old.offsetY)||0,stretchX:Number(old.stretchX)||1,stretchY:Number(old.stretchY)||1};
             const frame={w:Math.max(40,Number(it.w)||320),h:Math.max(40,Number(it.h)||220)};
@@ -10696,7 +10688,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     it.gifDurationMs=Math.max(50,Number(uploaded?.gifDurationMs)||0)||it.gifDurationMs||0;
                     it.gifDurationSource=uploaded?.gifDurationSource||'';
                     window.renderDeepCanvas?.(false);
-                });
+                },null,it.fileID||'',null,{sharedContext:window.deepResolveTargetObject?.(window.deepCanvasTarget)});
             };
             if(tag==='video'){
                 const playBtn=document.getElementById('deepCropVideoPlay');
@@ -11148,7 +11140,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openUrl();}});
                 }else if(item.type==='draw'){
                     const d=(item.points||[]).map((p,i)=>(i?'L':'M')+p[0]+' '+p[1]).join(' ');
-                    el.style.left='0';el.style.top='0';el.style.width='100%';el.style.height='100%';el.style.pointerEvents='none';
+                    el.style.left='0';el.style.top='0';el.style.width='100%';el.style.height='100%';el.style.pointerEvents='none';el.style.zIndex='30';
                     el.innerHTML=`<svg width="100%" height="100%" viewBox="0 0 ${savedWidth} ${savedHeight}"><path d="${d}" fill="none" stroke="${item.stroke||'#334155'}" stroke-width="${Math.max(1,Number(item.strokeWidth)||4)}" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
                 }
                 st.appendChild(el);
@@ -12388,7 +12380,7 @@ viewer.style.visibility='';
                                 <span class="block text-[11px] font-bold text-slate-600">添加图片</span>
                                 <div class="flex gap-2">
                                     <button type="button" onclick="document.getElementById('editFileInput').click()" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-xs text-slate-700 flex items-center gap-1"><i class="fa-solid fa-upload text-indigo-600"></i> 本地上传图片</button>
-                                    <button type="button" onclick="openCloudMediaLibrary({folder:'all',allowedFolders:['picture','gif'],onSelect:addCloudAssetToSingleImage})" class="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-indigo-600 flex items-center gap-1"><i class="fa-solid fa-cloud"></i> 云端选择</button>
+                                    <button type="button" onclick="openCloudMediaLibrary({folder:'all',allowedFolders:['picture','gif'],onSelect:addCloudAssetToSingleImage})" class="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-indigo-600 flex items-center gap-1"><i class="fa-solid fa-cloud"></i> 云端素材库</button>
                                     <input type="file" id="editFileInput" multiple accept="image/*" class="hidden" onchange="handleLocalImageUpload(event)">
                                 </div>
                                 <div id="imageMicroPreviews" class="flex flex-wrap gap-2"></div>
@@ -12398,7 +12390,7 @@ viewer.style.visibility='';
                                 <span class="block text-[11px] font-bold text-slate-600">添加视频</span>
                                 <div class="flex flex-col gap-2">
                                     <div class="flex gap-2">
-                                        <button type="button" onclick="document.getElementById('videoFileInput').click()" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-xs text-slate-700 flex items-center gap-1"><i class="fa-solid fa-upload text-indigo-600"></i> 本地上传视频</button><button type="button" onclick="openCloudMediaLibrary({folder:'video',allowedFolders:['video'],onSelect:addCloudAssetToSingleVideo})" class="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-indigo-600 flex items-center gap-1"><i class="fa-solid fa-cloud"></i> 云端选择</button>
+                                        <button type="button" onclick="document.getElementById('videoFileInput').click()" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-xs text-slate-700 flex items-center gap-1"><i class="fa-solid fa-upload text-indigo-600"></i> 本地上传视频</button><button type="button" onclick="openCloudMediaLibrary({folder:'video',allowedFolders:['video'],onSelect:addCloudAssetToSingleVideo})" class="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-indigo-600 flex items-center gap-1"><i class="fa-solid fa-cloud"></i> 云端素材库</button>
                                         <input type="file" id="videoFileInput" multiple accept="video/*" class="hidden" onchange="handleLocalVideoUpload(event)">
                                     </div>
 
@@ -12481,6 +12473,7 @@ viewer.style.visibility='';
             modal.classList.remove('hidden');
             
             modal.style.zIndex = '100';
+            window.startEventEditStatus(false,event.id);
         };
 
         window.switchEditPage = function(page) {
@@ -12609,6 +12602,7 @@ viewer.style.visibility='';
         };
 
         window.closeEditModal = function() {
+            window.stopEventEditStatus();
             window._deepOpenEpoch=(Number(window._deepOpenEpoch)||0)+1;window.deepSetMediaLoading?.(false);
             window.rollbackEditMediaTxn?.();
             void window.deepBackupDeleteForEvent?.(window.editingEventId);
@@ -12736,6 +12730,7 @@ viewer.style.visibility='';
             const item=window.editingVideos[index],modal=document.getElementById('videoCropModal'),player=document.getElementById('videoCropPlayer');
             if(!item||!modal||!player)return;
             if(!(await window.acquireMediaEditLock(item.cloudPath||item.url)))return;
+            window.showEditorSharedWarning(modal,item);
             activeVideoCropIndex=index;player._cropEventCleanup?.();
             const token=player._cropOpenToken=(player._cropOpenToken||0)+1;
             const current=()=>player._cropOpenToken===token&&activeVideoCropIndex===index;
@@ -13982,6 +13977,7 @@ viewer.style.visibility='';
               <div data-gif-status class="mt-3 text-xs text-slate-400 text-center">正在解析动图帧…</div>
               <div class="mt-4 flex flex-wrap justify-end gap-2">${onCrop?'<button type="button" data-gif-crop class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm"><i class="fa-solid fa-crop mr-1"></i>调整显示区域</button>':''}<button type="button" data-gif-cover-cancel class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm">取消</button><button type="button" data-gif-cover-save class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-sm font-semibold">设为封面</button></div>
             </div>`;
+            window.showEditorSharedWarning(modal,cloudPath||src,options.sharedContext);
             const img=modal.querySelector('[data-gif-cover-img]'),canvas=modal.querySelector('[data-gif-frame-canvas]'),ctx=canvas.getContext('2d');
             const status=modal.querySelector('[data-gif-status]'),ui=modal.querySelector('[data-gif-timeline-ui]'),range=modal.querySelector('[data-gif-range]'),timeEl=modal.querySelector('[data-gif-time]'),frameEl=modal.querySelector('[data-gif-frame-label]'),playBtn=modal.querySelector('[data-gif-play]');
             let decoder=null,frameCount=0,durations=[],starts=[],totalUs=0,current=0,playing=false,playTimer=null,closed=false,decodeSerial=0;
@@ -14152,6 +14148,7 @@ viewer.style.visibility='';
             const modal = document.getElementById('cropModal');
             const targetImg = document.getElementById('cropTargetImg');
             if (!modal || !targetImg) return;
+            window.showEditorSharedWarning(modal,imgObj);
 
             cropState.loadController?.abort();
             if(cropState.sourceObjectUrl){URL.revokeObjectURL(cropState.sourceObjectUrl);cropState.sourceObjectUrl='';}
@@ -14678,6 +14675,7 @@ viewer.style.visibility='';
 
         window.handlePreSaveEvent = function(e, idRaw, isEdit) {
             e.preventDefault();
+            if(!window.checkUnaddedEditorFields())return;
             const id = isNaN(idRaw) ? idRaw : Number(idRaw);
             const titleInput = document.getElementById('editTitle');
             const title = titleInput?.value.trim();
@@ -14777,6 +14775,135 @@ viewer.style.visibility='';
             }
 
             document.getElementById('confirmSaveModal')?.classList.remove('hidden');
+        };
+
+        // Local metadata only: opening an ordinary media editor must not add a network round trip.
+        window.editorMediaSharing=function(value){
+            const path=window.mediaPathOf(typeof value==='string'?value:(value?.cloudPath||value?.originalFull||value?.original||value?.url||value?.src||''));
+            const result={path,other:false,repeated:false,unknown:false};if(!path)return result;
+            if(window._editMediaTxn?.tempUploads?.some(x=>window.mediaPathOf(x.tempPath)===path))return result;
+            const current=String(window._eventEditStatus?.eventId??window.editingConnectionDraftEventId??window.editingEventId??'');
+            const refs=new Set(),asset=window._mediaCoverIndex?.get(path);let count=0,flag=false;
+            if(Array.isArray(asset?.referencingEventIds))asset.referencingEventIds.forEach(id=>refs.add(String(id)));
+            const scan=(root,onMatch)=>{const seen=new WeakSet();const walk=v=>{if(!v||typeof v!=='object'||seen.has(v))return;seen.add(v);if(!Array.isArray(v)&&window.mediaPathOf(v.cloudPath||v.originalFull||v.original||v.url||v.src||'')===path)onMatch(v);for(const [key,x]of Object.entries(v))if(!key.startsWith('_')&&key!=='points')walk(x);};walk(root);};
+            if(!Array.isArray(asset?.referencingEventIds))for(const event of window.events||[])scan(event,()=>refs.add(String(event.id)));
+            const draft=window._eventEditStatus?.multi?window.multiTimeDraft:[window.editingImageFiles,window.editingVideos];
+            scan(draft,v=>{count++;flag||=v.mediaShared===true;});
+            result.other=[...refs].some(id=>id!==current);
+            result.repeated=count>1;
+            // A legacy positive flag remains conservative when complete reference metadata is absent.
+            result.unknown=!Array.isArray(asset?.referencingEventIds)&&!result.other&&flag;
+            return result;
+        };
+        window.showEditorSharedWarning=function(modal,value,context=null){
+            if(!modal)return;modal.querySelector('[data-shared-edit-warning]')?.remove();
+            let sharing=window.editorMediaSharing(context||value);if(!sharing.other&&!sharing.repeated&&!sharing.unknown&&context)sharing=window.editorMediaSharing(value);if(!sharing.other&&!sharing.repeated&&!sharing.unknown)return;
+            const panel=modal.firstElementChild;if(!panel)return;
+            const note=document.createElement('div');note.dataset.sharedEditWarning='1';note.setAttribute('role','note');
+            note.style.cssText='flex-shrink:0;margin:6px 12px;padding:6px 9px;border:1px solid #fcd34d;border-radius:7px;background:#fffbeb;color:#92400e;font-size:11px;line-height:1.5;';
+            note.textContent=sharing.other?'⚠️ 此修改会影响引用该素材的其他事件':sharing.repeated?'⚠️ 此修改会影响当前事件中引用该素材的其他位置':'⚠️ 此素材可能存在共享引用，修改可能影响其他引用位置';
+            const header=panel.querySelector(':scope > .deep-editor-header');if(header)header.after(note);else panel.prepend(note);
+        };
+
+        window.eventEditDataSignature=function(multi){
+            const data=multi?[window.multiTimeGeneralDraft,window.multiTimePermissionDraft,window.multiTimeDraft,window.multiTimeConnections,window.multiTimeDeepEnabledDraft]:[window.editingImageFiles,window.editingVideos,window.editingLinks,window.editingConnections];
+            return JSON.stringify(data,(key,value)=>key.startsWith('_')||['mediaShared','mediaReferenceCount','mediaCoverRevision','mediaDeepRevision','blobUrl','file','fileObj'].includes(key)?undefined:value);
+        };
+        window.reconcilePendingEditorFields=function(){
+            const state=window._eventEditStatus;if(!state?.multi)return;
+            const next=new Map();for(const [oldPage,fields]of state.pending){
+                if(oldPage===0){next.set(0,fields);continue;}
+                const index=(window.multiTimeDraft||[]).findIndex(seg=>String(seg.id)===fields.__segmentId);if(index<0)continue;
+                const remapped={};for(const [key,value]of Object.entries(fields))remapped[key.replace(/^(multiLink(?:Title|Url))_\d+$/, '$1_'+index)]=value;
+                next.set(index+2,remapped);
+            }state.pending=next;
+        };
+        window.capturePendingEditorFields=function(){
+            const state=window._eventEditStatus;if(!state?.multi)return;
+            window.reconcilePendingEditorFields();const page=window.multiTimePage,fields={};if(page>1)fields.__segmentId=String(window.multiTimeDraft?.[page-2]?.id||'');
+            for(const id of ['multiConnTarget','multiConnLabel','multiConnSelfSegment','multiConnTargetSegment','multiLinkTitle_'+(page-2),'multiLinkUrl_'+(page-2)]){
+                const el=document.getElementById(id);if(el)fields[id]=el.value;
+            }
+            const direction=document.querySelector('input[name="multiConnDir"]:checked');if(direction)fields.multiConnDir=direction.value;
+            if(Object.keys(fields).length)state.pending.set(page,fields);
+        };
+        window.restorePendingEditorFields=function(){
+            const state=window._eventEditStatus;if(!state?.multi)return;
+            window.reconcilePendingEditorFields();const fields=state.pending.get(window.multiTimePage);if(!fields)return;
+            // Restore the target first so its segment options and visible event label are rebuilt.
+            if(fields.multiConnTarget)window.multiPickConnectionEvent?.(fields.multiConnTarget);
+            for(const [id,value]of Object.entries(fields)){const el=document.getElementById(id);if(el)el.value=value;}
+            if(fields.multiConnDir)document.querySelectorAll('input[name="multiConnDir"]').forEach(el=>el.checked=el.value===fields.multiConnDir);
+        };
+        window.checkUnaddedEditorFields=function(){
+            const state=window._eventEditStatus;window.capturePendingEditorFields();
+            const groups=state?.multi?[...state.pending.entries()]:[[null,Object.fromEntries(['linkTitleInput','linkUrlInput','editConnTarget','editConnLabel'].map(id=>[id,document.getElementById(id)?.value||'']))]];
+            for(const [page,fields]of groups){
+                if(state?.multi&&page>1&&!window.multiTimeDraft?.[page-2])continue;
+                const entry=Object.entries(fields).find(([id,value])=>String(value||'').trim()&&(/Link(?:Title|Url)_|^link(?:Title|Url)Input$|^(?:multi|edit)Conn(?:Target|Label)$/.test(id)));
+                if(!entry)continue;
+                if(state?.multi&&window.multiTimePage!==page){window.multiPersistCurrentPage();window.multiTimePage=page;window.multiRenderCurrentPage();}
+                else if(!state?.multi)window.switchEditPage(/^link/.test(entry[0])?2:1);
+                window.showToast?.(/link/i.test(entry[0])?'还有填写后未添加的网址，请先添加或清空':'还有填写后未添加的连线，请先添加或清空','info');
+                const field=document.getElementById(entry[0]);if(field?.type!=='hidden')field?.focus();else document.getElementById(state?.multi?'multiConnLabel':'editConnLabel')?.focus();
+                return false;
+            }
+            return true;
+        };
+        window.refreshEventEditStatus=function(){
+            const state=window._eventEditStatus;if(!state||state.host.classList.contains('hidden'))return;
+            const prefix=state.multi?'page_'+window.multiTimePage+'_':'';
+            for(const el of state.host.querySelectorAll('input,select,textarea,[contenteditable="true"]')){
+                if(el.type==='file'||el.closest('[data-connection-event-picker]')||el.placeholder?.includes('搜索'))continue;
+                const dateOwner=el.closest('[data-inline-date]')?.dataset.inlineDate;
+                const fieldKey=el.id||(dateOwner&&el.dataset.datePart?dateOwner+'_'+el.dataset.datePart:el.name?el.name+'_'+el.value:['checkbox','radio'].includes(el.type)?el.type+'_'+el.value:'');if(!fieldKey)continue;const key=prefix+fieldKey;
+                const value=el.isContentEditable?el.innerHTML:el.type==='checkbox'||el.type==='radio'?el.checked:el.value;
+                if(!state.fields.has(key))state.fields.set(key,value);state.currentFields.set(key,value);
+            }
+            state.dirty=window.eventEditDataSignature(state.multi)!==state.signature||[...state.currentFields].some(([key,value])=>state.fields.get(key)!==value);
+            const text=state.deepCompleted?'深入描述已完成编辑，事件待保存':state.dirty?'有未保存的修改':'';
+            let note=state.host.querySelector('[data-event-save-status]');
+            if(!note){note=document.createElement('div');note.dataset.eventSaveStatus='1';note.setAttribute('role','status');note.style.cssText='flex-shrink:0;margin:0 20px 8px;color:#92400e;font-size:11px;line-height:1.5;';const header=state.host.firstElementChild?.firstElementChild;if(!header)return;header.after(note);}
+            if(note.textContent!==text)note.textContent=text;note.hidden=!text;
+        };
+        window.stopEventEditStatus=function(){const state=window._eventEditStatus;state?.observer?.disconnect();if(state?.frame)cancelAnimationFrame(state.frame);window._eventEditStatus=null;};
+        window.startEventEditStatus=function(multi,eventId){
+            window.stopEventEditStatus();const host=document.getElementById(multi?'multiTimeEventModal':'editModal');if(!host)return;
+            const state=window._eventEditStatus={host,multi,eventId,dirty:false,deepCompleted:false,signature:window.eventEditDataSignature(multi),fields:new Map(),currentFields:new Map(),pending:new Map()};
+            window.refreshEventEditStatus();
+            state.observer=new MutationObserver(records=>{if(records.every(r=>(r.target.nodeType===1?r.target:r.target.parentElement)?.closest?.('[data-event-save-status]')))return;window.scheduleEventEditStatus();});
+            state.observer.observe(host,{childList:true,subtree:true,characterData:true});
+        };
+        window.scheduleEventEditStatus=function(){const state=window._eventEditStatus;if(!state||state.frame)return;state.frame=requestAnimationFrame(()=>{state.frame=0;if(window._eventEditStatus===state)window.refreshEventEditStatus();});};
+        document.addEventListener('input',e=>{if(window._eventEditStatus?.host.contains(e.target)){window.capturePendingEditorFields();window.scheduleEventEditStatus();}},true);
+        document.addEventListener('change',e=>{if(window._eventEditStatus?.host.contains(e.target))window.scheduleEventEditStatus();},true);
+        document.addEventListener('click',()=>{if(window._eventEditStatus)window.scheduleEventEditStatus();},true);
+
+        window.timelineQueryIsActive=function(){return !!(String(document.getElementById('searchInput')?.value||'').trim()||(window.tagFilterSelected||[]).length||window.timelineDateFilter?.start||window.timelineDateFilter?.end);};
+        window.captureTimelineBrowsePosition=function(){
+            const container=document.getElementById('timelineContainer');if(!container)return null;
+            const cr=container.getBoundingClientRect(),nodes=[...container.querySelectorAll('.timeline-node-container')];
+            const visible=nodes.find(node=>{const r=node.getBoundingClientRect();return r.right>cr.left&&r.left<cr.right;})||nodes[0];
+            return {roomId:window.currentRoomId,left:container.scrollLeft,ids:visible?.getAttribute('data-event-ids')?.split(',')||[],date:visible?.getAttribute('data-date')||'',offset:visible?visible.getBoundingClientRect().left-cr.left:0};
+        };
+        window.renderTimelineQueryChange=function({first=false}={}){
+            const active=window.timelineQueryIsActive();
+            if(window._timelineQueryRoom!==window.currentRoomId){window._timelineBrowseOrigin=null;window._timelineQueryActive=false;window._timelineQueryRoom=window.currentRoomId;}
+            if(active&&!window._timelineQueryActive&&!window._timelineBrowseOrigin)window._timelineBrowseOrigin=window.captureTimelineBrowsePosition();
+            const restore=!active&&window._timelineQueryActive?window._timelineBrowseOrigin:null;
+            window._timelineQueryActive=active;const epoch=window._timelineQueryEpoch=(window._timelineQueryEpoch||0)+1;
+            window.renderEvents();
+            requestAnimationFrame(()=>requestAnimationFrame(()=>{
+                if(epoch!==window._timelineQueryEpoch||(restore&&restore.roomId!==window.currentRoomId))return;
+                const container=document.getElementById('timelineContainer');if(!container)return;
+                if(restore){
+                    const nodes=[...container.querySelectorAll('.timeline-node-container')];
+                    let node=nodes.find(n=>(n.getAttribute('data-event-ids')||'').split(',').some(id=>restore.ids.includes(id)));
+                    if(!node&&restore.date){node=nodes.find(n=>n.getAttribute('data-date')===restore.date);if(!node){const dates=nodes.filter(n=>n.getAttribute('data-date')).sort((a,b)=>a.getAttribute('data-date').localeCompare(b.getAttribute('data-date')));node=dates.find(n=>n.getAttribute('data-date')>=restore.date)||dates[dates.length-1];}}
+                    const cr=container.getBoundingClientRect();const left=node?container.scrollLeft+node.getBoundingClientRect().left-cr.left-restore.offset:restore.left;
+                    container.scrollLeft=Math.max(0,Math.min(left,container.scrollWidth-container.clientWidth));window._timelineBrowseOrigin=null;
+                }else if(first&&active){container.scrollLeft=0;window.scrollTimelineToFirstNode();}
+            }));
         };
 
         window._thanksNotes=new Map();
@@ -15827,13 +15954,13 @@ viewer.style.visibility='';
 
                     <div class="space-y-2">
                         <span class="block text-[11px] font-bold text-slate-600">添加图片</span>
-                        <div class="flex gap-2"><button type="button" onclick="document.getElementById('multiImageFile_${segIndex}').click()" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-xs text-slate-700 flex items-center gap-1"><i class="fa-solid fa-upload text-indigo-600"></i> 本地上传图片</button><button type="button" onclick="openCloudMediaLibrary({folder:'all',allowedFolders:['picture','gif'],onSelect:a=>addCloudAssetToMulti(${segIndex},'image',a)})" class="px-2.5 py-1.5 bg-white border rounded-lg text-[11px] text-indigo-600"><i class="fa-solid fa-cloud mr-1"></i>云端选择</button><input type="file" id="multiImageFile_${segIndex}" multiple accept="image/*" class="hidden" onchange="multiAddFiles(${segIndex},'image',this.files);this.value=''"></div>
+                        <div class="flex gap-2"><button type="button" onclick="document.getElementById('multiImageFile_${segIndex}').click()" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-xs text-slate-700 flex items-center gap-1"><i class="fa-solid fa-upload text-indigo-600"></i> 本地上传图片</button><button type="button" onclick="openCloudMediaLibrary({folder:'all',allowedFolders:['picture','gif'],onSelect:a=>addCloudAssetToMulti(${segIndex},'image',a)})" class="px-2.5 py-1.5 bg-white border rounded-lg text-[11px] text-indigo-600"><i class="fa-solid fa-cloud mr-1"></i>云端素材库</button><input type="file" id="multiImageFile_${segIndex}" multiple accept="image/*" class="hidden" onchange="multiAddFiles(${segIndex},'image',this.files);this.value=''"></div>
                         <div id="multiAttachments_${segIndex}_images" class="flex flex-wrap gap-2">${images||'<span class="text-[11px] text-slate-400">暂无图片</span>'}</div>
                     </div>
                     <div class="space-y-2 pt-2 border-t border-slate-200">
                         <span class="block text-[11px] font-bold text-slate-600">添加视频</span>
                         <div class="flex flex-col gap-2">
-                            <div class="flex gap-2"><button type="button" onclick="document.getElementById('multiVideoFile_${segIndex}').click()" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-xs text-slate-700 flex items-center gap-1"><i class="fa-solid fa-upload text-indigo-600"></i> 本地上传视频</button><button type="button" onclick="openCloudMediaLibrary({folder:'video',allowedFolders:['video'],onSelect:a=>addCloudAssetToMulti(${segIndex},'video',a)})" class="px-2.5 py-1.5 bg-white border rounded-lg text-[11px] text-indigo-600"><i class="fa-solid fa-cloud mr-1"></i>云端选择</button><input type="file" id="multiVideoFile_${segIndex}" multiple accept="video/*" class="hidden" onchange="multiAddFiles(${segIndex},'video',this.files);this.value=''"></div>
+                            <div class="flex gap-2"><button type="button" onclick="document.getElementById('multiVideoFile_${segIndex}').click()" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-xs text-slate-700 flex items-center gap-1"><i class="fa-solid fa-upload text-indigo-600"></i> 本地上传视频</button><button type="button" onclick="openCloudMediaLibrary({folder:'video',allowedFolders:['video'],onSelect:a=>addCloudAssetToMulti(${segIndex},'video',a)})" class="px-2.5 py-1.5 bg-white border rounded-lg text-[11px] text-indigo-600"><i class="fa-solid fa-cloud mr-1"></i>云端素材库</button><input type="file" id="multiVideoFile_${segIndex}" multiple accept="video/*" class="hidden" onchange="multiAddFiles(${segIndex},'video',this.files);this.value=''"></div>
                         </div>
                         <div id="multiAttachments_${segIndex}_videos" class="space-y-1.5">${videos||'<span class="text-[11px] text-slate-400">暂无视频</span>'}</div>
                     </div>
@@ -15882,14 +16009,14 @@ viewer.style.visibility='';
                 </div>            </div>`;
         };
 
-        window.multiPersistCurrentPage=function(){const title=document.getElementById('multiEventTitle');if(title)window.multiTimeGeneralDraft.title=title.value;if(window.multiTimePage===1){const permissionMode=document.querySelector('input[name="eventPermissionMode"]:checked');if(permissionMode)window.multiTimePermissionDraft.editPermissionMode=permissionMode.value;if(document.querySelector('[data-permission-picker="normal"]'))window.multiTimePermissionDraft.allowedEditorProfileIds=window.permissionSelected('normal');const devLock=document.getElementById('eventDeveloperLocked');if(devLock)window.multiTimePermissionDraft.developerLocked=devLock.checked;if(document.querySelector('[data-permission-picker="developer"]'))window.multiTimePermissionDraft.developerAllowedProfileIds=window.permissionSelected('developer');}const type=document.getElementById('multiEventType');if(type)window.multiTimeGeneralDraft.type=type.value;const sortSeg=document.getElementById('multiTimelineSortSegment');if(sortSeg)window.multiTimeGeneralDraft.timelineSortSegmentId=sortSeg.value;const tags=document.querySelectorAll('.multi-tag');if(tags.length)window.multiTimeGeneralDraft.tags=Array.from(tags).filter(x=>x.checked).map(x=>x.value);if(window.multiTimePage>1&&window.multiTimeDraft?.[window.multiTimePage-2]){const segIndex=window.multiTimePage-2,seg=window.multiTimeDraft[segIndex];window.multiSyncSegmentDate?.(segIndex);const ed=document.getElementById('editDescription');if(ed){window.richSyncDecorationGeometry?.();seg.description=(window.normalizeDescriptionDefaultFontSize?.(ed.innerHTML)||ed.innerHTML).trim().replace(/^<br>+|<br>+$/g,'').trim();}}};
+        window.multiPersistCurrentPage=function(){window.capturePendingEditorFields();const title=document.getElementById('multiEventTitle');if(title)window.multiTimeGeneralDraft.title=title.value;if(window.multiTimePage===1){const permissionMode=document.querySelector('input[name="eventPermissionMode"]:checked');if(permissionMode)window.multiTimePermissionDraft.editPermissionMode=permissionMode.value;if(document.querySelector('[data-permission-picker="normal"]'))window.multiTimePermissionDraft.allowedEditorProfileIds=window.permissionSelected('normal');const devLock=document.getElementById('eventDeveloperLocked');if(devLock)window.multiTimePermissionDraft.developerLocked=devLock.checked;if(document.querySelector('[data-permission-picker="developer"]'))window.multiTimePermissionDraft.developerAllowedProfileIds=window.permissionSelected('developer');}const type=document.getElementById('multiEventType');if(type)window.multiTimeGeneralDraft.type=type.value;const sortSeg=document.getElementById('multiTimelineSortSegment');if(sortSeg)window.multiTimeGeneralDraft.timelineSortSegmentId=sortSeg.value;const tags=document.querySelectorAll('.multi-tag');if(tags.length)window.multiTimeGeneralDraft.tags=Array.from(tags).filter(x=>x.checked).map(x=>x.value);if(window.multiTimePage>1&&window.multiTimeDraft?.[window.multiTimePage-2]){const segIndex=window.multiTimePage-2,seg=window.multiTimeDraft[segIndex];window.multiSyncSegmentDate?.(segIndex);const ed=document.getElementById('editDescription');if(ed){window.richSyncDecorationGeometry?.();seg.description=(window.normalizeDescriptionDefaultFontSize?.(ed.innerHTML)||ed.innerHTML).trim().replace(/^<br>+|<br>+$/g,'').trim();}}};
         window.multiRenderPageTabs=function(){
             const host=document.getElementById('multiPageTabs');if(!host)return;
             const total=window.multiTimeDraft.length+2;
             host.innerHTML=Array.from({length:total},(_,i)=>{const label=i===0?'总设置':i===1?'权限设置':String(i-1),permissionAllowed=i!==1||window.canOpenEventPermissionSettings?.(window.multiTimePermissionDraft||{},!window.multiTimeIsEdit);return `<button type="button" ${permissionAllowed?`onclick="multiSwitchPage(${i})"`:'disabled aria-disabled="true" title="仅事件创建者可查看和设置权限"'} title="${permissionAllowed?(i===0?'总设置':i===1?'权限设置':'时间 '+(i-1)):''}" class="${!permissionAllowed?'min-w-10 px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 cursor-not-allowed':i===window.multiTimePage?'min-w-10 px-3 py-2 rounded-lg text-xs font-semibold bg-white text-indigo-700 shadow-sm border border-indigo-100':'min-w-10 px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-700'}">${label}</button>`;}).join('');
         };
         window.multiSwitchPage=function(p){p=Number(p)||0;if(p===window.multiTimePage)return;if(p===1&&!window.canOpenEventPermissionSettings?.(window.multiTimePermissionDraft||{},!window.multiTimeIsEdit))return;window.multiPersistCurrentPage();window.richResetOpacitySelection?.();const sel=window.getSelection?.();try{sel?.removeAllRanges();}catch(_){}window.multiTimePage=Math.max(0,Math.min(Number(p)||0,window.multiTimeDraft.length+1));window.multiRenderCurrentPage();};
-        window.multiRenderCurrentPage=function(){const b=document.getElementById('multiPageBody');if(!b)return;window.richResetOpacitySelection?.();window.richSelectionRange=null;const page=window.multiTimePage;b.innerHTML=page===0?window.multiGeneralPageHtml(window.multiTimeGeneralDraft):page===1?window.eventPermissionSettingsHtml(window.multiTimePermissionDraft||{},!window.multiTimeIsEdit):window.multiSegmentPageHtml(page-2);const lbl=document.getElementById('multiPageTitle');if(lbl)lbl.textContent=page===0?'总设置':page===1?'权限设置':`时间 ${page-1}`;window.multiRenderPageTabs();const maxPage=(window.multiTimeDraft?.length||0)+1;const prevBtn=document.getElementById('multiPrevPageBtn'),nextBtn=document.getElementById('multiNextPageBtn'),saveBtn=document.getElementById('multiSaveBtn');if(prevBtn)prevBtn.classList.toggle('hidden',page<=0);if(nextBtn)nextBtn.classList.toggle('hidden',page>=maxPage);if(saveBtn)saveBtn.classList.toggle('hidden',page<maxPage);if(page===0){window.multiRenderConnections();}else if(page===1){window.initPermissionPage?.();}else{window.richResetOpacitySelection?.();const ed=document.getElementById('editDescription');if(ed)ed.addEventListener('input',window.richEditorInput);window.richSyncDecorationGeometry?.();}window.multiBindDrag();window.enhanceWebSelects?.(b);};
+        window.multiRenderCurrentPage=function(){const b=document.getElementById('multiPageBody');if(!b)return;window.richResetOpacitySelection?.();window.richSelectionRange=null;const page=window.multiTimePage;b.innerHTML=page===0?window.multiGeneralPageHtml(window.multiTimeGeneralDraft):page===1?window.eventPermissionSettingsHtml(window.multiTimePermissionDraft||{},!window.multiTimeIsEdit):window.multiSegmentPageHtml(page-2);const lbl=document.getElementById('multiPageTitle');if(lbl)lbl.textContent=page===0?'总设置':page===1?'权限设置':`时间 ${page-1}`;window.multiRenderPageTabs();const maxPage=(window.multiTimeDraft?.length||0)+1;const prevBtn=document.getElementById('multiPrevPageBtn'),nextBtn=document.getElementById('multiNextPageBtn'),saveBtn=document.getElementById('multiSaveBtn');if(prevBtn)prevBtn.classList.toggle('hidden',page<=0);if(nextBtn)nextBtn.classList.toggle('hidden',page>=maxPage);if(saveBtn)saveBtn.classList.toggle('hidden',page<maxPage);if(page===0){window.multiRenderConnections();}else if(page===1){window.initPermissionPage?.();}else{window.richResetOpacitySelection?.();const ed=document.getElementById('editDescription');if(ed)ed.addEventListener('input',window.richEditorInput);window.richSyncDecorationGeometry?.();}window.multiBindDrag();window.restorePendingEditorFields();window.enhanceWebSelects?.(b);window.scheduleEventEditStatus();};
         window.multiRenderEditorShell=function(){
             const modal=document.getElementById('multiTimeEventModal');if(!modal)return;const isEdit=window.multiTimeIsEdit;
             modal.innerHTML=`<div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full my-3 sm:my-5 max-h-[92vh] overflow-hidden flex flex-col">
@@ -15916,6 +16043,7 @@ viewer.style.visibility='';
         window.multiAddSegment=function(){window.multiPersistCurrentPage();window.multiTimeDraft.push(window.multiNewSegment());window.multiTimePage=window.multiTimeDraft.length+1;window.multiRenderCurrentPage();};
 
         window.closeMultiTimeEventModal=function(){
+            window.stopEventEditStatus();
             window._deepOpenEpoch=(Number(window._deepOpenEpoch)||0)+1;window.deepSetMediaLoading?.(false);
             window.rollbackEditMediaTxn?.();
             void window.deepBackupDeleteForEvent?.(window.multiTimeEditingId);
@@ -15949,7 +16077,7 @@ viewer.style.visibility='';
             const singleEdit=document.getElementById('editModal');if(singleEdit){window.releaseEditorPreviews?.(singleEdit);singleEdit.classList.add('hidden');singleEdit.innerHTML='';}
             let modal=document.getElementById('multiTimeEventModal');
             if(!modal){modal=document.createElement('div');modal.id='multiTimeEventModal';modal.className='fixed inset-0 z-[105] bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-2 sm:p-4';document.body.appendChild(modal);}
-            modal.classList.remove('hidden');modal.classList.add('flex');window.multiRenderEditorShell();
+            modal.classList.remove('hidden');modal.classList.add('flex');window.multiRenderEditorShell();window.startEventEditStatus(true,ev.id);
         };
 
         window.multiToggleDeepDescriptionFeature=async function(enabled){
@@ -15968,7 +16096,7 @@ viewer.style.visibility='';
             window.multiTimeDeepEnabledDraft=!!enabled;
             window.multiRefreshAttachments?.();
         };
-        window.saveMultiTimeEvent=function(){window.multiPersistCurrentPage();const title=String(window.multiTimeGeneralDraft?.title||'').trim();if(window.eventTitleExists(title,window.multiTimeEditingId)){if(window.multiTimePage!==0){window.multiTimePage=0;window.multiRenderCurrentPage();}window.updateEventTitleDuplicateHint(document.getElementById('multiEventTitle'),'multiTitleDuplicateHint',window.multiTimeEditingId);window.showToast('该名称已存在','error');return;}if(!title){window.showToast('请填写事件名称','error');if(window.multiTimePage!==0){window.multiTimePage=0;window.multiRenderCurrentPage();}return;}const segs=window.multiNormalizeDraft(JSON.parse(JSON.stringify(window.multiTimeDraft||[])));for(let si=0;si<segs.length;si++){const seg=segs[si];const rawDate=String(seg.date||'');if(rawDate.includes('至')){const [a0,b0]=rawDate.split('至');const a=window.normalizePartialDate(a0),b=window.normalizePartialDate(b0);if(!a||!b){window.showToast('请为每个时间填写有效日期范围','error');return;}seg.date=a+'至'+b;}else{const d=window.normalizePartialDate(rawDate);if(!d){window.showToast('请为每个时间填写有效日期','error');return;}seg.date=d;}seg.subtitle=String(seg.subtitle||'').trim();seg.description=String(seg.description||'');}segs.sort((a,b)=>String(a.date).localeCompare(String(b.date)));const date=window.getMultiEventDisplayDate(segs);const timelineSortSegmentId=segs.some(x=>String(x.id)===String(window.multiTimeGeneralDraft?.timelineSortSegmentId||''))?String(window.multiTimeGeneralDraft.timelineSortSegmentId):'';const existing=window.findEventById(window.multiTimeEditingId);window.pendingSaveData={id:window.multiTimeEditingId,title,date,type:window.multiTimeGeneralDraft.type||'minor',tags:window.multiTimeGeneralDraft.tags||[],tagIds:window.tagIdsForNames?.(window.multiTimeGeneralDraft.tags||[])||[],timeMode:'multi',timeSegments:segs,timelineSortSegmentId,deepDescriptionEnabled:!!window.multiTimeDeepEnabledDraft,images:[],videos:[],links:[],description:'',connections:window.multiTimeConnections||[],editPermissionMode:window.multiTimePermissionDraft?.editPermissionMode||'all',allowedEditorProfileIds:window.multiTimePermissionDraft?.allowedEditorProfileIds||[],developerLocked:!!window.multiTimePermissionDraft?.developerLocked,developerAllowedProfileIds:window.multiTimePermissionDraft?.developerAllowedProfileIds||[],creatorOwned:window.multiTimeIsEdit?window.multiTimePermissionDraft?.creatorOwned===true:true,_isEdit:!!window.multiTimeIsEdit};if(existing&&Number.isFinite(Number(existing.stackOrder)))window.pendingSaveData.stackOrder=existing.stackOrder;document.getElementById('confirmSaveModal')?.classList.remove('hidden');};
+        window.saveMultiTimeEvent=function(){if(!window.checkUnaddedEditorFields())return;window.multiPersistCurrentPage();const title=String(window.multiTimeGeneralDraft?.title||'').trim();if(window.eventTitleExists(title,window.multiTimeEditingId)){if(window.multiTimePage!==0){window.multiTimePage=0;window.multiRenderCurrentPage();}window.updateEventTitleDuplicateHint(document.getElementById('multiEventTitle'),'multiTitleDuplicateHint',window.multiTimeEditingId);window.showToast('该名称已存在','error');return;}if(!title){window.showToast('请填写事件名称','error');if(window.multiTimePage!==0){window.multiTimePage=0;window.multiRenderCurrentPage();}return;}const segs=window.multiNormalizeDraft(JSON.parse(JSON.stringify(window.multiTimeDraft||[])));for(let si=0;si<segs.length;si++){const seg=segs[si];const rawDate=String(seg.date||'');if(rawDate.includes('至')){const [a0,b0]=rawDate.split('至');const a=window.normalizePartialDate(a0),b=window.normalizePartialDate(b0);if(!a||!b){window.showToast('请为每个时间填写有效日期范围','error');return;}seg.date=a+'至'+b;}else{const d=window.normalizePartialDate(rawDate);if(!d){window.showToast('请为每个时间填写有效日期','error');return;}seg.date=d;}seg.subtitle=String(seg.subtitle||'').trim();seg.description=String(seg.description||'');}segs.sort((a,b)=>String(a.date).localeCompare(String(b.date)));const date=window.getMultiEventDisplayDate(segs);const timelineSortSegmentId=segs.some(x=>String(x.id)===String(window.multiTimeGeneralDraft?.timelineSortSegmentId||''))?String(window.multiTimeGeneralDraft.timelineSortSegmentId):'';const existing=window.findEventById(window.multiTimeEditingId);window.pendingSaveData={id:window.multiTimeEditingId,title,date,type:window.multiTimeGeneralDraft.type||'minor',tags:window.multiTimeGeneralDraft.tags||[],tagIds:window.tagIdsForNames?.(window.multiTimeGeneralDraft.tags||[])||[],timeMode:'multi',timeSegments:segs,timelineSortSegmentId,deepDescriptionEnabled:!!window.multiTimeDeepEnabledDraft,images:[],videos:[],links:[],description:'',connections:window.multiTimeConnections||[],editPermissionMode:window.multiTimePermissionDraft?.editPermissionMode||'all',allowedEditorProfileIds:window.multiTimePermissionDraft?.allowedEditorProfileIds||[],developerLocked:!!window.multiTimePermissionDraft?.developerLocked,developerAllowedProfileIds:window.multiTimePermissionDraft?.developerAllowedProfileIds||[],creatorOwned:window.multiTimeIsEdit?window.multiTimePermissionDraft?.creatorOwned===true:true,_isEdit:!!window.multiTimeIsEdit};if(existing&&Number.isFinite(Number(existing.stackOrder)))window.pendingSaveData.stackOrder=existing.stackOrder;document.getElementById('confirmSaveModal')?.classList.remove('hidden');};
 
 
     
