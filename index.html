@@ -3559,7 +3559,6 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         // 用户可见的云端写操作必须覆盖完整业务流程（请求、刷新、渲染、定位），而不是只锁单次 API 请求。
         window.withCloudWriteOperation=async function(fn){window.beginCloudWriteLock();try{const result=await fn();await window.waitForCloudView();return result;}finally{window.endCloudWriteLock();}};
 
-        window._cloudUploadNoticeTimer=null;
         window._cloudUploadNotice = function(text='正在加载文件，请稍候…', show=true){
             let box=document.getElementById('cloudMediaUploadNotice');
             if(!box){
@@ -3571,7 +3570,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             }
             const label=box.querySelector('[data-cloud-media-loading-text]');
             if(label)label.textContent=String(text||'正在加载文件，请稍候…');
-            if(!show){if(window._cloudUploadNoticeTimer){clearTimeout(window._cloudUploadNoticeTimer);window._cloudUploadNoticeTimer=null;}box.classList.add('hidden');return;}
+            if(!show){box.classList.add('hidden');return;}
             box.classList.remove('hidden');
         };
         window.uploadLargeMediaToCloudBase = async function(file, options={}){
@@ -3746,7 +3745,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             },count*700);
         },true);
         const mediaLibraryLists=new Map();
-        window.invalidateMediaLibrary=function(){mediaLibraryLists.clear();window._mediaCoverIndex=null;};
+        window.invalidateMediaLibrary=function(){mediaLibraryLists.clear();window._mediaCoverIndex=null;window._editorMediaReferences=null;};
         async function readMediaLibrary(){
             const key=[window.currentRoomId,window.getCurrentAccountId?.(),window.isDeveloperMode?.()].join(':');
             let entry=mediaLibraryLists.get(key);
@@ -4401,6 +4400,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 return false;
             }
 
+            let cloudCommitted=false;
             try {
                 const cloudEvent = window.prepareEventForCloudBase(eventData);delete cloudEvent.connections;
                 const cloudBytes = new TextEncoder().encode(JSON.stringify(cloudEvent)).length;
@@ -4412,6 +4412,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 }
                 const requireEditLock=!isNew && String(window._activeEditLockEventId||'')===String(eventData.id);
                 const saveResult = await window.timelineApiWrite('upsertEvent', { event: cloudEvent, ...(Array.isArray(eventData.connections)?{connections:eventData.connections}:{}),isNew:isNew===true, accountId:window.getCurrentAccountId?.()||'', ...(!isNew?{baseRevision,requireEditLock}: {}) });
+                cloudCommitted=true;
                 // These view flags come from the loaded event, not the editable form.
                 eventData.hasCreator=isNew||existingEvent?.hasCreator===true||existingEvent?.creatorOwned===true;
                 eventData.creatorOwned=isNew||existingEvent?.creatorOwned===true;
@@ -4419,7 +4420,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 if(Number.isFinite(Number(saveResult?.revision))) eventData.revision=Number(saveResult.revision);
                 eventData._deepSavedRevisions=saveResult?.deepRevisions||{};
                 for(const [path,binding]of Object.entries(saveResult?.mediaCovers||{}))window.applySharedMediaCover(path,binding,eventData);
-                if(saveResult?.connectionsCommitted&&Array.isArray(eventData.connections)){window.connections=(window.connections||[]).filter(c=>String(c.sourceId)!==String(eventData.id)&&String(c.targetId)!==String(eventData.id));window.connections.push(...eventData.connections.map(c=>({...c})));window.renderSvgConnections?.();}
+                if(saveResult?.connectionsCommitted&&Array.isArray(eventData.connections)){window.connections=(window.connections||[]).filter(c=>String(c.sourceId)!==String(eventData.id)&&String(c.targetId)!==String(eventData.id));window.connections.push(...eventData.connections.map(c=>({...c})));if(render)window.renderSvgConnections?.();}
                 delete eventData.connections;
                 // 云端确认成功后才更新正式本地事件，避免保存失败时页面提前显示未落云的版本。
                 const liveIndex=window.events.findIndex(e=>String(e?.id)===String(eventData.id));
@@ -4429,6 +4430,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 if(saveResult?.mediaLifecycle?.maintenancePending)window.showToast?.('事件已保存，媒体索引将自动重试同步','info');
                 return true;
             } catch (e) {
+                if(cloudCommitted){const error=e instanceof Error?e:new Error(String(e));error.eventCommitted=true;throw error;}
                 if (e?.code === 'EVENT_TOO_LARGE') {
                     const kb = Math.ceil((Number(e.cloudBytes)||0) / 1024);
                     window.showToast(`当前事件数据约 ${kb}KB，超过单次安全写入大小`, 'error');
@@ -5371,8 +5373,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 deep:clone(window.deepCanvasState||null),
                 sessionId:(crypto?.randomUUID?.()||('edit_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2))),
                 tempUploads:[],
-                deepBackupPaths:{},
-                committed:false
+                deepBackupPaths:{}
             };
         };
         window.mediaNeedsSharedLock=function(path){
@@ -5897,7 +5898,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             window.hideConfirmSaveModal?.();
         };
 
-        window.scrollTimelineToEvent = function(eventData) {
+        window.scrollTimelineToEvent = async function(eventData) {
             if (window._edgeAutoScrollActive || window._pointerInEdgeZone) return;
             const container = document.getElementById('timelineContainer');
             if (!container || !eventData) return;
@@ -5908,7 +5909,17 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             const cr = container.getBoundingClientRect();
             const nr = node.getBoundingClientRect();
             const targetScroll = container.scrollLeft + (nr.left + nr.width / 2) - (cr.left + cr.width / 2);
-            container.scrollTo({ left: Math.max(0, targetScroll), behavior: 'smooth' });
+            const left=Math.max(0,Math.min(targetScroll,container.scrollWidth-container.clientWidth));
+            await new Promise(resolve=>{
+                let frame=0,timer=0,done=false;
+                const finish=()=>{if(done)return;done=true;clearTimeout(timer);if(frame)cancelAnimationFrame(frame);container.removeEventListener('scrollend',check);resolve();};
+                const check=()=>{if(Math.abs(container.scrollLeft-left)<1)finish();};
+                const tick=()=>{check();if(!done)frame=requestAnimationFrame(tick);};
+                container.addEventListener('scrollend',check);
+                timer=setTimeout(()=>{container.scrollTo({left,behavior:'instant'});finish();},1200);
+                container.scrollTo({left,behavior:document.visibilityState==='hidden'?'instant':'smooth'});
+                tick();
+            });
         };
 
 
@@ -6036,7 +6047,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 if (progressBar) progressBar.style.width = '30%';
                 window.beginCloudWriteLock?.();
 
-                let saveStage='整理待上传文件';
+                let saveStage='整理待上传文件',cloudConfirmed=false,mediaFinalizeStarted=false,editorClosed=false;
+                const closeSavedEditor=()=>{if(editorClosed)return;try{if(eventData.timeMode==='multi')window.closeMultiTimeEventModal?.();else window.closeEditModal();editorClosed=true;}finally{window.pendingSaveData=null;}};
                 try {
                     if (progressBar) setTimeout(() => progressBar.style.width = '60%', 400);
                     
@@ -6047,9 +6059,10 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     const desiredConnections = eventData.connections || [];
                     eventData.connections=desiredConnections;
                     saveStage='保存事件';
-                    const cloudSaved = await window.saveEventToCloud(eventData,!isEdit);
+                    const cloudSaved = await window.saveEventToCloud(eventData,!isEdit,{render:false});
                     if (!cloudSaved) throw new Error('cloud save failed');
-                    pending._isEdit=true;pending.revision=eventData.revision;pending.__cloudDocId=eventData.__cloudDocId;
+                    cloudConfirmed=true;pending._isEdit=true;pending.revision=eventData.revision;pending.__cloudDocId=eventData.__cloudDocId;
+                    saveStage='完成保存后处理';mediaFinalizeStarted=true;
                     await window.finishEditMediaTxn?.(eventData);
                     
                     if (progressBar) progressBar.style.width = '80%';
@@ -6061,23 +6074,28 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                         await Promise.resolve(window.xiaoqingerClaimSaveReward?.(eventData)).catch(err=>console.warn('小晴儿食粮奖励结算失败',err));
                     }
                     saveStage='刷新保存结果';
+                    if(!window._isEditingFromStack)window.renderEvents();
+                    await window.waitForCloudView?.();
+                    closeSavedEditor();
+                    await window.waitForCloudView?.();
+                    if(!isEdit)await window.scrollTimelineToEvent(eventData);
                     await window.waitForCloudView?.();
                     if (progressBar) progressBar.style.width = '100%';
-                    if (savingModal) savingModal.classList.add('hidden');
-                    if (eventData.timeMode === 'multi') window.closeMultiTimeEventModal?.(); else window.closeEditModal();
                     window.showToast(isEdit ? "保存成功" : "新建事件成功", "success");
-                    window.pendingSaveData = null;
-                    if (!isEdit) {
-                        requestAnimationFrame(() => {
-                            window.scrollTimelineToEvent(eventData);
-                        });
-                    }
                 } catch (err) {
-                    if(err?.eventCommitted){pending._isEdit=true;pending.revision=eventData.revision;pending.__cloudDocId=eventData.__cloudDocId;}
-                    if (savingModal) savingModal.classList.add('hidden');
-                    console.error('[事件保存失败]',{stage:saveStage,eventId:String(eventData.id||''),...(err?.coverContext||{})},err);
-                    window.showToast(`保存失败：${err?.coverContext?'':saveStage+'：'}${err?.message||String(err)||'未知错误'}`, 'error');
+                    const committed=cloudConfirmed||err?.eventCommitted===true;
+                    console.error(committed?'[事件已保存，后续处理失败]':'[事件保存失败]',{stage:saveStage,eventId:String(eventData.id||''),...(err?.coverContext||{})},err);
+                    if(committed){
+                        pending._isEdit=true;pending.revision=eventData.revision;pending.__cloudDocId=eventData.__cloudDocId;
+                        // Finish the original transaction without submitting the event a second time.
+                        if(!mediaFinalizeStarted){mediaFinalizeStarted=true;try{await window.finishEditMediaTxn?.(eventData);}catch(cleanupError){console.error('已保存事件的后续处理未完成',cleanupError);}}
+                        try{closeSavedEditor();}catch(closeError){console.error('已保存事件的编辑窗口关闭失败',closeError);document.getElementById(eventData.timeMode==='multi'?'multiTimeEventModal':'editModal')?.classList.add('hidden');window.stopEventEditStatus?.();}
+                        window.showToast(saveStage==='完成保存后处理'?'事件已保存，后续处理未完成，请刷新页面查看':'事件已保存，页面刷新失败，请刷新页面查看','info');
+                    }else{
+                        window.showToast(`保存失败：${err?.coverContext?'':saveStage+'：'}${err?.message||String(err)||'未知错误'}`, 'error');
+                    }
                 } finally {
+                    if(savingModal)savingModal.classList.add('hidden');
                     window.endCloudWriteLock?.();
                 }
             }
@@ -7392,7 +7410,6 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             anchorNode: null,
             anchorEventIds: [],
             visibleNodes: [],
-            originalScrollLeft: 0,
         };
 
         let _rearrangeEdgeScrolling = false;
@@ -7566,7 +7583,6 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             rearrangeState.anchorNode = anchorNode;
             rearrangeState.anchorEventIds = anchorEventIds.slice();
             rearrangeState.visibleNodes = allNodes.slice();
-            rearrangeState.originalScrollLeft = container.scrollLeft;
 
             container.classList.add('rearrange-active');
 
@@ -7627,7 +7643,6 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             rearrangeState.anchorNode = null;
             rearrangeState.anchorEventIds = [];
             rearrangeState.visibleNodes = [];
-            rearrangeState.originalScrollLeft = 0;
 
             anchorIds.forEach(id => window.highlightConnectionsForEvent(id, false));
             window.renderSvgConnections();
@@ -8047,7 +8062,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             const enabled=obj.deepDescription ? window.deepDescriptionIsEnabled(obj.deepDescription) : true;
             window.deepDescriptionEnabledDraft=enabled;
             window.deepSyncEnabledToggle?.();
-            m.classList.remove('hidden'); window.deepSetTextToolsExpanded?.(false); window.deepSetDrawing(false); window.deepSetErasing(false); window.deepUpdateConnectorControls?.(); window.renderDeepCanvas();
+            m.classList.remove('hidden'); window.deepSetTextToolsExpanded?.(false); window.deepSetDrawing(false); window.deepSetErasing(false); window.renderDeepCanvas();
             let restoredBackup=null;
             try{
                 const backupKey=window.deepBackupKey(target),backup=await window.deepBackupGetForTarget?.(target);
@@ -8705,7 +8720,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             window.deepDeactivateDrawTools?.(); window.deepTextTool=false; window.deepSetTextToolsExpanded?.(false); document.getElementById('deepTextToolBtn')?.classList.remove('active');
             window.deepConnectMode=!window.deepConnectMode; window.deepConnectPending=[];
             document.getElementById('deepConnectBtn')?.classList.toggle('active',window.deepConnectMode);
-            window.deepCanvasSelected=null; window.deepUpdateConnectorControls(); window.deepRefreshSelectionVisual?.();
+            window.deepCanvasSelected=null; window.deepRefreshSelectionVisual?.();
             window.showToast(window.deepConnectMode?'联结模式：依次点击两个区域，箭头从第一个指向第二个':'已退出联结模式','info');
         };
         window.deepHandleConnectPick=function(item){
@@ -8728,7 +8743,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             window.deepCanvasState.items.push({id,type:'connector',sourceId:first,targetId:item.id,direction:'forward',curve:0,stroke:'#6366f1'});
             window.deepConnectPending=[]; window.deepCanvasSelected=id; window.deepConnectMode=false;
             document.getElementById('deepConnectBtn')?.classList.remove('active');
-            window.deepRefreshSelectionVisual?.(); window.deepUpdateConnectors?.(); window.deepUpdateConnectorControls(); window.showToast('联结已创建；选中箭头后可直接拖动调整弯曲','success'); return true;
+            window.deepRefreshSelectionVisual?.(); window.deepUpdateConnectors?.(); window.showToast('联结已创建；选中箭头后可直接拖动调整弯曲','success'); return true;
         };
         window.deepAskExistingConnector=function(connector,opts={}){
             if(!connector)return;
@@ -8737,16 +8752,12 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             if(!m){m=document.createElement('div');m.id='deepConnectorConfirmModal';m.className='fixed inset-0 z-[410] hidden bg-slate-950/70 flex items-center justify-center p-4';document.body.appendChild(m);}
             const third=reverseAttempt?`<button type="button" id="deepConnectorBoth" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-semibold">创建双向联结</button>`:'';
             m.innerHTML=`<div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 text-center"><div class="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-3"><i class="fa-solid fa-link"></i></div><h3 class="font-bold text-slate-800 mb-1">这两个区域已经存在联结</h3><div class="flex flex-wrap justify-center gap-2"><button type="button" id="deepConnectorCancel" class="px-4 py-2 border rounded-lg text-xs">保留联结</button><button type="button" id="deepConnectorRemove" class="px-4 py-2 bg-rose-600 text-white rounded-lg text-xs font-semibold">取消联结</button>${third}</div></div>`;
-            const finish=()=>{window.deepConnectMode=false;window.deepConnectPending=[];document.getElementById('deepConnectBtn')?.classList.remove('active');window.closeDeepGifInline?.();m.classList.add('hidden');window.deepRefreshSelectionVisual?.();window.deepUpdateConnectors?.();window.deepUpdateConnectorControls?.();};
+            const finish=()=>{window.deepConnectMode=false;window.deepConnectPending=[];document.getElementById('deepConnectBtn')?.classList.remove('active');m.classList.add('hidden');window.deepRefreshSelectionVisual?.();window.deepUpdateConnectors?.();};
             m.querySelector('#deepConnectorCancel').onclick=()=>finish();
             m.querySelector('#deepConnectorRemove').onclick=()=>{deepPushUndo();window.deepCanvasState.items=window.deepCanvasState.items.filter(x=>x.id!==connector.id);window.deepCanvasSelected=null;finish();window.showToast('联结已取消','success');};
             const both=m.querySelector('#deepConnectorBoth');
             if(both)both.onclick=()=>{deepPushUndo();connector.direction='both';window.deepCanvasSelected=connector.id;finish();window.showToast('已创建双向联结','success');};
             m.classList.remove('hidden');
-        };
-        window.deepUpdateConnectorControls=function(){
-            const it=window.deepCanvasState?.items?.find(x=>x.id===window.deepCanvasSelected&&x.type==='connector');
-            return !!it;
         };
         window.deepDeactivateDrawTools=function(){window.deepDrawToolsActive=false;window.deepCanvasDrawing=false;window.deepCanvasErasing=false;window.deepCanvasSelecting=false;window.deepDrawSelection=[];window.deepDrawLassoPoints=[];window.deepDrawSelectionLasso=[];document.getElementById('deepDrawPanel')?.classList.add('hidden');window._deepEraserPointerInside=false;const c=document.getElementById('deepEraserCursor');if(c)c.style.display='none';window.deepSyncDrawPanel?.();window.deepRenderDrawPaths?.();};
         window.deepSyncDrawPanel=function(){
@@ -9982,7 +9993,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 node.classList.toggle('deep-canvas-selected',selected);
                 node.classList.toggle('deep-connect-pending',pending.has(id));
             });
-            window.deepUpdateConnectorControls?.();
+            
             window.deepSyncBorderToggle?.();
             window.deepSyncOpacityControl?.();
             window.deepPositionTextTools?.();
@@ -10187,7 +10198,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 const path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d',g.path);path.setAttribute('class','deep-connector-path'+(conn.id===window.deepCanvasSelected?' is-selected':''));path.setAttribute('marker-end','url(#deepArrowHead)');if(conn.direction==='both')path.setAttribute('marker-start','url(#deepArrowHead)');
                 const selectAndDrag=(e)=>{
                     if(window.deepDrawToolsActive||window.deepCanvasDrawing||window.deepCanvasErasing||window.deepCanvasSelecting)return;
-                    e.preventDefault();e.stopPropagation();window.deepConnectMode=false;window.deepConnectPending=[];document.getElementById('deepConnectBtn')?.classList.remove('active');window.deepCanvasSelected=conn.id;window.deepUpdateConnectorControls();window.deepUpdateConnectors();
+                    e.preventDefault();e.stopPropagation();window.deepConnectMode=false;window.deepConnectPending=[];document.getElementById('deepConnectBtn')?.classList.remove('active');window.deepCanvasSelected=conn.id;window.deepUpdateConnectors();
                     if(e.button!==undefined&&e.button!==0)return;
                     const startX=e.clientX,startY=e.clientY,startCurve=Number(conn.curve)||0,before=window.deepClone(window.deepCanvasState);let moved=false;
                     const geom=window.deepConnectorGeometry(conn,window.deepCanvasState.items||[]);if(!geom)return;const axis=Math.abs(geom.p2.x-geom.p1.x)>=Math.abs(geom.p2.y-geom.p1.y)?'h':'v';
@@ -10198,7 +10209,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 hit.onpointerdown=path.onpointerdown=selectAndDrag;group.append(hit,path);desired.appendChild(group);
             });
             window.reconcileLiveChildren(svg,Array.from(desired.childNodes));
-            window.deepUpdateConnectorControls?.();
+            
         };
         window.deepDistanceToSegment=function(px,py,a,b){const vx=b[0]-a[0],vy=b[1]-a[1],wx=px-a[0],wy=py-a[1],c1=vx*wx+vy*wy;if(c1<=0)return Math.hypot(px-a[0],py-a[1]);const c2=vx*vx+vy*vy;if(c2<=c1)return Math.hypot(px-b[0],py-b[1]);const t=c1/c2;return Math.hypot(px-(a[0]+t*vx),py-(a[1]+t*vy));};
         window.deepHitDrawStroke=function(x,y,onlySelected=false){const items=window.deepCanvasState?.items||[],selected=new Set(window.deepDrawSelection||[]);for(let i=items.length-1;i>=0;i--){const it=items[i];if(it.type!=='draw'||!Array.isArray(it.points)||it.points.length<2||(onlySelected&&!selected.has(it.id)))continue;const tol=Math.max(8,(Number(it.strokeWidth)||4)/2+6);for(let j=1;j<it.points.length;j++)if(window.deepDistanceToSegment(x,y,it.points[j-1],it.points[j])<=tol)return it;}return null;};
@@ -14778,22 +14789,31 @@ viewer.style.visibility='';
         };
 
         // Local metadata only: opening an ordinary media editor must not add a network round trip.
+        window.forEachEditorMediaReference=function(root,visit){
+            const seen=new WeakSet();const walk=value=>{
+                if(!value||typeof value!=='object'||seen.has(value))return;seen.add(value);
+                if(!Array.isArray(value)){const path=window.mediaPathOf(value.cloudPath||value.originalFull||value.original||value.url||value.src||'');if(path)visit(value,path);}
+                for(const [key,child]of Object.entries(value))if(!key.startsWith('_')&&key!=='points')walk(child);
+            };walk(root);
+        };
+        window.editorMediaReferenceIndex=function(){
+            const events=window.events||[],version=String(window._cloudbaseTimelineVersion||''),room=window.currentRoomId;
+            const cached=window._editorMediaReferences;
+            if(cached&&cached.room===room&&cached.version===version&&cached.events.length===events.length&&cached.events.every((event,i)=>event===events[i]))return cached.index;
+            const index=new Map();for(const event of events)window.forEachEditorMediaReference(event,(_,path)=>{if(!index.has(path))index.set(path,new Set());index.get(path).add(String(event.id));});
+            window._editorMediaReferences={room,version,events:events.slice(),index};return index;
+        };
         window.editorMediaSharing=function(value){
             const path=window.mediaPathOf(typeof value==='string'?value:(value?.cloudPath||value?.originalFull||value?.original||value?.url||value?.src||''));
             const result={path,other:false,repeated:false,unknown:false};if(!path)return result;
             if(window._editMediaTxn?.tempUploads?.some(x=>window.mediaPathOf(x.tempPath)===path))return result;
             const current=String(window._eventEditStatus?.eventId??window.editingConnectionDraftEventId??window.editingEventId??'');
-            const refs=new Set(),asset=window._mediaCoverIndex?.get(path);let count=0,flag=false;
+            const refs=new Set(window.editorMediaReferenceIndex().get(path)||[]),asset=window._mediaCoverIndex?.get(path);let count=0,flag=false;
             if(Array.isArray(asset?.referencingEventIds))asset.referencingEventIds.forEach(id=>refs.add(String(id)));
-            const scan=(root,onMatch)=>{const seen=new WeakSet();const walk=v=>{if(!v||typeof v!=='object'||seen.has(v))return;seen.add(v);if(!Array.isArray(v)&&window.mediaPathOf(v.cloudPath||v.originalFull||v.original||v.url||v.src||'')===path)onMatch(v);for(const [key,x]of Object.entries(v))if(!key.startsWith('_')&&key!=='points')walk(x);};walk(root);};
-            if(!Array.isArray(asset?.referencingEventIds))for(const event of window.events||[])scan(event,()=>refs.add(String(event.id)));
             const draft=window._eventEditStatus?.multi?window.multiTimeDraft:[window.editingImageFiles,window.editingVideos];
-            scan(draft,v=>{count++;flag||=v.mediaShared===true;});
-            result.other=[...refs].some(id=>id!==current);
-            result.repeated=count>1;
-            // A legacy positive flag remains conservative when complete reference metadata is absent.
-            result.unknown=!Array.isArray(asset?.referencingEventIds)&&!result.other&&flag;
-            return result;
+            window.forEachEditorMediaReference(draft,(media,mediaPath)=>{if(mediaPath===path){count++;flag||=media.mediaShared===true;}});
+            result.other=[...refs].some(id=>id!==current);result.repeated=count>1;
+            result.unknown=!Array.isArray(asset?.referencingEventIds)&&!result.other&&flag;return result;
         };
         window.showEditorSharedWarning=function(modal,value,context=null){
             if(!modal)return;modal.querySelector('[data-shared-edit-warning]')?.remove();
@@ -14850,16 +14870,22 @@ viewer.style.visibility='';
             }
             return true;
         };
-        window.refreshEventEditStatus=function(){
+        window.captureEventEditFields=function(){
             const state=window._eventEditStatus;if(!state||state.host.classList.contains('hidden'))return;
-            const prefix=state.multi?'page_'+window.multiTimePage+'_':'';
+            const segment=state.multi&&window.multiTimePage>1?window.multiTimeDraft?.[window.multiTimePage-2]:null;
+            const prefix=state.multi?(segment?'segment_'+encodeURIComponent(segment.id)+'_':'page_'+window.multiTimePage+'_'):'';
             for(const el of state.host.querySelectorAll('input,select,textarea,[contenteditable="true"]')){
-                if(el.type==='file'||el.closest('[data-connection-event-picker]')||el.placeholder?.includes('搜索'))continue;
+                // Formatting selectors describe the selection; the edited rich text is compared separately.
+                if(el.type==='file'||el.closest('.rich-format-toolbar')||el.closest('[data-connection-event-picker]')||el.placeholder?.includes('搜索'))continue;
                 const dateOwner=el.closest('[data-inline-date]')?.dataset.inlineDate;
                 const fieldKey=el.id||(dateOwner&&el.dataset.datePart?dateOwner+'_'+el.dataset.datePart:el.name?el.name+'_'+el.value:['checkbox','radio'].includes(el.type)?el.type+'_'+el.value:'');if(!fieldKey)continue;const key=prefix+fieldKey;
                 const value=el.isContentEditable?el.innerHTML:el.type==='checkbox'||el.type==='radio'?el.checked:el.value;
                 if(!state.fields.has(key))state.fields.set(key,value);state.currentFields.set(key,value);
             }
+        };
+        window.refreshEventEditStatus=function(){
+            const state=window._eventEditStatus;if(!state||state.host.classList.contains('hidden'))return;
+            window.captureEventEditFields();
             state.dirty=window.eventEditDataSignature(state.multi)!==state.signature||[...state.currentFields].some(([key,value])=>state.fields.get(key)!==value);
             const text=state.deepCompleted||state.dirty?'⚠️ 当前事件存在尚未保存的修改':'';
             let note=state.host.querySelector('[data-event-save-status]');
@@ -16009,7 +16035,7 @@ viewer.style.visibility='';
                 </div>            </div>`;
         };
 
-        window.multiPersistCurrentPage=function(){window.capturePendingEditorFields();const title=document.getElementById('multiEventTitle');if(title)window.multiTimeGeneralDraft.title=title.value;if(window.multiTimePage===1){const permissionMode=document.querySelector('input[name="eventPermissionMode"]:checked');if(permissionMode)window.multiTimePermissionDraft.editPermissionMode=permissionMode.value;if(document.querySelector('[data-permission-picker="normal"]'))window.multiTimePermissionDraft.allowedEditorProfileIds=window.permissionSelected('normal');const devLock=document.getElementById('eventDeveloperLocked');if(devLock)window.multiTimePermissionDraft.developerLocked=devLock.checked;if(document.querySelector('[data-permission-picker="developer"]'))window.multiTimePermissionDraft.developerAllowedProfileIds=window.permissionSelected('developer');}const type=document.getElementById('multiEventType');if(type)window.multiTimeGeneralDraft.type=type.value;const sortSeg=document.getElementById('multiTimelineSortSegment');if(sortSeg)window.multiTimeGeneralDraft.timelineSortSegmentId=sortSeg.value;const tags=document.querySelectorAll('.multi-tag');if(tags.length)window.multiTimeGeneralDraft.tags=Array.from(tags).filter(x=>x.checked).map(x=>x.value);if(window.multiTimePage>1&&window.multiTimeDraft?.[window.multiTimePage-2]){const segIndex=window.multiTimePage-2,seg=window.multiTimeDraft[segIndex];window.multiSyncSegmentDate?.(segIndex);const ed=document.getElementById('editDescription');if(ed){window.richSyncDecorationGeometry?.();seg.description=(window.normalizeDescriptionDefaultFontSize?.(ed.innerHTML)||ed.innerHTML).trim().replace(/^<br>+|<br>+$/g,'').trim();}}};
+        window.multiPersistCurrentPage=function(){window.captureEventEditFields();window.capturePendingEditorFields();const title=document.getElementById('multiEventTitle');if(title)window.multiTimeGeneralDraft.title=title.value;if(window.multiTimePage===1){const permissionMode=document.querySelector('input[name="eventPermissionMode"]:checked');if(permissionMode)window.multiTimePermissionDraft.editPermissionMode=permissionMode.value;if(document.querySelector('[data-permission-picker="normal"]'))window.multiTimePermissionDraft.allowedEditorProfileIds=window.permissionSelected('normal');const devLock=document.getElementById('eventDeveloperLocked');if(devLock)window.multiTimePermissionDraft.developerLocked=devLock.checked;if(document.querySelector('[data-permission-picker="developer"]'))window.multiTimePermissionDraft.developerAllowedProfileIds=window.permissionSelected('developer');}const type=document.getElementById('multiEventType');if(type)window.multiTimeGeneralDraft.type=type.value;const sortSeg=document.getElementById('multiTimelineSortSegment');if(sortSeg)window.multiTimeGeneralDraft.timelineSortSegmentId=sortSeg.value;const tags=document.querySelectorAll('.multi-tag');if(tags.length)window.multiTimeGeneralDraft.tags=Array.from(tags).filter(x=>x.checked).map(x=>x.value);if(window.multiTimePage>1&&window.multiTimeDraft?.[window.multiTimePage-2]){const segIndex=window.multiTimePage-2,seg=window.multiTimeDraft[segIndex];window.multiSyncSegmentDate?.(segIndex);const ed=document.getElementById('editDescription');if(ed){window.richSyncDecorationGeometry?.();seg.description=(window.normalizeDescriptionDefaultFontSize?.(ed.innerHTML)||ed.innerHTML).trim().replace(/^<br>+|<br>+$/g,'').trim();}}};
         window.multiRenderPageTabs=function(){
             const host=document.getElementById('multiPageTabs');if(!host)return;
             const total=window.multiTimeDraft.length+2;
