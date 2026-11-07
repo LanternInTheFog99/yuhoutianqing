@@ -3686,7 +3686,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             const target=String(window.normalizeCloudPath?.(cloudPath)||cloudPath||'').replace(/^\/+/,'');
             if(!target)return;
             const matches=(v)=>{
-                if(!v||typeof v!=='string')return false;
+                if(!v)return false;
                 const raw=String(v);
                 const normalized=String(window.normalizeCloudPath?.(raw)||raw||'').replace(/^\/+/,'');
                 if(normalized===target)return true;
@@ -3700,27 +3700,6 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 if(!obj||typeof obj!=='object')return matches(obj);
                 return ['cloudPath','url','src','original','originalFull','outer','inner','collection'].some(k=>matches(obj[k]));
             };
-            // Recursively remove matching media objects from every nested array/object.
-            // The previous implementation only cleaned the top-level images/videos slots,
-            // leaving stale references in legacy or nested event fields.
-            const prune=(value,seen=new WeakSet())=>{
-                if(!value||typeof value!=='object'||seen.has(value))return value;
-                seen.add(value);
-                if(Array.isArray(value)){
-                    for(let i=value.length-1;i>=0;i--){
-                        if(objectUses(value[i]))value.splice(i,1);
-                        else prune(value[i],seen);
-                    }
-                    return value;
-                }
-                for(const key of Object.keys(value)){
-                    const child=value[key];
-                    if(objectUses(child)&&child&&typeof child==='object')delete value[key];
-                    else if(matches(child))delete value[key];
-                    else prune(child,seen);
-                }
-                return value;
-            };
             if(Array.isArray(window.editingImageFiles)){
                 window.editingImageFiles=window.editingImageFiles.filter(x=>!objectUses(x));
                 window.renderMicroPreviews?.();
@@ -3729,9 +3708,13 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 window.editingVideos=window.editingVideos.filter(x=>!objectUses(x));
                 window.renderVideoMicroPreviews?.();
             }
+            // Keep the in-memory event consistent too; closing the editor should
+            // never resurrect a card that the server has already removed.
             const ev=(window.events||[]).find(x=>String(x?.id||'')===String(window.editingEventId||''));
-            if(ev)prune(ev);
-            if(window.pendingSaveData)prune(window.pendingSaveData);
+            if(ev){
+                if(Array.isArray(ev.images))ev.images=ev.images.filter(x=>!objectUses(x));
+                if(Array.isArray(ev.videos))ev.videos=ev.videos.filter(x=>!objectUses(x));
+            }
         };
 
         const mediaImageTasks=new Map(),mediaImageQueue=[];let mediaImageActive=0;
@@ -14901,25 +14884,31 @@ viewer.style.visibility='';
             }
         };
         window.refreshEventEditStatus=function(){
-            const state=window._eventEditStatus;if(!state||state.host.classList.contains('hidden'))return;
+            const state=window._eventEditStatus;if(!state||state.host.classList.contains('hidden')||!state.ready)return;
             window.captureEventEditFields();
-            state.dirty=window.eventEditDataSignature(state.multi)!==state.signature||[...state.currentFields].some(([key,value])=>state.fields.get(key)!==value);
+            state.dirty=state.deepCompleted||state.userEditedDuringInit||window.eventEditDataSignature(state.multi)!==state.signature||[...state.currentFields].some(([key,value])=>state.fields.get(key)!==value);
             const text=state.deepCompleted||state.dirty?'⚠️ 当前事件存在尚未保存的修改':'';
             let note=state.host.querySelector('[data-event-save-status]');
             if(!note){note=document.createElement('div');note.dataset.eventSaveStatus='1';note.setAttribute('role','status');note.style.cssText='flex-shrink:0;margin:0 20px 8px;padding:6px 9px;border:1px solid #fcd34d;border-radius:7px;background:#fffbeb;color:#92400e;font-size:11px;line-height:1.5;';const header=state.host.firstElementChild?.firstElementChild;if(!header)return;header.after(note);}
             if(note.textContent!==text)note.textContent=text;note.hidden=!text;
         };
-        window.stopEventEditStatus=function(){const state=window._eventEditStatus;state?.observer?.disconnect();if(state?.frame)cancelAnimationFrame(state.frame);window._eventEditStatus=null;};
+        window.stopEventEditStatus=function(){const state=window._eventEditStatus;state?.observer?.disconnect();if(state?.frame)cancelAnimationFrame(state.frame);if(state?.baselineFrame)cancelAnimationFrame(state.baselineFrame);window._eventEditStatus=null;};
         window.startEventEditStatus=function(multi,eventId){
             window.stopEventEditStatus();const host=document.getElementById(multi?'multiTimeEventModal':'editModal');if(!host)return;
-            const state=window._eventEditStatus={host,multi,eventId,dirty:false,deepCompleted:false,signature:window.eventEditDataSignature(multi),fields:new Map(),currentFields:new Map(),pending:new Map()};
-            window.refreshEventEditStatus();
+            const state=window._eventEditStatus={host,multi,eventId,dirty:false,deepCompleted:false,ready:false,userEditedDuringInit:false,signature:null,fields:new Map(),currentFields:new Map(),pending:new Map()};
+            // Wait until the modal's initial render has settled before capturing the baseline.
+            state.baselineFrame=requestAnimationFrame(()=>{state.baselineFrame=requestAnimationFrame(()=>{
+                if(window._eventEditStatus!==state)return;
+                state.signature=window.eventEditDataSignature(multi);
+                window.captureEventEditFields();state.fields=new Map(state.currentFields);
+                state.ready=true;window.refreshEventEditStatus();
+            });});
             state.observer=new MutationObserver(records=>{if(records.every(r=>(r.target.nodeType===1?r.target:r.target.parentElement)?.closest?.('[data-event-save-status]')))return;window.scheduleEventEditStatus();});
             state.observer.observe(host,{childList:true,subtree:true,characterData:true});
         };
         window.scheduleEventEditStatus=function(){const state=window._eventEditStatus;if(!state||state.frame)return;state.frame=requestAnimationFrame(()=>{state.frame=0;if(window._eventEditStatus===state)window.refreshEventEditStatus();});};
-        document.addEventListener('input',e=>{if(window._eventEditStatus?.host.contains(e.target)){window.capturePendingEditorFields();window.scheduleEventEditStatus();}},true);
-        document.addEventListener('change',e=>{if(window._eventEditStatus?.host.contains(e.target))window.scheduleEventEditStatus();},true);
+        document.addEventListener('input',e=>{const state=window._eventEditStatus;if(state?.host.contains(e.target)){if(!state.ready)state.userEditedDuringInit=true;window.capturePendingEditorFields();window.scheduleEventEditStatus();}},true);
+        document.addEventListener('change',e=>{const state=window._eventEditStatus;if(state?.host.contains(e.target)){if(!state.ready)state.userEditedDuringInit=true;window.scheduleEventEditStatus();}},true);
         document.addEventListener('click',()=>{if(window._eventEditStatus)window.scheduleEventEditStatus();},true);
 
         window.timelineQueryIsActive=function(){return !!(String(document.getElementById('searchInput')?.value||'').trim()||(window.tagFilterSelected||[]).length||window.timelineDateFilter?.start||window.timelineDateFilter?.end);};
