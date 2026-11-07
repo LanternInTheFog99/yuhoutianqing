@@ -3686,7 +3686,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             const target=String(window.normalizeCloudPath?.(cloudPath)||cloudPath||'').replace(/^\/+/,'');
             if(!target)return;
             const matches=(v)=>{
-                if(!v)return false;
+                if(!v||typeof v!=='string')return false;
                 const raw=String(v);
                 const normalized=String(window.normalizeCloudPath?.(raw)||raw||'').replace(/^\/+/,'');
                 if(normalized===target)return true;
@@ -3700,6 +3700,27 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 if(!obj||typeof obj!=='object')return matches(obj);
                 return ['cloudPath','url','src','original','originalFull','outer','inner','collection'].some(k=>matches(obj[k]));
             };
+            // Recursively remove matching media objects from every nested array/object.
+            // The previous implementation only cleaned the top-level images/videos slots,
+            // leaving stale references in legacy or nested event fields.
+            const prune=(value,seen=new WeakSet())=>{
+                if(!value||typeof value!=='object'||seen.has(value))return value;
+                seen.add(value);
+                if(Array.isArray(value)){
+                    for(let i=value.length-1;i>=0;i--){
+                        if(objectUses(value[i]))value.splice(i,1);
+                        else prune(value[i],seen);
+                    }
+                    return value;
+                }
+                for(const key of Object.keys(value)){
+                    const child=value[key];
+                    if(objectUses(child)&&child&&typeof child==='object')delete value[key];
+                    else if(matches(child))delete value[key];
+                    else prune(child,seen);
+                }
+                return value;
+            };
             if(Array.isArray(window.editingImageFiles)){
                 window.editingImageFiles=window.editingImageFiles.filter(x=>!objectUses(x));
                 window.renderMicroPreviews?.();
@@ -3708,13 +3729,9 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 window.editingVideos=window.editingVideos.filter(x=>!objectUses(x));
                 window.renderVideoMicroPreviews?.();
             }
-            // Keep the in-memory event consistent too; closing the editor should
-            // never resurrect a card that the server has already removed.
             const ev=(window.events||[]).find(x=>String(x?.id||'')===String(window.editingEventId||''));
-            if(ev){
-                if(Array.isArray(ev.images))ev.images=ev.images.filter(x=>!objectUses(x));
-                if(Array.isArray(ev.videos))ev.videos=ev.videos.filter(x=>!objectUses(x));
-            }
+            if(ev)prune(ev);
+            if(window.pendingSaveData)prune(window.pendingSaveData);
         };
 
         const mediaImageTasks=new Map(),mediaImageQueue=[];let mediaImageActive=0;
