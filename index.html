@@ -5484,7 +5484,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             };
             visit(eventData);
             const keys=new Set();const collect=v=>{if(!v||typeof v!=='object')return;if(v._editBackupKey)keys.add(v._editBackupKey);for(const key of v._editBackupOrigins||[])keys.add(key);Object.values(v).forEach(collect);};collect(eventData);
-            for(const key of keys){let backup=tx.deepBackupRecords?.[key];if(!backup)try{backup=await window.deepBackupGet(key);}catch(_){}try{await window.deepRemoveBackup(key,backup,false);for(const origin of backup?.origins||[])await window.deepRemoveBackup(origin.key,origin,false);}catch(error){console.warn('事件已保存，未覆盖其他页面的新备份',error);}}
+            for(const key of keys){let backup=tx.deepBackupRecords?.[key];if(!backup)try{backup=await window.deepBackupGet(key);}catch(_){}try{await window.deepRemoveBackup(key,backup);for(const origin of backup?.origins||[])await window.deepRemoveBackup(origin.key,origin);}catch(error){console.warn('事件已保存，未覆盖其他页面的新备份',error);}}
             const retained=new Set(Object.values(tx.deepBackupPaths||{}).flat());
             const unused=tx.tempUploads.filter(item=>!referenced.has(String(item.tempPath))&&!retained.has(item.tempPath));
             tx.tempUploads=unused;
@@ -8386,31 +8386,39 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         window.deepBackupDeleteForEvent=async function(eventId){
             await window._deepBackupWriteQueue;
             if(eventId===null||eventId===undefined)return;
-            try{const db=await window.deepBackupDbOpen();const prefix=['deep',encodeURIComponent(window.currentRoomId||'default'),encodeURIComponent(window.getCurrentAccountId?.()||'guest'),String(eventId),''].join('::'),legacyPrefix='deep::'+String(eventId)+'::';await new Promise((resolve,reject)=>{const tx=db.transaction('backups','readwrite'),store=tx.objectStore('backups'),req=store.openCursor();req.onsuccess=()=>{const c=req.result;if(!c)return;if((String(c.key).startsWith(prefix)||(window.currentRoomId===window.MAIN_EDIT_ROOM_ID&&String(c.key).startsWith(legacyPrefix)))&&c.value.pendingRoot===true)c.delete();c.continue();};tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}catch(_){}
+            const scope=[encodeURIComponent(window.currentRoomId||'default'),encodeURIComponent(window.getCurrentAccountId?.()||'guest'),String(eventId),''].join('::');
+            const prefixes=['deep::'+scope,'deep-manual::'+scope];
+            if(window.currentRoomId===window.MAIN_EDIT_ROOM_ID)prefixes.push('deep::'+String(eventId)+'::');
+            try{
+                const db=await window.deepBackupDbOpen();
+                await new Promise((resolve,reject)=>{
+                    const tx=db.transaction('backups','readwrite'),req=tx.objectStore('backups').openCursor();
+                    req.onsuccess=()=>{
+                        const cursor=req.result;
+                        if(!cursor)return;
+                        if(cursor.value.pendingRoot===true&&prefixes.some(prefix=>String(cursor.key).startsWith(prefix)))cursor.delete();
+                        cursor.continue();
+                    };
+                    tx.oncomplete=resolve;
+                    tx.onerror=()=>reject(tx.error);
+                });
+            }catch(_){}
         };
-        window.deepBackupSetStatus=function(kind,at,backupKind='auto'){
+        window.deepBackupSetStatus=function(kind,backupKind='auto'){
             const el=document.getElementById('deepBackupStatus');if(!el)return;
-            window._deepBackupStatusKind=kind;
-            const label=window._deepBackupStatusLabel=backupKind==='manual'?'主动备份':'自动备份';
+            const label=backupKind==='manual'?'主动备份':'自动备份';
             if(kind==='saving'){el.textContent=label+' · 备份中…';el.className='deep-backup-status is-saving';return;}
             if(kind==='local'){el.textContent=label+' · 仅本地';el.className='deep-backup-status is-error';return;}
             if(kind==='error'){el.textContent=label+' · 失败';el.className='deep-backup-status is-error';return;}
-            if(kind==='waiting'){el.textContent=label+' · 等待首次备份';el.className='deep-backup-status';return;}
-            window._deepBackupLastAt=Number(at)||Date.now();
-            window.deepBackupRefreshStatus?.();
+            el.textContent=label+(kind==='saved'?' · 已备份':' · 等待首次备份');
+            el.className='deep-backup-status';
         };
-        window.deepBackupRefreshStatus=function(){
-            const el=document.getElementById('deepBackupStatus');if(!el||!window._deepBackupLastAt)return;
-            if(window._deepBackupStatusKind!=='saved')return;
-            el.textContent=window._deepBackupStatusLabel+' · 已备份';el.className='deep-backup-status';
-        };
-        window.deepRemoveBackup=async function(key,backup,discardFiles=false){
+        window.deepRemoveBackup=async function(key,backup){
             if(!backup)try{backup=await window.deepBackupGet(key);}catch(_){}
             if(backup?.cloudPath&&!backup.pendingRoot&&!backup.localOnly){const result=await timelineApiPost('mediaDeepBackup',{mode:'delete',cloudPath:backup.cloudPath,key,baseRevision:Number(backup.backupRevision??window._deepBackupRemoteVersions?.[key])||0,accountId:window.getCurrentAccountId?.()||''},{auth:'edit',timeoutMs:20000});(window._deepBackupRemoteVersions||={})[key]=result.revision;}
             await window.deepBackupDelete(backup?.localKey||key);
             try{for(const local of await window.deepBackupLocalRecords())if(local.key===key&&(local.editedAt||local.updatedAt)<=(backup?.editedAt||backup?.updatedAt||0))await window.deepBackupDelete(local.localKey||local.key);}catch(_){}
             try{const storageKey='timeline_deep_emergency::'+(window.currentRoomId||'default')+'::'+(window.getCurrentAccountId?.()||'guest'),emergency=JSON.parse(localStorage.getItem(storageKey)||'null');if(emergency?.key===key&&Number(emergency.editedAt||emergency.updatedAt)<=Number(backup?.editedAt||backup?.updatedAt||0))localStorage.removeItem(storageKey);}catch(_){}if(window._editMediaTxn){delete window._editMediaTxn.deepBackupPaths?.[key];delete window._editMediaTxn.deepBackupRecords?.[key];}
-            if(discardFiles)await Promise.allSettled((backup?.uploads||[]).map(x=>window.deleteTempCloudPath(x.tempPath,x.pendingOwner)));
         };
         window.deepBackupBuildRecord=function(kind){
             const target=window.deepCanvasTarget,obj=window.deepResolveTargetObject(target),session=window._deepEditSession;if(!target||!obj||!window.deepCanvasState||session?.cancelling)return null;
@@ -8429,7 +8437,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 previous.pending)return previous.task;
             const write=async()=>{
                 if(session?.cancelling)return false;
-                window.deepBackupSetStatus('saving',null,kind);let local=false,remote=false;
+                window.deepBackupSetStatus('saving',kind);let local=false,remote=false;
                 record.backupRevision=Number(window._deepBackupRemoteVersions?.[record.key])||0;
                 try{await window.deepBackupPutLocal(record);local=true;(session.backupWrites||={})[record.key]=record.editedAt||record.updatedAt;}catch(e){console.warn('本地备份失败',e);}
                 if(tx){(tx.deepBackupRecords||={})[record.key]=record;if(!record.pendingRoot)(tx.deepBackupPaths||={})[record.key]=record.uploads.map(x=>x.tempPath);}
@@ -8437,8 +8445,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     const result=await timelineApiPost('mediaDeepBackup',{mode:'put',cloudPath:record.cloudPath,key:record.key,backup:record,baseRevision:record.backupRevision,accountId:record.accountId},{auth:'edit',timeoutMs:15000});
                     record.backupRevision=Number(result.revision)||0;record.cloudPending=false;(window._deepBackupRemoteVersions||={})[record.key]=record.backupRevision;remote=true;(session.backupWrites||={})[record.key]=record.editedAt||record.updatedAt;
                     try{await window.deepBackupPutLocal(record);local=true;}catch(_){}
-                }catch(e){console.warn('云端备份未完成，本地备份独立保留',e);window.deepBackupSetStatus(local?'local':'error',null,kind);if(e?.code==='deep_backup_conflict')window.showToast?.('另一页面已更新备份，当前修改已在本地保留，下次打开时会提示恢复','info');return false;}
-                if(local||remote){if(kind==='auto')session.autoBaseline=record;window.deepBackupSetStatus(remote?'saved':'local',record.updatedAt,kind);return true;}window.deepBackupSetStatus('error',null,kind);return false;
+                }catch(e){console.warn('云端备份未完成，本地备份独立保留',e);window.deepBackupSetStatus(local?'local':'error',kind);if(e?.code==='deep_backup_conflict')window.showToast?.('另一页面已更新备份，当前修改已在本地保留，下次打开时会提示恢复','info');return false;}
+                if(local||remote){if(kind==='auto')session.autoBaseline=record;window.deepBackupSetStatus(remote?'saved':'local',kind);return true;}window.deepBackupSetStatus('error',kind);return false;
             };
             const attempt={session,fingerprint,pending:true,task:null};
             const task=(window._deepBackupWriteQueue||Promise.resolve()).then(write,write)
@@ -8458,7 +8466,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 state:window.deepClone(window.deepCanvasState),enabled:window.deepDescriptionEnabledDraft
             };
             const at=Number(restored?.updatedAt)||0;
-            window.deepBackupSetStatus?.(at?(restored?.cloudPending||restored?.pendingRoot||restored?.localOnly?'local':'saved'):'waiting',at,restored?.backupKind);
+            window.deepBackupSetStatus?.(at?(restored?.cloudPending||restored?.pendingRoot||restored?.localOnly?'local':'saved'):'waiting',restored?.backupKind);
             window.deepAutosaveTimer=setInterval(()=>{
                 if(!document.getElementById('deepSaveBtn')?.disabled)void window.deepBackupNow('auto');
             },5*60*1000);
