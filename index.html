@@ -3388,6 +3388,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         };
         async function timelineApiPost(action, payload = {}, { auth = 'edit', timeoutMs = 25000 } = {}) {
             const requestedRoom=window.currentRoomId||'default',requestedMediaSession=payload.mediaEditSession||window._editMediaTxn?.sessionId||'';
+            const eventLock=window._eventEditLock;
             if(window._invalidRoomAccess) throw Object.assign(new Error('此链接无效'),{code:'invalid_room_link'});
             if(['auth','xiaoqingerAuth','backupAuth','developerAuth'].includes(String(action||''))){
                 payload={...payload,clientId:window.getTimelineAuthClientId?.()||''};
@@ -3413,7 +3414,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 }
                 const response = await fetch(TIMELINE_API_BASE + '/timeline', {
                     method:'POST', cache:'no-store', signal:controller.signal, headers,
-                    body: JSON.stringify({ room: requestedRoom, accessToken: window.roomAccessToken || '', action, ...payload, ...(['upsertEvent','mediaEditLock','deleteMediaAsset','getMediaUploadMetadata'].includes(action)?{mediaEditSession:requestedMediaSession}:{}), ...(window.isDeveloperMode?.() ? {developerToken:window.getDeveloperToken()} : {}) })
+                    body: JSON.stringify({ room: requestedRoom, accessToken: window.roomAccessToken || '', action, ...payload, ...(['upsertEvent','patchEvent','mediaEditLock','deleteMediaAsset','getMediaUploadMetadata','mediaDeepBackup'].includes(action)?{mediaEditSession:requestedMediaSession,...(eventLock?{mediaLockEventId:eventLock.eventId,eventEditSession:eventLock.session}:{})}:{}), ...(window.isDeveloperMode?.() ? {developerToken:window.getDeveloperToken()} : {}) })
                 });
                 const raw = await response.text();
                 let data = null;
@@ -4443,12 +4444,12 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     err.cloudBytes = cloudBytes;
                     throw err;
                 }
-                const requireEditLock=!isNew && String(window._activeEditLockEventId||'')===String(eventData.id);
+                const eventEditSession=window.eventEditSessionFor(eventData.id);
                 const connections=delta?delta.connections:eventData.connections;
                 const saveResult = await window.timelineApiWrite(delta?'patchEvent':'upsertEvent', {
                     event:cloudEvent,...(delta?{patch:delta.patch,documentId:existingDocumentId}:{}),
                     ...(Array.isArray(connections)?{connections}:{}),isNew:isNew===true,
-                    accountId:window.getCurrentAccountId?.()||'',...(!isNew?{baseRevision,requireEditLock}:{})
+                    accountId:window.getCurrentAccountId?.()||'',...(!isNew?{baseRevision,requireEditLock:true,eventEditSession}:{})
                 });
                 cloudCommitted=true;
                 // These view flags come from the loaded event, not the editable form.
@@ -4493,7 +4494,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             if(!window.hasTimelineEditToken?.())return false;
             const snapshot=beforeEvent||(window.events||[]).find(e=>String(e.id)===String(eventId));
             try{
-                const result=await window.timelineApiWrite('deleteEvent',{eventId,accountId:window.getCurrentAccountId?.()||'',...(snapshot?.__cloudDocId?{documentId:snapshot.__cloudDocId}:{}),...(snapshot?{beforeEvent:snapshot,baseRevision:Number(snapshot.revision)||0}:{})});
+                const result=await window.timelineApiWrite('deleteEvent',{eventId,eventEditSession:window.eventEditSessionFor(eventId),requireEditLock:true,accountId:window.getCurrentAccountId?.()||'',...(snapshot?.__cloudDocId?{documentId:snapshot.__cloudDocId}:{}),...(snapshot?{beforeEvent:snapshot,baseRevision:Number(snapshot.revision)||0}:{})});
                 if(!(Number(result?.removed)>0))throw new Error('云端尚未确认删除');
                 window.events=window.events.filter(e=>String(e.id)!==String(eventId));window.connections=window.connections.filter(c=>String(c.sourceId)!==String(eventId)&&String(c.targetId)!==String(eventId));
                 window.renderEvents();window.renderSvgConnections();if(result.cleanupPending)window.showToast?.('事件已删除，关联记录清理会自动重试','info');return true;
@@ -5423,14 +5424,24 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         window.mediaNeedsSharedLock=function(path){
             const sharing=window.editorMediaSharing(path);return sharing.other||sharing.unknown;
         };
-        window.acquireMediaEditLock=async function(path){
+        window.acquireMediaEditLock=async function(path,{includeDeep=false}={}){
             path=window.mediaPathOf(path);if(!path)return true;window.beginEditMediaTxn?.();const tx=window._editMediaTxn;if(!tx)return false;
-            if(tx.mediaLocks?.has(path)||tx.mediaUnlocked?.has(path)||window.mediaNeedsSharedLock?.(path)===false)return true;
+            if(tx.mediaLocks?.has(path))return true;
+            if(window.isPendingEditMedia(path)&&tx.tempUploads.some(item=>item.tempPath===path&&item.pendingOwner===tx.sessionId))return true;
+            const eventLock=window._eventEditLock;
+            if(eventLock?.timer){
+                const ids=window._mediaCoverIndex?.get(path)?.referencingEventIds;
+                const sharing=window.editorMediaSharing(path);
+                const saved=window.getSavedCloudMediaPresentation(path);
+                const soleReference=Array.isArray(ids)?ids.length===1&&String(ids[0])===eventLock.eventId:
+                    saved?.mediaReferenceCount===1&&window.editorMediaReferenceIndex().get(path)?.has(eventLock.eventId);
+                if(soleReference&&!sharing.other&&!sharing.unknown)return true;
+            }
             if(tx.mediaLockRequests?.has(path))return tx.mediaLockRequests.get(path);
             const request=(async()=>{
             const notice=setTimeout(()=>window._cloudUploadNotice?.('正在加载，请稍候…'),450);
-            try{await window.retryMediaLockReleases?.(path);const result=await timelineApiPost('mediaEditLock',{mode:'acquire',cloudPath:path,mediaEditSession:tx.sessionId,shared:true},{auth:'edit',timeoutMs:12000});if(window._editMediaTxn!==tx){if(!result.skipped)void timelineApiPost('mediaEditLock',{mode:'release',cloudPath:path,mediaEditSession:tx.sessionId},{auth:'edit',timeoutMs:8000});return false;}if(result.skipped){(tx.mediaUnlocked||=new Set()).add(path);return true;}(tx.mediaLocks||=new Set()).add(path);
-                if(!tx.mediaLockTimer)tx.mediaLockTimer=setInterval(async()=>{for(const p of tx.mediaLocks||[])try{await timelineApiPost('mediaEditLock',{mode:'heartbeat',cloudPath:p,mediaEditSession:tx.sessionId,shared:true},{auth:'edit',timeoutMs:10000});}catch(e){if(e.code==='media_lock_lost'){tx.mediaLocks.delete(p);window.showToast?.('媒体编辑锁已失效，请重新打开后编辑','error');}}},30000);return true;
+            try{await window.retryMediaLockReleases?.(path);const result=await timelineApiPost('mediaEditLock',{mode:'acquire',cloudPath:path,mediaEditSession:tx.sessionId,shared:window.mediaNeedsSharedLock(path),includeDeep},{auth:'edit',timeoutMs:includeDeep?25000:12000});if(window._editMediaTxn!==tx){void timelineApiPost('mediaEditLock',{mode:'release',cloudPath:path,mediaEditSession:tx.sessionId},{auth:'edit',timeoutMs:8000});return false;}(tx.mediaLocks||=new Set()).add(path);
+                if(!tx.mediaLockTimer)tx.mediaLockTimer=setInterval(async()=>{for(const p of tx.mediaLocks||[])try{await timelineApiPost('mediaEditLock',{mode:'heartbeat',cloudPath:p,mediaEditSession:tx.sessionId},{auth:'edit',timeoutMs:10000});}catch(e){if(e.code==='media_lock_lost'){tx.mediaLocks.delete(p);window.showToast?.('媒体编辑锁已失效，请重新打开后编辑','error');}}},30000);return includeDeep&&result.deep?result.deep:true;
             }catch(e){window.showToast?.(e.message||'暂时无法获取媒体编辑锁','error');return false;}
             finally{clearTimeout(notice);window._cloudUploadNotice?.('',false);tx.mediaLockRequests?.delete(path);}
             })();(tx.mediaLockRequests||=new Map()).set(path,request);return request;
@@ -8111,10 +8122,12 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             const obj=window.deepResolveTargetObject(target); if(!obj)return;
             const openEpoch=window._deepOpenEpoch=(Number(window._deepOpenEpoch)||0)+1;
             const lockPath=window.mediaPathOf(obj.cloudPath||obj.originalFull||obj.url||obj.src),previousLockHeld=!!window._editMediaTxn?.mediaLocks?.has(lockPath);
-            if(!(await window.acquireMediaEditLock(obj.cloudPath||obj.originalFull||obj.url||obj.src))||openEpoch!==window._deepOpenEpoch)return;
+            const includeDeep=!!obj.cloudPath&&!window.isPendingEditMedia(obj.cloudPath)&&!obj.deepDescription?._editCommitId;
+            const lockResult=await window.acquireMediaEditLock(obj.cloudPath||obj.originalFull||obj.url||obj.src,{includeDeep});
+            if(!lockResult||openEpoch!==window._deepOpenEpoch)return;
             let sharedState=null;
-            if(obj.cloudPath&&!window.isPendingEditMedia(obj.cloudPath)&&!obj.deepDescription?._editCommitId){
-                try{sharedState=await window.readSharedMediaDeep(obj.cloudPath);if(openEpoch!==window._deepOpenEpoch)return;obj.deepDescription=window.deepClone(sharedState.description);window._savedDeepDraftsByObject?.delete?.(obj);
+            if(includeDeep){
+                try{sharedState=lockResult===true?await window.readSharedMediaDeep(obj.cloudPath):lockResult;if(openEpoch!==window._deepOpenEpoch)return;obj.deepDescription=window.deepClone(sharedState.description);window._savedDeepDraftsByObject?.delete?.(obj);
                 }catch(e){console.error('shared deep read failed',e);window.showToast?.('深入描述读取失败，请重试','error');return;}
             }
             const m=window.deepEnsureModal();
@@ -8442,7 +8455,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 try{await window.deepBackupPutLocal(record);local=true;(session.backupWrites||={})[record.key]=record.editedAt||record.updatedAt;}catch(e){console.warn('本地备份失败',e);}
                 if(tx){(tx.deepBackupRecords||={})[record.key]=record;if(!record.pendingRoot)(tx.deepBackupPaths||={})[record.key]=record.uploads.map(x=>x.tempPath);}
                 if(!record.pendingRoot&&record.cloudPath)try{
-                    const result=await timelineApiPost('mediaDeepBackup',{mode:'put',cloudPath:record.cloudPath,key:record.key,backup:record,baseRevision:record.backupRevision,accountId:record.accountId},{auth:'edit',timeoutMs:15000});
+                    const result=await timelineApiPost('mediaDeepBackup',{mode:'put',cloudPath:record.cloudPath,key:record.key,backup:record,baseRevision:record.backupRevision,mediaEditSession:tx?.sessionId||'',accountId:record.accountId},{auth:'edit',timeoutMs:15000});
                     record.backupRevision=Number(result.revision)||0;record.cloudPending=false;(window._deepBackupRemoteVersions||={})[record.key]=record.backupRevision;remote=true;(session.backupWrites||={})[record.key]=record.editedAt||record.updatedAt;
                     try{await window.deepBackupPutLocal(record);local=true;}catch(_){}
                 }catch(e){console.warn('云端备份未完成，本地备份独立保留',e);window.deepBackupSetStatus(local?'local':'error',kind);if(e?.code==='deep_backup_conflict')window.showToast?.('另一页面已更新备份，当前修改已在本地保留，下次打开时会提示恢复','info');return false;}
@@ -12337,45 +12350,40 @@ viewer.style.visibility='';
             });
         };
 
-        window._activeEditLockEventId = window._activeEditLockEventId || '';
-        window._editLockHeartbeatTimer = window._editLockHeartbeatTimer || null;
-        window.acquireEventEditLock = async function(eventId){
+        window.eventEditSessionFor=function(eventId){
+            const lock=window._eventEditLock;
+            return lock?.eventId===String(eventId)?lock.session:'';
+        };
+        window.acquireEventEditLock=async function(eventId){
             if(eventId===null||eventId===undefined||eventId==='')return true;
+            const lock={eventId:String(eventId),session:crypto.randomUUID(),timer:null};
+            const payload={eventId:lock.eventId,eventEditSession:lock.session};
             try{
-                await timelineApiPost('acquireEditLock',{
-                    eventId:String(eventId),
-                    accountId:window.getCurrentAccountId?.()||'',
-                    userName:window.getCommonUserId?.()||'其他用户'
-                },{auth:'edit',timeoutMs:12000});
-                window._activeEditLockEventId=String(eventId);
-                window._editLockLostNotified=false;
-                clearInterval(window._editLockHeartbeatTimer);
-                window._editLockHeartbeatTimer=setInterval(async()=>{
-                    const id=window._activeEditLockEventId;if(!id)return;
-                    try{await timelineApiPost('heartbeatEditLock',{eventId:id,accountId:window.getCurrentAccountId?.()||''},{auth:'edit',timeoutMs:10000});}
-                    catch(e){
-                        // 网络抖动保持静默；只有服务器明确告知锁已被别人接手时才终止当前锁会话。
-                        if(e?.code==='edit_lock_lost'){
-                            clearInterval(window._editLockHeartbeatTimer);window._editLockHeartbeatTimer=null;
-                            window._activeEditLockEventId='';
-                            if(!window._editLockLostNotified){window._editLockLostNotified=true;window.showToast('当前事件的编辑状态已失效，请重新进入后再编辑','error');}
+                await timelineApiPost('acquireEditLock',payload,{auth:'edit',timeoutMs:12000});
+                window._eventEditLock=lock;
+                lock.timer=setInterval(async()=>{
+                    if(window._eventEditLock!==lock)return;
+                    try{await timelineApiPost('heartbeatEditLock',payload,{auth:'edit',timeoutMs:10000});}
+                    catch(error){
+                        if(error?.code==='edit_lock_lost'&&window._eventEditLock===lock&&lock.timer){
+                            clearInterval(lock.timer);lock.timer=null;
+                            window.showToast('当前事件的编辑状态已失效，请重新进入后再编辑','error');
                         }
                     }
                 },30000);
                 return true;
-            }catch(e){
-                if(e?.code==='edit_locked') window.showToast('有其他人正在编辑此事件，请稍后再试','error');
-                else if(e?.code==='event_edit_forbidden'||e?.code==='developer_locked') window.showToast(window.eventPermissionDeniedMessage?.(e.code)||'无法进入，你没有该事件的编辑权限','error');
+            }catch(error){
+                if(error?.code==='edit_locked')window.showToast('此事件正在其他页面编辑，请稍后再试','error');
+                else if(error?.code==='event_edit_forbidden'||error?.code==='developer_locked')window.showToast(window.eventPermissionDeniedMessage?.(error.code)||'无法进入，你没有该事件的编辑权限','error');
                 else window.showToast('暂时无法确认事件编辑状态，请稍后再试','error');
                 return false;
             }
         };
-        window.releaseEventEditLock = async function(eventId=null){
-            const id=String(eventId||window._activeEditLockEventId||'');
-            if(!id)return;
-            if(String(window._activeEditLockEventId||'')===id)window._activeEditLockEventId='';
-            clearInterval(window._editLockHeartbeatTimer);window._editLockHeartbeatTimer=null;
-            try{await timelineApiPost('releaseEditLock',{eventId:id,accountId:window.getCurrentAccountId?.()||''},{auth:'edit',timeoutMs:8000});}catch(_){}
+        window.releaseEventEditLock=async function(eventId=null){
+            const lock=window._eventEditLock;
+            if(!lock||(eventId!=null&&String(eventId)!==lock.eventId))return;
+            window._eventEditLock=null;clearInterval(lock.timer);
+            try{await timelineApiPost('releaseEditLock',{eventId:lock.eventId,eventEditSession:lock.session},{auth:'edit',timeoutMs:8000});}catch(_){}
         };
 
         window.openEditModal = function(eventId=null){return window.runEventOpening(()=>window.buildEventEditor(eventId));};
