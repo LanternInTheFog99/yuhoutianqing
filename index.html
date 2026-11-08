@@ -5439,8 +5439,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 if(!value||typeof value!=='object'||seen.has(value))return;seen.add(value);Object.entries(value).filter(([key])=>!key.startsWith('_edit')).forEach(([,child])=>visit(child));
             };
             visit(eventData);
-            const keys=new Set();const collect=v=>{if(!v||typeof v!=='object')return;if(v._editBackupKey)keys.add(v._editBackupKey);Object.values(v).forEach(collect);};collect(eventData);
-            for(const key of keys){let backup=tx.deepBackupRecords?.[key];if(!backup)try{backup=await window.deepBackupGet(key);}catch(_){}try{await window.deepRemoveBackup(key,backup,false);for(const origin of backup?.origins||[])await window.deepRemoveBackup(origin.key,origin,false);}catch(error){console.warn('事件已保存，未覆盖其他页面的新备份',error);}delete tx.deepBackupPaths?.[key];}
+            const keys=new Set();const collect=v=>{if(!v||typeof v!=='object')return;if(v._editBackupKey)keys.add(v._editBackupKey);for(const key of v._editBackupOrigins||[])keys.add(key);Object.values(v).forEach(collect);};collect(eventData);
+            for(const key of keys){let backup=tx.deepBackupRecords?.[key];if(!backup)try{backup=await window.deepBackupGet(key);}catch(_){}try{await window.deepRemoveBackup(key,backup,false);for(const origin of backup?.origins||[])await window.deepRemoveBackup(origin.key,origin,false);}catch(error){console.warn('事件已保存，未覆盖其他页面的新备份',error);}}
             const retained=new Set(Object.values(tx.deepBackupPaths||{}).flat());
             const unused=tx.tempUploads.filter(item=>!referenced.has(String(item.tempPath))&&!retained.has(item.tempPath));
             tx.tempUploads=unused;
@@ -5860,9 +5860,11 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 const dm=document.getElementById('deletingModal'),db=document.getElementById('deletingProgressBar');
                 dm?.classList.remove('hidden');if(db)db.style.width='25%';
                 window.beginCloudWriteLock?.();
+                const deleteStarted=performance.now();let deleteCloudMs=null;
                 try{
                     if(db)setTimeout(()=>db.style.width='55%',250);
                     const cloudDeleted=await window.deleteEventFromCloud(targetId,targetEvent);
+                    deleteCloudMs=performance.now()-deleteStarted;
                     if(!cloudDeleted)throw new Error('delete failed');
                     if(db)db.style.width='85%';
                     await Promise.resolve(window.writeActivityLog?.('delete',logInfo)).catch(err=>console.warn('删除日志后台写入失败',err));
@@ -5883,7 +5885,10 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     dm?.classList.add('hidden');
                     window.showToast("删除成功","info");
                 }catch(_){dm?.classList.add('hidden');window.showToast("删除失败，请重试","error");}
-                finally{window.endCloudWriteLock?.();}
+                finally{
+                    window.endCloudWriteLock?.();
+                    console.debug('[timeline write timing]',{operation:'deleteEvent',cloudMs:deleteCloudMs,totalMs:performance.now()-deleteStarted});
+                }
             }
         };
 
@@ -5982,7 +5987,15 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 const src=obj.originalFull||obj.original||obj.outer||obj.src||'';
                 if(window.isAnimatedImageSource?.(src,obj)){addGif(obj);return;}
                 if(!src)return;queued.add(obj);
-                const sourcePath=window.captureCloudPath(obj,src);if(sourcePath&&!window.resolveMediaCover(obj,'picture').url&&!Number(obj.sourceSize||obj.size||window._editMediaTxn?.tempUploads?.find(x=>x.tempPath===sourcePath)?.size))picturePaths.add(sourcePath);
+                const existingCover=window.resolveMediaCover(obj,'picture');
+                if(existingCover.url&&obj.outer===existingCover.url&&obj.inner===existingCover.url&&obj.collection===existingCover.url&&
+                    String(obj.pictureCoverCloudPath||'')===String(existingCover.path||''))return;
+                const sourcePath=window.captureCloudPath(obj,src);
+                if(!existingCover.url){
+                    const size=Number(obj.sourceSize||obj.size||window._editMediaTxn?.tempUploads?.find(x=>x.tempPath===sourcePath)?.size)||0;
+                    if(size>0&&size<=1024*1024)return;
+                    if(sourcePath&&!size)picturePaths.add(sourcePath);
+                }
                 addJob(obj,'picture',async()=>{
                     let cover=window.resolveMediaCover(obj,'picture');
                     if(!cover.url){
@@ -6047,6 +6060,9 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 if (progressBar) progressBar.style.width = '30%';
                 window.beginCloudWriteLock?.();
 
+                const saveStarted=performance.now(),saveTimes={};
+                let saveCheckpoint=saveStarted;
+                const markSaveStage=name=>{const now=performance.now();saveTimes[name]=now-saveCheckpoint;saveCheckpoint=now;};
                 let saveStage='整理待上传文件',cloudConfirmed=false,mediaFinalizeStarted=false,editorClosed=false;
                 const closeSavedEditor=()=>{if(editorClosed)return;try{if(eventData.timeMode==='multi')window.closeMultiTimeEventModal?.();else window.closeEditModal();editorClosed=true;}finally{window.pendingSaveData=null;}};
                 try {
@@ -6055,11 +6071,13 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     // Existing cloud references may lack a cover too; inspect every media slot.
                     saveStage='准备媒体封面';
                     await window.ensureAutomaticFirstFrameCovers(eventData);
+                    markSaveStage('coversMs');
                     saveStage='确认媒体上传';
                     const desiredConnections = eventData.connections || [];
                     eventData.connections=desiredConnections;
                     saveStage='保存事件';
                     const cloudSaved = await window.saveEventToCloud(eventData,!isEdit,{render:false});
+                    markSaveStage('cloudMs');
                     if (!cloudSaved) throw new Error('cloud save failed');
                     cloudConfirmed=true;pending._isEdit=true;pending.revision=eventData.revision;pending.__cloudDocId=eventData.__cloudDocId;
                     saveStage='完成保存后处理';mediaFinalizeStarted=true;
@@ -6073,6 +6091,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                         await Promise.resolve(window.writeActivityLog?.(isEdit ? 'edit' : 'create', eventData)).catch(err=>console.warn('活动日志写入失败',err));
                         await Promise.resolve(window.xiaoqingerClaimSaveReward?.(eventData)).catch(err=>console.warn('小晴儿食粮奖励结算失败',err));
                     }
+                    markSaveStage('postCommitMs');
                     saveStage='刷新保存结果';
                     if(!window._isEditingFromStack)window.renderEvents();
                     await window.waitForCloudView?.();
@@ -6080,6 +6099,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     await window.waitForCloudView?.();
                     if(!isEdit)await window.scrollTimelineToEvent(eventData);
                     await window.waitForCloudView?.();
+                    markSaveStage('viewMs');
+                    console.debug('[timeline write timing]',{operation:'saveEvent',...saveTimes,totalMs:performance.now()-saveStarted});
                     if (progressBar) progressBar.style.width = '100%';
                     window.showToast(isEdit ? "保存成功" : "新建事件成功", "success");
                 } catch (err) {
@@ -8065,17 +8086,45 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             m.classList.remove('hidden'); window.deepSetTextToolsExpanded?.(false); window.deepSetDrawing(false); window.deepSetErasing(false); window.renderDeepCanvas();
             let restoredBackup=null;
             try{
-                const backupKey=window.deepBackupKey(target),backup=await window.deepBackupGetForTarget?.(target);
+                const session=window._deepEditSession;
+                const results=await Promise.allSettled(['auto','manual'].map(kind=>window.deepBackupGetForTarget(target,kind)));
+                const backups=results.filter(result=>result.status==='fulfilled'&&result.value).map(result=>result.value);
+                for(const result of results)if(result.status==='rejected')console.warn('读取深入描述备份失败',result.reason);
                 if(openEpoch!==window._deepOpenEpoch||m.classList.contains('hidden'))return;
-                window._deepEditSession.entryBackup=window.deepClone(backup);
-                if(backup?.state&&!obj.deepDescription?._editCommitId&&window.deepBackupMatchesContent(backup,window.deepCanvasState,window.deepDescriptionEnabledDraft)){await window.deepRemoveBackup(backupKey,backup,false);window._deepEditSession.entryBackup=null;}
-                else if(backup?.state&&!obj.deepDescription?._editCommitId){
-                    const use=await window.deepAppConfirm({title:'检测到未保存的深入描述备份',desc:'发现上次未保存的修改，是否恢复？恢复后仍需保存事件才会生效。',confirmText:'恢复备份'});
-                    if(openEpoch!==window._deepOpenEpoch||m.classList.contains('hidden'))return;
-                    if(use&&window.deepRestoreBackup(backup,openEpoch)){restoredBackup=backup;window._deepEditSession.sharedRevision=backup.baseRevision??window._deepEditSession.sharedRevision;window._deepEditSession.commitId=backup.commitId||window._deepEditSession.commitId;window._deepEditSession.originBackups=[...(backup.origins||[]),...(backup.localKey&&backup.localKey!==window.deepBackupLocalKey(backupKey)?[{key:backup.key,cloudPath:backup.cloudPath,backupRevision:backup.backupRevision,localKey:backup.localKey,localOnly:true,uploads:backup.uploads||[],updatedAt:backup.updatedAt}]:[])];for(const item of backup.uploads||[])window.trackUnsavedMediaUpload(item.tempPath,{...item,url:item.tempUrl});if(window._editMediaTxn){window._editMediaTxn.deepBackupPaths[backupKey]=(backup.uploads||[]).map(x=>x.tempPath);(window._editMediaTxn.deepBackupRecords||={})[backupKey]=backup;}}
-                    else {await window.deepRemoveBackup(backupKey,backup,true);window._deepEditSession.entryBackup=null;}
+                session.entryBackups=Object.fromEntries(backups.map(backup=>[backup.key,window.deepClone(backup)]));
+                if(session.mediaTxn)for(const backup of backups){
+                    session.mediaTxn.deepBackupPaths[backup.key]=(backup.uploads||[]).map(upload=>upload.tempPath);
                 }
-            }catch(err){console.warn('读取深入描述自动备份失败',err);}
+                const candidates=backups.filter(backup=>!window.deepBackupMatchesContent(backup,window.deepCanvasState,window.deepDescriptionEnabledDraft));
+                if(candidates.length&&!obj.deepDescription?._editCommitId){
+                    const options=backups.map(backup=>({
+                        label:(backup.backupKind==='manual'?'主动备份':'自动备份')+' · '+new Date(backup.editedAt||backup.updatedAt).toLocaleString('zh-CN',{hour12:false}),
+                        value:backup
+                    }));
+                    const backup=await window.deepAppConfirm({
+                        title:'检测到未保存的深入描述备份',desc:'请选择要恢复的备份。选择“不恢复”会删除这里列出的备份。',
+                        choices:options,cancelText:'不恢复',danger:true,busyText:'正在删除备份...',
+                        onCancel:async()=>{
+                            for(const record of backups){await window.deepRemoveBackup(record.key,record);delete session.entryBackups[record.key];}
+                            return false;
+                        }
+                    });
+                    if(openEpoch!==window._deepOpenEpoch||m.classList.contains('hidden'))return;
+                    if(backup&&window.deepRestoreBackup(backup,openEpoch)){
+                        restoredBackup=backup;
+                        session.sharedRevision=backup.baseRevision??session.sharedRevision;
+                        session.commitId=backup.commitId||session.commitId;
+                        session.originBackups=[...(backup.origins||[]),...(backup.localKey&&backup.localKey!==window.deepBackupLocalKey(backup.key)?[{key:backup.key,localKey:backup.localKey,cloudPath:backup.cloudPath,backupRevision:backup.backupRevision,localOnly:true,updatedAt:backup.updatedAt,editedAt:backup.editedAt}]:[])];
+                        for(const item of backup.uploads||[])window.trackUnsavedMediaUpload(item.tempPath,{...item,url:item.tempUrl});
+                        if(window._editMediaTxn){
+                            window._editMediaTxn.deepBackupPaths[backup.key]=(backup.uploads||[]).map(x=>x.tempPath);
+                            (window._editMediaTxn.deepBackupRecords||={})[backup.key]=backup;
+                        }
+                    }
+                }else if(backups.length&&!candidates.length&&!obj.deepDescription?._editCommitId){
+                    for(const backup of backups){await window.deepRemoveBackup(backup.key,backup);delete session.entryBackups[backup.key];}
+                }
+            }catch(err){console.warn('读取深入描述备份失败',err);}
             if(openEpoch!==window._deepOpenEpoch||m.classList.contains('hidden'))return;
             window.deepStartAutosave?.(restoredBackup);
             await window.waitForCloudView?.();
@@ -8086,22 +8135,37 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         window.deepPendingCancels=function(){try{return JSON.parse(localStorage.getItem(window.deepCancelStorageKey())||'[]');}catch(_){return [];}};
         window.retryDeepCancels=async function(key=''){
             for(const task of window.deepPendingCancels().filter(x=>!key||x.key===key))try{
+                if(task.after?.some(id=>window.deepPendingCancels().some(item=>item.id===id)))continue;
                 if(!task.pendingRoot)try{await timelineApiPost('mediaDeepBackup',{mode:'cancel',key:task.key,cloudPath:task.cloudPath,backup:task.record},{auth:'edit',timeoutMs:15000});}catch(error){if(!['media_not_found','media_asset_not_found','media_deleting'].includes(error.code))throw error;}
                 const cleanup=(task.cleanup||[]).map(upload=>window.deleteTempCloudPath(upload.tempPath,upload.pendingOwner));void Promise.allSettled(cleanup);
                 const latest=window.deepPendingCancels();localStorage.setItem(window.deepCancelStorageKey(),JSON.stringify(latest.filter(x=>x.id!==task.id)));
             }catch(error){console.warn('取消后的清理等待重试',error);}
         };
         window.discardDeepSession=async function(session){
-            const key=session.backupKey||window.deepBackupKey(session.target),tx=session.mediaTxn||window._editMediaTxn,baseline=session.entryBackup||null;
-            const keep=new Set((baseline?.uploads||[]).map(x=>x.tempPath)),uploads=(tx?.tempUploads||[]).slice(session.tempMark).filter(x=>!keep.has(x.tempPath));
-            const task={id:crypto.randomUUID(),key,cloudPath:session.object?.cloudPath||'',pendingRoot:!session.backupWrittenAt||session.pendingRoot,record:{localKey:window.deepBackupLocalKey(key),commitId:session.commitId,cancelledThrough:session.backupWrittenAt||0,restore:baseline},cleanup:uploads};
-            const discardedKey=window.deepCancelStorageKey()+'::discarded',discarded=JSON.parse(localStorage.getItem(discardedKey)||'[]');discarded.push({key,localKey:window.deepBackupLocalKey(key),through:Date.now()});localStorage.setItem(discardedKey,JSON.stringify(discarded.slice(-200)));
-            const tasks=window.deepPendingCancels();tasks.push(task);localStorage.setItem(window.deepCancelStorageKey(),JSON.stringify(tasks));
-            await window.deepBackupDelete(window.deepBackupLocalKey(key));
-            try{const emergencyKey='timeline_deep_emergency::'+(window.currentRoomId||'default')+'::'+(window.getCurrentAccountId?.()||'guest'),record=JSON.parse(localStorage.getItem(emergencyKey)||'null');if(record?.key===key&&record.localKey===window.deepBackupLocalKey(key))localStorage.removeItem(emergencyKey);}catch(_){}
-            if(baseline)await window.deepBackupPutLocal({...baseline,localKey:baseline.localKey&&baseline.localKey!==window.deepBackupLocalKey(key)?baseline.localKey:window.deepBackupLocalKey(key)+'::kept::'+(baseline.commitId||'entry')});
-            if(tx){tx.tempUploads=tx.tempUploads.filter(x=>!uploads.includes(x));if(baseline){(tx.deepBackupRecords||={})[key]=baseline;if(!baseline.pendingRoot)tx.deepBackupPaths[key]=(baseline.uploads||[]).map(x=>x.tempPath);}else{delete tx.deepBackupPaths?.[key];delete tx.deepBackupRecords?.[key];}}
-            void window.retryDeepCancels(key);
+            const tx=session.mediaTxn||window._editMediaTxn;
+            const baselines=session.entryBackups||{};
+            const keep=new Set(Object.values(baselines).flatMap(record=>(record.uploads||[]).map(x=>x.tempPath)));
+            const uploads=(tx?.tempUploads||[]).slice(session.tempMark).filter(x=>!keep.has(x.tempPath));
+            const discardedKey=window.deepCancelStorageKey()+'::discarded';
+            const discarded=JSON.parse(localStorage.getItem(discardedKey)||'[]'),tasks=window.deepPendingCancels();
+            for(const [key,writtenAt] of Object.entries(session.backupWrites||{})){
+                const baseline=baselines[key]||null,localKey=window.deepBackupLocalKey(key);
+                tasks.push({id:crypto.randomUUID(),key,cloudPath:session.object?.cloudPath||'',pendingRoot:session.pendingRoot,
+                    record:{localKey,commitId:session.commitId,cancelledThrough:writtenAt,restore:baseline},cleanup:[]});
+                discarded.push({key,localKey,through:Date.now()});
+                await window.deepBackupDelete(localKey);
+                if(baseline)await window.deepBackupPutLocal({...baseline,localKey:baseline.localKey&&baseline.localKey!==localKey?baseline.localKey:localKey+'::kept::'+(baseline.commitId||'entry')});
+                if(tx){
+                    if(baseline){(tx.deepBackupRecords||={})[key]=baseline;tx.deepBackupPaths[key]=(baseline.uploads||[]).map(x=>x.tempPath);}
+                    else{delete tx.deepBackupPaths?.[key];delete tx.deepBackupRecords?.[key];}
+                }
+            }
+            // Clean files after every queued backup rollback has had a chance to run.
+            if(uploads.length)tasks.push({id:crypto.randomUUID(),key:session.backupKey,pendingRoot:true,cleanup:uploads,after:tasks.filter(task=>Object.hasOwn(session.backupWrites||{},task.key)).map(task=>task.id)});
+            localStorage.setItem(discardedKey,JSON.stringify(discarded.slice(-200)));
+            localStorage.setItem(window.deepCancelStorageKey(),JSON.stringify(tasks));
+            if(tx)tx.tempUploads=tx.tempUploads.filter(x=>!uploads.includes(x));
+            void window.retryDeepCancels();
         };
         if(!window._deepCancelRetryBound){window._deepCancelRetryBound=true;['online','focus'].forEach(type=>window.addEventListener(type,()=>void window.retryDeepCancels()));}
         window.closeDeepDescriptionEditor = async function(discard){
@@ -8125,7 +8189,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             window.deepPushUndo?.();
             window.deepDescriptionEnabledDraft=!window.deepDescriptionEnabledDraft;
             window.deepCanvasState.enabled=window.deepDescriptionEnabledDraft;
-            window.deepSyncEnabledToggle();window.deepScheduleBackup?.();
+            window.deepSyncEnabledToggle();
         };
         window.deepSyncEnabledToggle = function(){
             const enabled=!!window.deepDescriptionEnabledDraft;
@@ -8143,7 +8207,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 btn.className='px-3 py-1.5 border rounded-lg text-xs '+(enabled?'border-amber-200 bg-amber-50 text-amber-700':'border-emerald-200 bg-emerald-50 text-emerald-700');
             }
         };
-        window.deepAppConfirm=function({title='确认操作？',desc='',confirmText='确认',danger=false,onConfirm=null,busyText='正在处理...'}={}){return new Promise(resolve=>{
+        window.deepAppConfirm=function({title='确认操作？',desc='',confirmText='确认',danger=false,onConfirm=null,busyText='正在处理...',choices=null,cancelText='取消',onCancel=null}={}){return new Promise(resolve=>{
             let m=document.getElementById('deepAppConfirmModal');
             if(!m){m=document.createElement('div');m.id='deepAppConfirmModal';m.className='fixed inset-0 bg-slate-900/75 backdrop-blur-md z-[520] hidden flex items-center justify-center p-4';document.body.appendChild(m);}
             let busy=false,progressTimer=null;
@@ -8158,18 +8222,26 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 progressTimer=setTimeout(()=>{if(bar)bar.style.width='55%';},250);
             };
             const renderIdle=()=>{
-                m.innerHTML=`<div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center"><div class="w-12 h-12 rounded-full ${danger?'bg-rose-100 text-rose-500':'bg-indigo-100 text-indigo-600'} flex items-center justify-center text-xl mx-auto mb-3"><i class="fa-solid ${danger?'fa-triangle-exclamation':'fa-circle-question'}"></i></div><h3 class="font-bold text-slate-800 text-base mb-1">${window.escapeHtml(title)}</h3><p class="text-xs text-slate-500 mb-5">${window.escapeHtml(desc)}</p><div class="flex justify-center gap-3"><button type="button" data-dc-cancel class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">取消</button><button type="button" data-dc-ok class="px-4 py-2 ${danger?'bg-rose-600 hover:bg-rose-700':'bg-indigo-600 hover:bg-indigo-700'} text-white rounded-lg text-xs font-medium shadow-sm">${window.escapeHtml(confirmText)}</button></div></div>`;
+                m.innerHTML=`<div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center"><div class="w-12 h-12 rounded-full ${danger?'bg-rose-100 text-rose-500':'bg-indigo-100 text-indigo-600'} flex items-center justify-center text-xl mx-auto mb-3"><i class="fa-solid ${danger?'fa-triangle-exclamation':'fa-circle-question'}"></i></div><h3 class="font-bold text-slate-800 text-base mb-1">${window.escapeHtml(title)}</h3><p class="text-xs text-slate-500 mb-5">${window.escapeHtml(desc)}</p><div class="flex justify-center gap-3"><button type="button" data-dc-cancel class="px-4 py-2 border border-slate-300 hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700">${window.escapeHtml(cancelText)}</button><button type="button" data-dc-ok class="px-4 py-2 ${danger?'bg-rose-600 hover:bg-rose-700':'bg-indigo-600 hover:bg-indigo-700'} text-white rounded-lg text-xs font-medium shadow-sm">${window.escapeHtml(confirmText)}</button></div></div>`;
                 const cancel=m.querySelector('[data-dc-cancel]'),ok=m.querySelector('[data-dc-ok]');
-                cancel.onclick=e=>{e.stopPropagation();if(!busy)done(false)};
-                ok.onclick=async e=>{e.stopPropagation();if(busy)return;if(typeof onConfirm!=='function'){done(true);return;}
+                if(choices){
+                    for(const choice of choices){
+                        const option=ok.cloneNode(false);option.removeAttribute('data-dc-ok');option.textContent=choice.label;
+                        option.onclick=e=>{e.stopPropagation();if(!busy)done(choice.value);};
+                        ok.parentElement.before(option);option.classList.add('block','w-full','mb-2');
+                    }
+                    ok.remove();
+                }
+                const run=async(e,handler,fallback)=>{e.stopPropagation();if(busy)return;if(typeof handler!=='function'){done(fallback);return;}
                     busy=true;m.setAttribute('aria-busy','true');renderBusy();window.beginCloudWriteLock?.();
-                    try{const result=await onConfirm();const bar=m.querySelector('[data-deep-confirm-progress]');if(bar)bar.style.width='100%';await window.waitForCloudView?.();done(result===undefined?true:result);}
+                    try{const result=await handler();const bar=m.querySelector('[data-deep-confirm-progress]');if(bar)bar.style.width='100%';await window.waitForCloudView?.();done(result===undefined?true:result);}
                     catch(err){busy=false;stopProgress();m.removeAttribute('aria-busy');renderIdle();window.showToast?.(err?.message||'操作失败','error');}
                     finally{window.endCloudWriteLock?.();}
                 };
+                cancel.onclick=e=>run(e,onCancel,false);ok.onclick=e=>run(e,onConfirm,true);
             };
             renderIdle();
-            m.onclick=e=>{if(busy){e.preventDefault();e.stopPropagation();return;}if(e.target===m)done(false);};
+            m.onclick=e=>{if(busy){e.preventDefault();e.stopPropagation();return;}if(e.target===m&&!choices)done(false);};
             m.classList.remove('hidden');
         });};
 
@@ -8200,12 +8272,12 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             });
             return window._deepBackupDbPromise;
         };
-        window.deepBackupKey=function(target=window.deepCanvasTarget){
+        window.deepBackupKey=function(target=window.deepCanvasTarget,kind='auto'){
             const obj=window.deepResolveTargetObject?.(target);
             const mediaId=String(obj?.mediaId||obj?.cloudPath||window.deepGetSrc?.(target?.type,obj)||'');
             const eventId=String(target?.multi?window.multiTimeEditingId:window.editingEventId||'new');
             const segId=target?.multi?String(window.multiTimeDraft?.[target.segIndex]?.id||target.segIndex):'single';
-            return ['deep',encodeURIComponent(window.currentRoomId||'default'),encodeURIComponent(window.getCurrentAccountId?.()||'guest'),eventId,segId,String(target?.type||''),mediaId].join('::');
+            return [kind==='manual'?'deep-manual':'deep',encodeURIComponent(window.currentRoomId||'default'),encodeURIComponent(window.getCurrentAccountId?.()||'guest'),eventId,segId,String(target?.type||''),mediaId].join('::');
         };
         window.deepBackupLocalKey=key=>key+'::local::'+(window._deepBackupInstanceId||=(crypto.randomUUID()));
         window.deepBackupPutLocal=async function(record){const localKey=record.localKey||window.deepBackupLocalKey(record.key);record.localKey=localKey;await window.deepBackupPut({...record,key:localKey,logicalKey:record.key});};
@@ -8218,12 +8290,12 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             const content=(value,on)=>({width:Math.max(800,Number(value.width)||2600),height:Math.max(600,Number(value.height)||1600),enabled:on!==false,items:clean((value.items||[]).filter(x=>x&&x.type!=='arrow'))});
             return JSON.stringify(content(backup.state,backup.enabled))===JSON.stringify(content(state,enabled));
         };
-        window.deepBackupGetForTarget=async function(target){
-            const key=window.deepBackupKey(target),obj=window.deepResolveTargetObject(target);let local=null;
+        window.deepBackupGetForTarget=async function(target,kind){
+            const key=window.deepBackupKey(target,kind),obj=window.deepResolveTargetObject(target);let local=null;
             await window.retryDeepCancels?.(key);const cancelled=window.deepPendingCancels?.().find(x=>x.key===key);
             try{local=(await window.deepBackupLocalRecords()).filter(r=>r.key===key&&!window.deepSnapshotDiscarded?.(r)).sort((a,b)=>(b.editedAt||b.updatedAt)-(a.editedAt||a.updatedAt))[0]||await window.deepBackupGet(key);}catch(_){}
             try{const emergency=JSON.parse(localStorage.getItem('timeline_deep_emergency::'+(window.currentRoomId||'default')+'::'+(window.getCurrentAccountId?.()||'guest'))||'null');if(emergency?.key===key&&!window.deepSnapshotDiscarded?.(emergency)&&(!local||(emergency.editedAt||emergency.updatedAt)>(local.editedAt||local.updatedAt)))local=emergency;}catch(_){}
-            if(cancelled)return cancelled.record.restore||null;
+            if(cancelled?.record)return cancelled.record.restore||null;
             if(obj?.cloudPath&&!window.isPendingEditMedia(obj.cloudPath)){
                 try{const result=await timelineApiPost('mediaDeepBackup',{mode:'get',cloudPath:obj.cloudPath,key,accountId:window.getCurrentAccountId?.()||''},{auth:'edit',timeoutMs:15000});(window._deepBackupRemoteVersions||={})[key]=Number(result.revision)||0;
                     if(result.backup){const remote=result.backup;return local&&(local.editedAt||local.updatedAt)>(remote.editedAt||remote.updatedAt)?{...local,backupRevision:Number(result.revision)||0}:remote;}
@@ -8258,20 +8330,21 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             if(eventId===null||eventId===undefined)return;
             try{const db=await window.deepBackupDbOpen();const prefix=['deep',encodeURIComponent(window.currentRoomId||'default'),encodeURIComponent(window.getCurrentAccountId?.()||'guest'),String(eventId),''].join('::'),legacyPrefix='deep::'+String(eventId)+'::';await new Promise((resolve,reject)=>{const tx=db.transaction('backups','readwrite'),store=tx.objectStore('backups'),req=store.openCursor();req.onsuccess=()=>{const c=req.result;if(!c)return;if((String(c.key).startsWith(prefix)||(window.currentRoomId===window.MAIN_EDIT_ROOM_ID&&String(c.key).startsWith(legacyPrefix)))&&c.value.pendingRoot===true)c.delete();c.continue();};tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}catch(_){}
         };
-        window.deepBackupSetStatus=function(kind,at){
+        window.deepBackupSetStatus=function(kind,at,backupKind='auto'){
             const el=document.getElementById('deepBackupStatus');if(!el)return;
             window._deepBackupStatusKind=kind;
-            if(kind==='saving'){el.textContent='自动备份 · 备份中…';el.className='deep-backup-status is-saving';return;}
-            if(kind==='local'){el.textContent='自动备份 · 仅本地';el.className='deep-backup-status is-error';return;}
-            if(kind==='error'){el.textContent='自动备份 · 失败';el.className='deep-backup-status is-error';return;}
-            if(kind==='waiting'){el.textContent='自动备份 · 等待首次备份';el.className='deep-backup-status';return;}
+            const label=window._deepBackupStatusLabel=backupKind==='manual'?'主动备份':'自动备份';
+            if(kind==='saving'){el.textContent=label+' · 备份中…';el.className='deep-backup-status is-saving';return;}
+            if(kind==='local'){el.textContent=label+' · 仅本地';el.className='deep-backup-status is-error';return;}
+            if(kind==='error'){el.textContent=label+' · 失败';el.className='deep-backup-status is-error';return;}
+            if(kind==='waiting'){el.textContent=label+' · 等待首次备份';el.className='deep-backup-status';return;}
             window._deepBackupLastAt=Number(at)||Date.now();
             window.deepBackupRefreshStatus?.();
         };
         window.deepBackupRefreshStatus=function(){
             const el=document.getElementById('deepBackupStatus');if(!el||!window._deepBackupLastAt)return;
             if(window._deepBackupStatusKind!=='saved')return;
-            el.textContent='自动备份 · 已备份';el.className='deep-backup-status';
+            el.textContent=window._deepBackupStatusLabel+' · 已备份';el.className='deep-backup-status';
         };
         window.deepRemoveBackup=async function(key,backup,discardFiles=false){
             if(!backup)try{backup=await window.deepBackupGet(key);}catch(_){}
@@ -8281,63 +8354,80 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             try{const storageKey='timeline_deep_emergency::'+(window.currentRoomId||'default')+'::'+(window.getCurrentAccountId?.()||'guest'),emergency=JSON.parse(localStorage.getItem(storageKey)||'null');if(emergency?.key===key&&Number(emergency.editedAt||emergency.updatedAt)<=Number(backup?.editedAt||backup?.updatedAt||0))localStorage.removeItem(storageKey);}catch(_){}if(window._editMediaTxn){delete window._editMediaTxn.deepBackupPaths?.[key];delete window._editMediaTxn.deepBackupRecords?.[key];}
             if(discardFiles)await Promise.allSettled((backup?.uploads||[]).map(x=>window.deleteTempCloudPath(x.tempPath,x.pendingOwner)));
         };
-        window.deepBackupBuildRecord=function(){
+        window.deepBackupBuildRecord=function(kind){
             const target=window.deepCanvasTarget,obj=window.deepResolveTargetObject(target),session=window._deepEditSession;if(!target||!obj||!window.deepCanvasState||session?.cancelling)return null;
-            const key=window.deepBackupKey(target),viewport=document.getElementById('deepCanvasStage')?.parentElement,state=window.deepClone(window.deepCanvasState),paths=new Set();
+            const key=window.deepBackupKey(target,kind),viewport=document.getElementById('deepCanvasStage')?.parentElement,state=window.deepClone(window.deepCanvasState),paths=new Set();
             const scan=v=>{if(typeof v==='string'){const p=window.mediaPathOf(v);if(p)paths.add(p);}else if(v&&typeof v==='object')Object.values(v).forEach(scan);};scan(state);
-            return {key,localKey:window.deepBackupLocalKey(key),roomId:window.currentRoomId||'default',accountId:window.getCurrentAccountId?.()||'guest',eventId:String(target.multi?window.multiTimeEditingId:window.editingEventId||'new'),target:{...target},cloudPath:obj.cloudPath||'',pendingRoot:window.isPendingEditMedia(obj.cloudPath),baseRevision:session?.sharedRevision||0,commitId:session?.commitId,origins:session?.originBackups||[],backupRevision:Number(window._deepBackupRemoteVersions?.[key])||0,editedAt:Date.now(),updatedAt:Date.now(),uploads:(window._editMediaTxn?.tempUploads||[]).filter(x=>paths.has(x.tempPath)).map(x=>({...x})),state,enabled:!!window.deepDescriptionEnabledDraft,view:{zoom:window.deepZoom||1,scrollLeft:viewport?.scrollLeft||0,scrollTop:viewport?.scrollTop||0},cloudPending:true};
+            return {key,backupKind:kind,localKey:window.deepBackupLocalKey(key),roomId:window.currentRoomId||'default',accountId:window.getCurrentAccountId?.()||'guest',eventId:String(target.multi?window.multiTimeEditingId:window.editingEventId||'new'),target:{...target},cloudPath:obj.cloudPath||'',pendingRoot:window.isPendingEditMedia(obj.cloudPath),baseRevision:session?.sharedRevision||0,commitId:session?.commitId,origins:session?.originBackups||[],backupRevision:Number(window._deepBackupRemoteVersions?.[key])||0,editedAt:Date.now(),updatedAt:Date.now(),uploads:(window._editMediaTxn?.tempUploads||[]).filter(x=>paths.has(x.tempPath)).map(x=>({...x})),state,enabled:!!window.deepDescriptionEnabledDraft,view:{zoom:window.deepZoom||1,scrollLeft:viewport?.scrollLeft||0,scrollTop:viewport?.scrollTop||0},cloudPending:true};
         };
-        window.deepBackupNow=async function(force=false){
+        window.deepBackupNow=async function(kind='auto'){
             const modal=document.getElementById('deepDescriptionModal');if(!modal||modal.classList.contains('hidden')||window._deepEditSession?.cancelling)return false;
-            const record=window.deepBackupBuildRecord();if(!record)return false;const fingerprint=JSON.stringify([record.state,record.enabled,record.view]);if(!force&&fingerprint===window._deepBackupFingerprint)return true;
+            const record=window.deepBackupBuildRecord(kind);if(!record||!window._deepEditSession)return false;
             const tx=window._editMediaTxn,session=window._deepEditSession;
+            if(kind==='auto'&&window.deepBackupMatchesContent(session.autoBaseline,record.state,record.enabled))return true;
+            const fingerprint=JSON.stringify([record.key,record.localKey,record.cloudPath,record.pendingRoot,record.commitId,record.uploads,record.state,record.enabled,record.view]);
+            const previous=window._deepBackupAttempt;
+            if(previous?.session===session&&previous?.fingerprint===fingerprint&&
+                previous.pending)return previous.task;
             const write=async()=>{
                 if(session?.cancelling)return false;
-                window.deepBackupSetStatus('saving');let local=false,remote=false;
+                window.deepBackupSetStatus('saving',null,kind);let local=false,remote=false;
                 record.backupRevision=Number(window._deepBackupRemoteVersions?.[record.key])||0;
-                try{await window.deepBackupPutLocal(record);local=true;if(session)session.backupWrittenAt=record.editedAt||record.updatedAt;}catch(e){console.warn('本地备份失败',e);}
+                try{await window.deepBackupPutLocal(record);local=true;(session.backupWrites||={})[record.key]=record.editedAt||record.updatedAt;}catch(e){console.warn('本地备份失败',e);}
                 if(tx){(tx.deepBackupRecords||={})[record.key]=record;if(!record.pendingRoot)(tx.deepBackupPaths||={})[record.key]=record.uploads.map(x=>x.tempPath);}
                 if(!record.pendingRoot&&record.cloudPath)try{
                     const result=await timelineApiPost('mediaDeepBackup',{mode:'put',cloudPath:record.cloudPath,key:record.key,backup:record,baseRevision:record.backupRevision,accountId:record.accountId},{auth:'edit',timeoutMs:15000});
-                    record.backupRevision=Number(result.revision)||0;record.cloudPending=false;(window._deepBackupRemoteVersions||={})[record.key]=record.backupRevision;remote=true;if(session)session.backupWrittenAt=record.editedAt||record.updatedAt;
+                    record.backupRevision=Number(result.revision)||0;record.cloudPending=false;(window._deepBackupRemoteVersions||={})[record.key]=record.backupRevision;remote=true;(session.backupWrites||={})[record.key]=record.editedAt||record.updatedAt;
                     try{await window.deepBackupPutLocal(record);local=true;}catch(_){}
-                }catch(e){console.warn('云端备份未完成，本地备份独立保留',e);window.deepBackupSetStatus(local?'local':'error');if(e?.code==='deep_backup_conflict')window.showToast?.('另一页面已更新备份，当前修改已在本地保留，下次打开时会提示恢复','info');return false;}
-                if(local||remote){window._deepBackupFingerprint=fingerprint;window.deepBackupSetStatus(remote?'saved':'local',record.updatedAt);return true;}window.deepBackupSetStatus('error');return false;
+                }catch(e){console.warn('云端备份未完成，本地备份独立保留',e);window.deepBackupSetStatus(local?'local':'error',null,kind);if(e?.code==='deep_backup_conflict')window.showToast?.('另一页面已更新备份，当前修改已在本地保留，下次打开时会提示恢复','info');return false;}
+                if(local||remote){if(kind==='auto')session.autoBaseline=record;window.deepBackupSetStatus(remote?'saved':'local',record.updatedAt,kind);return true;}window.deepBackupSetStatus('error',null,kind);return false;
             };
-            const task=(window._deepBackupWriteQueue||Promise.resolve()).then(write,write);window._deepBackupWriteQueue=task;return task;
+            const attempt={session,fingerprint,pending:true,task:null};
+            const task=(window._deepBackupWriteQueue||Promise.resolve()).then(write,write)
+                .finally(()=>{attempt.pending=false;});
+            attempt.task=task;window._deepBackupAttempt=attempt;window._deepBackupWriteQueue=task;return task;
         };
-        if(!window._deepBackupLeaveBound){window._deepBackupLeaveBound=true;
-            document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')void window.deepBackupNow?.(true);});
-            window.addEventListener('beforeunload',event=>{const record=window.deepBackupBuildRecord?.();if(record){if(!record.pendingRoot)try{localStorage.setItem('timeline_deep_emergency::'+record.roomId+'::'+record.accountId,JSON.stringify(record));}catch(_){}event.preventDefault();event.returnValue='';}else if(window._editMediaTxn?.tempUploads?.length){event.preventDefault();event.returnValue='';}});
+        if(!window._deepBackupLeaveBound){
+            window._deepBackupLeaveBound=true;
+            window.addEventListener('beforeunload',event=>{
+                if(window._deepEditSession||window._editMediaTxn?.tempUploads?.length){event.preventDefault();event.returnValue='';}
+            });
         }
-        window.deepScheduleBackup=function(){
-            if(window._deepBackupDebounce)clearTimeout(window._deepBackupDebounce);
-            window._deepBackupDebounce=setTimeout(()=>window.deepBackupNow?.(),2500);
-        };
         window.deepStartAutosave=function(restored=null){
-            window.deepStopAutosave?.();window._deepBackupFingerprint='';window._deepBackupLastAt=Number(restored?.updatedAt)||0;
-            if(window._deepBackupLastAt)window.deepBackupSetStatus?.(restored?.cloudPending||restored?.pendingRoot||restored?.localOnly?'local':'saved',window._deepBackupLastAt);else window.deepBackupSetStatus?.('waiting');
-            const modal=document.getElementById('deepDescriptionModal');
-            window._deepBackupInputHandler=()=>window.deepScheduleBackup?.();
-            ['input','change','pointerup','click'].forEach(type=>modal?.addEventListener(type,window._deepBackupInputHandler,true));
-            window.deepAutosaveTimer=setInterval(()=>window.deepBackupNow?.(),60*1000);
+            window.deepStopAutosave?.();window._deepBackupAttempt=null;
+            const session=window._deepEditSession;
+            if(session&&!session.autoBaseline)session.autoBaseline={
+                state:window.deepClone(window.deepCanvasState),enabled:window.deepDescriptionEnabledDraft
+            };
+            const at=Number(restored?.updatedAt)||0;
+            window.deepBackupSetStatus?.(at?(restored?.cloudPending||restored?.pendingRoot||restored?.localOnly?'local':'saved'):'waiting',at,restored?.backupKind);
+            window.deepAutosaveTimer=setInterval(()=>{
+                if(!document.getElementById('deepSaveBtn')?.disabled)void window.deepBackupNow('auto');
+            },5*60*1000);
         };
         window.deepStopAutosave=function(){
             if(window.deepAutosaveTimer){clearInterval(window.deepAutosaveTimer);window.deepAutosaveTimer=null;}
-            if(window._deepBackupDebounce){clearTimeout(window._deepBackupDebounce);window._deepBackupDebounce=null;}
-            const modal=document.getElementById('deepDescriptionModal');if(window._deepBackupInputHandler){['input','change','pointerup','click'].forEach(type=>modal?.removeEventListener(type,window._deepBackupInputHandler,true));window._deepBackupInputHandler=null;}
         };
         window.saveDeepDescriptionEditor=async function(){
             const target=window.deepCanvasTarget,obj=window.deepResolveTargetObject?.(target);if(!target||!obj)return;
             if(window.deepResolveTargetObject?.(window._deepEditSession?.target)!==obj){window.showToast?.('当前深入描述目标已变化，请重新打开后编辑','error');return;}
             const button=document.getElementById('deepSaveBtn');if(button?.disabled)return;if(button)button.disabled=true;
             try{await window.withCloudWriteOperation(async()=>{
-                if(!(await window.deepBackupNow(true)))throw new Error('备份失败，请重试后再完成编辑');
+                const backupStarted=performance.now();
+                const backupSaved=await window.deepBackupNow('manual');
+                console.debug('[timeline write timing]',{operation:'completeDeepEdit',backupMs:performance.now()-backupStarted});
+                if(!backupSaved)throw new Error('备份失败，请重试后再完成编辑');
                 if(!window.deepWriteCanvasToTarget())throw new Error('深入描述目标已变化，请重新打开后重试');
                 obj.deepDescription=obj.deepDescription||{version:4,items:[],enabled:false};
                 obj.deepDescription._editBaseRevision=window._deepEditSession.sharedRevision;
                 obj.deepDescription._editCommitId=window._deepEditSession.commitId;
-                obj.deepDescription._editBackupKey=window.deepBackupKey(target);
+                obj.deepDescription._editBackupKey=window.deepBackupKey(target,'manual');
+                const autoKey=window.deepBackupKey(target,'auto'),session=window._deepEditSession;
+                const autoBackup=window._editMediaTxn?.deepBackupRecords?.[autoKey]||session.entryBackups?.[autoKey];
+                if(autoBackup&&window._editMediaTxn){
+                    (window._editMediaTxn.deepBackupRecords||={})[autoKey]=autoBackup;
+                    obj.deepDescription._editBackupOrigins=[autoKey];
+                }
                 window.saveDeepDraftSnapshot(target,obj.deepDescription);
                 const closed=await window.closeDeepDescriptionEditor(false);
                 if(closed!==false&&window._eventEditStatus){window._eventEditStatus.deepCompleted=true;window._eventEditStatus.dirty=true;window.refreshEventEditStatus();}
@@ -9962,7 +10052,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     }
 
                     item.x=Math.max(0,nx);item.y=Math.max(0,ny);item.w=nw;item.h=nh;
-                    window.renderDeepCanvas(false);
+                    window.renderDeepCanvas(false,{deferConnectors:true});
                     window.deepScheduleLiveGeometryRefresh?.();
                     if(item.type==='text'&&!item.editing&&!window.deepTextTool){
                         const currentEl=document.querySelector(`[data-deep-id="${CSS.escape(item.id)}"]`);
@@ -10004,7 +10094,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             if(window._deepLiveGeometryRAF)return;
             window._deepLiveGeometryRAF=requestAnimationFrame(()=>{
                 window._deepLiveGeometryRAF=0;
-                window.deepUpdateConnectors?.();
+                window.deepRefreshConnectorPaths?.();
                 window.deepPositionTextTools?.();
                 window.deepRefreshEraserCursor?.();
             });
@@ -10025,9 +10115,9 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 e.stopPropagation();
                 if(window.deepCanvasSelected!==item.id){ window.deepCanvasSelected=item.id; window.deepSetDrawing(false); window.deepRefreshSelectionVisual?.(); return; }
                 if(item.type==='text' && window.deepTextTool) return;
-                before=window.deepClone(window.deepCanvasState); moved=false; window.deepCanvasSelected=item.id; window.deepSetDrawing(false); sx=e.clientX;sy=e.clientY;ox=item.x;oy=item.y;drag=true;el.setPointerCapture?.(e.pointerId);
+                before=null; moved=false; window.deepCanvasSelected=item.id; window.deepSetDrawing(false); sx=e.clientX;sy=e.clientY;ox=item.x;oy=item.y;drag=true;el.setPointerCapture?.(e.pointerId);
             });
-            el.addEventListener('pointermove',e=>{if(!drag)return;if(!moved&&Math.max(Math.abs(e.clientX-sx),Math.abs(e.clientY-sy))<3)return;moved=true;const [dx,dy]=window.deepClientDeltaToCanvas(e.clientX-sx,e.clientY-sy);item.x=Math.max(0,ox+dx);item.y=Math.max(0,oy+dy);el.style.left=item.x+'px';el.style.top=item.y+'px';window.deepScheduleLiveGeometryRefresh?.();});
+            el.addEventListener('pointermove',e=>{if(!drag)return;if(!moved&&Math.max(Math.abs(e.clientX-sx),Math.abs(e.clientY-sy))<3)return;if(!moved)before=window.deepClone(window.deepCanvasState);moved=true;const [dx,dy]=window.deepClientDeltaToCanvas(e.clientX-sx,e.clientY-sy);item.x=Math.max(0,ox+dx);item.y=Math.max(0,oy+dy);el.style.left=item.x+'px';el.style.top=item.y+'px';window.deepScheduleLiveGeometryRefresh?.();});
             const finishDrag=()=>{if(pointerStartedAt&&Date.now()-pointerStartedAt>420)el._deepLongPress=true;if(!drag)return;drag=false;window.renderDeepCanvas(false);if(moved||el._deepLongPress){item._deepSuppressActivateUntil=Date.now()+750;el._deepSuppressCropUntil=Date.now()+750;if(item.type==='text')item._suppressTextEditUntil=Date.now()+750;}if(before&&moved){window.deepCanvasUndo.push(before);if(window.deepCanvasUndo.length>40)window.deepCanvasUndo.shift();window.deepCanvasRedo=[];}before=null;};el.addEventListener('pointerup',finishDrag);el.addEventListener('pointercancel',finishDrag);
             if(item.type==='text'){
                 const t=el.querySelector('.deep-text-content');
@@ -10168,8 +10258,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             if(window.ResizeObserver){const ro=new ResizeObserver(fitControls);ro.observe(host);host._deepVideoControlsRO=ro;}
             fitControls(); sync(); showControls();
         };
-        window.deepConnectorGeometry=function(conn,items,itemIndex){
-            const a=itemIndex?itemIndex.get(conn.sourceId):items.find(x=>x.id===conn.sourceId), b=itemIndex?itemIndex.get(conn.targetId):items.find(x=>x.id===conn.targetId); if(!a||!b)return null;
+        window.deepConnectorGeometry=function(conn,items){
+            const a=items.find(x=>x.id===conn.sourceId), b=items.find(x=>x.id===conn.targetId); if(!a||!b)return null;
             const ac={x:a.x+a.w/2,y:a.y+a.h/2}, bc={x:b.x+b.w/2,y:b.y+b.h/2}; const dx=bc.x-ac.x,dy=bc.y-ac.y;
             let p1,p2,axis;
             if(Math.abs(dx)>=Math.abs(dy)){axis='h';p1={x:dx>=0?a.x+a.w:a.x,y:ac.y};p2={x:dx>=0?b.x:b.x+b.w,y:bc.y};}
@@ -10184,6 +10274,24 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             else{const span=Math.max(70,Math.abs(p2.y-p1.y)*.42);const sign=p2.y>=p1.y?1:-1;c1={x:p1.x+bend,y:p1.y+span*sign};c2={x:p2.x+bend,y:p2.y-span*sign};}
             return {p1,p2,c1,c2,path:`M ${p1.x} ${p1.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${p2.x} ${p2.y}`};
         };
+        // Moving a canvas item can change obstacle avoidance on unrelated lines.
+        window.deepRefreshConnectorPaths=function(onlyId=null){
+            const items=window.deepCanvasState?.items;
+            const layer=document.querySelector('#deepCanvasStage > svg.deep-connector-layer');
+            if(!items||!layer)return;
+            const connectors=new Map(items.filter(item=>item.type==='connector').map(item=>[String(item.id),item]));
+            for(const group of layer.children){
+                const id=group.getAttribute('data-live-key');
+                if(onlyId!==null&&id!==String(onlyId))continue;
+                const connector=connectors.get(id);
+                if(!connector)continue;
+                const geometry=window.deepConnectorGeometry(connector,items);
+                if(!geometry)continue;
+                for(const path of group.children){
+                    if(path.getAttribute('d')!==geometry.path)path.setAttribute('d',geometry.path);
+                }
+            }
+        };
         window.deepUpdateConnectors=function(){
             const st=document.getElementById('deepCanvasStage'); if(!st||!window.deepCanvasState)return;
             let svg=st.querySelector(':scope > svg.deep-connector-layer');
@@ -10191,9 +10299,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             svg.setAttribute('viewBox',`0 0 ${window.deepCanvasState.width||2600} ${window.deepCanvasState.height||1600}`);
             const desired=document.createElementNS('http://www.w3.org/2000/svg','svg');desired.innerHTML=`<defs><marker id="deepArrowHead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#4f46e5"></path></marker></defs>`;
             const items=window.deepCanvasState.items||[];
-            const itemIndex=new Map(items.map(item=>[item.id,item]));
             items.filter(x=>x.type==='connector').forEach(conn=>{
-                const g=window.deepConnectorGeometry(conn,items,itemIndex);if(!g)return;
+                const g=window.deepConnectorGeometry(conn,items);if(!g)return;
                 const group=document.createElementNS('http://www.w3.org/2000/svg','g');group.setAttribute('data-live-key',conn.id);
                 const hit=document.createElementNS('http://www.w3.org/2000/svg','path');hit.setAttribute('d',g.path);hit.setAttribute('class','deep-connector-hit');
                 const path=document.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d',g.path);path.setAttribute('class','deep-connector-path'+(conn.id===window.deepCanvasSelected?' is-selected':''));path.setAttribute('marker-end','url(#deepArrowHead)');if(conn.direction==='both')path.setAttribute('marker-start','url(#deepArrowHead)');
@@ -10203,8 +10310,9 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     if(e.button!==undefined&&e.button!==0)return;
                     const startX=e.clientX,startY=e.clientY,startCurve=Number(conn.curve)||0,before=window.deepClone(window.deepCanvasState);let moved=false;
                     const geom=window.deepConnectorGeometry(conn,window.deepCanvasState.items||[]);if(!geom)return;const axis=Math.abs(geom.p2.x-geom.p1.x)>=Math.abs(geom.p2.y-geom.p1.y)?'h':'v';
-                    const move=ev=>{const [dx,dy]=window.deepClientDeltaToCanvas(ev.clientX-startX,ev.clientY-startY);const delta=axis==='h'?dy:dx;if(Math.abs(delta)>1)moved=true;conn.curve=Math.max(-360,Math.min(360,startCurve+delta));window.deepUpdateConnectors();};
-                    const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);if(moved){window.deepCanvasUndo.push(before);if(window.deepCanvasUndo.length>40)window.deepCanvasUndo.shift();window.deepCanvasRedo=[];}window.deepUpdateConnectors();};
+                    let curveFrame=0;
+                    const move=ev=>{const [dx,dy]=window.deepClientDeltaToCanvas(ev.clientX-startX,ev.clientY-startY);const delta=axis==='h'?dy:dx;if(Math.abs(delta)>1)moved=true;conn.curve=Math.max(-360,Math.min(360,startCurve+delta));if(!curveFrame)curveFrame=requestAnimationFrame(()=>{curveFrame=0;window.deepRefreshConnectorPaths(conn.id);});};
+                    const up=()=>{if(curveFrame)cancelAnimationFrame(curveFrame);window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);if(moved){window.deepCanvasUndo.push(before);if(window.deepCanvasUndo.length>40)window.deepCanvasUndo.shift();window.deepCanvasRedo=[];}window.deepUpdateConnectors();};
                     window.addEventListener('pointermove',move);window.addEventListener('pointerup',up,{once:true});
                 };
                 hit.onpointerdown=path.onpointerdown=selectAndDrag;group.append(hit,path);desired.appendChild(group);
@@ -10362,7 +10470,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             }
         };
 
-        window.renderDeepCanvas=function(rebuild=true){
+        window.renderDeepCanvas=function(rebuild=true,{deferConnectors=false}={}){
             window.syncDeepHistoryButtons?.();
             const st=document.getElementById('deepCanvasStage'); if(!st||!window.deepCanvasState)return;
             const textFocused=!!document.activeElement?.closest?.('.deep-text-content');
@@ -10378,27 +10486,26 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             window.deepUpdateTextToolControls?.();
             window.deepSyncOpacityControl?.();
             let preservedItems=new Map();
-            const deepItemIndex=new Map(window.deepCanvasState.items.map(item=>[item.id,item]));
             if(rebuild){
                 st.querySelectorAll('.deep-canvas-item[data-deep-id]').forEach(node=>{
                     const id=node.dataset.deepId||'';
-                    const candidate=deepItemIndex.get(id);const live=candidate&&['media','text','link'].includes(candidate.type)?candidate:null;
+                    const live=window.deepCanvasState.items.find(x=>x.id===id&&['media','text','link'].includes(x.type));
                     const signature=live?JSON.stringify([live.src,live.mediaKind,live.crop,live.cover,live.gifCover,live.pictureCoverCloudPath,live.outer]):'';
                     if(live&&node._deepBoundItem===live&&(live.type!=='media'||node._deepMediaSignature===signature))preservedItems.set(id,node);
                 });
                 // Retain live items and drawing layers; only removed or changed media is discarded.
-                const retainedNodes=new Set(preservedItems.values());
-                Array.from(st.childNodes).forEach(node=>{if(!retainedNodes.has(node)&&!node.matches?.('svg.deep-connector-layer,[data-deep-draw-layer],[data-deep-draw-selection-control]'))node.remove();});
+                Array.from(st.childNodes).forEach(node=>{if(!Array.from(preservedItems.values()).includes(node)&&!node.matches?.('svg.deep-connector-layer,[data-deep-draw-layer],[data-deep-draw-selection-control]'))node.remove();});
                 st.style.width=(window.deepCanvasState.width||2200)+'px';st.style.height=(window.deepCanvasState.height||1400)+'px';
             }
-            else {const liveNodes=new Map(Array.from(st.querySelectorAll('.deep-canvas-item[data-deep-id]'),node=>[node.dataset.deepId,node]));window.deepCanvasState.items.forEach(it=>{const el=liveNodes.get(String(it.id));if(el){el.style.left=it.x+'px';el.style.top=it.y+'px';el.style.width=it.w+'px';el.style.height=it.h+'px';if(it.type==='media'){const media=el.querySelector('img,video');if(media)window.deepApplyMediaCrop(media,it,!!media._deepShowingCover);}if(it.type==='text'){const fs=Math.max(6,Math.min(240,Number(it.fontSize)||18));el.style.fontSize=fs+'px';el.dataset.fontSize=(Math.round(fs*10)/10).toString();const tc=el.querySelector('.deep-text-content');if(tc){window.deepApplyCanonicalTextBoxStyle(tc,{height:it.h});tc.style.fontSize=fs+'px';tc.style.textAlign=it.textAlign||'left';}}}}); const selectedText=window.deepCanvasState.items.find(x=>x.id===window.deepCanvasSelected&&x.type==='text');if(selectedText)window.deepSyncFontSizeControls(selectedText); window.deepRenderDrawPaths?.(); window.deepUpdateConnectors(); window.deepUpdateTextToolControls?.(); window.deepSyncOpacityControl?.(); window.deepPositionTextTools?.(); return;}
+            else {window.deepCanvasState.items.forEach(it=>{const el=st.querySelector(`[data-deep-id="${CSS.escape(it.id)}"]`);if(el){el.style.left=it.x+'px';el.style.top=it.y+'px';el.style.width=it.w+'px';el.style.height=it.h+'px';if(it.type==='media'){const media=el.querySelector('img,video');if(media)window.deepApplyMediaCrop(media,it,!!media._deepShowingCover);}if(it.type==='text'){const fs=Math.max(6,Math.min(240,Number(it.fontSize)||18));el.style.fontSize=fs+'px';el.dataset.fontSize=(Math.round(fs*10)/10).toString();const tc=el.querySelector('.deep-text-content');if(tc){window.deepApplyCanonicalTextBoxStyle(tc,{height:it.h});tc.style.fontSize=fs+'px';tc.style.textAlign=it.textAlign||'left';}}}}); const selectedText=window.deepCanvasState.items.find(x=>x.id===window.deepCanvasSelected&&x.type==='text');if(selectedText)window.deepSyncFontSizeControls(selectedText); window.deepRenderDrawPaths?.(); if(!deferConnectors)window.deepUpdateConnectors(); window.deepUpdateTextToolControls?.(); window.deepSyncOpacityControl?.(); window.deepPositionTextTools?.(); return;}
+            window.deepUpdateConnectors();
             window.deepCanvasState.items.forEach(item=>{
                 if(item.type==='draw')return;
                 const reusedItem=preservedItems.get(item.id),reusedMedia=item.type==='media'?reusedItem:null;
                 const el=reusedItem||document.createElement('div');
                 if(reusedItem){ preservedItems.delete(item.id); }
                 el.className='deep-canvas-item '+(item.type==='media'?'deep-canvas-media ':'')+(item.type==='text'?'deep-canvas-text ':'')+(item.type==='link'?'deep-canvas-link ':'')+(item.id===window.deepCanvasSelected?' deep-canvas-selected ':'')+(item.type==='text' && (window.deepTextTool||item.editing)?' tool-visible':''); el.dataset.deepId=item.id; el.style.left=item.x+'px';el.style.top=item.y+'px';el.style.width=item.w+'px';el.style.height=item.h+'px'; if(['media','text','link'].includes(item.type))el.style.zIndex=String(20+(Number(item.layer)||0)); if(window.deepConnectPending?.includes(item.id))el.classList.add('deep-connect-pending');
-                if(item.type==='text'){el.classList.toggle('has-border',!!item.border);el.classList.toggle('editing',!!item.editing);el.dataset.fontSize=(Math.round((Number(item.fontSize)||18)*10)/10).toString();el.style.borderColor=item.borderColor||'#3b82f6';el.style.fontSize=(item.fontSize||18)+'px';el.style.color=item.color||'#334155';el.style.textAlign=item.textAlign||'left';el.style.opacity='1';el.style.fontWeight=item.bold?'700':'400';el.style.fontStyle=item.italic?'italic':'normal';el.style.textDecoration='none';let tc=el.querySelector('.deep-text-content');if(!tc){tc=document.createElement('div');tc.className='deep-text-content';el.appendChild(tc);}const html=item.html||window.deepEsc(item.text||'');if(tc.innerHTML!==html)tc.innerHTML=html; if(tc) tc.contentEditable=item.editing?'true':'false'; if(tc){window.deepApplyCanonicalTextBoxStyle(tc,{height:item.h});tc.style.fontSize=(item.fontSize||18)+'px';tc.style.opacity=item.opacity??1;tc.style.textAlign=item.textAlign||'left';tc.style.textDecoration=[item.underline?'underline':'',item.strike?'line-through':''].filter(Boolean).join(' ')||'none';tc.style.textDecorationColor='currentColor';tc.style.textDecorationSkipInk='none';window.deepSyncDecorationGeometry?.(tc);requestAnimationFrame(()=>{const live=tc;if(live.isConnected&&live.closest('.deep-canvas-item')?.dataset.deepId===String(item.id)){window.deepSyncDecorationGeometry?.(live);if(!item._manualResizing)window.deepAutoFitTextItem(item,live);if(item.editing)window.deepBindTextAutoFit(item,live);}});}}
+                if(item.type==='text'){el.classList.toggle('has-border',!!item.border);el.classList.toggle('editing',!!item.editing);el.dataset.fontSize=(Math.round((Number(item.fontSize)||18)*10)/10).toString();el.style.borderColor=item.borderColor||'#3b82f6';el.style.fontSize=(item.fontSize||18)+'px';el.style.color=item.color||'#334155';el.style.textAlign=item.textAlign||'left';el.style.opacity='1';el.style.fontWeight=item.bold?'700':'400';el.style.fontStyle=item.italic?'italic':'normal';el.style.textDecoration='none';let tc=el.querySelector('.deep-text-content');if(!tc){tc=document.createElement('div');tc.className='deep-text-content';el.appendChild(tc);}const html=item.html||window.deepEsc(item.text||'');if(tc.innerHTML!==html)tc.innerHTML=html; if(tc) tc.contentEditable=item.editing?'true':'false'; if(tc){window.deepApplyCanonicalTextBoxStyle(tc,{height:item.h});tc.style.fontSize=(item.fontSize||18)+'px';tc.style.opacity=item.opacity??1;tc.style.textAlign=item.textAlign||'left';tc.style.textDecoration=[item.underline?'underline':'',item.strike?'line-through':''].filter(Boolean).join(' ')||'none';tc.style.textDecorationColor='currentColor';tc.style.textDecorationSkipInk='none';window.deepSyncDecorationGeometry?.(tc);requestAnimationFrame(()=>{const live=document.querySelector(`[data-deep-id="${CSS.escape(item.id)}"] .deep-text-content`);if(live){window.deepSyncDecorationGeometry?.(live);if(!item._manualResizing)window.deepAutoFitTextItem(item,live);if(item.editing)window.deepBindTextAutoFit(item,live);}});}}
                 else if(item.type==='media'){if(item.mediaKind==='video'){if(!reusedMedia){el.innerHTML='';window.deepRenderVideoCover(el,item);}}else{const deepAnimated=window.isAnimatedImageSource(item.src,item),deepShown=deepAnimated?(item.gifCover||item.src):window.imageDisplaySource(item);if(!reusedMedia||!el.firstElementChild||el.firstElementChild.getAttribute('src')!==deepShown){el.innerHTML=`<img src="${window.deepEsc(deepShown)}" alt="深入描述媒体">`;}const md=el.firstElementChild;const applyMedia=()=>window.deepApplyMediaCrop(md,item,deepShown!==item.src);if(md.complete)applyMedia();else md.addEventListener('load',applyMedia,{once:true});}}else if(item.type==='link'){const safeUrl=window.deepEsc(item.url||'');const safeLabel=window.deepEsc(item.label||item.url||'网址');const holder=document.createElement('template');holder.innerHTML=`<div class="deep-link-inner"><span class="deep-link-icon"><i class="fa-solid fa-globe"></i></span><span class="deep-link-copy"><span class="deep-link-label">${safeLabel}</span><span class="deep-link-url">${safeUrl}</span></span><i class="fa-solid fa-arrow-up-right-from-square text-[11px] text-slate-400"></i></div>`;const inner=el.querySelector('.deep-link-inner');if(inner)window.patchAttachmentNode(inner,holder.content.firstElementChild);else el.prepend(holder.content.firstElementChild);el.title='双击编辑网址';}else if(item.type==='connector'){ el.remove(); return; }
                 if(!reusedItem)st.appendChild(el);
                 el._deepBoundItem=item;el._deepMediaSignature=JSON.stringify([item.src,item.mediaKind,item.crop,item.cover,item.gifCover,item.pictureCoverCloudPath,item.outer]);
@@ -14911,7 +15018,7 @@ viewer.style.visibility='';
         window.scheduleEventEditStatus=function(){const state=window._eventEditStatus;if(!state||state.frame)return;state.frame=requestAnimationFrame(()=>{state.frame=0;if(window._eventEditStatus===state)window.refreshEventEditStatus();});};
         document.addEventListener('input',e=>{const state=window._eventEditStatus;if(state?.host.contains(e.target)){if(!state.ready)state.userEditedDuringInit=true;window.capturePendingEditorFields();window.scheduleEventEditStatus();}},true);
         document.addEventListener('change',e=>{const state=window._eventEditStatus;if(state?.host.contains(e.target)){if(!state.ready)state.userEditedDuringInit=true;window.scheduleEventEditStatus();}},true);
-        document.addEventListener('click',()=>{if(window._eventEditStatus)window.scheduleEventEditStatus();},true);
+        document.addEventListener('click',e=>{if(window._eventEditStatus&&!e.target?.closest?.('#deepDescriptionModal'))window.scheduleEventEditStatus();},true);
 
         window.timelineQueryIsActive=function(){return !!(String(document.getElementById('searchInput')?.value||'').trim()||(window.tagFilterSelected||[]).length||window.timelineDateFilter?.start||window.timelineDateFilter?.end);};
         window.captureTimelineBrowsePosition=function(){
