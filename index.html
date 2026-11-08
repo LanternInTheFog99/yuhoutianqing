@@ -3372,7 +3372,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         };
 
         window.timelineMutationRequest=async function(action,payload){
-            const actions=new Set(['upsertEvent','deleteEvent','saveStackOrder','replaceEventConnections','upsertTag','renameTag','deleteTag','upsertBgm','deleteBgm','commentAdd','commentDelete','copyMediaAsset','xiaoqingerFeed','xiaoqingerForcedWakeStart','updateXiaoqinger']);if(!actions.has(action))return null;
+            const actions=new Set(['upsertEvent','patchEvent','deleteEvent','saveStackOrder','replaceEventConnections','upsertTag','renameTag','deleteTag','upsertBgm','deleteBgm','commentAdd','commentDelete','copyMediaAsset','xiaoqingerFeed','xiaoqingerForcedWakeStart','updateXiaoqinger']);if(!actions.has(action))return null;
             const scope=[window.currentRoomId||'default',window.getCurrentAccountId?.()||'guest'].join('::'),storageKey='timeline_pending_mutations::'+scope;
             let records=[];try{records=JSON.parse(localStorage.getItem(storageKey)||'[]');}catch(_){}
             const canonical=v=>Array.isArray(v)?v.map(canonical):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,canonical(v[k])])):v;
@@ -3445,7 +3445,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 if(['getOwnComments','getNotifications','getOwnIdentityHistory','listMediaAssets','getMediaDeep','getMediaAssetSizes'].includes(action)&&requestedAccountSession!==(window.getAccountSessionToken?.()||''))throw Object.assign(new Error('账号状态已变化，请重新打开'),{code:'account_state_changed'});
                 mutation?.confirm();
                 if (data.version) window._cloudbaseTimelineVersion = String(data.version);
-                if(['getMediaUploadMetadata','finalizeMediaUpload','copyMediaAsset','renameMediaAsset','deleteMediaAsset','upsertEvent','deleteEvent','accountLogout','accountLogin','accountRename'].includes(action))window.invalidateMediaLibrary?.();
+                if(['getMediaUploadMetadata','finalizeMediaUpload','copyMediaAsset','renameMediaAsset','deleteMediaAsset','upsertEvent','deleteEvent','accountLogout','accountLogin','accountRename'].includes(action)||action==='patchEvent'&&['images','videos','timeSegments'].some(key=>Object.hasOwn(payload.patch||{},key)))window.invalidateMediaLibrary?.();
                 return data;
             } finally {
                 clearTimeout(timer);
@@ -4385,7 +4385,40 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             return cloudEvent;
         };
 
-        window.saveEventToCloud = async function(eventData, isNew=false, {render=true}={}) {
+        window.eventPatchFields=['title','date','type','description','tags','tagIds','links','images','videos','deepDescriptionEnabled',
+            'editPermissionMode','allowedEditorProfileIds','developerLocked','developerAllowedProfileIds','timeSegments','timelineSortSegmentId'];
+        window.eventPatchValue=function(key,value){
+            if(['images','videos','links','tags','tagIds','allowedEditorProfileIds','developerAllowedProfileIds','timeSegments'].includes(key))return value||[];
+            if(['deepDescriptionEnabled','developerLocked'].includes(key))return !!value;
+            return value??'';
+        };
+        window.eventSaveValueKey=value=>JSON.stringify(window.activityStableValue(value));
+        window.eventSaveDelta=function(previous,candidate,beforeCovers,previousConnections,candidateConnections,editor){
+            const old=window.prepareEventForCloudBase(previous),patch={};
+            let userChanged=false;
+            const same=(a,b)=>window.eventSaveValueKey(a)===window.eventSaveValueKey(b);
+            const ready=editor?.ready&&String(editor.eventId)===String(previous.id)&&!editor.userEditedDuringInit;
+            const untouchedMedia=ready&&!editor.multi&&!editor.deepCompleted&&!window._hasPendingTempUploads()&&
+                editor.mediaSignature===window.eventSaveValueKey([window.editingImageFiles,window.editingVideos]);
+            const untouchedEditor=ready&&!editor.dirty&&!window._hasPendingTempUploads();
+            for(const key of window.eventPatchFields){
+                if(!Object.hasOwn(candidate,key))continue;
+                const value=window.eventPatchValue(key,candidate[key]);
+                const coverChanged=!same(candidate[key],beforeCovers[key]);
+                if(untouchedEditor&&!coverChanged)continue;
+                if(untouchedMedia&&!coverChanged&&['images','videos'].includes(key))continue;
+                const oldValue=window.eventPatchValue(key,old[key]);
+                if(coverChanged||!same(value,oldValue)){
+                    patch[key]=value;
+                    userChanged||=!same(window.eventPatchValue(key,beforeCovers[key]),oldValue);
+                }
+            }
+            const connectionKey=items=>window.eventSaveValueKey([...items].sort((a,b)=>String(a.id).localeCompare(String(b.id))));
+            const connections=connectionKey(previousConnections)===connectionKey(candidateConnections)?undefined:candidateConnections;
+            return {patch,connections,userChanged:userChanged||connections!==undefined};
+        };
+
+        window.saveEventToCloud = async function(eventData, isNew=false, {render=true,delta=null}={}) {
             const index = window.events.findIndex(e => String(e.id) === String(eventData.id));
             const existingEvent=index>=0?window.events[index]:null;
             const baseRevision = index >= 0 ? Math.max(0, Number(window.events[index]?.revision)||0) : 0;
@@ -4402,8 +4435,8 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
 
             let cloudCommitted=false;
             try {
-                const cloudEvent = window.prepareEventForCloudBase(eventData);delete cloudEvent.connections;
-                const cloudBytes = new TextEncoder().encode(JSON.stringify(cloudEvent)).length;
+                const cloudEvent = delta?{id:eventData.id}:window.prepareEventForCloudBase(eventData);delete cloudEvent.connections;
+                const cloudBytes = new TextEncoder().encode(JSON.stringify(delta?delta.patch:cloudEvent)).length;
                 if (cloudBytes > 5 * 1024 * 1024) {
                     const err = new Error('EVENT_TOO_LARGE');
                     err.code = 'EVENT_TOO_LARGE';
@@ -4411,7 +4444,12 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     throw err;
                 }
                 const requireEditLock=!isNew && String(window._activeEditLockEventId||'')===String(eventData.id);
-                const saveResult = await window.timelineApiWrite('upsertEvent', { event: cloudEvent, ...(Array.isArray(eventData.connections)?{connections:eventData.connections}:{}),isNew:isNew===true, accountId:window.getCurrentAccountId?.()||'', ...(!isNew?{baseRevision,requireEditLock}: {}) });
+                const connections=delta?delta.connections:eventData.connections;
+                const saveResult = await window.timelineApiWrite(delta?'patchEvent':'upsertEvent', {
+                    event:cloudEvent,...(delta?{patch:delta.patch,documentId:existingDocumentId}:{}),
+                    ...(Array.isArray(connections)?{connections}:{}),isNew:isNew===true,
+                    accountId:window.getCurrentAccountId?.()||'',...(!isNew?{baseRevision,requireEditLock}:{})
+                });
                 cloudCommitted=true;
                 // These view flags come from the loaded event, not the editable form.
                 eventData.hasCreator=isNew||existingEvent?.hasCreator===true||existingEvent?.creatorOwned===true;
@@ -4420,7 +4458,13 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 if(Number.isFinite(Number(saveResult?.revision))) eventData.revision=Number(saveResult.revision);
                 eventData._deepSavedRevisions=saveResult?.deepRevisions||{};
                 for(const [path,binding]of Object.entries(saveResult?.mediaCovers||{}))window.applySharedMediaCover(path,binding,eventData);
-                if(saveResult?.connectionsCommitted&&Array.isArray(eventData.connections)){window.connections=(window.connections||[]).filter(c=>String(c.sourceId)!==String(eventData.id)&&String(c.targetId)!==String(eventData.id));window.connections.push(...eventData.connections.map(c=>({...c})));if(render)window.renderSvgConnections?.();}
+                if(saveResult?.connectionsCommitted&&Array.isArray(connections)){window.connections=(window.connections||[]).filter(c=>String(c.sourceId)!==String(eventData.id)&&String(c.targetId)!==String(eventData.id));window.connections.push(...connections.map(c=>({...c})));if(render)window.renderSvgConnections?.();}
+                if(delta&&existingEvent){
+                    for(const key of window.eventPatchFields){
+                        if(Object.hasOwn(delta.patch,key))continue;
+                        if(Object.hasOwn(existingEvent,key))eventData[key]=existingEvent[key];else delete eventData[key];
+                    }
+                }
                 delete eventData.connections;
                 // 云端确认成功后才更新正式本地事件，避免保存失败时页面提前显示未落云的版本。
                 const liveIndex=window.events.findIndex(e=>String(e?.id)===String(eventData.id));
@@ -5980,7 +6024,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
         window.ensureAutomaticFirstFrameCovers=async function(eventData){
             const jobs=[],queued=new WeakSet(),counts={picture:0,gif:0,video:0},picturePaths=new Set();let pictureSizes={};
             const addJob=(obj,kind,run)=>jobs.push({run,kind,index:++counts[kind],cloudPath:String(obj.cloudPath||''),mediaId:String(obj.mediaId||obj.id||'')});
-            const addGif=obj=>{if(!obj||typeof obj!=='object'||obj.gifCover||queued.has(obj))return;queued.add(obj);const src=obj.originalFull||obj.original||obj.outer||obj.src||'';if(!src||!window.isAnimatedImageSource?.(src,obj))return;addJob(obj,'gif',async()=>{const up=await window.makeAutoFirstFrameCover(src,'gif',obj.cloudPath||'');if(up){window.trackUnsavedMediaUpload?.(up.cloudPath||'');obj.gifCover=up.url;obj.gifCoverCloudPath=up.cloudPath||'';obj.sourceWidth=up.sourceWidth||obj.sourceWidth;obj.sourceHeight=up.sourceHeight||obj.sourceHeight;}});};
+            const addGif=obj=>{if(!obj||typeof obj!=='object'||window.resolveMediaCover(obj,'gif').url||queued.has(obj))return;queued.add(obj);const src=obj.originalFull||obj.original||obj.outer||obj.src||'';if(!src||!window.isAnimatedImageSource?.(src,obj))return;addJob(obj,'gif',async()=>{const up=await window.makeAutoFirstFrameCover(src,'gif',obj.cloudPath||'');if(up){window.trackUnsavedMediaUpload?.(up.cloudPath||'');obj.gifCover=up.url;obj.gifCoverCloudPath=up.cloudPath||'';obj.sourceWidth=up.sourceWidth||obj.sourceWidth;obj.sourceHeight=up.sourceHeight||obj.sourceHeight;}});};
             const pictureJobs=new Map();
             const addImage=obj=>{
                 if(!obj||typeof obj!=='object'||queued.has(obj))return;
@@ -6011,7 +6055,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     obj.sourceWidth=cover.sourceWidth||obj.sourceWidth;obj.sourceHeight=cover.sourceHeight||obj.sourceHeight;
                 });
             };
-            const addVideo=obj=>{if(!obj||typeof obj!=='object'||obj.cover||queued.has(obj))return;queued.add(obj);const src=obj.url||obj.src||obj.outer||obj.original||'';if(!src)return;addJob(obj,'video',async()=>{const up=await window.makeAutoFirstFrameCover(src,'video',obj.cloudPath||'');if(up){window.trackUnsavedMediaUpload?.(up.cloudPath||'');obj.cover=up.url;obj.coverCloudPath=up.cloudPath||'';obj.sourceWidth=up.sourceWidth||obj.sourceWidth;obj.sourceHeight=up.sourceHeight||obj.sourceHeight;}});};
+            const addVideo=obj=>{if(!obj||typeof obj!=='object'||window.resolveMediaCover(obj,'video').url||queued.has(obj))return;queued.add(obj);const src=obj.url||obj.src||obj.outer||obj.original||'';if(!src)return;addJob(obj,'video',async()=>{const up=await window.makeAutoFirstFrameCover(src,'video',obj.cloudPath||'');if(up){window.trackUnsavedMediaUpload?.(up.cloudPath||'');obj.cover=up.url;obj.coverCloudPath=up.cloudPath||'';obj.sourceWidth=up.sourceWidth||obj.sourceWidth;obj.sourceHeight=up.sourceHeight||obj.sourceHeight;}});};
             if(Array.isArray(eventData.images))eventData.images=eventData.images.map(x=>typeof x==='string'?window.multiNormalizeImage(x):x);
             (eventData.images||[]).forEach(addImage);(eventData.videos||[]).forEach(addVideo);
             const seen=new WeakSet(),walk=o=>{if(!o||typeof o!=='object'||seen.has(o))return;seen.add(o);if(Array.isArray(o)){o.forEach(walk);return;}if(o.type==='media'){if(o.mediaKind==='video')addVideo(o);else addImage(o);}Object.values(o).forEach(walk);};
@@ -6046,7 +6090,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                     ? (window.connections || []).filter(c => String(c.sourceId) === String(eventData.id) || String(c.targetId) === String(eventData.id))
                     : [];
                 const candidateConnections = Array.isArray(eventData.connections) ? eventData.connections : [];
-                const hasActualEditChange = !isEdit || (
+                let hasActualEditChange = !isEdit || (
                     window.activityEventFingerprint(previousEvent, previousConnections) !==
                     window.activityEventFingerprint(eventData, candidateConnections)
                 );
@@ -6068,15 +6112,29 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 try {
                     if (progressBar) setTimeout(() => progressBar.style.width = '60%', 400);
                     
-                    // Existing cloud references may lack a cover too; inspect every media slot.
+                    const editor=window._eventEditStatus;
+                    if(editor?.ready)window.refreshEventEditStatus();
+                    const beforeCovers=isEdit&&previousEvent?window.prepareEventForCloudBase(eventData):null;
+                    // Covers are checked independently of form changes.
                     saveStage='准备媒体封面';
                     await window.ensureAutomaticFirstFrameCovers(eventData);
                     markSaveStage('coversMs');
                     saveStage='确认媒体上传';
-                    const desiredConnections = eventData.connections || [];
-                    eventData.connections=desiredConnections;
+                    eventData.connections=candidateConnections;
+                    const delta=beforeCovers&&(previousEvent.timeMode==='multi')===(eventData.timeMode==='multi')
+                        ?window.eventSaveDelta(previousEvent,window.prepareEventForCloudBase(eventData),beforeCovers,previousConnections,candidateConnections,editor):null;
+                    if(delta){
+                        const keys=Object.keys(delta.patch);
+                        hasActualEditChange=delta.userChanged;
+                        if(!keys.length&&delta.connections===undefined){
+                            closeSavedEditor();
+                            await window.waitForCloudView?.();
+                            window.showToast('保存成功','success');
+                            return;
+                        }
+                    }
                     saveStage='保存事件';
-                    const cloudSaved = await window.saveEventToCloud(eventData,!isEdit,{render:false});
+                    const cloudSaved = await window.saveEventToCloud(eventData,!isEdit,{render:false,delta});
                     markSaveStage('cloudMs');
                     if (!cloudSaved) throw new Error('cloud save failed');
                     cloudConfirmed=true;pending._isEdit=true;pending.revision=eventData.revision;pending.__cloudDocId=eventData.__cloudDocId;
@@ -15009,6 +15067,7 @@ viewer.style.visibility='';
             state.baselineFrame=requestAnimationFrame(()=>{state.baselineFrame=requestAnimationFrame(()=>{
                 if(window._eventEditStatus!==state)return;
                 state.signature=window.eventEditDataSignature(multi);
+                state.mediaSignature=window.eventSaveValueKey([window.editingImageFiles,window.editingVideos]);
                 window.captureEventEditFields();state.fields=new Map(state.currentFields);
                 state.ready=true;window.refreshEventEditStatus();
             });});
