@@ -5421,17 +5421,15 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
                 deepBackupPaths:{}
             };
         };
-        window.mediaNeedsSharedLock=function(path){
-            const sharing=window.editorMediaSharing(path);return sharing.other||sharing.unknown;
-        };
         window.acquireMediaEditLock=async function(path,{includeDeep=false}={}){
             path=window.mediaPathOf(path);if(!path)return true;window.beginEditMediaTxn?.();const tx=window._editMediaTxn;if(!tx)return false;
             if(tx.mediaLocks?.has(path))return true;
             if(window.isPendingEditMedia(path)&&tx.tempUploads.some(item=>item.tempPath===path&&item.pendingOwner===tx.sessionId))return true;
             const eventLock=window._eventEditLock;
+            let sharing;
             if(eventLock?.timer){
                 const ids=window._mediaCoverIndex?.get(path)?.referencingEventIds;
-                const sharing=window.editorMediaSharing(path);
+                sharing=window.editorMediaSharing(path);
                 const saved=window.getSavedCloudMediaPresentation(path);
                 const soleReference=Array.isArray(ids)?ids.length===1&&String(ids[0])===eventLock.eventId:
                     saved?.mediaReferenceCount===1&&window.editorMediaReferenceIndex().get(path)?.has(eventLock.eventId);
@@ -5440,7 +5438,7 @@ html.qinger-user-hidden #qingerInventory{width:210px!important}
             if(tx.mediaLockRequests?.has(path))return tx.mediaLockRequests.get(path);
             const request=(async()=>{
             const notice=setTimeout(()=>window._cloudUploadNotice?.('正在加载，请稍候…'),450);
-            try{await window.retryMediaLockReleases?.(path);const result=await timelineApiPost('mediaEditLock',{mode:'acquire',cloudPath:path,mediaEditSession:tx.sessionId,shared:window.mediaNeedsSharedLock(path),includeDeep},{auth:'edit',timeoutMs:includeDeep?25000:12000});if(window._editMediaTxn!==tx){void timelineApiPost('mediaEditLock',{mode:'release',cloudPath:path,mediaEditSession:tx.sessionId},{auth:'edit',timeoutMs:8000});return false;}(tx.mediaLocks||=new Set()).add(path);
+            try{await window.retryMediaLockReleases?.(path);sharing??=window.editorMediaSharing(path);const result=await timelineApiPost('mediaEditLock',{mode:'acquire',cloudPath:path,mediaEditSession:tx.sessionId,shared:sharing.other||sharing.unknown,includeDeep},{auth:'edit',timeoutMs:includeDeep?25000:12000});if(window._editMediaTxn!==tx){void timelineApiPost('mediaEditLock',{mode:'release',cloudPath:path,mediaEditSession:tx.sessionId},{auth:'edit',timeoutMs:8000});return false;}(tx.mediaLocks||=new Set()).add(path);
                 if(!tx.mediaLockTimer)tx.mediaLockTimer=setInterval(async()=>{for(const p of tx.mediaLocks||[])try{await timelineApiPost('mediaEditLock',{mode:'heartbeat',cloudPath:p,mediaEditSession:tx.sessionId},{auth:'edit',timeoutMs:10000});}catch(e){if(e.code==='media_lock_lost'){tx.mediaLocks.delete(p);window.showToast?.('媒体编辑锁已失效，请重新打开后编辑','error');}}},30000);return includeDeep&&result.deep?result.deep:true;
             }catch(e){window.showToast?.(e.message||'暂时无法获取媒体编辑锁','error');return false;}
             finally{clearTimeout(notice);window._cloudUploadNotice?.('',false);tx.mediaLockRequests?.delete(path);}
